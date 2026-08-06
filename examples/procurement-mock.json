@@ -3,10 +3,10 @@
   "dashboard_mock": {
     "totalInventoryValuation": 1850000.0,
     "totalActiveSkus": 1248,
-    "lowStockAlerts": 5,
-    "deadSlowStockCapital": 185000.0,
-    "openPoCount": 8,
-    "openPoValue": 210000.0,
+    "lowStockAlerts": 7,
+    "deadSlowStockCapital": 285000.0,
+    "openPoCount": 14,
+    "openPoValue": 412000.0,
     "procurementSpendMtd": 348000.0,
     "procurementSpendBudgetMtd": 380000.0,
     "riskAlerts": [
@@ -18,7 +18,7 @@
       {
         "type": "dead_stock",
         "level": "warning",
-        "message": "Capital locked in slow-moving stock (RM 185K) is 10.0% of total inventory valuation — within normal range"
+        "message": "Capital locked in slow-moving stock (RM 285K) is 15.4% of total inventory valuation — vendor clearance return recommended"
       },
       {
         "type": "lead_time_delay",
@@ -27,159 +27,96 @@
       }
     ],
     "valuationByCategory": [
-      {
-        "category": "Apparel & Fashion Stock",
-        "value": 850000.0
-      },
-      {
-        "category": "Consumer Electronics Stock",
-        "value": 520000.0
-      },
-      {
-        "category": "Lifestyle & Home Items",
-        "value": 310000.0
-      },
-      {
-        "category": "Packaging & Store POS",
-        "value": 170000.0
-      }
+      { "category": "Apparel & Fashion Stock", "value": 850000.0 },
+      { "category": "Consumer Electronics Stock", "value": 520000.0 },
+      { "category": "Lifestyle & Home Items", "value": 310000.0 },
+      { "category": "Packaging & Store POS", "value": 170000.0 }
     ],
     "spendVsBudgetTrend": [
-      {
-        "month": "2025-09",
-        "spend": 312000.0,
-        "budget": 340000.0
-      },
-      {
-        "month": "2025-10",
-        "spend": 358000.0,
-        "budget": 360000.0
-      },
-      {
-        "month": "2025-11",
-        "spend": 395000.0,
-        "budget": 400000.0
-      },
-      {
-        "month": "2025-12",
-        "spend": 440000.0,
-        "budget": 450000.0
-      },
-      {
-        "month": "2026-01",
-        "spend": 320000.0,
-        "budget": 350000.0
-      },
-      {
-        "month": "2026-02",
-        "spend": 310000.0,
-        "budget": 340000.0
-      },
-      {
-        "month": "2026-03",
-        "spend": 365000.0,
-        "budget": 380000.0
-      },
-      {
-        "month": "2026-04",
-        "spend": 348000.0,
-        "budget": 380000.0
-      }
+      { "month": "2025-09", "spend": 312000.0, "budget": 340000.0 },
+      { "month": "2025-10", "spend": 358000.0, "budget": 360000.0 },
+      { "month": "2025-11", "spend": 395000.0, "budget": 400000.0 },
+      { "month": "2025-12", "spend": 440000.0, "budget": 450000.0 },
+      { "month": "2026-01", "spend": 320000.0, "budget": 350000.0 },
+      { "month": "2026-02", "spend": 310000.0, "budget": 340000.0 },
+      { "month": "2026-03", "spend": 365000.0, "budget": 380000.0 },
+      { "month": "2026-04", "spend": 348000.0, "budget": 380000.0 }
     ],
-    "reorderSuggestions": [
-      {
-        "skuCode": "APP-JKT-XL",
-        "skuName": "Autumn Waterproof Jacket (XL - Navy)",
-        "category": "Apparel & Fashion Stock",
-        "onHand": 15,
-        "safetyStock": 50,
-        "avgDailyBurn": 4.5,
-        "runwayDays": 3.3,
-        "suggestedQty": 100,
-        "unitPrice": 120.0,
-        "extendedCost": 12000.0,
-        "preferredVendor": "Vortex Textile Manufacturers",
-        "leadTimeDays": 7,
-        "priority": "critical"
-      },
-      {
-        "skuCode": "ELE-AUD-BT",
-        "skuName": "Smart Home Wireless Audio Speaker",
-        "category": "Consumer Electronics Stock",
-        "onHand": 22,
-        "safetyStock": 40,
-        "avgDailyBurn": 3.8,
-        "runwayDays": 5.7,
-        "suggestedQty": 60,
-        "unitPrice": 210.0,
-        "extendedCost": 12600.0,
-        "preferredVendor": "SonicTech Electronics Supply",
-        "leadTimeDays": 5,
-        "priority": "urgent"
-      }
+    "skuCatalog": [
+      { "sku": "APP-JKT-XL", "item_name": "Autumn Waterproof Jacket (XL - Navy)", "category": "Apparel & Fashion", "unit_cost": 120.0, "current_qty": 15, "safety_reorder_point": 50, "location_bin": "A-12-04", "status": "Low Stock" },
+      { "sku": "ELE-AUD-BT", "item_name": "Smart Home Wireless Audio Speaker", "category": "Consumer Electronics", "unit_cost": 210.0, "current_qty": 22, "safety_reorder_point": 40, "location_bin": "B-05-02", "status": "Low Stock" },
+      { "sku": "LIF-CSH-01", "item_name": "Ergonomic Lumbar Office Cushion", "category": "Lifestyle & Home", "unit_cost": 45.0, "current_qty": 180, "safety_reorder_point": 60, "location_bin": "C-08-01", "status": "In Stock" },
+      { "sku": "PKG-BOX-M", "item_name": "Heavy-Duty Shipping Box (Medium)", "category": "Packaging & Store POS", "unit_cost": 4.5, "current_qty": 2400, "safety_reorder_point": 500, "location_bin": "W-01-09", "status": "In Stock" },
+      { "sku": "APP-TEE-BLK", "item_name": "Organic Cotton Crewneck T-Shirt (M)", "category": "Apparel & Fashion", "unit_cost": 28.0, "current_qty": 420, "safety_reorder_point": 100, "location_bin": "A-02-08", "status": "In Stock" },
+      { "sku": "ELE-HUB-V2", "item_name": "Shogun Smart Home Hub Gateway v2", "category": "Consumer Electronics", "unit_cost": 340.0, "current_qty": 8, "safety_reorder_point": 25, "location_bin": "B-01-01", "status": "Out of Stock" }
     ],
-    "vendorScorecards": [
-      {
-        "vendorName": "Vortex Textile Manufacturers",
-        "category": "Apparel & Fashion",
-        "spendYtd": 640000.0,
-        "otdPct": 92.5,
-        "qualityPassPct": 98.4,
-        "activePos": 2,
-        "riskLevel": "low"
-      },
-      {
-        "vendorName": "SonicTech Electronics Supply",
-        "category": "Consumer Electronics",
-        "spendYtd": 520000.0,
-        "otdPct": 96.0,
-        "qualityPassPct": 99.1,
-        "activePos": 3,
-        "riskLevel": "low"
-      },
-      {
-        "vendorName": "PackPro Logistics & Packaging",
-        "category": "Packaging & Store POS",
-        "spendYtd": 210000.0,
-        "otdPct": 88.0,
-        "qualityPassPct": 95.0,
-        "activePos": 1,
-        "riskLevel": "medium"
-      }
+    "deadSlowStock": [
+      { "sku": "APP-SWT-RETRO", "item_name": "Retro Wool Sweater 2024 Edition", "category": "Apparel & Fashion", "current_qty": 240, "days_since_last_movement": 145, "months_of_cover": 14.2, "total_tied_value": 144000.0, "action_recommendation": "25% Promo Discount" },
+      { "sku": "ELE-SPK-OLD", "item_name": "Bluetooth Speaker Gen-1 (Black)", "category": "Consumer Electronics", "current_qty": 95, "days_since_last_movement": 190, "months_of_cover": 18.5, "total_tied_value": 85500.0, "action_recommendation": "Vendor Clearance Return" },
+      { "sku": "LIF-LAMP-VINT", "item_name": "Vintage Brass Desk Lamp", "category": "Lifestyle & Home", "current_qty": 110, "days_since_last_movement": 120, "months_of_cover": 11.0, "total_tied_value": 55500.0, "action_recommendation": "Bundle Promo with Top SKU" }
     ],
-    "openPurchaseOrders": [
-      {
-        "poNumber": "PO-2026-0812",
-        "vendorName": "Vortex Textile Manufacturers",
-        "totalAmount": 120000.0,
-        "status": "In Transit",
-        "expectedDelivery": "2026-08-10",
-        "overdueDays": 0
-      },
-      {
-        "poNumber": "PO-2026-0814",
-        "vendorName": "SonicTech Electronics Supply",
-        "totalAmount": 90000.0,
-        "status": "Pending Approval",
-        "expectedDelivery": "2026-08-18",
-        "overdueDays": 0
-      }
+    "warehouseBinCapacity": [
+      { "location": "Penang FIZ Central Warehouse", "used": 1420, "capacity": 1800, "utilisation_pct": 78.9 },
+      { "location": "Shah Alam Logistics Hub B", "used": 980, "capacity": 1200, "utilisation_pct": 81.7 },
+      { "location": "Johor Bahru Regional Depot", "used": 610, "capacity": 900, "utilisation_pct": 67.8 }
+    ],
+    "poPipeline": [
+      { "stage": "Requisition Submitted", "count": 6, "value": 85000.0 },
+      { "stage": "Pending Executive Sign-off", "count": 4, "value": 145000.0 },
+      { "stage": "Issued to Vendor", "count": 3, "value": 110000.0 },
+      { "stage": "In Transit & Delivery", "count": 2, "value": 72000.0 }
+    ],
+    "activePurchaseOrders": [
+      { "po_number": "PO-2026-0812", "vendor": "Master Textile & Apparel Ltd", "order_date": "2026-07-28", "expected_delivery": "2026-08-10", "total_amount": 120000.0, "fulfillment_status": "Issued to Vendor", "approval_status": "Approved" },
+      { "po_number": "PO-2026-0814", "vendor": "Apex Tech OEM Corporation", "order_date": "2026-08-01", "expected_delivery": "2026-08-18", "total_amount": 90000.0, "fulfillment_status": "Pending Approval", "approval_status": "Pending Approval" },
+      { "po_number": "PO-2026-0819", "vendor": "PackPro Logistics & Packaging", "order_date": "2026-08-04", "expected_delivery": "2026-08-12", "total_amount": 35000.0, "fulfillment_status": "Partially Received", "approval_status": "Approved" }
+    ],
+    "executiveApprovalQueue": [
+      { "po_number": "PO-2026-0814", "vendor": "Apex Tech OEM Corporation", "order_date": "2026-08-01", "total_amount": 90000.0, "requester_dept": "Procurement / Electronics", "threshold_myr": 50000.0, "approval_status": "Pending Executive Approval" },
+      { "po_number": "PO-2026-0820", "vendor": "Master Textile & Apparel Ltd", "order_date": "2026-08-05", "total_amount": 145000.0, "requester_dept": "Procurement / Apparel", "threshold_myr": 100000.0, "approval_status": "Clarification Requested" }
+    ],
+    "vendorScorecard": [
+      { "vendor": "Master Textile & Apparel Ltd", "preferred_category": "Apparel & Fashion", "ytd_spend": 640000.0, "on_time_delivery_rate": 92.5, "quality_acceptance_rate": 98.4, "sla_status": "Top Tier" },
+      { "vendor": "Apex Tech OEM Corporation", "preferred_category": "Consumer Electronics", "ytd_spend": 520000.0, "on_time_delivery_rate": 96.0, "quality_acceptance_rate": 99.1, "sla_status": "Top Tier" },
+      { "vendor": "PackPro Logistics & Packaging", "preferred_category": "Packaging & Store POS", "ytd_spend": 210000.0, "on_time_delivery_rate": 88.0, "quality_acceptance_rate": 95.0, "sla_status": "Satisfactory" }
+    ],
+    "vendorSpendConcentration": [
+      { "vendor": "Master Textile & Apparel Ltd", "spend": 640000.0, "spend_pct": 46.7 },
+      { "vendor": "Apex Tech OEM Corporation", "spend": 520000.0, "spend_pct": 38.0 },
+      { "vendor": "PackPro Logistics & Packaging", "spend": 210000.0, "spend_pct": 15.3 }
+    ],
+    "stockMovements": [
+      { "timestamp": "2026-08-06 14:30", "sku": "APP-JKT-XL", "item_name": "Autumn Waterproof Jacket (XL)", "movement_type": "- Issue", "quantity": 35, "reference_id": "SO-2026-0941", "location_id": "Penang Central", "actor": "Chee How" },
+      { "timestamp": "2026-08-06 11:15", "sku": "ELE-AUD-BT", "item_name": "Smart Home Wireless Audio Speaker", "movement_type": "+ Receive", "quantity": 100, "reference_id": "PO-2026-0810", "location_id": "Shah Alam Hub", "actor": "Raymond Lim" },
+      { "timestamp": "2026-08-05 16:45", "sku": "LIF-CSH-01", "item_name": "Ergonomic Lumbar Office Cushion", "movement_type": "~ Adjustment", "quantity": 5, "reference_id": "AUD-2026-042", "location_id": "JB Depot", "actor": "Audit Bot" },
+      { "timestamp": "2026-08-05 09:20", "sku": "ELE-HUB-V2", "item_name": "Shogun Smart Home Hub Gateway v2", "movement_type": "! Damage", "quantity": 2, "reference_id": "DMG-2026-011", "location_id": "Shah Alam Hub", "actor": "Store Mgr" },
+      { "timestamp": "2026-08-04 15:10", "sku": "APP-TEE-BLK", "item_name": "Organic Cotton Crewneck T-Shirt", "movement_type": "↺ Return", "quantity": 12, "reference_id": "RET-2026-008", "location_id": "Penang Central", "actor": "Customer Support" }
+    ],
+    "movementTypeDistribution": [
+      { "movement_type": "+ Receive", "count": 48, "quantity": 3400 },
+      { "movement_type": "- Issue", "count": 142, "quantity": 5800 },
+      { "movement_type": "~ Adjustment", "count": 14, "quantity": 45 },
+      { "movement_type": "! Damage", "count": 3, "quantity": 8 },
+      { "movement_type": "↺ Return", "count": 9, "quantity": 62 }
+    ],
+    "shrinkageFlagItems": [
+      { "timestamp": "2026-08-05 09:20", "sku": "ELE-HUB-V2", "item_name": "Shogun Smart Home Hub Gateway v2", "movement_type": "! Damage", "quantity": 2, "reference_id": "DMG-2026-011", "location_id": "Shah Alam Hub", "actor": "Store Mgr" }
     ],
     "accountingBridge": {
-      "unbilledReceivedGoods": 45000.0,
-      "pendingApInvoices": 210000.0,
-      "poToInvoiceMatchRatePct": 97.5,
-      "unreconciledVariances": [
-        {
-          "poNumber": "PO-2026-0790",
-          "vendor": "PackPro Logistics & Packaging",
-          "poAmount": 15000.0,
-          "invoiceAmount": 15450.0,
-          "variance": 450.0,
-          "reason": "Freight Surcharge",
-          "status": "Pending Manager Sign-off"
-        }
-      ]
-    }
+      "enabled": true,
+      "provider": "Bukku",
+      "connected": true,
+      "last_sync": "2026-08-06 15:00"
+    },
+    "poBillConversionQueue": [
+      { "po_number": "PO-2026-0812", "vendor": "Master Textile & Apparel Ltd", "date_received": "2026-08-04", "total_amount": 120000.0, "sync_status": "Ready to Sync" },
+      { "po_number": "PO-2026-0810", "vendor": "Apex Tech OEM Corporation", "date_received": "2026-08-05", "total_amount": 85000.0, "sync_status": "Synced to Bukku" },
+      { "po_number": "PO-2026-0790", "vendor": "PackPro Logistics & Packaging", "date_received": "2026-07-30", "total_amount": 15450.0, "sync_status": "Sync Error" }
+    ],
+    "glValuationReconciliation": [
+      { "account_code": "1300-APP", "physical_stock_value": 850000.0, "gl_book_value": 850000.0, "variance": 0.0, "variance_pct": 0.0, "reconciliation_status": "Reconciled" },
+      { "account_code": "1300-ELE", "physical_stock_value": 520000.0, "gl_book_value": 520000.0, "variance": 0.0, "variance_pct": 0.0, "reconciliation_status": "Reconciled" },
+      { "account_code": "1300-LIF", "physical_stock_value": 310000.0, "gl_book_value": 314500.0, "variance": -4500.0, "variance_pct": -1.43, "reconciliation_status": "Variance Flagged" }
+    ]
   }
 }
