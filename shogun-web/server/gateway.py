@@ -306,6 +306,10 @@ async def _generate_department_response_async(
         "engineering": ("Engineering", "Koku", "technical architecture, code reviews, and CI/CD pipelines"),
         "projects": ("Projects", "Koku", "project milestones, task tracking, and deliverable management"),
         "product": ("Product", "Koku", "product roadmap, feature specifications, and user feedback"),
+        "customer-support": ("Customer Support", "Shien", "customer support tickets, SLAs, and customer success workflows"),
+        "coding": ("Coding", "Gijutsu", "codebase ops, deployments, and technical delivery"),
+        "estate-ops": ("Estate Operations", "Gozen", "estate management, document scanning, site inspections, and worker welfare"),
+        "worker-welfare": ("Worker Welfare", "Ryō", "staff quarters, welfare, and site conditions"),
     }
 
     display_name, persona, duties = catalog_personas.get(

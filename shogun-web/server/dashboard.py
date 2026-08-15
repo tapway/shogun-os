@@ -11,12 +11,13 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, Path
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
+from config import get_config
 from database import get_db, get_primary_tenant
 from gbrain_client import gbrain_fetch_pages
 from models import Department, User
@@ -2184,3 +2185,107 @@ async def get_procurement_stats(
     """Aggregated Procurement dashboard stats — all 5 tabs."""
     pages = await gbrain_fetch_pages("procurement", limit=300)
     return _run_procurement_aggregation(pages)
+
+
+# ---------------------------------------------------------------------------
+# Plantation Estate Operations dashboard endpoints
+# ---------------------------------------------------------------------------
+
+
+async def _call_estate_agent(name: str, prompt: str) -> str:
+    """Call the Hermes agent for the estate-ops department via the gateway."""
+    try:
+        from gateway import _generate_department_response_async
+    except ImportError:
+        # Fallback: try a direct LLM call via the gateway's embedded agent
+        return '{"error": "Gateway agent function not available — start the Hermes gateway"}'
+
+    response = await _generate_department_response_async(
+        name, prompt, soul_content="", attachments=None
+    )
+    return response
+
+
+def _extract_json_from_text(text: str, is_array: bool = False) -> Any:
+    """Try to extract JSON from the agent's text response."""
+    pattern = r'\[[\s\S]*\]' if is_array else r'\{[\s\S]*\}'
+    match = _re.search(pattern, text)
+    if match:
+        try:
+            return json.loads(match.group())
+        except json.JSONDecodeError:
+            pass
+    return [] if is_array else {"raw_response": text}
+
+
+@router.post("/scan-document")
+async def scan_document(
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a document, send to Hermes agent for OCR + interpretation + storage."""
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+    upload_dir.mkdir(exist_ok=True)
+    file_path = upload_dir / file.filename
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    prompt = (
+        f"Scan the document at {file_path}: "
+        f"OCR it (use document-ocr skill), classify the type (use document-interpretation), "
+        f"extract key fields, generate a summary, and store to gbrain (use document-storage). "
+        f"Return JSON with: document_type, fields, summary, storage_path."
+    )
+    response_text = await _call_estate_agent(name, prompt)
+    result = _extract_json_from_text(response_text, is_array=False)
+    return result
+
+
+@router.post("/inspect-site")
+async def inspect_site(
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Upload a photo/video, send to Hermes agent for site assessment + storage."""
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+    upload_dir.mkdir(exist_ok=True)
+    file_path = upload_dir / file.filename
+    with open(file_path, "wb") as f:
+        content = await file.read()
+        f.write(content)
+
+    prompt = (
+        f"Inspect this site image at {file_path}: "
+        f"assess furniture count, cleanliness, site condition, and safety (use site-condition-assessment skill). "
+        f"Store the report to gbrain (use site-inspection-storage skill). "
+        f"Return JSON with: furniture, cleanliness, site_condition, safety_hazards, "
+        f"overall_rating, priority_actions, storage_path."
+    )
+    response_text = await _call_estate_agent(name, prompt)
+    result = _extract_json_from_text(response_text, is_array=False)
+    return result
+
+
+@router.get("/search-documents")
+async def search_documents(
+    name: str = Path(...),
+    q: str = Query(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Search stored documents via Hermes agent."""
+    prompt = (
+        f"Search for documents matching '{q}' (use document-retrieval skill). "
+        f"Return JSON array with: title, summary, and key fields for each match. "
+        f"If no results, return empty array."
+    )
+    response_text = await _call_estate_agent(name, prompt)
+    results = _extract_json_from_text(response_text, is_array=True)
+    return {"results": results}
