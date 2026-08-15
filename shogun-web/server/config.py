@@ -15,6 +15,18 @@ from typing import Any, Dict, List, Optional
 SHOGUN_HOME = Path(os.environ.get("SHOGUN_HOME", Path.home() / ".shogun-os")).expanduser()
 CONFIG_PATH = SHOGUN_HOME / "web.json"
 DB_PATH = SHOGUN_HOME / "web.db"
+SSO_PEERS_PATH = SHOGUN_HOME / "sso-peers.json"
+
+
+@dataclass
+class SSOPeer:
+    """A trusted SSO peer site (one of the 6 'Website 1' instances)."""
+
+    id: str = ""            # slug identifier (e.g. "portal", "crm", "erp")
+    name: str = ""          # display name (e.g. "Main Portal")
+    origin: str = ""        # website 1's base URL (e.g. "https://portal.company.com")
+    secret: str = ""        # per-site HMAC secret (different for each peer)
+    active: bool = True     # if False, tokens from this peer are rejected
 
 
 @dataclass
@@ -49,6 +61,7 @@ class WebConfig:
     static_dir: str = ""
     gbrain_base_url: str = "http://127.0.0.1:7432"
     brain_root: str = str(Path.home() / "brain")
+    seed_demo_brain: bool = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
 
     # CORS
     cors_origins: List[str] = field(
@@ -70,6 +83,17 @@ class WebConfig:
     public_base_url: str = "http://localhost:8787"
     google_oauth: OAuthProviderConfig = field(default_factory=OAuthProviderConfig)
     microsoft_oauth: OAuthProviderConfig = field(default_factory=OAuthProviderConfig)
+
+    # Cross-domain SSO (Website 1 redirects → Shogun = Website 2)
+    # A shared HMAC secret between trusted sites. If empty, SSO endpoints return 503.
+    sso_secret: str = ""
+    # Allowed origins of Website 1 (for browser redirect + CORS + Referer check)
+    sso_trusted_origins: List[str] = field(default_factory=list)
+    # Max age (seconds) of a SSO identity token before it's rejected. Default 2 minutes.
+    sso_token_max_age_seconds: int = 120
+    # If True, a SSO token for an unknown email auto-creates a 'user' (staff) account.
+    # If False (default), unknown emails are rejected — user must already exist in Shogun.
+    sso_auto_provision: bool = False
 
     # Default department gateway port base (profile N uses base + N)
     gateway_port_base: int = 18789
@@ -159,6 +183,23 @@ def _apply_env(cfg: WebConfig) -> WebConfig:
     if env.get("MICROSOFT_OAUTH_REDIRECT_URI"):
         cfg.microsoft_oauth.redirect_uri = env["MICROSOFT_OAUTH_REDIRECT_URI"]
 
+    # Cross-domain SSO
+    if env.get("SHOGUN_SSO_SECRET"):
+        cfg.sso_secret = env["SHOGUN_SSO_SECRET"]
+    if env.get("SHOGUN_SSO_TRUSTED_ORIGINS"):
+        cfg.sso_trusted_origins = [
+            o.strip() for o in env["SHOGUN_SSO_TRUSTED_ORIGINS"].split(",") if o.strip()
+        ]
+    if env.get("SHOGUN_SSO_TOKEN_MAX_AGE"):
+        try:
+            cfg.sso_token_max_age_seconds = int(env["SHOGUN_SSO_TOKEN_MAX_AGE"])
+        except ValueError:
+            pass
+    if env.get("SHOGUN_SSO_AUTO_PROVISION"):
+        cfg.sso_auto_provision = env["SHOGUN_SSO_AUTO_PROVISION"].lower() in {
+            "1", "true", "yes", "on"
+        }
+
     return cfg
 
 
@@ -201,6 +242,10 @@ def load_config(force_reload: bool = False) -> WebConfig:
         public_base_url=str(data.get("public_base_url", "http://localhost:8787")),
         google_oauth=google,
         microsoft_oauth=microsoft,
+        sso_secret=str(data.get("sso_secret", "") or ""),
+        sso_trusted_origins=list(data.get("sso_trusted_origins") or []),
+        sso_token_max_age_seconds=int(data.get("sso_token_max_age_seconds", 120)),
+        sso_auto_provision=bool(data.get("sso_auto_provision", False)),
         gateway_port_base=int(data.get("gateway_port_base", 18789)),
     )
 
@@ -285,3 +330,74 @@ DEFAULT_DEPARTMENTS: List[Dict[str, Any]] = [
         "port_offset": 10,
     },
 ]
+
+
+# ---------------------------------------------------------------------------
+# SSO peer site management (~/.shogun-os/sso-peers.json)
+#
+# Each peer = one of the 6 "Website 1" instances. Each gets its own secret so
+# if one site is compromised, the others are unaffected. The file is a list of
+# SSOPeer dicts. Loaded/saved here so the admin API and config share one source.
+# ---------------------------------------------------------------------------
+
+
+def _peer_from_dict(data: Dict[str, Any]) -> SSOPeer:
+    return SSOPeer(
+        id=str(data.get("id", "") or "").strip(),
+        name=str(data.get("name", "") or "").strip(),
+        origin=str(data.get("origin", "") or "").strip().rstrip("/"),
+        secret=str(data.get("secret", "") or ""),
+        active=bool(data.get("active", True)),
+    )
+
+
+def _peer_to_dict(peer: SSOPeer) -> Dict[str, Any]:
+    return {
+        "id": peer.id,
+        "name": peer.name,
+        "origin": peer.origin,
+        "secret": peer.secret,
+        "active": peer.active,
+    }
+
+
+def load_sso_peers() -> List[SSOPeer]:
+    """Load all SSO peer sites from ``~/.shogun-os/sso-peers.json``."""
+    if not SSO_PEERS_PATH.is_file():
+        return []
+    try:
+        with SSO_PEERS_PATH.open("r", encoding="utf-8") as fh:
+            raw = json.load(fh)
+        if not isinstance(raw, list):
+            return []
+        peers = [_peer_from_dict(p) for p in raw if isinstance(p, dict)]
+        # Filter out peers without id or secret (incomplete entries)
+        return [p for p in peers if p.id and p.secret]
+    except (OSError, json.JSONDecodeError):
+        return []
+
+
+def save_sso_peers(peers: List[SSOPeer]) -> None:
+    """Persist the full peer list to ``~/.shogun-os/sso-peers.json``."""
+    SHOGUN_HOME.mkdir(parents=True, exist_ok=True)
+    payload = [_peer_to_dict(p) for p in peers]
+    with SSO_PEERS_PATH.open("w", encoding="utf-8") as fh:
+        json.dump(payload, fh, indent=2, sort_keys=True)
+        fh.write("\n")
+
+
+def get_sso_peer_by_id(peer_id: str) -> Optional[SSOPeer]:
+    """Look up a single peer by its id slug."""
+    for peer in load_sso_peers():
+        if peer.id == peer_id:
+            return peer
+    return None
+
+
+def get_sso_peer_by_origin(origin: str) -> Optional[SSOPeer]:
+    """Look up a peer by its origin URL (for the Origin header check)."""
+    origin_n = (origin or "").rstrip("/")
+    for peer in load_sso_peers():
+        if peer.origin == origin_n:
+            return peer
+    return None

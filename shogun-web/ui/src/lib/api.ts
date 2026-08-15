@@ -13,9 +13,11 @@ import type {
   BrainPage,
   CeoDashboardStats,
   ChangePasswordPayload,
+  ChatAttachment,
   ChatMessage,
   Company,
   ConnectionTestResult,
+  Connector,
   CreateStaffPayload,
   DashboardConfig,
   Department,
@@ -26,6 +28,7 @@ import type {
   OnboardingState,
   ProcurementDashboardStats,
   ProviderConfig,
+  Skill,
   StaffMember,
   User,
 } from './types';
@@ -45,12 +48,22 @@ export class ApiError extends Error {
 }
 
 export function getToken(): string | null {
-  return localStorage.getItem(TOKEN_KEY);
+  return localStorage.getItem(TOKEN_KEY) || sessionStorage.getItem(TOKEN_KEY);
 }
 
-export function setToken(token: string | null) {
-  if (token) localStorage.setItem(TOKEN_KEY, token);
-  else localStorage.removeItem(TOKEN_KEY);
+export function setToken(token: string | null, keepSignedIn: boolean = true) {
+  if (token) {
+    if (keepSignedIn) {
+      localStorage.setItem(TOKEN_KEY, token);
+      sessionStorage.removeItem(TOKEN_KEY);
+    } else {
+      sessionStorage.setItem(TOKEN_KEY, token);
+      localStorage.removeItem(TOKEN_KEY);
+    }
+  } else {
+    localStorage.removeItem(TOKEN_KEY);
+    sessionStorage.removeItem(TOKEN_KEY);
+  }
 }
 
 async function parseError(res: Response): Promise<ApiError> {
@@ -97,7 +110,8 @@ export async function apiFetch<T>(
 function wsUrl(path: string): string {
   const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
   const token = getToken();
-  const base = `${proto}//${window.location.host}${path}`;
+  const host = window.location.port === '5173' ? '127.0.0.1:8000' : window.location.host;
+  const base = `${proto}//${host}${path}`;
   if (!token) return base;
   const sep = path.includes('?') ? '&' : '?';
   return `${base}${sep}token=${encodeURIComponent(token)}`;
@@ -273,11 +287,16 @@ export const departmentsApi = {
 export const brainApi = {
   list: async (dept: string, q?: string) => {
     const qs = q ? `?q=${encodeURIComponent(q)}` : '';
-    const res = await apiFetch<BrainPage[] | { pages?: BrainPage[] }>(`/api/departments/${dept}/brain${qs}`);
-    if (Array.isArray(res)) return res;
-    if (res && typeof res === 'object' && Array.isArray(res.pages)) return res.pages;
-    return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await apiFetch<any>(`/api/departments/${dept}/brain${qs}`);
+    const files = res?.files || (Array.isArray(res) ? res : res?.pages || res?.result?.pages || []);
+    const folders = res?.folders || [];
+    return { files, folders };
   },
+  getFileContent: (dept: string, path: string) =>
+    apiFetch<{ name: string; path: string; ext: string; content: string }>(
+      `/api/departments/${dept}/brain/file-content?path=${encodeURIComponent(path)}`,
+    ),
   get: (dept: string, slug: string) =>
     apiFetch<BrainPage>(`/api/departments/${dept}/brain/${encodeURIComponent(slug)}`),
   backlinks: (dept: string, slug: string) =>
@@ -285,12 +304,13 @@ export const brainApi = {
       `/api/departments/${dept}/brain/${encodeURIComponent(slug)}/backlinks`,
     ),
   search: async (dept: string, query: string) => {
-    const res = await apiFetch<BrainPage[] | { pages?: BrainPage[] }>(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const res = await apiFetch<any>(
       `/api/departments/${dept}/brain/search?q=${encodeURIComponent(query)}`,
     );
-    if (Array.isArray(res)) return res;
-    if (res && typeof res === 'object' && Array.isArray(res.pages)) return res.pages;
-    return [];
+    const files = res?.files || (Array.isArray(res) ? res : res?.pages || res?.result?.pages || []);
+    const folders = res?.folders || [];
+    return { files, folders };
   },
 };
 
@@ -313,6 +333,78 @@ export const docsApi = {
 export const chatApi = {
   history: (dept: string) =>
     apiFetch<ChatMessage[]>(`/api/departments/${dept}/chat/history`),
+  saveMessages: (dept: string, messages: ChatMessage[]) =>
+    apiFetch<{ ok: boolean; saved_count: number }>(`/api/departments/${dept}/chat/messages`, {
+      method: 'POST',
+      body: JSON.stringify({ messages }),
+    }),
+  uploadFile: async (dept: string, file: File) => {
+    const formData = new FormData();
+    formData.append('file', file);
+    const token = getToken();
+    const headers: Record<string, string> = {};
+    if (token) headers['Authorization'] = `Bearer ${token}`;
+    const res = await fetch(`/api/departments/${dept}/chat/upload`, {
+      method: 'POST',
+      headers,
+      body: formData,
+    });
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({ detail: 'Upload failed' }));
+      throw new Error(err.detail || 'Upload failed');
+    }
+    return res.json() as Promise<{
+      ok: boolean;
+      attachment: {
+        id: string;
+        name: string;
+        url: string;
+        mime_type: string;
+        size_bytes: number;
+        is_image: boolean;
+      };
+    }>;
+  },
+};
+
+export const connectorsApi = {
+  list: (dept: string) =>
+    apiFetch<{ connectors: Connector[] }>(`/api/departments/${dept}/connectors`),
+  toggle: (dept: string, connectorId: string) =>
+    apiFetch<{ ok: boolean; connector: Connector }>(`/api/departments/${dept}/connectors/${connectorId}/toggle`, {
+      method: 'POST',
+    }),
+};
+
+export interface SkillRecommendation {
+  explanation: string;
+  recommendations: Array<{ skill_id: string; match_pct: number; reason: string }>;
+  shogunify_suggestion?: {
+    needed: boolean;
+    mode: string;
+    command: string;
+    description: string;
+  };
+}
+
+export const skillsApi = {
+  listAll: () => apiFetch<{ skills: Skill[] }>('/api/skills'),
+  listDepartment: (dept: string) =>
+    apiFetch<{ skills: Skill[] }>(`/api/departments/${dept}/skills`),
+  install: (skillId: string, dept?: string) =>
+    apiFetch<{ ok: boolean; skill: Skill }>('/api/skills/install', {
+      method: 'POST',
+      body: JSON.stringify({ skill_id: skillId, department: dept }),
+    }),
+  deleteDepartmentSkill: (dept: string, skillId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/departments/${dept}/skills/${skillId}`, {
+      method: 'DELETE',
+    }),
+  recommend: (prompt: string) =>
+    apiFetch<SkillRecommendation>('/api/skills/recommend', {
+      method: 'POST',
+      body: JSON.stringify({ prompt }),
+    }),
 };
 
 export type ChatSocketEvent =
@@ -328,6 +420,7 @@ export function useChatSocket(
   opts?: {
     enabled?: boolean;
     onEvent?: (event: ChatSocketEvent) => void;
+    resetKey?: number;
   },
 ) {
   const [connected, setConnected] = useState(false);
@@ -339,41 +432,44 @@ export function useChatSocket(
   useEffect(() => {
     if (!department || opts?.enabled === false) return;
 
-    let closed = false;
-    let retry = 0;
+    let isMounted = true;
     let timer: number | undefined;
 
     const connect = () => {
+      if (!isMounted) return;
+
+      if (wsRef.current && (wsRef.current.readyState === WebSocket.OPEN || wsRef.current.readyState === WebSocket.CONNECTING)) {
+        return;
+      }
+
       const url = wsUrl(`/api/gateway/${department}`);
       const ws = new WebSocket(url);
       wsRef.current = ws;
 
       ws.onopen = () => {
-        if (closed) return;
+        if (!isMounted) return;
         setConnected(true);
         setError(null);
-        retry = 0;
       };
 
       ws.onmessage = (ev) => {
+        if (!isMounted) return;
         try {
           const raw = JSON.parse(ev.data);
-          // Gateway control frames — surface proxy errors, swallow ready/ping.
-          if (raw?.type === 'shogun.proxy.ready') return;
+          if (raw?.type === 'shogun.proxy.ready') {
+            setConnected(true);
+            return;
+          }
           if (raw?.type === 'shogun.proxy.error') {
             setError(raw?.error || 'Gateway unavailable');
             setConnected(false);
             return;
           }
-          // Pass through frames that already match the UI event shape.
           const known = ['message', 'delta', 'tool_call', 'done', 'error', 'ping'];
           if (raw && typeof raw.type === 'string' && known.includes(raw.type)) {
             onEventRef.current?.(raw as ChatSocketEvent);
             return;
           }
-          // Hermes-side translation: map common Hermes ws frame shapes to the
-          // UI event the Chat component renders. Hermes emits assistant content
-          // as incremental text; surface as a delta if we can identify an id.
           const id = raw?.id || raw?.message_id || `hermes-${Date.now()}`;
           const content =
             typeof raw?.content === 'string' ? raw.content
@@ -391,39 +487,48 @@ export function useChatSocket(
       };
 
       ws.onerror = () => {
-        setError('WebSocket error');
+        if (!isMounted) return;
       };
 
       ws.onclose = () => {
+        if (!isMounted) return;
         setConnected(false);
         wsRef.current = null;
-        if (closed) return;
-        // Don't infinite-reconnect if the gateway itself is down — the
-        // shogun.proxy.error frame already surfaced the reason. Reconnect with
-        // a capped backoff so a transient blip recovers but a dead gateway
-        // doesn't spin.
-        const delay = Math.min(1000 * 2 ** retry, 15000);
-        retry += 1;
-        timer = window.setTimeout(connect, delay);
+        timer = window.setTimeout(connect, 3000);
       };
     };
 
     connect();
 
     return () => {
-      closed = true;
+      isMounted = false;
       if (timer) window.clearTimeout(timer);
-      wsRef.current?.close();
-      wsRef.current = null;
+      if (wsRef.current) {
+        const ws = wsRef.current;
+        wsRef.current = null;
+        if (ws.readyState === WebSocket.OPEN) {
+          ws.close();
+        }
+      }
     };
-  }, [department, opts?.enabled]);
+  }, [department, opts?.enabled, opts?.resetKey]);
 
-  const send = useCallback((content: string) => {
+  const send = useCallback((content: string, attachments?: ChatAttachment[]) => {
     const ws = wsRef.current;
-    if (!ws || ws.readyState !== WebSocket.OPEN) {
-      throw new Error('Chat is not connected');
+    const payload = attachments && attachments.length > 0
+      ? { type: 'message', content, attachments }
+      : { type: 'message', content };
+    if (ws && ws.readyState === WebSocket.OPEN) {
+      ws.send(JSON.stringify(payload));
+    } else if (ws && ws.readyState === WebSocket.CONNECTING) {
+      ws.addEventListener(
+        'open',
+        () => {
+          ws.send(JSON.stringify(payload));
+        },
+        { once: true },
+      );
     }
-    ws.send(JSON.stringify({ type: 'message', content }));
   }, []);
 
   return { connected, error, send };
@@ -452,7 +557,7 @@ export function mergeDepartments(apiDepts: Department[] | undefined): Department
     const remote = byKey.get(key);
     return {
       key,
-      name: remote?.name || key,
+      name: remote?.name ? (remote.name.charAt(0).toUpperCase() + remote.name.slice(1)) : (key.charAt(0).toUpperCase() + key.slice(1)),
       persona: remote?.persona || '',
       description: remote?.description || '',
       color: remote?.color || '#6366f1',

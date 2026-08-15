@@ -12,9 +12,80 @@ from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
 from config import DEFAULT_DEPARTMENTS, SHOGUN_HOME, get_config
-from models import Base, Department, OnboardingState, Tenant
+from models import Base, CronJob, Department, OnboardingState, Tenant, User, utcnow
 
 logger = logging.getLogger(__name__)
+
+
+# Seed crons inserted once on init (id is the stable key — row is skipped if id already exists).
+DEFAULT_CRONS_SEED: list[dict] = [
+    {
+        "id": "fin-burn-rate",
+        "department": "finance",
+        "name": "Daily Burn Rate Forecasting",
+        "schedule": "0 8 * * *",
+        "prompt": "Run daily burn rate forecasting and check cash runway status.",
+        "skill_id": "cash-runway-forecasting",
+        "enabled": True,
+        "last_run": "2026-08-08T08:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+    {
+        "id": "fin-invoice-aging",
+        "department": "finance",
+        "name": "Invoice Aging Watchdog",
+        "schedule": "0 8 * * 1",
+        "prompt": "Check overdue accounts receivable aging and draft polite collection reminders.",
+        "skill_id": "ar-credit-control",
+        "enabled": True,
+        "last_run": "2026-08-03T08:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+    {
+        "id": "proc-reorder-watchdog",
+        "department": "procurement",
+        "name": "Reorder Alert Watchdog",
+        "schedule": "0 8 * * 1-5",
+        "prompt": "Check SKU inventory thresholds and issue reorder alerts for low stock items.",
+        "skill_id": "reorder-alert-watchdog",
+        "enabled": True,
+        "last_run": "2026-08-08T08:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+    {
+        "id": "proc-inv-val",
+        "department": "procurement",
+        "name": "Weekly Inventory Valuation",
+        "schedule": "0 17 * * 5",
+        "prompt": "Calculate total stock asset value and record valuation report.",
+        "skill_id": "weekly-inventory-valuation",
+        "enabled": True,
+        "last_run": "2026-08-07T17:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+    {
+        "id": "crm-deal-sync",
+        "department": "crm",
+        "name": "Deal Activity Hourly Sync",
+        "schedule": "0 9-18 * * 1-5",
+        "prompt": "Sync CRM deal pipeline updates and highlight high-value stale leads.",
+        "skill_id": "",
+        "enabled": True,
+        "last_run": "2026-08-08T18:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+    {
+        "id": "hr-candidate-watchdog",
+        "department": "hr",
+        "name": "Candidate Pipeline Sync",
+        "schedule": "0 10 * * 1",
+        "prompt": "Sync recruitment candidate applications and stage updates.",
+        "skill_id": "",
+        "enabled": True,
+        "last_run": "2026-08-03T10:00:00Z",
+        "created_at": "2026-07-26T00:00:00Z",
+    },
+]
 
 _engine: Optional[Engine] = None
 _SessionLocal: Optional[sessionmaker] = None
@@ -116,8 +187,11 @@ def _ensure_tenant(db: Session) -> Tenant:
     return tenant
 
 
+DEFAULT_ACTIVE_NAMES = {"crm", "finance", "procurement"}
+
+
 def _ensure_departments(db: Session, tenant: Tenant) -> None:
-    """Seed catalog departments as inactive if not present."""
+    """Seed catalog departments with CRM, Finance, Procurement active and others inactive."""
     cfg = get_config()
     existing = {
         d.name: d
@@ -127,19 +201,21 @@ def _ensure_departments(db: Session, tenant: Tenant) -> None:
     }
     for spec in DEFAULT_DEPARTMENTS:
         name = spec["name"]
+        default_status = "active" if name in DEFAULT_ACTIVE_NAMES else "inactive"
         if name in existing:
-            continue
+            dept = existing[name]
+            continue  # preserve admin-set status — don't clobber on re-init
         port = cfg.gateway_port_base + int(spec.get("port_offset", 0))
         dept = Department(
             tenant_id=tenant.id,
             name=name,
             profile_name=spec["profile_name"],
-            status="inactive",
+            status=default_status,
             provider_config={},
             gateway_port=port,
         )
         db.add(dept)
-        logger.info("Seeded department %s (port %s)", name, port)
+        logger.info("Seeded department %s (status %s, port %s)", name, default_status, port)
 
 
 def _ensure_onboarding(db: Session, tenant: Tenant) -> None:
@@ -157,6 +233,41 @@ def _ensure_onboarding(db: Session, tenant: Tenant) -> None:
         )
 
 
+def _ensure_default_user(db: Session, tenant: Tenant) -> None:
+    """No-op. Default admin is no longer auto-seeded.
+
+    First-run admin creation is handled by the CLI bootstrap helper
+    ``auth.ensure_bootstrap_admin()`` which creates an admin with
+    ``first_login=True`` (forces password change). Auto-seeding
+    ``admin@localhost / admin123456`` was removed for security (PR #14 review).
+    """
+    return
+
+
+def _ensure_default_crons(db: Session) -> None:
+    """Seed built-in cron jobs once (skip rows whose id already exists)."""
+    existing_ids = {
+        row.id for row in db.execute(select(CronJob)).scalars()
+    }
+    for spec in DEFAULT_CRONS_SEED:
+        if spec["id"] in existing_ids:
+            continue
+        db.add(CronJob(
+            id=spec["id"],
+            department=spec["department"],
+            name=spec["name"],
+            schedule=spec["schedule"],
+            prompt=spec["prompt"],
+            skill_id=spec.get("skill_id", ""),
+            enabled=bool(spec.get("enabled", True)),
+            deliver_channel_id="",
+            deliver_channel_name="",
+            last_run=spec.get("last_run"),
+            created_at=utcnow(),
+        ))
+        logger.info("Seeded cron job %s", spec["id"])
+
+
 def init_db() -> None:
     """Create tables and seed tenant / department catalog."""
     SHOGUN_HOME.mkdir(parents=True, exist_ok=True)
@@ -166,6 +277,8 @@ def init_db() -> None:
         tenant = _ensure_tenant(db)
         _ensure_departments(db, tenant)
         _ensure_onboarding(db, tenant)
+        _ensure_default_user(db, tenant)
+        _ensure_default_crons(db)
     logger.info("Database initialized at %s", get_config().db_path)
 
 
