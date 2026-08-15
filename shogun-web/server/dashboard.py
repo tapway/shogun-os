@@ -595,6 +595,14 @@ async def get_dashboard_config(
                 {"id": "bridge", "label": "Accounting Bridge", "icon": "Scale"},
             ],
         },
+        "estate-ops": {
+            "enabled": True,
+            "tabs": [
+                {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
+                {"id": "inspect", "label": "Site Inspection", "icon": "Home"},
+                {"id": "stored", "label": "Stored Documents", "icon": "Search"},
+            ],
+        },
     }
 
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
