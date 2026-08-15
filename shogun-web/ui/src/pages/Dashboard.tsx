@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Boxes, Code2, Copy, ExternalLink, Globe2, Handshake, Kanban, LayoutDashboard,
   LifeBuoy, Loader2, Megaphone, MessageSquare, Package, Plus, Shield, Users, Wallet, Brain,
+  Factory, CheckCircle, Wrench, Warehouse, AlertTriangle,
+  Store, ShoppingBag, ShoppingCart, Gift, Truck, LayoutGrid,
+  Trees, Home,
   type LucideIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,6 +21,12 @@ import {
 
 const ICONS: Record<string, LucideIcon> = {
   Users, Wallet, Handshake, Megaphone, Shield, LifeBuoy, Code2, Kanban, Boxes, Package,
+  // Manufacturing
+  Factory, CheckCircle, Wrench, Warehouse, AlertTriangle,
+  // Retail
+  Store, ShoppingBag, ShoppingCart, Gift, Truck, LayoutGrid,
+  // Plantation
+  Trees, Home,
 };
 
 function mergeCatalog(remote: Department[] | undefined): Department[] {

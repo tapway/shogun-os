@@ -1,16 +1,74 @@
 export type StatusLevel = 'online' | 'degraded' | 'offline' | 'unknown' | 'pending';
 
 export type DepartmentKey =
+  // Shared (always available)
   | 'hr'
   | 'finance'
   | 'crm'
   | 'marketing'
   | 'compliance'
-  | 'support'
-  | 'engineering'
+  | 'customer-support'
+  | 'coding'
+  | 'procurement'
+  // General industry
   | 'projects'
   | 'product'
-  | 'procurement';
+  // Manufacturing industry
+  | 'production'
+  | 'quality'
+  | 'maintenance'
+  | 'warehouse'
+  | 'hse'
+  // Retail industry
+  | 'stores'
+  | 'merchandising'
+  | 'e-commerce'
+  | 'crm-loyalty'
+  | 'supply-chain'
+  | 'visual-merchandising'
+  // Plantation industry
+  | 'estate-ops'
+  | 'worker-welfare';
+
+export type IndustryKey = 'general' | 'manufacturing' | 'retail' | 'plantation';
+
+export const SHARED_DEPARTMENT_KEYS: DepartmentKey[] = [
+  'hr', 'finance', 'procurement', 'crm', 'marketing', 'compliance', 'customer-support', 'coding',
+];
+
+export const INDUSTRY_CATALOG: Record<
+  IndustryKey,
+  { label: string; description: string; icon: string; departments: DepartmentKey[] }
+> = {
+  general: {
+    label: 'General / Services',
+    description: 'Consulting, software, agencies',
+    icon: '🏢',
+    departments: ['projects', 'product'],
+  },
+  manufacturing: {
+    label: 'Manufacturing',
+    description: 'Factory, production, OEM',
+    icon: '🏭',
+    departments: ['production', 'quality', 'maintenance', 'warehouse', 'hse'],
+  },
+  retail: {
+    label: 'Retail',
+    description: 'Stores, e-commerce, omnichannel',
+    icon: '🛒',
+    departments: ['stores', 'merchandising', 'e-commerce', 'crm-loyalty', 'supply-chain', 'visual-merchandising'],
+  },
+  plantation: {
+    label: 'Plantation',
+    description: 'Estate, mill, agriculture',
+    icon: '🌴',
+    departments: ['estate-ops', 'worker-welfare'],
+  },
+};
+
+export function getDepartmentsForIndustry(industry: IndustryKey): DepartmentKey[] {
+  return [...SHARED_DEPARTMENT_KEYS, ...INDUSTRY_CATALOG[industry].departments];
+}
 
 export interface User {
   id: string;
@@ -57,6 +115,7 @@ export interface Department {
 
 export interface OnboardingState {
   step: number;
+  industry?: IndustryKey | null;
   selected_departments: DepartmentKey[];
   company?: Partial<Company>;
   department_configs?: Partial<Record<DepartmentKey, ProviderConfig>>;
@@ -270,6 +329,7 @@ export const DEPARTMENT_CATALOG: Record<
   DepartmentKey,
   Omit<Department, 'active' | 'status' | 'gateway_status' | 'provider_status' | 'provider_config'>
 > = {
+  // ── Shared departments ──
   hr: {
     key: 'hr',
     name: 'HR',
@@ -315,24 +375,34 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Shield',
     profile_name: 'compliance-manager',
   },
-  support: {
-    key: 'support',
-    name: 'Support',
+  'customer-support': {
+    key: 'customer-support',
+    name: 'Customer Support',
     persona: 'Shien',
     description: 'Tickets, SLAs, and customer success workflows.',
     color: '#06b6d4',
     icon: 'LifeBuoy',
-    profile_name: 'customer-support',
+    profile_name: 'customer-support-manager',
   },
-  engineering: {
-    key: 'engineering',
-    name: 'Engineering',
+  coding: {
+    key: 'coding',
+    name: 'Coding',
     persona: 'Gijutsu',
     description: 'Codebase ops, deployments, and technical delivery.',
     color: '#6366f1',
     icon: 'Code2',
-    profile_name: 'engineering-manager',
+    profile_name: 'coding-manager',
   },
+  procurement: {
+    key: 'procurement',
+    name: 'Procurement',
+    persona: 'Chotatsu',
+    description: 'Purchase orders, vendors, and contract lifecycle.',
+    color: '#ef4444',
+    icon: 'Package',
+    profile_name: 'procurement-manager',
+  },
+  // ── General industry ──
   projects: {
     key: 'projects',
     name: 'Projects',
@@ -340,7 +410,7 @@ export const DEPARTMENT_CATALOG: Record<
     description: 'Delivery plans, scrum cadences, and milestones.',
     color: '#f97316',
     icon: 'Kanban',
-    profile_name: 'project-manager',
+    profile_name: 'projects-manager',
   },
   product: {
     key: 'product',
@@ -351,14 +421,125 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Boxes',
     profile_name: 'product-manager',
   },
-  procurement: {
-    key: 'procurement',
-    name: 'Procurement',
-    persona: 'Chotatsu',
-    description: 'Purchase orders, vendors, and contract lifecycle.',
-    color: '#ef4444',
-    icon: 'Package',
-    profile_name: 'procurement-manager',
+  // ── Manufacturing industry ──
+  production: {
+    key: 'production',
+    name: 'Production',
+    persona: 'Kojo',
+    description: 'Factory floor operations, OEE, work orders.',
+    color: '#0ea5e9',
+    icon: 'Factory',
+    profile_name: 'production-manager',
+  },
+  quality: {
+    key: 'quality',
+    name: 'Quality',
+    persona: 'Kensa',
+    description: 'QC inspections, NCRs, CAPA, lot traceability.',
+    color: '#22c55e',
+    icon: 'CheckCircle',
+    profile_name: 'quality-manager',
+  },
+  maintenance: {
+    key: 'maintenance',
+    name: 'Maintenance',
+    persona: 'Shuri',
+    description: 'PM, breakdowns, spare parts, MTBF/MTTR.',
+    color: '#eab308',
+    icon: 'Wrench',
+    profile_name: 'maintenance-manager',
+  },
+  warehouse: {
+    key: 'warehouse',
+    name: 'Warehouse',
+    persona: 'Soko',
+    description: 'Inventory, shipping, cycle counts.',
+    color: '#a855f7',
+    icon: 'Warehouse',
+    profile_name: 'warehouse-manager',
+  },
+  hse: {
+    key: 'hse',
+    name: 'HSE',
+    persona: 'Anzen',
+    description: 'Safety, incidents, permits, environmental monitoring.',
+    color: '#dc2626',
+    icon: 'AlertTriangle',
+    profile_name: 'hse-manager',
+  },
+  // ── Retail industry ──
+  stores: {
+    key: 'stores',
+    name: 'Stores',
+    persona: 'Tenpo',
+    description: 'Store operations, daily sales, customer experience.',
+    color: '#0284c7',
+    icon: 'Store',
+    profile_name: 'stores-manager',
+  },
+  merchandising: {
+    key: 'merchandising',
+    name: 'Merchandising',
+    persona: 'Shohin',
+    description: 'Buying, assortment, pricing, product performance.',
+    color: '#7c3aed',
+    icon: 'ShoppingBag',
+    profile_name: 'merchandising-manager',
+  },
+  'e-commerce': {
+    key: 'e-commerce',
+    name: 'E-commerce',
+    persona: 'Denshi',
+    description: 'Online store, marketplace ops, listings, orders.',
+    color: '#2563eb',
+    icon: 'ShoppingCart',
+    profile_name: 'ecommerce-manager',
+  },
+  'crm-loyalty': {
+    key: 'crm-loyalty',
+    name: 'CRM/Loyalty',
+    persona: 'Kokyaku',
+    description: 'Loyalty programs, customer segmentation.',
+    color: '#059669',
+    icon: 'Gift',
+    profile_name: 'crm-loyalty-manager',
+  },
+  'supply-chain': {
+    key: 'supply-chain',
+    name: 'Supply Chain',
+    persona: 'Ryutsu',
+    description: 'DC to store replenishment, distribution.',
+    color: '#d97706',
+    icon: 'Truck',
+    profile_name: 'supply-chain-manager',
+  },
+  'visual-merchandising': {
+    key: 'visual-merchandising',
+    name: 'Visual Merchandising',
+    persona: 'Hyoji',
+    description: 'Shelf layouts, planograms, display compliance.',
+    color: '#9333ea',
+    icon: 'LayoutGrid',
+    profile_name: 'vm-manager',
+  },
+  // ── Plantation industry ──
+  'estate-ops': {
+    key: 'estate-ops',
+    name: 'Estate Operations',
+    persona: 'Gozen',
+    description: 'Estate management, document scanning, site inspections.',
+    color: '#16a34a',
+    icon: 'Trees',
+    profile_name: 'estate-ops-manager',
+  },
+  'worker-welfare': {
+    key: 'worker-welfare',
+    name: 'Worker Welfare',
+    persona: 'Ryō',
+    description: 'Staff quarters, welfare, and site conditions.',
+    color: '#0891b2',
+    icon: 'Home',
+    profile_name: 'worker-welfare-manager',
   },
 };
 

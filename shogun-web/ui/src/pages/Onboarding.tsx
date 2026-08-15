@@ -21,14 +21,16 @@ import {
 import { useAuth } from '../lib/auth';
 import {
   DEPARTMENT_CATALOG,
-  DEPARTMENT_KEYS,
+  INDUSTRY_CATALOG,
+  SHARED_DEPARTMENT_KEYS,
   TIMEZONES,
   type DepartmentKey,
+  type IndustryKey,
   type OnboardingState,
   type ProviderConfig,
 } from '../lib/types';
 
-const STEPS = ['Departments', 'Company', 'Providers', 'Review'] as const;
+const STEPS = ['Industry', 'Departments', 'Company', 'Providers', 'Review'] as const;
 
 const emptyConfig = (): ProviderConfig => ({
   provider: '',
@@ -43,6 +45,7 @@ export default function Onboarding() {
   const { refreshUser } = useAuth();
 
   const [step, setStep] = useState(0);
+  const [industry, setIndustry] = useState<IndustryKey | null>(null);
   const [selected, setSelected] = useState<DepartmentKey[]>([]);
   const [companyName, setCompanyName] = useState('');
   const [timezone, setTimezone] = useState('Asia/Kuala_Lumpur');
@@ -62,6 +65,7 @@ export default function Onboarding() {
     const s = stateQuery.data;
     if (!s) return;
     if (typeof s.step === 'number') setStep(Math.min(Math.max(s.step, 0), STEPS.length - 1));
+    if (s.industry) setIndustry(s.industry as IndustryKey);
     if (s.selected_departments?.length) setSelected(s.selected_departments);
     if (s.company?.name) setCompanyName(s.company.name);
     if (s.company?.timezone) setTimezone(s.company.timezone);
@@ -82,6 +86,7 @@ export default function Onboarding() {
 
   const persist = async (next: Partial<OnboardingState> & { step: number }) => {
     await saveMutation.mutateAsync({
+      industry,
       selected_departments: selected,
       company: { name: companyName, timezone, logo_url: logoPreview || undefined },
       department_configs: configs,
@@ -96,7 +101,12 @@ export default function Onboarding() {
     );
   };
 
-  const selectAll = () => setSelected([...DEPARTMENT_KEYS]);
+  const selectAll = () => {
+    const allKeys = industry
+      ? [...SHARED_DEPARTMENT_KEYS, ...INDUSTRY_CATALOG[industry].departments]
+      : [...SHARED_DEPARTMENT_KEYS];
+    setSelected(allKeys);
+  };
   const clearAll = () => setSelected([]);
 
   const onLogoChange = (file: File | null) => {
@@ -111,11 +121,23 @@ export default function Onboarding() {
 
   const goNext = async () => {
     if (step === 0) {
-      await persist({ step: 1, selected_departments: selected });
+      // Industry step
+      if (!industry) {
+        toast.error('Please select an industry');
+        return;
+      }
+      await persist({ step: 1, industry });
       setStep(1);
       return;
     }
     if (step === 1) {
+      // Departments step
+      await persist({ step: 2, selected_departments: selected });
+      setStep(2);
+      return;
+    }
+    if (step === 2) {
+      // Company step
       if (!companyName.trim()) {
         toast.error('Company name is required');
         return;
@@ -134,14 +156,15 @@ export default function Onboarding() {
         console.warn(err);
       }
       await persist({
-        step: 2,
+        step: 3,
         company: { name: companyName.trim(), timezone },
       });
-      setStep(2);
+      setStep(3);
       return;
     }
-    if (step === 2) {
-      await persist({ step: 3, department_configs: configs });
+    if (step === 3) {
+      // Providers step — activate selected departments
+      await persist({ step: 4, department_configs: configs });
       for (const key of selected) {
         try {
           await departmentsApi.activate(key, configs[key] || {});
@@ -149,7 +172,7 @@ export default function Onboarding() {
           // best-effort activate
         }
       }
-      setStep(3);
+      setStep(4);
     }
   };
 
@@ -161,8 +184,8 @@ export default function Onboarding() {
 
   const skipDepartments = async () => {
     setSelected([]);
-    await persist({ step: 1, selected_departments: [] });
-    setStep(1);
+    await persist({ step: 2, selected_departments: [] });
+    setStep(2);
   };
 
   const testConnection = async (key: DepartmentKey) => {
@@ -187,7 +210,7 @@ export default function Onboarding() {
   const launch = async () => {
     try {
       await onboardingApi.complete();
-      await persist({ step: 3, completed: true });
+      await persist({ step: 4, completed: true });
       await refreshUser();
       toast.success(publicUrl ? `Welcome - ${publicUrl}` : 'Welcome to Shogun OS');
       navigate('/dashboard', { replace: true });
@@ -210,6 +233,83 @@ export default function Onboarding() {
 
   const stepBody = useMemo(() => {
     if (step === 0) {
+      // ── Step 0: Industry selection ──
+      return (
+        <div className="space-y-6">
+          <div>
+            <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
+              What industry is your company in?
+            </h2>
+            <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+              This determines which departments are available.
+            </p>
+          </div>
+          <div className="grid grid-cols-2 gap-4 sm:grid-cols-4">
+            {(Object.keys(INDUSTRY_CATALOG) as IndustryKey[]).map((key) => {
+              const ind = INDUSTRY_CATALOG[key];
+              const isSelected = industry === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => setIndustry(key)}
+                  className={`rounded-lg border p-6 text-center transition ${
+                    isSelected
+                      ? 'border-brand bg-brand/5 ring-2 ring-brand'
+                      : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
+                  }`}
+                >
+                  <div className="text-4xl">{ind.icon}</div>
+                  <div className="mt-2 font-semibold text-slate-900 dark:text-slate-100">{ind.label}</div>
+                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{ind.description}</div>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      );
+    }
+
+    if (step === 1) {
+      // ── Step 1: Department selection (Core + Industry-specific) ──
+      const industryKeys: DepartmentKey[] = industry
+        ? INDUSTRY_CATALOG[industry].departments
+        : [];
+
+      const renderDeptCard = (key: DepartmentKey) => {
+        const d = DEPARTMENT_CATALOG[key];
+        if (!d) return null;
+        const checked = selected.includes(key);
+        return (
+          <label
+            key={key}
+            className={`card cursor-pointer p-4 transition ${
+              checked ? 'ring-2 ring-brand border-brand/30' : 'hover:border-slate-300 dark:hover:border-slate-600'
+            }`}
+          >
+            <div className="flex items-start gap-3">
+              <input
+                type="checkbox"
+                className="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand dark:border-slate-600"
+                checked={checked}
+                onChange={() => toggleDept(key)}
+              />
+              <div>
+                <div className="flex items-center gap-2">
+                  <span
+                    className="h-2.5 w-2.5 rounded-full"
+                    style={{ backgroundColor: d.color }}
+                  />
+                  <span className="font-semibold text-slate-900 dark:text-slate-100">{d.name}</span>
+                  <span className="text-xs text-slate-400 dark:text-slate-500">{d.persona}</span>
+                </div>
+                <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{d.description}</p>
+              </div>
+            </div>
+          </label>
+        );
+      };
+
       return (
         <div>
           <div className="mb-4 flex flex-wrap items-center gap-2">
@@ -223,45 +323,40 @@ export default function Onboarding() {
               Skip
             </button>
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {DEPARTMENT_KEYS.map((key) => {
-              const d = DEPARTMENT_CATALOG[key];
-              const checked = selected.includes(key);
-              return (
-                <label
-                  key={key}
-                  className={`card cursor-pointer p-4 transition ${
-                    checked ? 'ring-2 ring-brand border-brand/30' : 'hover:border-slate-300 dark:hover:border-slate-600'
-                  }`}
-                >
-                  <div className="flex items-start gap-3">
-                    <input
-                      type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand dark:border-slate-600"
-                      checked={checked}
-                      onChange={() => toggleDept(key)}
-                    />
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <span
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: d.color }}
-                        />
-                        <span className="font-semibold text-slate-900 dark:text-slate-100">{d.name}</span>
-                        <span className="text-xs text-slate-400 dark:text-slate-500">{d.persona}</span>
-                      </div>
-                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{d.description}</p>
-                    </div>
-                  </div>
-                </label>
-              );
-            })}
+
+          {/* Core departments — always shown */}
+          <div className="mb-6">
+            <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              Core Departments
+            </h3>
+            <div className="grid gap-3 sm:grid-cols-2">
+              {SHARED_DEPARTMENT_KEYS.map(renderDeptCard)}
+            </div>
           </div>
+
+          {/* Industry-specific departments — only if industry selected */}
+          {industry && industryKeys.length > 0 && (
+            <div>
+              <h3 className="mb-3 text-xs font-semibold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+                {INDUSTRY_CATALOG[industry].label} Departments
+              </h3>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {industryKeys.map(renderDeptCard)}
+              </div>
+            </div>
+          )}
+
+          {/* No industry selected — show prompt */}
+          {!industry && (
+            <p className="text-sm text-slate-400 dark:text-slate-500">
+              Select an industry first to see industry-specific departments.
+            </p>
+          )}
         </div>
       );
     }
 
-    if (step === 1) {
+    if (step === 2) {
       return (
         <div className="mx-auto max-w-lg space-y-5">
           <div>
@@ -321,7 +416,7 @@ export default function Onboarding() {
       );
     }
 
-    if (step === 2) {
+    if (step === 3) {
       if (selected.length === 0) {
         return (
           <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
@@ -427,7 +522,7 @@ export default function Onboarding() {
       );
     }
 
-    // Step 3 — Review. Shows the public URL that was claimed during installation.
+    // Step 4 — Review. Shows the public URL that was claimed during installation.
     return (
       <div className="mx-auto max-w-xl text-center">
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-light text-brand">
@@ -563,7 +658,7 @@ export default function Onboarding() {
 
         <div className="card p-6 md:p-8">{stepBody}</div>
 
-        {step < 3 && (
+        {step < 4 && (
           <div className="mt-6 flex items-center justify-between">
             <button
               type="button"

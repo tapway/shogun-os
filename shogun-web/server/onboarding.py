@@ -44,6 +44,7 @@ class UiOnboardingSave(BaseModel):
     """SPA-friendly onboarding payload (matches ui OnboardingState)."""
 
     step: Optional[int] = None
+    industry: Optional[str] = None
     selected_departments: Optional[List[str]] = None
     company: Optional[Dict[str, Any]] = None
     department_configs: Optional[Dict[str, Any]] = None
@@ -67,10 +68,33 @@ def _get_onboarding(db: Session, tenant_id: int) -> OnboardingState:
     return state
 
 
+@router.get("/industries")
+async def get_industries() -> Dict[str, Any]:
+    """Return the industry catalog for the onboarding wizard."""
+    from config import INDUSTRY_CATALOG, SHARED_DEPARTMENTS, INDUSTRY_DEPARTMENTS
+    return {
+        "industries": INDUSTRY_CATALOG,
+        "shared_departments": SHARED_DEPARTMENTS,
+        "industry_departments": INDUSTRY_DEPARTMENTS,
+    }
+
+
 def _dept_catalog_meta(name: str) -> Dict[str, Any]:
+    """Search DEFAULT_DEPARTMENTS + SHARED_DEPARTMENTS + INDUSTRY_DEPARTMENTS for a dept by name."""
+    # Search the legacy flat list first (includes executive, projects, etc.)
     for spec in DEFAULT_DEPARTMENTS:
         if spec["name"] == name:
             return dict(spec)
+    # Search shared departments
+    from config import SHARED_DEPARTMENTS, INDUSTRY_DEPARTMENTS
+    for spec in SHARED_DEPARTMENTS:
+        if spec["name"] == name:
+            return dict(spec)
+    # Search industry-specific departments
+    for industry_specs in INDUSTRY_DEPARTMENTS.values():
+        for spec in industry_specs:
+            if spec["name"] == name:
+                return dict(spec)
     return {"name": name, "label": name, "profile_name": f"{name}-manager"}
 
 
@@ -88,6 +112,7 @@ def _ui_state(
     public_url = data.get("public_url") or public_url
     return {
         "step": int(data.get("ui_step", 0) or 0),
+        "industry": data.get("industry"),
         "selected_departments": list(data.get("selected_departments") or []),
         "company": {
             "name": company.get("name") or tenant.company_name,
@@ -138,6 +163,8 @@ async def put_onboarding_ui(
     if body.step is not None:
         merged["ui_step"] = int(body.step)
         state.current_step = f"step_{int(body.step)}"
+    if body.industry is not None:
+        merged["industry"] = body.industry
     if body.selected_departments is not None:
         merged["selected_departments"] = list(body.selected_departments)
     if body.department_configs is not None:
@@ -360,6 +387,7 @@ async def activate_department(
         cfg = get_config()
         meta = _dept_catalog_meta(name)
         offset = int(meta.get("port_offset") or (len(DEFAULT_DEPARTMENTS) + 1))
+        state = _get_onboarding(db, tenant.id)
         dept = Department(
             tenant_id=tenant.id,
             name=name,
@@ -367,6 +395,7 @@ async def activate_department(
             status="inactive",
             provider_config={},
             gateway_port=cfg.gateway_port_base + offset,
+            industry=state.data.get("industry") if state.data else None,
         )
         db.add(dept)
         db.flush()
