@@ -3,9 +3,13 @@ from __future__ import annotations
 
 import json
 import logging
+import os
 import pathlib
 import re as _re
-from datetime import datetime
+import subprocess
+import sys
+import time
+from datetime import datetime, timedelta
 from typing import Any, Dict, List
 
 from fastapi import APIRouter, Depends, HTTPException, Path
@@ -621,6 +625,841 @@ def _safe_int(val: Any, default: int = 0) -> int:
         return default
 
 
+# ─── QBO live fetch helpers ──────────────────────────────────────────────
+# These functions shell out to the accounting MCP bridge (acct-bridge.py)
+# to fetch live QuickBooks Online data. Results are cached for 5 minutes
+# to avoid hammering the QBO API on every dashboard refresh.
+#
+# Bridge protocol: JSON-RPC over stdio. One request per line on stdin,
+# one response per line on stdout. Request shape:
+#   {"jsonrpc": "2.0", "id": <int>, "method": "tools/call",
+#    "params": {"name": "<tool>", "arguments": {...}}}
+# Response shape:
+#   {"jsonrpc": "2.0", "id": <int>, "content": [{"type": "text", "text": "<json>"}]}
+#   (or {"isError": true, "content": [...]} on error)
+
+_ACCT_BRIDGE = pathlib.Path.home() / ".hermes" / "scripts" / "accounting" / "acct-bridge.py"
+_ACCT_ENV_FILE = pathlib.Path.home() / ".hermes" / "profiles" / "finance-manager" / ".env"
+_QBO_CACHE: Dict[str, dict] = {}  # key -> {"data": ..., "ts": epoch}
+_QBO_CACHE_TTL = 300  # 5 minutes
+
+
+def _load_acct_env() -> dict:
+    """Load ACCT_* vars from the finance-manager profile .env file."""
+    env: Dict[str, str] = {}
+    if not _ACCT_ENV_FILE.exists():
+        logger.warning("QBO env file not found: %s", _ACCT_ENV_FILE)
+        return env
+    try:
+        for line in _ACCT_ENV_FILE.read_text(encoding="utf-8").splitlines():
+            line = line.strip()
+            if not line or line.startswith("#"):
+                continue
+            if "=" not in line:
+                continue
+            key, _, val = line.partition("=")
+            key = key.strip()
+            val = val.strip().strip('"').strip("'")
+            if key.startswith("ACCT_"):
+                env[key] = val
+    except Exception as e:
+        logger.warning("Failed to load QBO env from %s: %s", _ACCT_ENV_FILE, e)
+    return env
+
+
+def _call_acct_bridge(tool: str, arguments: dict) -> dict:
+    """Invoke the accounting bridge (JSON-RPC stdio) and return parsed result.
+
+    Returns the dict payload from content[0].text on success, or
+    {"error": ...} on any failure (bridge missing, non-zero exit, bad JSON,
+    isError response). Never raises — callers can treat a failed fetch as
+    "no live data" and fall back to snapshots/mock.
+    """
+    if not _ACCT_BRIDGE.exists():
+        return {"error": f"bridge not found: {_ACCT_BRIDGE}"}
+
+    env = {**dict(os.environ), **_load_acct_env()}
+    # Ensure python executable is the venv python if available
+    py = sys.executable
+
+    request = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments},
+    }
+    try:
+        proc = subprocess.run(
+            [py, str(_ACCT_BRIDGE)],
+            input=json.dumps(request),
+            capture_output=True,
+            text=True,
+            env=env,
+            timeout=45,
+        )
+    except subprocess.TimeoutExpired:
+        return {"error": f"bridge timeout calling {tool}"}
+    except Exception as e:
+        return {"error": f"bridge invocation failed: {e}"}
+
+    if proc.returncode != 0:
+        # Bridge may emit stderr diagnostics; surface a short prefix
+        stderr_tail = (proc.stderr or "")[-300:]
+        return {"error": f"bridge exit {proc.returncode}: {stderr_tail}"}
+
+    out = (proc.stdout or "").strip()
+    if not out:
+        return {"error": f"bridge produced no stdout for {tool}"}
+    try:
+        resp = json.loads(out.splitlines()[-1])
+    except json.JSONDecodeError:
+        return {"error": f"bridge returned non-JSON for {tool}"}
+
+    if resp.get("isError"):
+        try:
+            err = json.loads(resp["content"][0]["text"])
+            return {"error": err.get("error", "unknown bridge error")}
+        except Exception:
+            return {"error": "unknown bridge error"}
+
+    content = resp.get("content") or []
+    if not content:
+        return {"error": f"bridge returned no content for {tool}"}
+    try:
+        return json.loads(content[0].get("text", "{}"))
+    except json.JSONDecodeError:
+        return {"error": f"bridge content not JSON for {tool}"}
+
+
+def _fetch_qbo_balance_sheet(as_of_date: str | None = None) -> dict:
+    """Fetch live QBO balance sheet. Cached for 5 min under key 'bs:<date>'."""
+    today = as_of_date or datetime.now().strftime("%Y-%m-%d")
+    cache_key = f"bs:{today}"
+    cached = _QBO_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+        return cached["data"]
+
+    args = {"as_of_date": today}
+    result = _call_acct_bridge("acct_get_balance_sheet", args)
+    if "error" in result:
+        logger.info("QBO BS fetch failed: %s", result["error"])
+    else:
+        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+    return result
+
+
+def _fetch_qbo_profit_loss(date_from: str, date_to: str) -> dict:
+    """Fetch live QBO P&L for a date range. Cached for 5 min."""
+    cache_key = f"pl:{date_from}:{date_to}"
+    cached = _QBO_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+        return cached["data"]
+
+    args = {"date_from": date_from, "date_to": date_to}
+    result = _call_acct_bridge("acct_get_profit_loss", args)
+    if "error" in result:
+        logger.info("QBO PL fetch failed: %s", result["error"])
+    else:
+        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+    return result
+
+
+def _fetch_qbo_ar_invoices() -> dict:
+    """Fetch outstanding (status='ready') AR invoices from QBO. Cached 5 min."""
+    cache_key = "ar:ready"
+    cached = _QBO_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+        return cached["data"]
+
+    args = {"status": "ready", "limit": 100}
+    result = _call_acct_bridge("acct_list_sales_invoices", args)
+    if "error" in result:
+        logger.info("QBO AR fetch failed: %s", result["error"])
+    else:
+        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+    return result
+
+
+def _fetch_qbo_ap_bills() -> dict:
+    """Fetch outstanding (status='ready') AP bills from QBO. Cached 5 min."""
+    cache_key = "ap:ready"
+    cached = _QBO_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+        return cached["data"]
+
+    args = {"status": "ready", "limit": 100}
+    result = _call_acct_bridge("acct_list_purchase_bills", args)
+    if "error" in result:
+        logger.info("QBO AP fetch failed: %s", result["error"])
+    else:
+        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+    return result
+
+
+# ─── Asset classification + sub-section mapping ─────────────────────────
+
+# Keywords that mark an asset account as CURRENT (≤12 months). Order
+# matters: earlier keywords are checked first. Keep lowercase.
+_CURRENT_ASSET_KW = (
+    "cash", "bank", "checking", "savings", "petty cash", "undeposited", "money market",
+    "short-term deposit", "short term deposit", "term deposit", "receivable", "debtors",
+    "accrued income", "staff advance", "staff advances", "advance to staff", "prepaid",
+    "prepayment", "deposit paid", "deposits paid", "security deposit", "rental deposit",
+    "utility deposit", "inventory", "inventories", "stock", "raw material",
+    "raw materials", "work in progress", "work-in-progress", "wip", "finished goods",
+    "stock in trade", "stock-in-trade", "accrued", "suspense", "gst", "tax receivable",
+    "input tax", "refundable", "rebate", "marketable securities", "mutual fund",
+    "unit trust", "gold bullion", "crypto",
+)
+
+# Keywords that mark an asset account as NON-CURRENT (>12 months).
+_NON_CURRENT_ASSET_KW = (
+    "property", "plant", "equipment", "ppe", "fixed asset", "motor vehicle",
+    "vehicles", "vehicle", "furniture", "fixture", "office equipment",
+    "computer hardware", "machinery", "renovation", "fit-out", "fitout",
+    "fit out", "building", "land", "leasehold", "software license",
+    "software licences", "capitalized software", "capitalised software",
+    "intangible", "goodwill", "trademark", "patent", "copyright",
+    "development cost", "brand", "deferred tax", "deferred charge",
+    "long-term deposit", "long term deposit", "long-term investment",
+    "long term investment", "investment", "deposit at call",
+    "right-of-use", "right of use", "rou asset", "biological asset",
+    "exploration", "oil", "gas",
+)
+
+# Map sub-category token → lucide icon name (must match AssetTab.tsx ICON_MAP).
+_ASSET_ICON_MAP = {
+    "cash": "Landmark",
+    "bank": "Landmark",
+    "checking": "Landmark",
+    "savings": "Landmark",
+    "petty cash": "Wallet",
+    "receivable": "FileText",
+    "debtors": "FileText",
+    "accrued income": "FileText",
+    "prepaid": "CalendarClock",
+    "prepayment": "CalendarClock",
+    "deposit": "CalendarClock",
+    "inventory": "Package",
+    "stock": "Package",
+    "wip": "Package",
+    "ppe": "Building2",
+    "property": "Building2",
+    "equipment": "Building2",
+    "vehicle": "Building2",
+    "depreciation": "TrendingDown",
+    "accumulated depreciation": "TrendingDown",
+    "intangible": "Brain",
+    "goodwill": "Brain",
+    "software": "Brain",
+    "deferred tax": "ShieldCheck",
+    "investment": "Layers",
+    "other": "Wallet",
+}
+
+# Sub-category → display name mappings, in priority order. Each entry is
+# (keyword_list, sub_category_name). The first matching entry wins.
+_CURRENT_SUBCAT_MAP = [
+    (["cash", "bank", "checking", "savings", "petty cash", "undeposited", "money market",
+      "short-term", "short term", "term deposit"], "Cash and Cash Equivalents"),
+    (["receivable", "debtors", "accrued income", "staff advance", "staff advances",
+      "advance to staff", "security deposit", "other receivable"], "Trade and Other Receivables"),
+    (["inventory", "inventories", "stock", "raw material", "raw materials",
+      "work in progress", "work-in-progress", "wip", "finished goods",
+      "stock in trade", "stock-in-trade"], "Inventories"),
+    (["prepaid", "prepayment", "deposit paid", "deposits paid", "rental deposit",
+      "utility deposit"], "Prepayments and Deposits"),
+]
+
+_NON_CURRENT_SUBCAT_MAP = [
+    (["property", "plant", "equipment", "ppe", "fixed asset", "motor vehicle",
+      "vehicles", "vehicle", "furniture", "fixture", "office equipment",
+      "computer hardware", "machinery", "renovation", "fit-out", "fitout",
+      "fit out", "building", "land", "leasehold", "right-of-use",
+      "right of use", "rou asset"], "Property, Plant and Equipment"),
+    (["accumulated depreciation", "depreciation"], "Accumulated Depreciation"),
+    (["intangible", "goodwill", "trademark", "patent", "copyright",
+      "development cost", "brand", "software license", "software licences",
+      "capitalized software", "capitalised software"], "Intangible Assets"),
+    (["deferred tax"], "Deferred Tax Assets"),
+    (["investment", "long-term deposit", "long term deposit",
+      "long-term investment", "long term investment", "deposit at call"], "Long-Term Investments"),
+]
+
+# Standard sub-section display names for each classification, used by
+# _map_to_subsection when an account doesn't cleanly match a sub-category.
+_CURRENT_SUBSECTIONS = {
+    "Cash and Cash Equivalents": [],
+    "Trade and Other Receivables": [],
+    "Inventories": [],
+    "Prepayments and Deposits": [],
+}
+_NON_CURRENT_SUBSECTIONS = {
+    "Property, Plant and Equipment": [],
+    "Accumulated Depreciation": [],
+    "Intangible Assets": [],
+    "Deferred Tax Assets": [],
+    "Long-Term Investments": [],
+}
+
+# Map sub-section display name → lucide icon name. This is more reliable
+# than guessing the icon from the first account in the bucket.
+_SUBSECTION_ICON_MAP = {
+    "Cash and Cash Equivalents": "Landmark",
+    "Trade and Other Receivables": "FileText",
+    "Inventories": "Package",
+    "Prepayments and Deposits": "CalendarClock",
+    "Property, Plant and Equipment": "Building2",
+    "Accumulated Depreciation": "TrendingDown",
+    "Intangible Assets": "Brain",
+    "Deferred Tax Assets": "ShieldCheck",
+    "Long-Term Investments": "Layers",
+    "Other": "Wallet",
+}
+
+
+def _normalize_account_name(name: str) -> str:
+    """Normalize an account name for keyword matching: lowercase, collapse
+    whitespace, strip common punctuation."""
+    if not name:
+        return ""
+    n = name.lower().strip()
+    # Collapse runs of whitespace
+    n = _re.sub(r"\s+", " ", n)
+    # Strip common parenthetical suffixes e.g. "Bank A (USD)" -> "bank a"
+    n = _re.sub(r"\s*\([^)]*\)\s*", " ", n).strip()
+    return n
+
+
+def _classify_asset(name: str) -> str:
+    """Classify an asset account as 'current' or 'non_current'.
+
+    Strategy:
+      1. Normalize the name.
+      2. Check non-current keywords first (more specific, e.g. 'land').
+      3. Then check current keywords.
+      4. Default to 'current' (most QBO asset accounts are current).
+    """
+    n = _normalize_account_name(name)
+    if not n:
+        return "current"
+
+    # Non-current check first — specific keywords like 'accumulated
+    # depreciation', 'motor vehicle', 'building' should win over generic
+    # ones like 'deposit'.
+    for kw in _NON_CURRENT_ASSET_KW:
+        if kw in n:
+            return "non_current"
+
+    for kw in _CURRENT_ASSET_KW:
+        if kw in n:
+            return "current"
+
+    # Default: current (conservative — most small-business asset accounts
+    # without an obvious non-current keyword are current).
+    return "current"
+
+
+def _asset_icon(name: str) -> str:
+    """Return a lucide icon name for an asset account. Falls back to 'Wallet'."""
+    n = _normalize_account_name(name)
+    if n:
+        # Check accumulated depreciation first (longest keyword)
+        if "depreciation" in n:
+            return "TrendingDown"
+        for kw, icon in _ASSET_ICON_MAP.items():
+            if kw in n:
+                return icon
+    return "Wallet"
+
+
+def _asset_subcategory(name: str, classification: str) -> str:
+    """Return the sub-category display name for an asset account.
+
+    Falls back to 'Other' if no keyword matches. The classification
+    ('current' or 'non_current') selects which keyword map to use.
+    """
+    n = _normalize_account_name(name)
+    if not n:
+        return "Other"
+
+    subcat_map = _CURRENT_SUBCAT_MAP if classification == "current" else _NON_CURRENT_SUBCAT_MAP
+    for keywords, sub_name in subcat_map:
+        for kw in keywords:
+            if kw in n:
+                return sub_name
+    return "Other"
+
+
+def _map_to_subsection(qbo_account_name: str, sub_sections: dict) -> str:
+    """Map a QBO account name to a sub-section display name.
+
+    Uses _asset_subcategory to find the standard sub-section, then ensures
+    the account is appended to the right bucket in `sub_sections` (a dict
+    of {subsection_name: [...accounts]}). Returns the sub-section name.
+    """
+    if not qbo_account_name:
+        return "Other"
+
+    # Decide classification from the name
+    classification = _classify_asset(qbo_account_name)
+    sub_name = _asset_subcategory(qbo_account_name, classification)
+    if sub_name not in sub_sections:
+        sub_sections[sub_name] = []
+    return sub_name
+
+
+def _match_qbo_actuals_to_budget(budget_items: List[dict], pl: dict) -> List[dict]:
+    """Match QBO P&L actuals to BvA budget line items.
+
+    For each budget item, find the matching QBO revenue/expense account by
+    normalized-name substring match, then fill in `actual_ytd`,
+    `variance`, and `variance_pct`. Budget fields are preserved.
+    """
+    revenue_accts = pl.get("revenue_accounts", []) or []
+    expense_accts = pl.get("expense_accounts", []) or []
+    pl_accounts = revenue_accts + expense_accts
+
+    out: List[dict] = []
+    for item in budget_items:
+        item_out = dict(item)
+        acct_name = _normalize_account_name(item.get("account_name", ""))
+        budget_ytd = _safe_float(item.get("budget_ytd", 0))
+        actual_ytd = 0.0
+        matched = None
+
+        # Try exact substring match first
+        for acct in pl_accounts:
+            pl_name = _normalize_account_name(acct.get("account_name", ""))
+            if pl_name and (acct_name in pl_name or pl_name in acct_name):
+                actual_ytd = _safe_float(acct.get("amount", 0))
+                matched = acct
+                break
+
+        # If no substring match, try keyword overlap (any word in common
+        # except very short words)
+        if matched is None and acct_name:
+            acct_words = {w for w in acct_name.split() if len(w) > 3}
+            if acct_words:
+                for acct in pl_accounts:
+                    pl_name = _normalize_account_name(acct.get("account_name", ""))
+                    pl_words = {w for w in pl_name.split() if len(w) > 3}
+                    if acct_words & pl_words:
+                        actual_ytd = _safe_float(acct.get("amount", 0))
+                        matched = acct
+                        break
+
+        variance = actual_ytd - budget_ytd
+        variance_pct = (variance / budget_ytd * 100.0) if budget_ytd else 0.0
+
+        item_out["actual_ytd"] = actual_ytd
+        item_out["variance"] = variance
+        item_out["variance_pct"] = round(variance_pct, 1)
+        out.append(item_out)
+
+    return out
+
+
+def _build_asset_trend() -> List[dict]:
+    """Build a 12-month asset trend (current vs non_current) from QBO BS.
+
+    Fetches a balance sheet as-of the end of each of the last 12 months and
+    classifies each account. Returns a list of
+      {"month": "MMM", "current": float, "non_current": float}
+    oldest-first. On any fetch failure, returns [] (caller falls back to
+    mock/snapshot trend).
+    """
+    now = datetime.now()
+    trend: List[dict] = []
+    # Walk the last 12 months, oldest first
+    for i in range(11, -1, -1):
+        # First day of the month, i months ago
+        month_dt = datetime(now.year, now.month, 1) - timedelta(days=1 + 31 * i)
+        # Clamp to first of month
+        month_start = datetime(month_dt.year, month_dt.month, 1)
+        as_of = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
+        as_of_str = as_of.strftime("%Y-%m-%d")
+
+        bs = _fetch_qbo_balance_sheet(as_of_str)
+        if "error" in bs:
+            return []  # bail — caller will use snapshot/mock trend
+
+        current_total = 0.0
+        non_current_total = 0.0
+        for acct in bs.get("asset_accounts", []) or []:
+            amt = _safe_float(acct.get("amount", 0))
+            # Accumulated depreciation is non-current and negative — still
+            # classify by name.
+            cls = _classify_asset(acct.get("account_name", ""))
+            if cls == "non_current":
+                non_current_total += amt
+            else:
+                current_total += amt
+
+        trend.append({
+            "month": month_start.strftime("%b"),
+            "current": round(current_total, 2),
+            "non_current": round(non_current_total, 2),
+        })
+
+    return trend
+
+
+def _build_live_assets(bs: dict) -> dict:
+    """Group QBO balance-sheet accounts into current/non_current categories
+    with sub-sections, matching the AssetCategory[] shape the frontend expects.
+
+    Returns:
+      {
+        "currentAssets": [ {name, amount, icon, sub_items: [{name, amount}]} ],
+        "nonCurrentAssets": [...],
+        "totalCurrentAssets": float,
+        "totalNonCurrentAssets": float,
+        "totalAssets": float,
+        "bankAccounts": [ {name, currency, balance, balance_myr} ],
+      }
+    """
+    asset_accts = bs.get("asset_accounts", []) or []
+
+    # Bucket accounts into standard sub-sections
+    current_subs: Dict[str, List[dict]] = {k: [] for k in _CURRENT_SUBSECTIONS}
+    non_current_subs: Dict[str, List[dict]] = {k: [] for k in _NON_CURRENT_SUBSECTIONS}
+
+    bank_accounts: List[dict] = []
+    current_total = 0.0
+    non_current_total = 0.0
+
+    for acct in asset_accts:
+        raw_name = acct.get("account_name", "") or ""
+        amount = _safe_float(acct.get("amount", 0))
+        n = _normalize_account_name(raw_name)
+
+        # Detect bank/cash accounts for the bankAccounts list
+        if any(kw in n for kw in ("bank", "cash", "petty cash", "undeposited", "checking", "savings", "money market")):
+            bank_accounts.append({
+                "name": raw_name,
+                "currency": "MYR",  # QBO sandbox default — refine if multi-currency
+                "balance": amount,
+                "balance_myr": amount,
+            })
+
+        classification = _classify_asset(raw_name)
+        if classification == "non_current":
+            non_current_total += amount
+            sub_name = _asset_subcategory(raw_name, "non_current")
+            if sub_name not in non_current_subs:
+                non_current_subs[sub_name] = []
+            non_current_subs[sub_name].append({"name": raw_name, "amount": amount})
+        else:
+            current_total += amount
+            sub_name = _asset_subcategory(raw_name, "current")
+            if sub_name not in current_subs:
+                current_subs[sub_name] = []
+            current_subs[sub_name].append({"name": raw_name, "amount": amount})
+
+    # Build category lists — only include sub-sections that have at least
+    # one account. Each category's `amount` is the sum of its sub_items.
+    current_assets: List[dict] = []
+    for sub_name, items in current_subs.items():
+        if not items:
+            continue
+        total = sum(_safe_float(i.get("amount", 0)) for i in items)
+        # Icon: prefer sub-section map, fall back to per-account heuristic
+        icon = _SUBSECTION_ICON_MAP.get(sub_name) or (
+            _asset_icon(items[0].get("name", "")) if items else "Wallet"
+        )
+        current_assets.append({
+            "name": sub_name,
+            "amount": round(total, 2),
+            "icon": icon,
+            "sub_items": items,
+        })
+
+    non_current_assets: List[dict] = []
+    for sub_name, items in non_current_subs.items():
+        if not items:
+            continue
+        total = sum(_safe_float(i.get("amount", 0)) for i in items)
+        icon = _SUBSECTION_ICON_MAP.get(sub_name) or (
+            _asset_icon(items[0].get("name", "")) if items else "Wallet"
+        )
+        non_current_assets.append({
+            "name": sub_name,
+            "amount": round(total, 2),
+            "icon": icon,
+            "sub_items": items,
+        })
+
+    return {
+        "currentAssets": current_assets,
+        "nonCurrentAssets": non_current_assets,
+        "totalCurrentAssets": round(current_total, 2),
+        "totalNonCurrentAssets": round(non_current_total, 2),
+        "totalAssets": round(current_total + non_current_total, 2),
+        "bankAccounts": bank_accounts,
+    }
+
+
+def _bucket_for_aging(days_overdue: int) -> str:
+    """Map days-overdue to an aging bucket key: 0_30, 31_60, 61_90, 90_plus."""
+    if days_overdue <= 30:
+        return "0_30"
+    elif days_overdue <= 60:
+        return "31_60"
+    elif days_overdue <= 90:
+        return "61_90"
+    return "90_plus"
+
+
+def _build_aging_by_target(invoices_or_bills: List[dict], amount_field: str = "balance_due") -> List[dict]:
+    """Build aging-by-days-past-due buckets from live QBO invoices/bills.
+
+    Returns a list of {label, amount} for: 1-30 DPD, 31-60 DPD, 61-90 DPD, 90+ DPD.
+    Only items with a positive balance AND a due_date in the past are counted.
+    Used by the Cash Flow tab's AR/AP aging horizontal bar charts.
+    """
+    now = datetime.now()
+    buckets = {
+        "1-30 DPD": 0.0,
+        "31-60 DPD": 0.0,
+        "61-90 DPD": 0.0,
+        "90+ DPD": 0.0,
+    }
+    for item in invoices_or_bills or []:
+        due_str = item.get("due_date", "")
+        balance = _safe_float(item.get(amount_field, item.get("total", 0)))
+        if balance <= 0 or not due_str:
+            continue
+        try:
+            due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
+        except (ValueError, TypeError):
+            continue
+        age_days = (now - due_dt).days
+        if age_days <= 0:
+            continue  # not yet past due
+        if age_days <= 30:
+            buckets["1-30 DPD"] += balance
+        elif age_days <= 60:
+            buckets["31-60 DPD"] += balance
+        elif age_days <= 90:
+            buckets["61-90 DPD"] += balance
+        else:
+            buckets["90+ DPD"] += balance
+    return [{"label": label, "amount": round(amt, 2)} for label, amt in buckets.items()]
+
+
+def _build_monthly_pl_trend(months: int = 6) -> List[dict]:
+    """Build a monthly P&L trend (revenue, expenses, net_profit) for the last N months.
+
+    Fetches P&L separately for each of the last N complete months (each 5-min cached).
+    Returns oldest-first list of {month, revenue, expenses, net_profit}.
+    On any fetch failure, returns [] (caller falls back to mock/snapshot trend).
+    """
+    now = datetime.now()
+    trend: List[dict] = []
+    # Walk the last N months, oldest first
+    for i in range(months - 1, -1, -1):
+        # First day of the month, i months ago
+        if i == 0:
+            month_dt = now.replace(day=1)
+        else:
+            # First day of (current month - i): go back i months
+            year = now.year - ((now.month - i - 1) // 12)
+            month = ((now.month - i - 1) % 12) + 1
+            month_dt = datetime(year, month, 1)
+        # Last day of that month
+        if month_dt.month == 12:
+            next_month_first = datetime(month_dt.year + 1, 1, 1)
+        else:
+            next_month_first = datetime(month_dt.year, month_dt.month + 1, 1)
+        last_day = next_month_first - timedelta(days=1)
+        date_from = month_dt.strftime("%Y-%m-%d")
+        date_to = last_day.strftime("%Y-%m-%d")
+
+        pl = _fetch_qbo_profit_loss(date_from, date_to)
+        if "error" in pl:
+            return []  # bail — caller will use mock/snapshot trend
+
+        revenue = _safe_float(pl.get("total_revenue"))
+        expenses = _safe_float(pl.get("total_expenses"))
+        net_profit = _safe_float(pl.get("net_profit"))
+        trend.append({
+            "month": month_dt.strftime("%b %y"),
+            "revenue": round(revenue, 2),
+            "expenses": round(expenses, 2),
+            "net_profit": round(net_profit, 2),
+        })
+
+    return trend
+
+
+def _build_burn_trend(months: int = 6) -> List[dict]:
+    """Build a monthly burn-rate trend for the last N months.
+
+    Burn = total expenses for the month (from P&L). Returns oldest-first list
+    of {month, burn}. On any fetch failure, returns [] (caller falls back to
+    mock/snapshot). Reuses the 5-min P&L cache so it's cheap when combined
+    with _build_monthly_pl_trend.
+    """
+    now = datetime.now()
+    trend: List[dict] = []
+    for i in range(months - 1, -1, -1):
+        if i == 0:
+            month_dt = now.replace(day=1)
+        else:
+            year = now.year - ((now.month - i - 1) // 12)
+            month = ((now.month - i - 1) % 12) + 1
+            month_dt = datetime(year, month, 1)
+        if month_dt.month == 12:
+            next_month_first = datetime(month_dt.year + 1, 1, 1)
+        else:
+            next_month_first = datetime(month_dt.year, month_dt.month + 1, 1)
+        last_day = next_month_first - timedelta(days=1)
+        date_from = month_dt.strftime("%Y-%m-%d")
+        date_to = last_day.strftime("%Y-%m-%d")
+
+        pl = _fetch_qbo_profit_loss(date_from, date_to)
+        if "error" in pl:
+            return []
+
+        expenses = _safe_float(pl.get("total_expenses"))
+        trend.append({
+            "month": month_dt.strftime("%b %y"),
+            "burn": round(expenses, 2),
+        })
+
+    return trend
+
+
+def _build_cash_flow_forecast(months: int = 6) -> List[dict]:
+    """Build a 6-month cash flow forecast with a central line + fan range.
+
+    Each point has: {month, total, low, high} where:
+      - total: central forecast (current liquid cash + projected net flow)
+      - low: conservative (total * 0.85) — downside scenario
+      - high: optimistic (total * 1.10) — upside scenario
+    The fan is the area between low and high.
+
+    Projected net flow per month is derived from the average of the last 6
+    months' (revenue - expenses) from QBO P&L. If P&L fetch fails, falls back
+    to a flat 3% growth from the current liquid cash.
+
+    Returns oldest-first list starting from the current month.
+    """
+    now = datetime.now()
+    # Current liquid cash — fetch live BS to get the starting point
+    bs = _fetch_qbo_balance_sheet(now.strftime("%Y-%m-%d"))
+    if "error" in bs:
+        return []  # caller falls back to mock
+
+    # Sum bank/cash accounts from the BS for the starting balance
+    starting_cash = 0.0
+    for acct in bs.get("asset_accounts", []) or []:
+        n = _normalize_account_name(acct.get("account_name", ""))
+        if any(kw in n for kw in ("bank", "cash", "petty cash", "undeposited")):
+            starting_cash += _safe_float(acct.get("amount", 0))
+    if starting_cash == 0:
+        starting_cash = _safe_float(bs.get("total_assets", 0))
+
+    # Projected monthly net flow = average of last 6 months (revenue - expenses)
+    pl_trend = _build_monthly_pl_trend(6)
+    if pl_trend:
+        avg_net = sum(
+            (p.get("revenue", 0) - p.get("expenses", 0)) for p in pl_trend
+        ) / len(pl_trend)
+    else:
+        # Fallback: assume 3% monthly growth of starting cash
+        avg_net = starting_cash * 0.03
+
+    forecast: List[dict] = []
+    cumulative = starting_cash
+    for i in range(months):
+        if i == 0:
+            month_dt = now.replace(day=1)
+        else:
+            year = now.year + ((now.month + i - 1) // 12)
+            month = ((now.month + i - 1) % 12) + 1
+            month_dt = datetime(year, month, 1)
+        cumulative += avg_net
+        forecast.append({
+            "month": month_dt.strftime("%b %y"),
+            "total": round(cumulative, 2),
+            "low": round(cumulative * 0.85, 2),
+            "high": round(cumulative * 1.10, 2),
+        })
+
+    return forecast
+
+
+def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
+    """Build cash flow breakdown by P&L account for the Cash Flow tab.
+
+    Groups QBO P&L revenue/expense accounts into per-category actuals (YTD +
+    MTD) with percentage of total. All data comes from live QBO P&L — no
+    Excel budget.
+
+    Returns:
+      {
+        "income": [{category, actual_ytd, actual_mtd, pct_of_total}],
+        "expenses": [{category, actual_ytd, actual_mtd, pct_of_total}],
+        "income_total_ytd": float, "income_total_mtd": float,
+        "expense_total_ytd": float, "expense_total_mtd": float,
+      }
+    """
+    income_total_ytd = _safe_float(pl_ytd.get("total_revenue"))
+    expense_total_ytd = _safe_float(pl_ytd.get("total_expenses"))
+    income_total_mtd = _safe_float(pl_mtd.get("total_revenue"))
+    expense_total_mtd = _safe_float(pl_mtd.get("total_expenses"))
+
+    # Build MTD lookup by normalized account name (for matching YTD→MTD)
+    mtd_rev_lookup: Dict[str, float] = {}
+    for acct in pl_mtd.get("revenue_accounts", []) or []:
+        n = _normalize_account_name(acct.get("account_name", ""))
+        mtd_rev_lookup[n] = mtd_rev_lookup.get(n, 0) + _safe_float(acct.get("amount", 0))
+
+    mtd_exp_lookup: Dict[str, float] = {}
+    for acct in pl_mtd.get("expense_accounts", []) or []:
+        n = _normalize_account_name(acct.get("account_name", ""))
+        mtd_exp_lookup[n] = mtd_exp_lookup.get(n, 0) + _safe_float(acct.get("amount", 0))
+
+    income: List[dict] = []
+    for acct in pl_ytd.get("revenue_accounts", []) or []:
+        name = acct.get("account_name", "")
+        amt_ytd = _safe_float(acct.get("amount", 0))
+        n = _normalize_account_name(name)
+        amt_mtd = mtd_rev_lookup.get(n, 0)
+        pct = (amt_ytd / income_total_ytd * 100.0) if income_total_ytd else 0.0
+        income.append({
+            "category": name,
+            "actual_ytd": round(amt_ytd, 2),
+            "actual_mtd": round(amt_mtd, 2),
+            "pct_of_total": round(pct, 1),
+        })
+
+    expenses: List[dict] = []
+    for acct in pl_ytd.get("expense_accounts", []) or []:
+        name = acct.get("account_name", "")
+        amt_ytd = _safe_float(acct.get("amount", 0))
+        n = _normalize_account_name(name)
+        amt_mtd = mtd_exp_lookup.get(n, 0)
+        pct = (amt_ytd / expense_total_ytd * 100.0) if expense_total_ytd else 0.0
+        expenses.append({
+            "category": name,
+            "actual_ytd": round(amt_ytd, 2),
+            "actual_mtd": round(amt_mtd, 2),
+            "pct_of_total": round(pct, 1),
+        })
+
+    return {
+        "income": income,
+        "expenses": expenses,
+        "income_total_ytd": round(income_total_ytd, 2),
+        "income_total_mtd": round(income_total_mtd, 2),
+        "expense_total_ytd": round(expense_total_ytd, 2),
+        "expense_total_mtd": round(expense_total_mtd, 2),
+    }
+
+
 def _run_finance_aggregation(pages: List[dict]) -> dict:
     """Aggregate gbrain finance pages into structured dashboard stats.
 
@@ -650,7 +1489,237 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
     pl_snap = snapshot_map.get("snapshots/pl", snapshot_map.get("finance/snapshots/pl", {}))
     has_real_data = bool(cash_snap or pl_snap)
 
-    if has_real_data:
+    # ── Fetch live QBO data (5-min cache) ──
+    today_str = now.strftime("%Y-%m-%d")
+    ytd_start = f"{cy}-01-01"
+    mtd_start = f"{cy}-{cm:02d}-01"
+    live_bs = _fetch_qbo_balance_sheet(today_str)
+    live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
+    live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
+    has_live_qbo = ("error" not in live_bs
+                    and "error" not in live_pl_ytd
+                    and "error" not in live_pl_mtd)
+
+    # Default asset + overview fields (overridden by live/snapshot/mock branches)
+    current_assets: List[dict] = []
+    non_current_assets: List[dict] = []
+    total_current_assets = 0.0
+    total_non_current_assets = 0.0
+    total_assets_val = 0.0
+    asset_trend: List[dict] = []
+    total_liabilities = 0.0
+    total_equity = 0.0
+    debt_to_equity = 0.0
+    equity_ratio = 0.0
+    ar_to_ap_coverage = 0.0
+    net_working_capital = 0.0
+    gross_working_capital = 0.0
+    gross_profit_margin = 0.0
+    total_current_liabilities = 0.0
+    ap_aging_by_target: List[dict] = []
+    monthly_pl_trend: List[dict] = []
+    bva_line_items: List[dict] = []
+    ar_aging_by_target: List[dict] = []
+    cash_flow_forecast: List[dict] = []
+    burn_trend: List[dict] = []
+    cash_flow_breakdown: dict = {}
+    dunning_queue: List[dict] = []
+    ar_invoices_list: List[dict] = []
+
+    if has_live_qbo:
+        # ── LIVE QBO DATA — primary path ──
+        # Assets + bank accounts from live BS via _build_live_assets
+        live_assets = _build_live_assets(live_bs)
+        current_assets = live_assets["currentAssets"]
+        non_current_assets = live_assets["nonCurrentAssets"]
+        total_current_assets = live_assets["totalCurrentAssets"]
+        total_non_current_assets = live_assets["totalNonCurrentAssets"]
+        total_assets_val = live_assets["totalAssets"]
+        bank_accounts: List[dict] = live_assets["bankAccounts"]
+        asset_trend = _build_asset_trend()  # may be [] on fetch failure
+
+        # Cash: sum of bank/cash accounts from live BS
+        total_liquid_cash = sum(
+            _safe_float(b.get("balance_myr", b.get("balance", 0))) for b in bank_accounts
+        )
+        if total_liquid_cash == 0:
+            total_liquid_cash = _safe_float(live_bs.get("total_assets", 0))
+
+        # Revenue/expenses from live PL
+        revenue_mtd = _safe_float(live_pl_mtd.get("total_revenue"))
+        revenue_ytd = _safe_float(live_pl_ytd.get("total_revenue"))
+        total_expenses_ytd = _safe_float(live_pl_ytd.get("total_expenses"))
+        net_profit_ytd = _safe_float(live_pl_ytd.get("net_profit"))
+
+        # Margins (rough proxies from PL)
+        gross_margin = ((revenue_ytd - total_expenses_ytd) / revenue_ytd * 100.0) if revenue_ytd else 0.0
+        ebitda_margin = (net_profit_ytd / revenue_ytd * 100.0) if revenue_ytd else 0.0
+        gross_profit_margin = gross_margin
+
+        # Burn rate + runway
+        months_elapsed = cm
+        net_monthly_burn = (total_expenses_ytd / months_elapsed) if months_elapsed > 0 else 0.0
+        cash_runway_months = (total_liquid_cash / net_monthly_burn) if net_monthly_burn > 0 else 0.0
+
+        if cash_runway_months == 0:
+            runway_status = "unknown"
+        elif cash_runway_months < 3:
+            runway_status = "critical"
+        elif cash_runway_months < 6:
+            runway_status = "caution"
+        else:
+            runway_status = "healthy"
+
+        unpaid_statutory = 0.0
+
+        # Balance sheet overview KPIs from live BS
+        total_liabilities = _safe_float(live_bs.get("total_liabilities"))
+        total_equity = _safe_float(live_bs.get("total_equity"))
+        total_assets_bs = _safe_float(live_bs.get("total_assets"))
+        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
+        equity_ratio = (total_equity / total_assets_bs) if total_assets_bs else 0.0
+        gross_working_capital = total_current_assets
+        total_current_liabilities = 0.0  # QBO bridge doesn't split current/non-current liabilities
+        net_working_capital = total_current_assets - total_current_liabilities
+
+        # AR/AP from live QBO invoices/bills
+        ar_data = _fetch_qbo_ar_invoices()
+        ap_data = _fetch_qbo_ap_bills()
+        ar_invoices = ar_data.get("invoices", []) if "error" not in ar_data else []
+        ap_bills_list = ap_data.get("bills", []) if "error" not in ap_data else []
+        total_ar = sum(_safe_float(inv.get("balance_due", inv.get("total", 0))) for inv in ar_invoices)
+        total_ap = sum(_safe_float(bill.get("balance_due", bill.get("total", 0))) for bill in ap_bills_list)
+        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
+
+        # AR aging from invoice due dates
+        ar_overdue_30 = 0.0
+        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
+        dunning_queue: List[dict] = []
+        ar_invoices_list: List[dict] = []  # all outstanding invoices tagged with bucket, for popout
+        for inv in ar_invoices:
+            due_str = inv.get("due_date", "")
+            balance = _safe_float(inv.get("balance_due", 0))
+            if balance <= 0 or not due_str:
+                continue
+            try:
+                due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
+                age_days = (now - due_dt).days
+            except (ValueError, TypeError):
+                age_days = 0
+            if age_days <= 30:
+                bucket = "0-30"
+                ar_aging["bucket_0_30"] += balance
+            elif age_days <= 60:
+                bucket = "31-60"
+                ar_aging["bucket_31_60"] += balance
+            elif age_days <= 90:
+                bucket = "61-90"
+                ar_aging["bucket_61_90"] += balance
+            else:
+                bucket = "90+"
+                ar_aging["bucket_90_plus"] += balance
+                ar_overdue_30 += balance
+                dunning_queue.append({
+                    "invoice_no": inv.get("number", ""),
+                    "customer": inv.get("contact_name", ""),
+                    "due_date": due_str,
+                    "amount": balance,
+                    "aging_days": age_days,
+                    "bucket": "90+",
+                    "dunning_status": "Overdue",
+                })
+            # Build the popout entry for every outstanding invoice
+            ar_invoices_list.append({
+                "invoice_no": inv.get("number", ""),
+                "customer": inv.get("contact_name", ""),
+                "due_date": due_str,
+                "amount": balance,
+                "aging_days": max(0, age_days),
+                "bucket": bucket,
+                "dunning_status": "Overdue" if age_days > 0 else "Current",
+            })
+
+        dso = 0.0
+        dpo = 0.0
+        ap_overdue = 0.0
+
+        # Format AP bills for frontend
+        ap_bills = []
+        for bill in ap_bills_list:
+            ap_bills.append({
+                "bill_no": bill.get("number", ""),
+                "vendor": bill.get("contact_name", ""),
+                "due_date": bill.get("due_date", ""),
+                "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
+                "match_status": "Matched",
+                "approval_status": "Pending",
+            })
+
+        # Cash Flow tab — live QBO-derived series
+        # AR/AP aging-by-target (1-30/31-60/61-90/90+ DPD) from invoices/bills
+        ar_aging_by_target = _build_aging_by_target(ar_invoices)
+        ap_aging_by_target = _build_aging_by_target(ap_bills_list)
+        # 6-month P&L trend (revenue/expenses/net_profit) — each month cached
+        monthly_pl_trend = _build_monthly_pl_trend(6)
+        # Monthly burn trend (expenses per month) — reuses P&L cache
+        burn_trend = _build_burn_trend(6)
+        # 6-month cash flow forecast with fan range (total/low/high)
+        cash_flow_forecast = _build_cash_flow_forecast(6)
+        # Cash flow breakdown by P&L account (income + expenses, YTD + MTD)
+        cash_flow_breakdown = _build_cash_flow_breakdown(live_pl_ytd, live_pl_mtd)
+
+        # fx_positions, forecast_13w, fixed/variable opex: not available from QBO
+        fx_positions: List[dict] = []
+        forecast_13w = {"conservative": [], "expected": [], "optimistic": []}
+        fixed_opex = 0.0
+        variable_opex = 0.0
+
+        # Risk alerts from live data
+        risk_alerts: List[dict] = []
+        if net_working_capital < 0:
+            risk_alerts.append({
+                "type": "working_capital",
+                "level": "critical",
+                "message": f"Negative working capital: RM {net_working_capital:,.0f}",
+            })
+        if ar_aging["bucket_90_plus"] > 0:
+            risk_alerts.append({
+                "type": "ar_overdue",
+                "level": "critical" if ar_aging["bucket_90_plus"] > 50000 else "warning",
+                "message": f"RM {ar_aging['bucket_90_plus']:,.0f} in receivables overdue >90 days",
+            })
+
+        # Trends: use mock if available, else empty
+        revenue_opex_trend: List[dict] = []
+        cash_flow_trend: List[dict] = []
+
+        # BvA: load budget items from mock JSON, match QBO actuals
+        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
+        mock_data = {}
+        if json_path.exists():
+            try:
+                with open(json_path, "r", encoding="utf-8") as f:
+                    mock_data = json.load(f).get("dashboard_mock", {})
+            except Exception as e:
+                logger.warning("Failed to load mock data for BvA budgets: %s", e)
+        budget_items = mock_data.get("bvaLineItems", [])
+        bva_line_items = _match_qbo_actuals_to_budget(budget_items, live_pl_ytd)
+        bva_departments: List[dict] = bva_line_items  # alias for backward compat
+
+        # Unit economics, concentration, compliance: from mock/snapshot
+        unit_economics: dict = mock_data.get("unitEconomics", {
+            "gross_margin_pct": gross_margin, "contribution_margin_pct": 0,
+            "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
+        client_concentration: List[dict] = mock_data.get("clientConcentration", [])
+        close_checklist: List[dict] = mock_data.get("closeChecklist", [])
+        statutory_schedule: List[dict] = mock_data.get("statutorySchedule", [])
+        sst_readiness: dict = mock_data.get("sstReadiness", {
+            "draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
+        cp58_register: List[dict] = mock_data.get("cp58Register", [])
+        wht_queue: List[dict] = mock_data.get("whtQueue", [])
+        expense_claim_audit: List[dict] = mock_data.get("expenseClaimAudit", [])
+
+    elif has_real_data:
         total_liquid_cash = _safe_float(cash_snap.get("total_liquid_cash"))
         net_monthly_burn = _safe_float(cash_snap.get("net_monthly_burn"))
         cash_runway_months = _safe_float(cash_snap.get("cash_runway_months", 0))
@@ -718,6 +1787,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
             "bucket_90_plus": _safe_float(ar_snap.get("bucket_90_plus")),
         }
         dunning_queue: List[dict] = ar_snap.get("dunning_queue", [])
+        ar_invoices_list: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
 
         ap_snap = snapshot_map.get("snapshots/ap", snapshot_map.get("finance/snapshots/ap", {}))
         total_ap = _safe_float(ap_snap.get("total_ap"))
@@ -736,6 +1806,31 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         cp58_register: List[dict] = compliance_snap.get("cp58_register", [])
         wht_queue: List[dict] = compliance_snap.get("wht_queue", [])
         expense_claim_audit: List[dict] = compliance_snap.get("expense_claim_audit", [])
+
+        # Asset fields + overview KPIs from snapshots (best-effort)
+        bs_snap = snapshot_map.get("snapshots/balance-sheet", snapshot_map.get("finance/snapshots/balance-sheet", {}))
+        current_assets = bs_snap.get("current_assets", [])
+        non_current_assets = bs_snap.get("non_current_assets", [])
+        total_current_assets = _safe_float(bs_snap.get("total_current_assets"))
+        total_non_current_assets = _safe_float(bs_snap.get("total_non_current_assets"))
+        total_assets_val = _safe_float(bs_snap.get("total_assets"))
+        asset_trend = bs_snap.get("asset_trend", [])
+        bva_line_items = bva_snap.get("line_items", [])
+        total_liabilities = _safe_float(bs_snap.get("total_liabilities"))
+        total_equity = _safe_float(bs_snap.get("total_equity"))
+        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
+        equity_ratio = (total_equity / total_assets_val) if total_assets_val else 0.0
+        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
+        net_working_capital = total_current_assets
+        gross_working_capital = total_current_assets
+        gross_profit_margin = gross_margin
+        total_current_liabilities = _safe_float(bs_snap.get("total_current_liabilities"))
+        ap_aging_by_target = ap_snap.get("aging_by_target", [])
+        monthly_pl_trend = pl_snap.get("monthly_pl_trend", [])
+        ar_aging_by_target = ar_snap.get("aging_by_target", [])
+        cash_flow_forecast = cash_snap.get("cash_flow_forecast", [])
+        burn_trend = cash_snap.get("burn_trend", [])
+        cash_flow_breakdown = cash_snap.get("cash_flow_breakdown", {})
     else:
         # No snapshot data available — return empty-state, not fabricated mock data.
         # The UI shows "no data yet / connect gbrain" rather than fake RM figures.
@@ -774,6 +1869,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         bva_departments: List[dict] = []
         unit_economics = {"gross_margin_pct": 0.0, "contribution_margin_pct": 0.0, "cac": 0.0, "ltv": 0.0, "ltv_cac_ratio": 0.0}
         client_concentration: List[dict] = []
+        ar_invoices_list: List[dict] = []
 
         close_checklist: List[dict] = []
         statutory_schedule: List[dict] = []
@@ -781,6 +1877,30 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         cp58_register: List[dict] = []
         wht_queue: List[dict] = []
         expense_claim_audit: List[dict] = []
+
+        # Asset fields + overview KPIs from mock
+        current_assets = mock_data.get("currentAssets", [])
+        non_current_assets = mock_data.get("nonCurrentAssets", [])
+        total_current_assets = _safe_float(mock_data.get("totalCurrentAssets", 0))
+        total_non_current_assets = _safe_float(mock_data.get("totalNonCurrentAssets", 0))
+        total_assets_val = _safe_float(mock_data.get("totalAssets", 0))
+        asset_trend = mock_data.get("assetTrend", [])
+        bva_line_items = mock_data.get("bvaLineItems", [])
+        total_liabilities = _safe_float(mock_data.get("totalLiabilities", 0))
+        total_equity = _safe_float(mock_data.get("totalEquity", 0))
+        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
+        equity_ratio = (total_equity / total_assets_val) if total_assets_val else 0.0
+        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
+        net_working_capital = total_current_assets  # mock doesn't split current liab
+        gross_working_capital = total_current_assets
+        gross_profit_margin = gross_margin
+        total_current_liabilities = 0.0
+        ap_aging_by_target = mock_data.get("apAgingByTarget", [])
+        monthly_pl_trend = mock_data.get("monthlyPlTrend", [])
+        ar_aging_by_target = mock_data.get("arAgingByTarget", [])
+        cash_flow_forecast = mock_data.get("cashFlowForecast", [])
+        burn_trend = mock_data.get("burnTrend", [])
+        cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
 
     return {
         # Tab 1 — Executive Pulse
@@ -796,12 +1916,36 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         "riskAlerts": risk_alerts,
         "revenueOpexTrend": revenue_opex_trend,
         "cashFlowTrend": cash_flow_trend,
+        # Overview tab — QBO-live KPIs
+        "totalLiabilities": total_liabilities,
+        "totalEquity": total_equity,
+        "debtToEquity": debt_to_equity,
+        "equityRatio": equity_ratio,
+        "arToApCoverage": ar_to_ap_coverage,
+        "netWorkingCapital": net_working_capital,
+        "grossWorkingCapital": gross_working_capital,
+        "grossProfitMargin": gross_profit_margin,
+        "totalCurrentLiabilities": total_current_liabilities,
+        "apAgingByTarget": ap_aging_by_target,
+        "monthlyPlTrend": monthly_pl_trend,
+        # Cash Flow tab
+        "arAgingByTarget": ar_aging_by_target,
+        "cashFlowForecast": cash_flow_forecast,
+        "burnTrend": burn_trend,
+        "cashFlowBreakdown": cash_flow_breakdown,
         # Tab 2 — Cash & Runway
         "bankAccounts": bank_accounts,
         "fxPositions": fx_positions,
         "forecast13w": forecast_13w,
         "fixedOpex": fixed_opex,
         "variableOpex": variable_opex,
+        # Asset tab
+        "currentAssets": current_assets,
+        "nonCurrentAssets": non_current_assets,
+        "assetTrend": asset_trend,
+        "totalCurrentAssets": total_current_assets,
+        "totalNonCurrentAssets": total_non_current_assets,
+        "totalAssets": total_assets_val,
         # Tab 3 — AR & AP
         "totalAR": total_ar,
         "arOverdue30": ar_overdue_30,
@@ -811,9 +1955,11 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         "dpo": dpo,
         "arAging": ar_aging,
         "dunningQueue": dunning_queue,
+        "arInvoices": ar_invoices_list,
         "apBills": ap_bills,
         # Tab 4 — BvA & Unit Economics
         "bvaDepartments": bva_departments,
+        "bvaLineItems": bva_line_items,
         "unitEconomics": unit_economics,
         "clientConcentration": client_concentration,
         # Tab 5 — Close & Tax
