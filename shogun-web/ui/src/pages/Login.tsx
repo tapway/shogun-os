@@ -1,5 +1,5 @@
-import { FormEvent, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { FormEvent, useEffect, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import toast from "react-hot-toast";
 import { authApi, ApiError } from "../lib/api";
 import { PublicOnlyRoute, useAuth } from "../lib/auth";
@@ -107,6 +107,7 @@ function EyeIcon({ open }: { open: boolean }) {
 function LoginInner() {
   const { login } = useAuth();
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -114,11 +115,19 @@ function LoginInner() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 
-  const fillDemoCredentials = () => {
-    setEmail("admin@localhost");
-    setPassword("admin123456");
-    toast.success("Admin demo credentials filled!");
-  };
+  // Surface SSO failure reasons (redirected from /auth/sso-login?…&sso_error=…)
+  useEffect(() => {
+    const reason = searchParams.get("sso_error");
+    if (!reason) return;
+    const messages: Record<string, string> = {
+      sso_disabled: "Single sign-on is not enabled on this portal.",
+      missing_token: "No SSO token was provided. Please sign in directly.",
+      invalid_token: "Your SSO link is invalid or expired. Please try again.",
+      user_not_found:
+        "Your account is not registered on this portal. Contact your administrator.",
+    };
+    setError(messages[reason] ?? `Sign-in failed (${reason}).`);
+  }, [searchParams]);
 
   const handleForgotPassword = () => {
     toast(
@@ -137,10 +146,12 @@ function LoginInner() {
     try {
       const user = await login({ email: email.trim(), password, keepSignedIn });
       toast.success(`Welcome back, ${user.name || "Operator"}!`);
+      const isAdminOwner = user.role === "admin" || user.role === "owner";
       if (user.must_change_password)
         navigate("/change-password", { replace: true });
-      else if (user.first_login) navigate("/onboarding", { replace: true });
+      else if (user.first_login && isAdminOwner) navigate("/onboarding", { replace: true });
       else navigate("/dashboard", { replace: true });
+
     } catch (err) {
       const msg =
         err instanceof ApiError
@@ -168,7 +179,7 @@ function LoginInner() {
               height={48}
             />
             <div className="sd-hero-copy">
-              <p className="sd-hero-kicker">Shogun OS · Command Portal</p>
+              <p className="sd-hero-kicker font-bold">Shogun OS</p>
               <h1 id="sd-hero-title">
                 One company
                 <span className="block">Multiple AI-operated departments</span>
@@ -208,20 +219,6 @@ function LoginInner() {
 
             <div className="sd-divider">or sign in with email</div>
 
-            {/* Local Demo Fill Helper */}
-            <div className="mb-4 flex items-center justify-between rounded-xl border border-indigo-500/20 bg-indigo-500/10 p-2.5 text-xs text-indigo-300">
-              <span className="truncate">
-                ⚡ Testing locally? Click to fill admin account.
-              </span>
-              <button
-                type="button"
-                onClick={fillDemoCredentials}
-                className="ml-2 shrink-0 rounded-lg bg-indigo-600 px-2.5 py-1 text-xs font-semibold text-white transition hover:bg-indigo-500 active:scale-95"
-              >
-                Fill Admin
-              </button>
-            </div>
-
             <form onSubmit={onSubmit} noValidate>
               {error && (
                 <p role="alert" aria-live="polite" className="sd-error-alert">
@@ -258,7 +255,7 @@ function LoginInner() {
                   <button
                     type="button"
                     onClick={handleForgotPassword}
-                    className="text-xs text-indigo-400 hover:text-indigo-300 font-medium transition-colors"
+                    className="text-xs text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 dark:hover:text-indigo-300 font-medium transition-colors"
                   >
                     Forgot password?
                   </button>
