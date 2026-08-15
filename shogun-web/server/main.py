@@ -113,7 +113,6 @@ def create_app() -> FastAPI:
     app.include_router(onboarding.router, prefix="/api")
     app.include_router(departments.router, prefix="/api")
     app.include_router(gateway.router, prefix="/api")
-    app.include_router(gateway.router)
     app.include_router(registry.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")
     app.include_router(staff.router, prefix="/api")

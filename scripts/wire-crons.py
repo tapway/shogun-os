@@ -58,7 +58,7 @@ SCRUM_CRONS = [
             "Load the department-scrum skill, read the scrum config at "
             "~/.hermes/profiles/{profile}/scrum.yaml, and send DMs "
             "requesting daily updates to each team member listed in the config. "
-            "Collect any replies and summarise to the team channel."
+            "Collect any replies and save a summary locally for the team."
         ),
         "skills": ["department-scrum"],
         "deliver": "local",
@@ -70,7 +70,7 @@ SCRUM_CRONS = [
             "Run the midday scrum check-in for the {profile} team. "
             "Load the department-scrum skill, check for outstanding replies "
             "from the morning standup, and send reminders to anyone who "
-            "hasn't responded. Summarise blockers to the team channel."
+            "hasn't responded. Summarise blockers and save locally for the team."
         ),
         "skills": ["department-scrum"],
         "deliver": "local",
@@ -81,7 +81,7 @@ SCRUM_CRONS = [
         "prompt": (
             "Run the end-of-day scrum wrap-up for the {profile} team. "
             "Load the department-scrum skill, collect all responses from "
-            "today's scrum, and post a summary to the team channel with "
+            "today's scrum, and save a summary locally with "
             "completed tasks, blockers, and tomorrow's plan."
         ),
         "skills": ["department-scrum"],
@@ -95,7 +95,7 @@ HOLIDAY_GATE = {
     "prompt": (
         "Check if today is a public holiday. Load the department-scrum skill, "
         "read the holiday config, and skip today's scrum reminders if it's a "
-        "holiday. Post a brief notification to the team channel if scrum is "
+        "holiday. Save a brief notification locally if scrum is "
         "skipped."
     ),
     "skills": ["department-scrum"],
@@ -110,8 +110,8 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Generate a daily leave summary for the HR team. "
                 "Load the hr-leave-management skill, check leave balances "
-                "and upcoming leave for all staff, and post a report to "
-                "the HR channel with who's on leave today, who returns today, "
+                "and upcoming leave for all staff, and save a report locally "
+                "with who's on leave today, who returns today, "
                 "and any pending MC applications that need attention."
             ),
             "skills": [],
@@ -186,7 +186,7 @@ PROFILE_EXTRA_CRONS = {
                 "Generate the daily project status report. "
                 "Load the project-task-management skill, check active project "
                 "tasks, flag overdue items and approaching deadlines, and "
-                "post a concise status to the PM channel."
+                "post a concise status locally for the PM team."
             ),
             "skills": [],
             "deliver": "local",
@@ -199,8 +199,8 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the daily CRM pipeline check. "
                 "Load the crm-assistant skill, review open deals, flag "
-                "stale opportunities and upcoming follow-ups, and post "
-                "a pipeline health summary to the CRM channel."
+                "stale opportunities and upcoming follow-ups, and save "
+                "a pipeline health summary locally for the CRM team."
             ),
             "skills": [],
             "deliver": "local",
@@ -213,7 +213,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the daily deployment status check. "
                 "Check recent deployments, flag any failed or pending "
-                "deployments, and post a summary to the engineering channel."
+                "deployments, and save a summary locally for the engineering team."
             ),
             "skills": [],
             "deliver": "local",
@@ -226,7 +226,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the weekly compliance audit reminder. "
                 "Check upcoming audit deadlines, outstanding compliance "
-                "tasks, and post a summary to the compliance channel."
+                "tasks, and save a summary locally for the compliance team."
             ),
             "skills": [],
             "deliver": "local",
@@ -239,7 +239,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the weekly marketing campaign check. "
                 "Review active campaigns, flag upcoming deadlines, "
-                "and post a summary to the marketing channel."
+                "and save a summary locally for the marketing team."
             ),
             "skills": [],
             "deliver": "local",
@@ -252,7 +252,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run proc_check_reorder_alerts to scan all inventory items. "
                 "Draft POs for items below reorder point grouped by preferred vendor. "
-                "Post a prioritised reorder alert summary to #procurement."
+                "Post a prioritised reorder alert summary locally for the procurement team."
             ),
             "skills": ["reorder-alert-watchdog"],
             "deliver": "local",
@@ -289,7 +289,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the weekly sprint reminder. "
                 "Check sprint progress, remaining tasks, and "
-                "post a summary to the product channel."
+                "post a summary locally for the product team."
             ),
             "skills": [],
             "deliver": "local",
@@ -302,7 +302,7 @@ PROFILE_EXTRA_CRONS = {
             "prompt": (
                 "Run the daily PR review reminder. "
                 "Check open pull requests, flag any waiting for "
-                "review, and post a summary to the engineering channel."
+                "review, and save a summary locally for the engineering team."
             ),
             "skills": [],
             "deliver": "local",

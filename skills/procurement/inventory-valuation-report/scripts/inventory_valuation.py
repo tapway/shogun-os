@@ -144,9 +144,13 @@ def main() -> None:
     report = format_report(args.date, valuation, gl_balance)
     print(report)
 
-    # Save report path (in agent context, use mcp_gbrain_save_page instead)
+    # Save report to procurement/reports/
     report_filename = f"procurement/reports/valuation-{args.date}.md"
-    print(f"\n✅ Report path: {report_filename}")
+    import os
+    os.makedirs(os.path.dirname(report_filename) or ".", exist_ok=True)
+    with open(report_filename, "w", encoding="utf-8") as f:
+        f.write(report + "\n")
+    print(f"\n✅ Report saved to: {report_filename}")
     sys.exit(0)
 
 

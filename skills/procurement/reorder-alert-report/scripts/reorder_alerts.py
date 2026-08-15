@@ -111,7 +111,11 @@ def main() -> None:
     print(report)
 
     report_filename = f"procurement/reports/reorder-{args.date}.md"
-    print(f"\n✅ Report path: {report_filename}")
+    import os
+    os.makedirs(os.path.dirname(report_filename) or ".", exist_ok=True)
+    with open(report_filename, "w", encoding="utf-8") as f:
+        f.write(report + "\n")
+    print(f"\n✅ Report saved to: {report_filename}")
     sys.exit(0)
 
 

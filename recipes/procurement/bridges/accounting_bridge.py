@@ -1,6 +1,15 @@
 #!/usr/bin/env python3
 """
-accounting_bridge.py — Procurement ↔ Accounting Integration Bridge
+accounting_bridge.py — Procurement ↔ Accounting Integration Bridge (SCAFFOLD)
+
+⚠️  STATUS: SCAFFOLD / PENDING MCP INTEGRATION. Every acct_* function below
+   is a stub. No live accounting system is contacted. All flows are no-ops
+   unless ENABLE_ACCOUNTING_SYNC=true, and even then they return hardcoded
+   placeholder values (e.g. "STUB-BILL", empty bill lists).
+
+   To complete: replace _acct_list_purchase_bills, _acct_create_purchase_bill,
+   _acct_get_balance_sheet, and _post_to_channels with live mcp_tool_call(...)
+   invocations against the finance-manager profile's acct_* tools.
 
 Part of: recipes/procurement/bridges/
 Owning profile: procurement-manager
