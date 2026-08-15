@@ -11,6 +11,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
+
 
 from auth import get_current_user, require_admin
 from config import DEFAULT_DEPARTMENTS, get_config
@@ -399,20 +401,72 @@ async def configure_department(
     current.update(body.config or {})
     for key in list(current.keys()):
         if key.endswith(("_key", "_secret", "_token", "api_key", "password")):
-            if current[key] in ("", None) and (dept.provider_config or {}).get(key):
+            if current[key] in ("", None, "***") and (dept.provider_config or {}).get(key):
                 current[key] = (dept.provider_config or {})[key]
+
+    # Preserve existing secrets inside comms_channels if sent as "***"
+    old_channels = (dept.provider_config or {}).get("comms_channels") or []
+    old_channels_map = {c.get("id"): c for c in old_channels if c.get("id")}
+    new_channels = current.get("comms_channels")
+    if isinstance(new_channels, list):
+        for ch in new_channels:
+            ch_id = ch.get("id")
+            if ch_id and ch_id in old_channels_map:
+                old_ch = old_channels_map[ch_id]
+                if ch.get("bot_token") == "***":
+                    ch["bot_token"] = old_ch.get("bot_token")
+                if ch.get("webhook_url") == "***":
+                    ch["webhook_url"] = old_ch.get("webhook_url")
+                # Preserve masked credentials bag — any value sent as "***"
+                # is replaced with the stored secret from the old channel.
+                old_creds = old_ch.get("credentials") or {}
+                new_creds = ch.get("credentials")
+                if isinstance(new_creds, dict) and isinstance(old_creds, dict):
+                    for ck, cv in list(new_creds.items()):
+                        if cv == "***" and ck in old_creds:
+                            new_creds[ck] = old_creds[ck]
+        current["comms_channels"] = new_channels
+
     dept.provider_config = current
+    flag_modified(dept, "provider_config")
     db.add(dept)
     db.commit()
     db.refresh(dept)
+
 
     safe = dept.to_dict()
     cfg_out = dict(safe.get("provider_config") or {})
     for key in list(cfg_out.keys()):
         if key.endswith(("_key", "_secret", "_token", "api_key", "password")) and cfg_out[key]:
             cfg_out[key] = "***"
+    
+    # Mask secrets inside comms_channels when returning payload to UI
+    if "comms_channels" in cfg_out and isinstance(cfg_out["comms_channels"], list):
+        masked_channels = []
+        for ch in cfg_out["comms_channels"]:
+            ch_copy = dict(ch)
+            if ch_copy.get("bot_token"):
+                ch_copy["bot_token"] = "***"
+            if ch_copy.get("webhook_url"):
+                ch_copy["webhook_url"] = "***"
+            # Mask secret-looking keys inside the credentials bag.
+            creds = ch_copy.get("credentials")
+            if isinstance(creds, dict):
+                masked_creds = {}
+                for ck, cv in creds.items():
+                    if cv and any(s in ck.lower() for s in (
+                        "secret", "token", "password", "api_key", "key"
+                    )):
+                        masked_creds[ck] = "***"
+                    else:
+                        masked_creds[ck] = cv
+                ch_copy["credentials"] = masked_creds
+            masked_channels.append(ch_copy)
+        cfg_out["comms_channels"] = masked_channels
+
     safe["provider_config"] = cfg_out
     return {"ok": True, "department": safe}
+
 
 
 async def _test_openai_compatible(base_url: str, api_key: str, model: Optional[str] = None) -> Dict[str, Any]:

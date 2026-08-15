@@ -1,5 +1,10 @@
 /** @type {import('tailwindcss').Config} */
 export default {
+  // "blue" and "dark" themes are both dark surfaces, so the dark: variant
+  // activates for either of them. "light" is the only light theme.
+  // Tailwind v3: the second array element is a single selector string.
+  // Use :is() to match either data-theme value.
+  darkMode: ['selector', ':is([data-theme="blue"], [data-theme="dark"])'],
   content: ['./index.html', './src/**/*.{js,ts,jsx,tsx}'],
   theme: {
     extend: {

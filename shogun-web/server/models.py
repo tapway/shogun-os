@@ -117,6 +117,8 @@ class User(Base):
             "role": self.role,
             "first_login": self.first_login,
             "is_temporary_password": self.is_temporary_password,
+            "must_change_password": bool(self.first_login or self.is_temporary_password),
+
             "phone": self.phone,
             "slack_user_id": self.slack_user_id,
             "telegram_user_id": self.telegram_user_id,
@@ -246,5 +248,41 @@ class Session(Base):
             "id": self.id,
             "user_id": self.user_id,
             "expires_at": self.expires_at.isoformat() if self.expires_at else None,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class CronJob(Base):
+    """Department-scoped scheduled cron job (persisted)."""
+
+    __tablename__ = "cron_jobs"
+    __table_args__ = (UniqueConstraint("department", "name", name="uq_cron_dept_name"),)
+
+    id: Mapped[str] = mapped_column(String(128), primary_key=True)
+    department: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    name: Mapped[str] = mapped_column(String(256), nullable=False)
+    schedule: Mapped[str] = mapped_column(String(128), nullable=False, default="0 9 * * 1-5")
+    prompt: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    skill_id: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    enabled: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    deliver_channel_id: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    deliver_channel_name: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    last_run: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "department": self.department,
+            "name": self.name,
+            "schedule": self.schedule,
+            "prompt": self.prompt,
+            "skill_id": self.skill_id or "",
+            "enabled": self.enabled,
+            "deliver_channel_id": self.deliver_channel_id or "",
+            "deliver_channel_name": self.deliver_channel_name or "",
+            "last_run": self.last_run,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

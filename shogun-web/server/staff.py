@@ -25,7 +25,7 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/staff", tags=["staff"])
 
-ALLOWED_ROLES = {"admin", "hr_manager", "user"}
+ALLOWED_ROLES = {"admin", "hr_manager", "department_admin", "user"}
 
 
 class AssignmentPayload(BaseModel):
@@ -36,7 +36,7 @@ class AssignmentPayload(BaseModel):
 class CreateStaffPayload(BaseModel):
     email: str = Field(min_length=3, max_length=320)
     name: str = Field(min_length=1, max_length=256)
-    role: str = Field(default="user", pattern=r"^(admin|hr_manager|user)$")
+    role: str = Field(default="user", pattern=r"^(admin|hr_manager|department_admin|user)$")
     assignments: List[AssignmentPayload] = Field(default_factory=list)
     phone: str | None = None
     slack_user_id: str | None = None
@@ -54,6 +54,10 @@ class UpdateStaffPayload(BaseModel):
     telegram_user_id: str | None = None
     employee_id: str | None = None
     manager_email: str | None = None
+
+
+class RoleUpdatePayload(BaseModel):
+    role: str = Field(pattern=r"^(admin|hr_manager|department_admin|user)$")
 
 
 def _require_admin_or_hr(user: User = Depends(get_current_user)) -> User:
@@ -262,26 +266,71 @@ async def update_staff(
     return {"ok": True, "user": _staff_response(staff_user, db)}
 
 
+@router.patch("/{staff_id}/role")
+async def update_staff_role(
+    staff_id: int,
+    body: RoleUpdatePayload,
+    user: User = Depends(require_admin),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Change a staff member's role. Company Admins only."""
+    tenant = get_primary_tenant(db)
+    staff_user = db.get(User, staff_id)
+    if staff_user is None or staff_user.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Staff not found")
+
+    staff_user.role = body.role
+    db.add(staff_user)
+    db.commit()
+    db.refresh(staff_user)
+
+    from brain_sync import sync_staff_to_brain
+    sync_staff_to_brain(staff_user, db)
+
+    return {"ok": True, "user": _staff_response(staff_user, db)}
+
+
 @router.delete("/{staff_id}")
 async def delete_staff(
     staff_id: int,
     user: User = Depends(_require_admin_or_hr),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Remove a staff member's department assignments (soft-unlink)."""
+    """Permanently delete a staff member and all their assignments."""
     tenant = get_primary_tenant(db)
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
 
-    # Remove all department assignments (cascading)
-    existing = db.execute(
+    # Prevent self-deletion
+    if staff_user.id == user.id:
+        raise HTTPException(status_code=400, detail="You cannot delete your own account")
+
+    # Null out FK references from other users (manager_id, invited_by_id).
+    # These columns lack ondelete=CASCADE and would block the DELETE.
+    for r in db.execute(
+        select(User).where(User.manager_id == staff_user.id)
+    ).scalars().all():
+        r.manager_id = None
+    for i in db.execute(
+        select(User).where(User.invited_by_id == staff_user.id)
+    ).scalars().all():
+        i.invited_by_id = None
+
+    # Explicitly delete child rows (FK CASCADE may not be enforced on SQLite)
+    for e in db.execute(
         select(UserDepartment).where(UserDepartment.user_id == staff_user.id)
-    ).scalars().all()
-    for e in existing:
+    ).scalars().all():
         db.delete(e)
+    from models import Session as DbSession
+    for s in db.execute(
+        select(DbSession).where(DbSession.user_id == staff_user.id)
+    ).scalars().all():
+        db.delete(s)
+
+    db.delete(staff_user)
     db.commit()
-    return {"ok": True, "message": f"Removed {staff_user.name} from all departments"}
+    return {"ok": True, "message": f"Deleted {staff_user.name}"}
 
 
 @router.post("/{staff_id}/reset-password")
