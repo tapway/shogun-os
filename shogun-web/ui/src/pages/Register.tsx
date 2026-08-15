@@ -137,7 +137,7 @@ function RegisterInner() {
                     required
                     value={adminName}
                     onChange={(e) => setAdminName(e.target.value)}
-                    placeholder="Chee How"
+                    placeholder="John Doe"
                   />
                 </div>
               </div>
