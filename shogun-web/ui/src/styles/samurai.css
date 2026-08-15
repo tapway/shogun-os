@@ -254,7 +254,7 @@ html[data-theme="light"] {
   font-family: var(--font-display);
   text-transform: uppercase;
   letter-spacing: 0.14em;
-  font-size: 0.75rem;
+  font-size: 4rem;
   color: var(--samurai-lime);
   margin: 0 0 0.75rem;
 }

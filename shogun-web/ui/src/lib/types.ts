@@ -36,7 +36,9 @@ export interface ProviderConfig {
   subdomain?: string;
   base_url?: string;
   extra?: Record<string, string>;
+  comms_channels?: CommsChannelConfig[];
 }
+
 
 export interface Department {
   key: DepartmentKey;
@@ -111,13 +113,89 @@ export interface Skill {
   id: string;
   name: string;
   description: string;
-  category: 'Finance' | 'CRM/Sales' | 'Operations' | 'Coding' | 'HR' | 'Procurement' | 'Executive';
+  category: string;
   installed: boolean;
   installing?: boolean;
   version?: string;
-  department_keys?: string[];
-  icon?: string;
+  department_key?: string;
   author?: string;
+  tags?: string[];
+  related_skills?: string[];
+  path?: string;
+  last_modified?: string;
+  size_bytes?: number;
+  icon?: string;
+  installed_departments?: string[];
+}
+
+export interface SkillDetail {
+  skill: Skill;
+  skill_md: string;
+}
+
+export interface GeneratedSkill {
+  id?: string;
+  name: string;
+  description: string;
+  skill_md?: string;
+  instruction?: string;
+  department?: string;
+  category?: string;
+  validation_errors?: string[];
+}
+
+export interface SkillIntakeResponse {
+  is_ready: boolean;
+  follow_up_question?: string;
+  missing_aspects?: string[];
+  summary?: string;
+  suggested_name?: string;
+}
+
+export interface CronJob {
+  id: string;
+  department: string;
+  name: string;
+  schedule: string;
+  prompt: string;
+  skill_id?: string;
+  enabled: boolean;
+  last_run?: string;
+  created_at?: string;
+  // Delivery target — which comms channel the cron output is posted to
+  deliver_channel_id?: string;   // CommsChannelConfig.id
+  deliver_channel_name?: string; // Convenience: channel name (e.g. "HR Telegram")
+}
+
+export interface CommsChannelConfig {
+  id?: string;
+  key: 'telegram' | 'slack' | 'discord' | 'whatsapp' | 'teams' | 'email' | 'signal' | 'matrix' | 'mattermost' | 'line' | 'sms' | 'webhooks' | 'google_chat' | 'dingtalk' | 'feishu' | 'wecom' | 'weixin' | 'homeassistant' | 'irc' | 'ntfy' | 'simplex' | 'yuanbao' | 'qqbot' | 'bluebubbles';
+  name: string;
+  enabled: boolean;
+  join_url?: string;
+  bot_token?: string;
+  channel_id?: string;
+  webhook_url?: string;
+  extra_id?: string;
+  allowed_users?: string;
+  credentials?: Record<string, string>;
+  status?: 'connected' | 'disconnected' | 'configured' | 'error';
+  // Live connection test results (populated by backend /comms/test endpoint)
+  last_tested_at?: string;       // ISO timestamp of last test
+  last_test_status?: 'ok' | 'error' | 'untested';
+  bot_username?: string;         // Discovered bot username (e.g. @my_dept_bot)
+  bot_name?: string;             // Discovered bot display name
+  last_error?: string;           // Last error message if status is 'error'
+}
+
+
+
+export interface ConnectorField {
+  field: string;
+  label: string;
+  placeholder: string;
+  type?: "text" | "password";
+  hint?: string;
 }
 
 export interface Connector {
@@ -126,9 +204,14 @@ export interface Connector {
   category: string;
   description: string;
   logo_icon: string;
-  status: 'disconnected' | 'connecting' | 'connected';
+  status: "disconnected" | "connecting" | "connected";
   connected_at?: string;
   config_summary?: string;
+  docs_url?: string;
+  instructions?: string[];
+  required_fields?: ConnectorField[];
+  recommended_fields?: ConnectorField[];
+  credentials?: Record<string, string>;
 }
 
 export interface ChatToolCall {
@@ -304,7 +387,7 @@ export interface StaffMember {
   id: number;
   email: string;
   name: string;
-  role: 'admin' | 'hr_manager' | 'user';
+  role: 'admin' | 'hr_manager' | 'department_admin' | 'user';
   first_login: boolean;
   is_temporary_password: boolean;
   created_at?: string;
@@ -523,6 +606,19 @@ export interface FxPosition {
   bnm_fea_compliant: boolean;
 }
 
+export interface AssetCategory {
+  name: string;
+  amount: number;
+  icon: string;       // lucide icon name
+  sub_items?: { name: string; amount: number }[];
+}
+
+export interface AssetTrendPoint {
+  month: string;
+  current: number;
+  non_current: number;
+}
+
 export interface Forecast13wScenario {
   week: string;
   inflow: number;
@@ -557,12 +653,89 @@ export interface ApBillItem {
   approval_status: 'Pending' | 'Approved' | 'Paid' | 'On Hold';
 }
 
-export interface BvaDeptItem {
-  department: string;
+// ─── Email Templates ───
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  scenario: string;
+  subject_template: string;
+  body_template: string;
+}
+
+export interface EmailDraftRequest {
+  template_id: string;
+  context: {
+    company?: string;
+    amount_due?: string | number;
+    overdue_days?: string | number;
+    invoice_no?: string;
+    [key: string]: string | number | undefined;
+  };
+  custom_instructions?: string;
+}
+
+export interface EmailDraft {
+  subject: string;
+  body: string;
+  source: 'llm' | 'template';
+}
+
+export interface SendEmailRequest {
+  to: string;
+  subject: string;
+  body: string;
+}
+
+export interface ApAgingBucket {
+  label: string;
+  amount: number;
+}
+
+export interface MonthlyPlTrendPoint {
+  month: string;
+  revenue: number;
+  expenses: number;
+  net_profit: number;
+}
+
+export interface CashFlowForecastPoint {
+  month: string;
+  total: number;   // central forecast
+  low: number;     // conservative (downside)
+  high: number;    // optimistic (upside)
+}
+
+export interface BurnTrendPoint {
+  month: string;
+  burn: number;    // total expenses for the month
+}
+
+export interface CashFlowBreakdownItem {
+  category: string;
+  actual_ytd: number;
+  actual_mtd: number;
+  pct_of_total: number;
+}
+
+export interface CashFlowBreakdown {
+  income: CashFlowBreakdownItem[];
+  expenses: CashFlowBreakdownItem[];
+  income_total_ytd: number;
+  income_total_mtd: number;
+  expense_total_ytd: number;
+  expense_total_mtd: number;
+}
+
+export interface BvaLineItem {
+  section: string;
+  account_name: string;
+  budget_annual: number;
   budget_ytd: number;
   actual_ytd: number;
   variance: number;
   variance_pct: number;
+  monthly_budget?: number[];
 }
 
 export interface UnitEconomics {
@@ -579,52 +752,6 @@ export interface ClientConcentrationItem {
   revenue_pct: number;
 }
 
-export interface CloseChecklistItem {
-  id: string;
-  label: string;
-  completed: boolean;
-}
-
-export interface StatutoryItem {
-  name: string;
-  due_date: string;
-  status: 'Pending' | 'Submitted' | 'Overdue';
-  amount?: number;
-}
-
-export interface SstReadiness {
-  draft_status: string;
-  taxable_sales: number;
-  sst_liability: number;
-}
-
-export interface Cp58Item {
-  contractor_name: string;
-  ic_or_reg: string;
-  total_paid_ytd: number;
-  threshold_exceeded: boolean;
-}
-
-export interface WhtQueueItem {
-  vendor: string;
-  country: string;
-  payment_amount: number;
-  wht_rate: number;
-  wht_amount: number;
-  section: string;
-}
-
-export interface ExpenseClaimItem {
-  employee: string;
-  claim_date: string;
-  amount: number;
-  category: string;
-  receipt_attached: boolean;
-  sst_compliant: boolean;
-  policy_exceeded: boolean;
-  audit_status: 'Approved' | 'Flagged' | 'Rejected';
-}
-
 export interface FinanceDashboardStats {
   // Tab 1 — Executive Pulse
   totalLiquidCash: number;
@@ -639,12 +766,36 @@ export interface FinanceDashboardStats {
   riskAlerts: FinanceRiskAlert[];
   revenueOpexTrend: FinanceTrendPoint[];
   cashFlowTrend: FinanceTrendPoint[];
-  // Tab 2 — Cash & Runway
+  // Overview tab — additional QBO-live KPIs
+  totalLiabilities: number;
+  totalEquity: number;
+  debtToEquity: number;
+  equityRatio: number;
+  arToApCoverage: number;
+  netWorkingCapital: number;
+  grossWorkingCapital: number;
+  grossProfitMargin: number;
+  totalCurrentLiabilities: number;
+  apAgingByTarget: ApAgingBucket[];
+  monthlyPlTrend: MonthlyPlTrendPoint[];
+  // Cash Flow tab
+  arAgingByTarget: ApAgingBucket[];
+  cashFlowForecast: CashFlowForecastPoint[];
+  burnTrend: BurnTrendPoint[];
+  cashFlowBreakdown: CashFlowBreakdown;
+  // Tab 2 — Assets
   bankAccounts: BankAccount[];
   fxPositions: FxPosition[];
   forecast13w: { conservative: Forecast13wScenario[]; expected: Forecast13wScenario[]; optimistic: Forecast13wScenario[] };
   fixedOpex: number;
   variableOpex: number;
+  // Asset tab
+  currentAssets: AssetCategory[];
+  nonCurrentAssets: AssetCategory[];
+  assetTrend: AssetTrendPoint[];
+  totalCurrentAssets: number;
+  totalNonCurrentAssets: number;
+  totalAssets: number;
   // Tab 3 — AR & AP
   totalAR: number;
   arOverdue30: number;
@@ -654,18 +805,12 @@ export interface FinanceDashboardStats {
   dpo: number;
   arAging: ArAgingBuckets;
   dunningQueue: DunningItem[];
+  arInvoices: DunningItem[];
   apBills: ApBillItem[];
   // Tab 4 — BvA & Unit Economics
-  bvaDepartments: BvaDeptItem[];
+  bvaLineItems: BvaLineItem[];
   unitEconomics: UnitEconomics;
   clientConcentration: ClientConcentrationItem[];
-  // Tab 5 — Close & Tax
-  closeChecklist: CloseChecklistItem[];
-  statutorySchedule: StatutoryItem[];
-  sstReadiness: SstReadiness;
-  cp58Register: Cp58Item[];
-  whtQueue: WhtQueueItem[];
-  expenseClaimAudit: ExpenseClaimItem[];
 }
 
 // ─── Procurement Dashboard Types ───

@@ -1,10 +1,12 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useMemo } from 'react';
+
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart3, Boxes, Brain, ChevronDown, ChevronLeft, ChevronRight,
+  BarChart3, Boxes, Brain, ChevronDown, ChevronLeft, ChevronRight, Clock,
   Code2, Handshake, History, Kanban, LayoutDashboard, LifeBuoy, LogOut,
   Megaphone, Moon, Package, Plug, Settings, Shield, Sun, Users, UserCog, Wallet, Wrench,
+
   type LucideIcon,
 } from 'lucide-react';
 import clsx from 'clsx';
@@ -91,9 +93,10 @@ function DepartmentNavItem({
     { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
     { id: 'connectors', label: 'Connectors', icon: Plug },
     { id: 'skills', label: 'Skills', icon: Wrench },
+    ...(isAdmin ? [{ id: 'crons', label: 'Cron Jobs', icon: Clock }] : []),
     { id: 'chat-history', label: 'Chat History', icon: History },
     { id: 'brain', label: 'Brain', icon: Brain },
-    ...(isAdmin ? [{ id: 'settings', label: 'Settings', icon: Settings }] : []),
+    { id: 'settings', label: 'Settings', icon: Settings },
   ];
 
   return (
@@ -179,14 +182,36 @@ export default function Layout() {
   const deptsQuery = useQuery({ queryKey: ['departments'], queryFn: () => departmentsApi.list() });
   const accessQuery = useQuery({ queryKey: ['my-access'], queryFn: () => authApi.myAccess(), staleTime: 30_000 });
 
+  // Global admin (admin/owner) sees ALL departments; department_admin is limited to assigned depts.
+  const isGlobalAdmin = user?.role === 'admin' || user?.role === 'owner';
+  // Dept admin (admin/owner/department_admin) can see the Cron Jobs sub-item per department.
+  const isDeptAdmin = isGlobalAdmin || user?.role === 'department_admin';
+  const canManageStaff = isGlobalAdmin || user?.role === 'hr_manager';
+
+  const assignedDeptKeys = useMemo(() => {
+    if (isGlobalAdmin) return null;
+    const assigned = accessQuery.data?.assigned_departments || [];
+    return assigned.map((a) => (a.department || '').toLowerCase());
+  }, [isGlobalAdmin, accessQuery.data?.assigned_departments]);
+
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const rawDepts = deptsQuery.data || [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const allDepts: any[] = Array.isArray(rawDepts) ? rawDepts : (rawDepts as { departments?: any[] }).departments || [];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const activeDepts = allDepts.filter((d: any) => d.active || d.status === 'active');
-  const isAdmin = user?.role === 'admin' || user?.role === 'owner';
-  const canManageStaff = isAdmin || user?.role === 'hr_manager';
+  const activeDepts = useMemo(() => {
+    const rawDepts = deptsQuery.data || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const allDepts: any[] = Array.isArray(rawDepts) ? rawDepts : (rawDepts as { departments?: any[] }).departments || [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const active = allDepts.filter((d: any) => d.active || d.status === 'active');
+
+    if (assignedDeptKeys && assignedDeptKeys.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return active.filter((d: any) => {
+        const keyName = (d.key || d.name || '').toLowerCase();
+        return assignedDeptKeys.includes(keyName);
+      });
+    }
+    return active;
+  }, [deptsQuery.data, assignedDeptKeys]);
+
 
   const handleLogout = async () => {
     await logout();
@@ -210,8 +235,9 @@ export default function Layout() {
         </NavLink>
         <NavLink to="/skills" onClick={() => setMobileOpen(false)} className={({ isActive }) => clsx('sd-nav-item', isActive && 'active')}>
           <span className="sd-nav-icon"><Wrench className="h-4 w-4" /></span>
-          {!collapsed && <span className="sd-nav-label">Skills</span>}
+          {!collapsed && <span className="sd-nav-label">Skill Library</span>}
         </NavLink>
+
         {canManageStaff && (
           <NavLink to="/staff" onClick={() => setMobileOpen(false)} className={({ isActive }) => clsx('sd-nav-item', isActive && 'active')}>
             <span className="sd-nav-icon"><UserCog className="h-4 w-4" /></span>
@@ -219,11 +245,13 @@ export default function Layout() {
           </NavLink>
         )}
 
+
         <div className="sd-sidebar-section">{collapsed ? '' : 'Departments'}</div>
         {activeDepts.length === 0 && !collapsed && (
           <div className="px-3 py-2 text-xs" style={{ color: 'var(--samurai-muted)' }}>No active departments</div>
         )}
-        {activeDepts.map((d) => {
+        {activeDepts.map((d: any) => {
+
           const keyName = (d.key || d.name || '') as DepartmentKey;
           const meta = DEPARTMENT_CATALOG[keyName] || d;
           const Icon = ICONS[meta.icon] || Boxes;
@@ -238,7 +266,7 @@ export default function Layout() {
               icon={Icon}
               color={color}
               status={status}
-              isAdmin={isAdmin}
+              isAdmin={isDeptAdmin}
               currentPath={location.pathname}
               currentTab={currentTab}
               onNavigate={() => setMobileOpen(false)}

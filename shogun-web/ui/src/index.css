@@ -10,11 +10,14 @@
   }
 
   body {
-    @apply bg-surface-muted text-slate-900 font-sans;
+    /* Theme-aware base: samurai.css sets --samurai-bg / --samurai-text per data-theme. */
+    background: var(--samurai-bg, #070b14);
+    color: var(--samurai-text, #ffffff);
+    @apply font-sans;
   }
 
   * {
-    @apply border-surface-border;
+    border-color: var(--samurai-border, #243047);
   }
 }
 
@@ -29,11 +32,13 @@
   }
 
   .btn-secondary {
-    @apply btn bg-white text-slate-700 border border-surface-border hover:bg-slate-50;
+    @apply btn bg-white text-slate-700 border border-surface-border hover:bg-slate-50
+      dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:hover:bg-slate-700;
   }
 
   .btn-ghost {
-    @apply btn bg-transparent text-slate-600 hover:bg-slate-100;
+    @apply btn bg-transparent text-slate-600 hover:bg-slate-100
+      dark:text-slate-300 dark:hover:bg-slate-800;
   }
 
   .btn-danger {
@@ -43,19 +48,22 @@
   .input {
     @apply w-full rounded-lg border border-surface-border bg-white px-3 py-2 text-sm text-slate-900
       placeholder:text-slate-400 shadow-sm
-      focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20;
+      focus:border-brand focus:outline-none focus:ring-2 focus:ring-brand/20
+      dark:bg-slate-800 dark:text-slate-100 dark:border-slate-700 dark:placeholder:text-slate-500;
   }
 
   .label {
-    @apply mb-1.5 block text-sm font-medium text-slate-700;
+    @apply mb-1.5 block text-sm font-medium text-slate-700 dark:text-slate-300;
   }
 
   .card {
-    @apply rounded-xl border border-surface-border bg-white shadow-card;
+    @apply rounded-xl border border-surface-border bg-white shadow-card
+      dark:bg-slate-900 dark:border-slate-800;
   }
 
   .prose-chat {
-    @apply text-sm leading-relaxed text-slate-800 min-w-0 max-w-full overflow-hidden;
+    @apply text-sm leading-relaxed text-slate-800 min-w-0 max-w-full overflow-hidden
+      dark:text-slate-100;
     word-break: break-word;
   }
 
@@ -97,15 +105,15 @@
     margin-bottom: 0.5rem;
     font-size: 0.75rem;
     border-radius: 0.5rem;
-    border: 1px solid rgba(226, 232, 240, 0.9);
+    border: 1px solid var(--samurai-border, #e2e8f0);
   }
 
   .prose-chat th {
-    background-color: #f8fafc;
+    background-color: var(--samurai-surface-2, #f8fafc);
     font-weight: 700;
-    color: #0f172a;
-    border-bottom: 1px solid #e2e8f0;
-    border-right: 1px solid #e2e8f0;
+    color: var(--samurai-text, #0f172a);
+    border-bottom: 1px solid var(--samurai-border, #e2e8f0);
+    border-right: 1px solid var(--samurai-border, #e2e8f0);
     padding: 0.375rem 0.625rem;
     text-align: left;
     white-space: nowrap;
@@ -116,8 +124,9 @@
   }
 
   .prose-chat td {
-    border-bottom: 1px solid #e2e8f0;
-    border-right: 1px solid #e2e8f0;
+    color: var(--samurai-text, #0f172a);
+    border-bottom: 1px solid var(--samurai-border, #e2e8f0);
+    border-right: 1px solid var(--samurai-border, #e2e8f0);
     padding: 0.375rem 0.625rem;
     text-align: left;
     white-space: nowrap;
@@ -132,6 +141,6 @@
   }
 
   .prose-chat tr:nth-child(even) {
-    background-color: rgba(248, 250, 252, 0.6);
+    background-color: color-mix(in srgb, var(--samurai-surface-2, #f8fafc) 55%, transparent);
   }
 }

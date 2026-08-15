@@ -231,13 +231,13 @@ export default function Onboarding() {
                 <label
                   key={key}
                   className={`card cursor-pointer p-4 transition ${
-                    checked ? 'ring-2 ring-brand border-brand/30' : 'hover:border-slate-300'
+                    checked ? 'ring-2 ring-brand border-brand/30' : 'hover:border-slate-300 dark:hover:border-slate-600'
                   }`}
                 >
                   <div className="flex items-start gap-3">
                     <input
                       type="checkbox"
-                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand"
+                      className="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand dark:border-slate-600"
                       checked={checked}
                       onChange={() => toggleDept(key)}
                     />
@@ -247,10 +247,10 @@ export default function Onboarding() {
                           className="h-2.5 w-2.5 rounded-full"
                           style={{ backgroundColor: d.color }}
                         />
-                        <span className="font-semibold text-slate-900">{d.name}</span>
-                        <span className="text-xs text-slate-400">{d.persona}</span>
+                        <span className="font-semibold text-slate-900 dark:text-slate-100">{d.name}</span>
+                        <span className="text-xs text-slate-400 dark:text-slate-500">{d.persona}</span>
                       </div>
-                      <p className="mt-1 text-sm text-slate-600">{d.description}</p>
+                      <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{d.description}</p>
                     </div>
                   </div>
                 </label>
@@ -299,13 +299,13 @@ export default function Onboarding() {
           <div>
             <span className="label">Company logo</span>
             <div className="flex items-center gap-4">
-              <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-surface-border bg-slate-50">
-                {logoPreview ? (
-                  <img src={logoPreview} alt="Logo preview" className="h-full w-full object-cover" />
-                ) : (
-                  <Upload className="h-5 w-5 text-slate-400" />
-                )}
-              </div>
+                <div className="flex h-16 w-16 items-center justify-center overflow-hidden rounded-xl border border-surface-border bg-slate-50 dark:bg-slate-800 dark:border-slate-700">
+                  {logoPreview ? (
+                    <img src={logoPreview} alt="Logo preview" className="h-full w-full object-cover" />
+                  ) : (
+                    <Upload className="h-5 w-5 text-slate-400 dark:text-slate-500" />
+                  )}
+                </div>
               <label className="btn-secondary cursor-pointer">
                 Upload logo
                 <input
@@ -324,7 +324,7 @@ export default function Onboarding() {
     if (step === 2) {
       if (selected.length === 0) {
         return (
-          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500">
+          <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-6 py-12 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
             No departments selected. You can activate them later from the dashboard.
           </div>
         );
@@ -341,7 +341,7 @@ export default function Onboarding() {
                     className="h-3 w-3 rounded-full"
                     style={{ backgroundColor: d.color }}
                   />
-                  <h3 className="font-semibold text-slate-900">
+                  <h3 className="font-semibold text-slate-900 dark:text-slate-100">
                     {d.name} &middot; {d.persona}
                   </h3>
                 </div>
@@ -417,7 +417,7 @@ export default function Onboarding() {
                     Test Connection
                   </button>
                   {testResults[key] && (
-                    <span className="text-xs text-slate-500">{testResults[key]}</span>
+                    <span className="text-xs text-slate-500 dark:text-slate-400">{testResults[key]}</span>
                   )}
                 </div>
               </div>
@@ -433,31 +433,31 @@ export default function Onboarding() {
         <div className="mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-2xl bg-brand-light text-brand">
           {publicUrl ? <Globe2 className="h-7 w-7" /> : <Rocket className="h-7 w-7" />}
         </div>
-        <h2 className="text-xl font-semibold text-slate-900">
+        <h2 className="text-xl font-semibold text-slate-900 dark:text-slate-100">
           {publicUrl ? 'Your company is live' : 'Ready to go'}
         </h2>
-        <p className="mt-2 text-sm text-slate-500">
+        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
           {publicUrl
             ? 'Your public URL was assigned during installation. Here\'s the summary.'
             : 'Everything looks good. Click below to open the dashboard.'}
         </p>
 
-        <div className="mt-6 rounded-xl border border-surface-border bg-white p-5 text-left shadow-sm">
+        <div className="mt-6 rounded-xl border border-surface-border bg-white p-5 text-left shadow-sm dark:bg-slate-900 dark:border-slate-800">
           <div className="mb-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">Company</div>
-            <div className="mt-1 font-medium text-slate-900">{companyName || '&mdash;'}</div>
-            <div className="text-sm text-slate-500">{timezone}</div>
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">Company</div>
+            <div className="mt-1 font-medium text-slate-900 dark:text-slate-100">{companyName || '&mdash;'}</div>
+            <div className="text-sm text-slate-500 dark:text-slate-400">{timezone}</div>
           </div>
           <div className="mb-4">
-            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400">
+            <div className="text-xs font-semibold uppercase tracking-wide text-slate-400 dark:text-slate-500">
               Departments ({selected.length})
             </div>
             <ul className="mt-2 space-y-1">
               {selected.length === 0 && (
-                <li className="text-sm text-slate-500">None selected &mdash; add later anytime</li>
+                <li className="text-sm text-slate-500 dark:text-slate-400">None selected &mdash; add later anytime</li>
               )}
               {selected.map((key) => (
-                <li key={key} className="flex items-center gap-2 text-sm text-slate-700">
+                <li key={key} className="flex items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
                   <Check className="h-3.5 w-3.5 text-emerald-500" />
                   {DEPARTMENT_CATALOG[key].name}
                 </li>
@@ -466,8 +466,8 @@ export default function Onboarding() {
           </div>
 
           {publicUrl && (
-            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4">
-              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 p-4 dark:border-emerald-800 dark:bg-emerald-950/40">
+              <div className="text-xs font-semibold uppercase tracking-wide text-emerald-600 dark:text-emerald-400">
                 Public URL
               </div>
               <div className="mt-2">
@@ -475,7 +475,7 @@ export default function Onboarding() {
                   href={publicUrl}
                   target="_blank"
                   rel="noreferrer"
-                  className="break-all text-lg font-semibold text-emerald-700 hover:underline"
+                  className="break-all text-lg font-semibold text-emerald-700 hover:underline dark:text-emerald-300"
                 >
                   {publicUrl}
                 </a>
@@ -525,12 +525,12 @@ export default function Onboarding() {
   }
 
   return (
-    <div className="min-h-screen bg-surface-muted px-4 py-8 md:py-12">
+    <div className="min-h-screen bg-surface-muted px-4 py-8 md:py-12 dark:bg-slate-950">
       <div className="mx-auto max-w-4xl">
         <div className="mb-8 text-center">
           <div className="text-sm font-semibold text-brand">Shogun OS setup</div>
-          <h1 className="mt-1 text-2xl font-semibold text-slate-900">Set up your company</h1>
-          <p className="mt-2 text-sm text-slate-500">
+          <h1 className="mt-1 text-2xl font-semibold text-slate-900 dark:text-slate-100">Set up your company</h1>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
             A few clicks &mdash; your public URL was already assigned during installation.
           </p>
         </div>
@@ -544,19 +544,19 @@ export default function Onboarding() {
                     ? 'bg-emerald-500 text-white'
                     : i === step
                       ? 'bg-brand text-white'
-                      : 'bg-slate-200 text-slate-500'
+                      : 'bg-slate-200 text-slate-500 dark:bg-slate-800 dark:text-slate-400'
                 }`}
               >
                 {i < step ? <Check className="h-4 w-4" /> : i}
               </div>
               <span
                 className={`hidden text-sm sm:inline ${
-                  i === step ? 'font-medium text-slate-900' : 'text-slate-500'
+                  i === step ? 'font-medium text-slate-900 dark:text-slate-100' : 'text-slate-500 dark:text-slate-400'
                 }`}
               >
                 {label}
               </span>
-              {i < STEPS.length - 1 && <div className="mx-1 h-px w-6 bg-slate-300 sm:w-10" />}
+              {i < STEPS.length - 1 && <div className="mx-1 h-px w-6 bg-slate-300 sm:w-10 dark:bg-slate-700" />}
             </div>
           ))}
         </div>
