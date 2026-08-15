@@ -117,7 +117,7 @@ class User(Base):
             "role": self.role,
             "first_login": self.first_login,
             "is_temporary_password": self.is_temporary_password,
-            "must_change_password": bool(self.first_login or self.is_temporary_password),
+            "must_change_password": bool(self.is_temporary_password),
 
             "phone": self.phone,
             "slack_user_id": self.slack_user_id,

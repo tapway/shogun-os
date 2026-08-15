@@ -383,6 +383,8 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)) -> JSON
         db.add(tenant)
 
     # Create the admin user
+    # first_login=True triggers the onboarding wizard redirect (via ProtectedRoute).
+    # is_temporary_password=False because the user chose their own password (not a temp).
     user = User(
         tenant_id=tenant.id,
         email=email,
@@ -390,6 +392,7 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)) -> JSON
         password_hash=hash_password(body.password),
         role="admin",
         first_login=True,
+        is_temporary_password=False,
     )
     db.add(user)
     db.commit()
