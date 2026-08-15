@@ -32,8 +32,8 @@ export function ComboChart({ data, xKey, series, unit = '', height = 250 }: Comb
     return <ChartEmpty />;
   }
 
-  const fmt = (v: unknown) =>
-    [unit ? `${unit}${Number(v ?? 0).toLocaleString()}` : Number(v ?? 0).toLocaleString()] as [string];
+  const fmt = (v: unknown, name: string) =>
+    [unit ? `${unit}${Number(v ?? 0).toLocaleString()}` : Number(v ?? 0).toLocaleString(), name] as [string, string];
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -47,6 +47,7 @@ export function ComboChart({ data, xKey, series, unit = '', height = 250 }: Comb
         <Tooltip
           formatter={fmt as never}
           contentStyle={CHART_TOOLTIP_STYLE}
+          labelFormatter={(label) => `${label}`}
         />
         <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
         {series.map((s) =>

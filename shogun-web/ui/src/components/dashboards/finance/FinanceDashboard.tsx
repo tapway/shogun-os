@@ -3,18 +3,22 @@ import { useQuery } from '@tanstack/react-query';
 import { departmentsApi } from '../../../lib/api';
 import { DashboardSubNav } from '../DashboardSubNav';
 import type { DashboardTab, FinanceDashboardStats } from '../../../lib/types';
-import { ExecutivePulseTab } from './ExecutivePulseTab';
-import { CashRunwayTab } from './CashRunwayTab';
-import { WorkingCapitalOpsTab } from './WorkingCapitalOpsTab';
+import { ExecutiveOverviewTab } from './ExecutiveOverviewTab';
+import { CashFlowTab } from './CashFlowTab';
+import { AssetTab } from './AssetTab';
+import { ArCollectionsTab } from './ArCollectionsTab';
+import { ApPaymentsTab } from './ApPaymentsTab';
 import { BvaUnitEconomicsTab } from './BvaUnitEconomicsTab';
-import { CloseTaxComplianceTab } from './CloseTaxComplianceTab';
+import { MarginsConcentrationTab } from './MarginsConcentrationTab';
 
 const TABS: DashboardTab[] = [
-  { id: 'pulse',      label: 'Executive Pulse',   icon: 'LayoutDashboard' },
-  { id: 'runway',     label: 'Cash & Runway',      icon: 'TrendingUp' },
-  { id: 'ops',        label: 'AR & AP Ops',        icon: 'Receipt' },
-  { id: 'bva',        label: 'Budget vs Actuals',  icon: 'BarChart3' },
-  { id: 'compliance', label: 'Close & Tax',        icon: 'ShieldCheck' },
+  { id: 'overview',  label: 'Overview',                  icon: 'LayoutDashboard' },
+  { id: 'cashflow',  label: 'Cash Flow',                 icon: 'Waves' },
+  { id: 'cash',      label: 'Assets',                    icon: 'TrendingUp' },
+  { id: 'ar',        label: 'AR & Collections',          icon: 'Receipt' },
+  { id: 'ap',        label: 'AP & Payments',             icon: 'CreditCard' },
+  { id: 'bva',       label: 'Budget vs Actuals',         icon: 'BarChart3' },
+  { id: 'margins',   label: 'Margins & Concentration',    icon: 'PieChart' },
 ];
 
 interface FinanceDashboardProps {
@@ -23,7 +27,7 @@ interface FinanceDashboardProps {
 }
 
 export function FinanceDashboard({ department, color }: FinanceDashboardProps) {
-  const [activeTab, setActiveTab] = useState('pulse');
+  const [activeTab, setActiveTab] = useState('overview');
 
   const statsQuery = useQuery({
     queryKey: ['dashboard-finance-stats', department],
@@ -56,11 +60,13 @@ export function FinanceDashboard({ department, color }: FinanceDashboardProps) {
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       <div>
-        {activeTab === 'pulse'      && <ExecutivePulseTab stats={stats} color={color} />}
-        {activeTab === 'runway'     && <CashRunwayTab stats={stats} color={color} />}
-        {activeTab === 'ops'        && <WorkingCapitalOpsTab stats={stats} color={color} />}
-        {activeTab === 'bva'        && <BvaUnitEconomicsTab stats={stats} color={color} />}
-        {activeTab === 'compliance' && <CloseTaxComplianceTab stats={stats} color={color} />}
+        {activeTab === 'overview'  && <ExecutiveOverviewTab stats={stats} color={color} />}
+        {activeTab === 'cashflow' && <CashFlowTab stats={stats} color={color} />}
+        {activeTab === 'cash'     && <AssetTab stats={stats} color={color} />}
+        {activeTab === 'ar'       && <ArCollectionsTab stats={stats} color={color} department={department} />}
+        {activeTab === 'ap'       && <ApPaymentsTab stats={stats} color={color} />}
+        {activeTab === 'bva'      && <BvaUnitEconomicsTab stats={stats} color={color} />}
+        {activeTab === 'margins'  && <MarginsConcentrationTab stats={stats} color={color} />}
       </div>
     </div>
   );
