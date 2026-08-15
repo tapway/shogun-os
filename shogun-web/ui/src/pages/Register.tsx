@@ -2,13 +2,13 @@ import { FormEvent, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Building2, Mail, Lock, User as UserIcon, Loader2 } from 'lucide-react';
 import toast from 'react-hot-toast';
-import { authApi, ApiError } from '../lib/api';
+import { authApi, ApiError, setToken } from '../lib/api';
 import { PublicOnlyRoute, useAuth } from '../lib/auth';
 import logoBlue from '../assets/logos/samurai-logo-blue.png';
 
 function RegisterInner() {
   const navigate = useNavigate();
-  const { setUser, setToken } = useAuth();
+  const { setUser } = useAuth();
   const [companyName, setCompanyName] = useState('');
   const [adminName, setAdminName] = useState('');
   const [email, setEmail] = useState('');
@@ -34,7 +34,9 @@ function RegisterInner() {
         email: email.trim(),
         password,
       });
-      setToken(res.access_token ?? (res as unknown as { token: string }).token, true);
+      // Backend returns {token, user} — same shape as login
+      const token = (res as unknown as { token: string }).token || res.access_token;
+      setToken(token, true);
       setUser(res.user);
       toast.success(`Welcome, ${res.user.name || 'Admin'}! Let's set up your company.`);
       navigate('/onboarding', { replace: true });
