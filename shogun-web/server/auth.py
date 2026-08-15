@@ -10,6 +10,7 @@ from __future__ import annotations
 import base64
 import hashlib
 import hmac
+import json
 import logging
 import secrets
 import time
@@ -19,13 +20,20 @@ from urllib.parse import urlencode
 
 import httpx
 from authlib.integrations.httpx_client import AsyncOAuth2Client
-from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from fastapi import APIRouter, Body, Depends, HTTPException, Request, Response, status
 from fastapi.responses import JSONResponse, RedirectResponse
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from config import get_config
+from config import (
+    get_config,
+    get_sso_peer_by_id,
+    get_sso_peer_by_origin,
+    load_sso_peers,
+    save_sso_peers,
+    SSOPeer,
+)
 from database import get_db, get_primary_tenant
 from models import Session as DbSession
 from models import User
@@ -336,6 +344,62 @@ async def login(body: LoginRequest, db: Session = Depends(get_db)) -> JSONRespon
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
 
 
+# ---------------------------------------------------------------------------
+# Registration — self-service new company/user signup
+# ---------------------------------------------------------------------------
+
+class RegisterRequest(BaseModel):
+    company_name: str = Field(min_length=2, max_length=256)
+    admin_name: str = Field(min_length=1, max_length=256)
+    email: str = Field(min_length=3, max_length=320)
+    password: str = Field(min_length=8, max_length=256)
+
+
+@router.post("/register")
+async def register(body: RegisterRequest, db: Session = Depends(get_db)) -> JSONResponse:
+    """Register a new company (tenant) + admin user, then auto-login.
+
+    For single-tenant installations, the admin user is created on the existing
+    tenant. For multi-tenant installations, a new tenant is created.
+    """
+    email = body.email.lower().strip()
+
+    # Check if email already exists
+    existing = db.execute(
+        select(User).where(User.email == email)
+    ).scalar_one_or_none()
+    if existing is not None:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Try signing in instead.",
+        )
+
+    # Use the existing (primary) tenant — single-tenant model for now
+    tenant = get_primary_tenant(db)
+
+    # Update the tenant's company name if the default is still "Shogun OS"
+    if tenant.company_name == "Shogun OS":
+        tenant.company_name = body.company_name.strip()
+        db.add(tenant)
+
+    # Create the admin user
+    user = User(
+        tenant_id=tenant.id,
+        email=email,
+        name=body.admin_name.strip(),
+        password_hash=hash_password(body.password),
+        role="admin",
+        first_login=True,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.refresh(tenant)
+
+    logger.info("Registered new admin user: %s (tenant: %s)", email, tenant.company_name)
+    return _issue_login_response(db, user)
+
+
 @router.post("/change-password")
 async def change_password(
     body: ChangePasswordRequest,
@@ -366,6 +430,7 @@ async def change_password(
 
     user.password_hash = hash_password(body.new_password)
     user.first_login = False
+    user.is_temporary_password = False
     db.add(user)
     db.commit()
     db.refresh(user)
@@ -714,6 +779,457 @@ async def microsoft_callback(
     response = RedirectResponse(url=_frontend_redirect(dest))
     set_session_cookie(response, session_token)
     return response
+
+
+# ---------------------------------------------------------------------------
+# Cross-domain SSO (Website 1 → Shogun = Website 2)
+#
+# A trusted peer site (Website 1) issues a short-lived signed identity token
+# for a user it has already authenticated, then redirects the user's browser
+# to Shogun's `/api/auth/sso-login?token=...&next=...` endpoint. Shogun
+# verifies the token using the shared `sso_secret`, resolves the local User
+# by email, issues a Shogun session token, and redirects to the SPA
+# `/auth/callback?token=...` (the existing OAuth callback page) which stores
+# the token and navigates to the dashboard.
+#
+# Token format (URL-safe, base64-payload . base64-signature):
+#   payload = {"v": 1, "email": "...", "name": "...", "iat": 123, "nonce": "..."}
+#   sig     = HMAC-SHA256(sso_secret, payload_b64)
+#
+# Two ingestion modes:
+#   1. Browser redirect (GET /auth/sso-login) — Website 1 redirects the user.
+#   2. Server-to-server exchange (POST /auth/sso-exchange) — Website 1's
+#      backend trades the SSO token for a Shogun session token via JSON,
+#      then injects it into its own frontend (e.g. postMessage or cookie).
+# ---------------------------------------------------------------------------
+
+
+def create_sso_identity_token(
+    email: str,
+    *,
+    name: str = "",
+    issuer: str = "",
+    secret: Optional[str] = None,
+    max_age_seconds: Optional[int] = None,
+) -> str:
+    """Create a signed SSO identity token for ``email``.
+
+    Website 1 calls this (with its own ``secret`` or the shared ``sso_secret``)
+    after authenticating the user, then redirects the browser to Shogun's
+    ``/api/auth/sso-login``.
+
+    If ``issuer`` is set (e.g. "portal", "crm"), Shogun looks up that peer's
+    secret to verify. If not set, falls back to the global ``sso_secret``.
+    """
+    cfg = get_config()
+    # Resolve which secret to sign with
+    if secret:
+        secret_key = secret.encode("utf-8")
+    elif issuer:
+        peer = get_sso_peer_by_id(issuer)
+        if peer is None or not peer.active or not peer.secret:
+            raise RuntimeError(f"SSO peer '{issuer}' not found or inactive")
+        secret_key = peer.secret.encode("utf-8")
+    else:
+        secret_key = (cfg.sso_secret or "").encode("utf-8")
+    if not secret_key:
+        raise RuntimeError("SSO is not configured (no secret and no matching peer)")
+
+    max_age = max_age_seconds if max_age_seconds is not None else cfg.sso_token_max_age_seconds
+    now = int(time.time())
+    payload_obj: Dict[str, Any] = {
+        "v": 2,  # v2 = multi-site with iss field; v1 = legacy single-secret
+        "email": email.lower().strip(),
+        "name": name or "",
+        "iat": now,
+        "exp": now + int(max_age),
+        "nonce": secrets.token_hex(8),
+    }
+    if issuer:
+        payload_obj["iss"] = issuer
+    payload_json = json.dumps(payload_obj, separators=(",", ":"), sort_keys=True)
+    payload_b64 = _b64encode(payload_json.encode("utf-8"))
+    sig = hmac.new(secret_key, payload_b64.encode("ascii"), hashlib.sha256).digest()
+    return f"{payload_b64}.{_b64encode(sig)}"
+
+
+def verify_sso_identity_token(
+    token: str,
+    *,
+    secret: Optional[str] = None,
+) -> Optional[Dict[str, Any]]:
+    """Validate a SSO identity token. Returns the payload dict or None.
+
+    Resolution order for the HMAC key:
+      1. Explicit ``secret`` param (direct / legacy).
+      2. Token has ``iss`` field → look up that peer's secret.
+      3. Token has no ``iss`` → fall back to global ``sso_secret`` (v1 compat).
+    """
+    try:
+        cfg = get_config()
+
+        payload_b64, sig_b64 = token.split(".", 1)
+
+        # Decode payload WITHOUT verifying first, to read the iss field
+        payload = json.loads(_b64decode(payload_b64).decode("utf-8"))
+        if not isinstance(payload, dict):
+            return None
+
+        # Resolve which secret to verify with
+        issuer = str(payload.get("iss", "") or "")
+        if secret:
+            secret_key = secret.encode("utf-8")
+        elif issuer:
+            peer = get_sso_peer_by_id(issuer)
+            if peer is None or not peer.active or not peer.secret:
+                return None
+            secret_key = peer.secret.encode("utf-8")
+        else:
+            # v1 legacy: no iss, use global secret
+            secret_key = (cfg.sso_secret or "").encode("utf-8")
+            if not secret_key:
+                return None
+
+        # Now verify the HMAC signature
+        expected_sig = hmac.new(
+            secret_key, payload_b64.encode("ascii"), hashlib.sha256
+        ).digest()
+        if not hmac.compare_digest(expected_sig, _b64decode(sig_b64)):
+            return None
+
+        # Validate payload fields
+        version = int(payload.get("v", 0))
+        if version not in (1, 2):
+            return None
+        if int(time.time()) >= int(payload.get("exp", 0)):
+            return None
+        if int(time.time()) - int(payload.get("iat", 0)) > cfg.sso_token_max_age_seconds:
+            return None
+        if not str(payload.get("email", "")):
+            return None
+        return payload
+    except Exception:
+        return None
+
+
+def _resolve_sso_user(db: Session, payload: Dict[str, Any]) -> Optional[User]:
+    """Resolve or (optionally) provision the Shogun User for an SSO payload."""
+    email_n = str(payload.get("email", "")).lower().strip()
+    name = str(payload.get("name", "") or "")
+    tenant = get_primary_tenant(db)
+    user = db.execute(
+        select(User).where(User.tenant_id == tenant.id, User.email == email_n)
+    ).scalar_one_or_none()
+    if user is not None:
+        return user
+    # Fallback: match across tenants (legacy / single-tenant setups)
+    user = db.execute(
+        select(User).where(User.email == email_n)
+    ).scalar_one_or_none()
+    if user is not None:
+        return user
+    # Auto-provision (optional) — create a minimal 'user' (staff) account.
+    cfg = get_config()
+    if not cfg.sso_auto_provision:
+        return None
+    user = User(
+        tenant_id=tenant.id,
+        email=email_n,
+        name=name or email_n.split("@")[0],
+        password_hash=None,
+        oauth_provider="sso",
+        oauth_id=email_n,
+        role="user",
+        first_login=False,
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+def _sso_enabled() -> bool:
+    """SSO is enabled if there's a global secret OR at least one active peer."""
+    cfg = get_config()
+    return bool(cfg.sso_secret) or bool(load_sso_peers())
+
+
+@router.get("/sso-info")
+async def sso_info() -> Dict[str, Any]:
+    """Public status endpoint — Website 1 checks if SSO is available."""
+    cfg = get_config()
+    peers = load_sso_peers()
+    # Don't expose secrets — only id, name, origin, active
+    peer_list = [
+        {"id": p.id, "name": p.name, "origin": p.origin, "active": p.active}
+        for p in peers
+    ]
+    # Collect all trusted origins (from peers + legacy env var)
+    trusted = list(cfg.sso_trusted_origins)
+    for p in peers:
+        if p.origin and p.origin not in trusted:
+            trusted.append(p.origin)
+    return {
+        "sso_enabled": _sso_enabled(),
+        "trusted_origins": trusted,
+        "token_max_age_seconds": cfg.sso_token_max_age_seconds,
+        "auto_provision": cfg.sso_auto_provision,
+        "peers": peer_list,
+        "global_secret_configured": bool(cfg.sso_secret),
+    }
+
+
+def _sso_failure_redirect(reason: str, next_path: Optional[str] = None) -> RedirectResponse:
+    dest = "/login"
+    qs_parts = [f"sso_error={reason}"]
+    if next_path:
+        qs_parts.append(f"next={next_path}")
+    return RedirectResponse(url=_frontend_redirect(f"{dest}?{'&'.join(qs_parts)}"))
+
+
+@router.get("/sso-login")
+async def sso_login(
+    request: Request,
+    token: Optional[str] = None,
+    next: Optional[str] = None,
+    db: Session = Depends(get_db),
+) -> Response:
+    """Browser-redirect SSO ingestion (GET).
+
+    Website 1 redirects the user to:
+        /api/auth/sso-login?token=<sso_identity_token>&next=/department/finance
+
+    Shogun verifies the token, resolves the user, issues a session, and
+    redirects to the SPA ``/auth/callback?token=<session_token>&next=...``.
+    """
+    if not _sso_enabled():
+        return _sso_failure_redirect("sso_disabled", next)
+    if not token:
+        return _sso_failure_redirect("missing_token", next)
+
+    payload = verify_sso_identity_token(token)
+    if payload is None:
+        return _sso_failure_redirect("invalid_token", next)
+
+    user = _resolve_sso_user(db, payload)
+    if user is None:
+        return _sso_failure_redirect("user_not_found", next)
+
+    cfg = get_config()
+    session_token = create_session_token(user.id)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=cfg.session_max_age_seconds)
+    try:
+        db.add(
+            DbSession(
+                user_id=user.id,
+                token=_token_fingerprint(session_token),
+                expires_at=expires_at,
+            )
+        )
+        db.commit()
+    except Exception as exc:
+        logger.warning("SSO session audit row failed: %s", exc)
+        db.rollback()
+
+    # Redirect to SPA callback (existing route) which stores the token + navigates.
+    cb = "/auth/callback"
+    qs = [f"token={session_token}"]
+    if next:
+        # Keep next path scoped to the SPA (no protocol/domain) to avoid open-redirect.
+        if next.startswith("/") and not next.startswith("//"):
+            qs.append(f"next={next}")
+    target = _frontend_redirect(f"{cb}?{'&'.join(qs)}")
+    response = RedirectResponse(url=target)
+    set_session_cookie(response, session_token)
+    return response
+
+
+@router.post("/sso-exchange")
+async def sso_exchange(
+    request: Request,
+    db: Session = Depends(get_db),
+) -> JSONResponse:
+    """Server-to-server SSO token exchange (POST, JSON body).
+
+    Website 1's backend POSTs ``{"token": "<sso_identity_token>"}`` and
+    receives ``{"access_token": "<shogun_session>", "user": {...}}`` to inject
+    into its own frontend (postMessage / cookie / header). Requires Website 1's
+    origin to be in ``sso_trusted_origins`` (Referer / Origin header check).
+    """
+    if not _sso_enabled():
+        raise HTTPException(status_code=503, detail="SSO is not configured")
+    try:
+        body = await request.json()
+    except Exception:
+        body = {}
+    token = str((body or {}).get("token", "") or "")
+    if not token:
+        raise HTTPException(status_code=400, detail="missing token")
+
+    payload = verify_sso_identity_token(token)
+    if payload is None:
+        raise HTTPException(status_code=401, detail="invalid or expired token")
+
+    # Origin check (defense in depth — the HMAC secret is the real gate)
+    cfg = get_config()
+    origin = (request.headers.get("origin") or request.headers.get("referer") or "").rstrip("/")
+    if origin:
+        # Check if origin matches any configured peer or legacy trusted origins
+        peer = get_sso_peer_by_origin(origin)
+        trusted_legacy = origin in cfg.sso_trusted_origins
+        if not peer and not trusted_legacy:
+            logger.warning("SSO exchange rejected origin: %s", origin)
+            raise HTTPException(status_code=403, detail="origin not trusted")
+
+    user = _resolve_sso_user(db, payload)
+    if user is None:
+        raise HTTPException(status_code=404, detail="user not found")
+
+    session_token = create_session_token(user.id)
+    expires_at = datetime.now(timezone.utc) + timedelta(seconds=cfg.session_max_age_seconds)
+    try:
+        db.add(
+            DbSession(
+                user_id=user.id,
+                token=_token_fingerprint(session_token),
+                expires_at=expires_at,
+            )
+        )
+        db.commit()
+    except Exception as exc:
+        logger.warning("SSO exchange session audit row failed: %s", exc)
+        db.rollback()
+
+    resp = JSONResponse(content={"access_token": session_token, "user": _user_response(user)})
+    set_session_cookie(resp, session_token)
+    return resp
+
+
+# ---------------------------------------------------------------------------
+# SSO peer site management (admin API)
+#
+# Admins can preset all 6 "Website 1" sites via these endpoints or by editing
+# ~/.shogun-os/sso-peers.json directly. Each peer has its own secret.
+# ---------------------------------------------------------------------------
+
+
+def _sanitize_peer(peer: SSOPeer) -> Dict[str, Any]:
+    """Return peer dict without the secret (for safe API responses)."""
+    return {"id": peer.id, "name": peer.name, "origin": peer.origin, "active": peer.active}
+
+
+@router.get("/sso-peers")
+async def list_sso_peers(
+    user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """List all configured SSO peer sites (admin only). Secrets are masked."""
+    peers = load_sso_peers()
+    return {
+        "peers": [
+            {**_sanitize_peer(p), "secret_masked": p.secret[:4] + "…" if p.secret else ""}
+            for p in peers
+        ],
+        "total": len(peers),
+    }
+
+
+@router.post("/sso-peers")
+async def upsert_sso_peer(
+    body: Dict[str, Any] = Body(...),
+    user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """Add or update a single SSO peer site (admin only).
+
+    Body: {"id": "portal", "name": "Main Portal", "origin": "https://...",
+           "secret": "...", "active": true}
+    If the ``id`` already exists, the peer is updated (secret replaced if non-empty).
+    """
+    peer_id = str(body.get("id", "") or "").strip()
+    if not peer_id:
+        raise HTTPException(status_code=400, detail="id is required")
+    origin = str(body.get("origin", "") or "").strip().rstrip("/")
+    if not origin:
+        raise HTTPException(status_code=400, detail="origin is required")
+    secret = str(body.get("secret", "") or "")
+    name = str(body.get("name", "") or "").strip() or peer_id
+    active = bool(body.get("active", True))
+
+    peers = load_sso_peers()
+    existing_idx = next((i for i, p in enumerate(peers) if p.id == peer_id), None)
+    if existing_idx is not None:
+        # Update existing — keep old secret if new one is empty
+        old = peers[existing_idx]
+        if not secret:
+            secret = old.secret
+        peers[existing_idx] = SSOPeer(
+            id=peer_id, name=name, origin=origin, secret=secret, active=active
+        )
+        action = "updated"
+    else:
+        if not secret:
+            raise HTTPException(
+                status_code=400, detail="secret is required when adding a new peer"
+            )
+        peers.append(
+            SSOPeer(id=peer_id, name=name, origin=origin, secret=secret, active=active)
+        )
+        action = "created"
+
+    save_sso_peers(peers)
+    return {"ok": True, "action": action, "peer": _sanitize_peer(
+        SSOPeer(id=peer_id, name=name, origin=origin, secret=secret, active=active)
+    )}
+
+
+@router.delete("/sso-peers/{peer_id}")
+async def delete_sso_peer(
+    peer_id: str,
+    user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """Remove a single SSO peer site (admin only)."""
+    peers = load_sso_peers()
+    new_peers = [p for p in peers if p.id != peer_id]
+    if len(new_peers) == len(peers):
+        raise HTTPException(status_code=404, detail="peer not found")
+    save_sso_peers(new_peers)
+    return {"ok": True, "removed": peer_id}
+
+
+@router.post("/sso-peers/batch")
+async def batch_set_sso_peers(
+    body: Dict[str, Any] = Body(...),
+    user: User = Depends(require_admin),
+) -> Dict[str, Any]:
+    """Replace the entire peer list at once (admin only).
+
+    Body: {"peers": [{"id": "...", "name": "...", "origin": "...", "secret": "..."}, ...]}
+    Useful for presetting all 6 sites in one call from a config file.
+    """
+    raw_peers = body.get("peers")
+    if not isinstance(raw_peers, list):
+        raise HTTPException(status_code=400, detail="peers must be a list")
+    peers: list[SSOPeer] = []
+    seen_ids = set()
+    for item in raw_peers:
+        if not isinstance(item, dict):
+            continue
+        peer_id = str(item.get("id", "") or "").strip()
+        origin = str(item.get("origin", "") or "").strip().rstrip("/")
+        secret = str(item.get("secret", "") or "")
+        if not peer_id or not origin or not secret:
+            continue
+        if peer_id in seen_ids:
+            continue
+        seen_ids.add(peer_id)
+        peers.append(SSOPeer(
+            id=peer_id,
+            name=str(item.get("name", "") or "").strip() or peer_id,
+            origin=origin,
+            secret=secret,
+            active=bool(item.get("active", True)),
+        ))
+    save_sso_peers(peers)
+    return {"ok": True, "total": len(peers), "peers": [_sanitize_peer(p) for p in peers]}
 
 
 # ---------------------------------------------------------------------------

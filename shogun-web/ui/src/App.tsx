@@ -9,6 +9,7 @@ import Department from './pages/Department';
 import Login from './pages/Login';
 import NoAccess from './pages/NoAccess';
 import Onboarding from './pages/Onboarding';
+import Register from './pages/Register';
 import StaffManagement from './pages/StaffManagement';
 import SkillsCatalog from './pages/SkillsCatalog';
 import TrainSkill from './pages/TrainSkill';
@@ -93,6 +94,7 @@ export default function App() {
   return (
     <Routes>
       <Route path="/login" element={<Login />} />
+      <Route path="/register" element={<Register />} />
       <Route path="/auth/callback" element={<AuthCallback />} />
 
       <Route

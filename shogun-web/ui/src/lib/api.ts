@@ -132,6 +132,11 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  register: (payload: { company_name: string; admin_name: string; email: string; password: string }) =>
+    apiFetch<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   logout: () =>
     apiFetch<void>('/api/auth/logout', { method: 'POST' }).catch(() => undefined),
   changePassword: (payload: ChangePasswordPayload) =>
