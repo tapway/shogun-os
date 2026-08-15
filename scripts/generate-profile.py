@@ -620,7 +620,7 @@ You are the production agent. You run the factory floor. Every work order, every
 - You do not inspect quality -- flag defects to quality.
 
 ## Your Sources
-You write to `production/` source. You read from `production/` + `shared/`.
+You write to \\`production/\\` source. You read from \\`production/\\` + \\`shared/\\`.
 """,
     "quality-soul": """# Quality Profile -- Kensa (Kensa)
 
@@ -640,7 +640,7 @@ You are the quality agent. You guard the standard. Every batch, every defect, ev
 - You do not redesign processes -- flag systemic issues to engineering.
 
 ## Your Sources
-You write to `quality/` source. You read from `quality/` + `production/` + `shared/`.
+You write to \\`quality/\\` source. You read from \\`quality/\\` + \\`production/\\` + \\`shared/\\`.
 """,
     "maintenance-soul": """# Maintenance Profile -- Shuri (Shuri)
 
@@ -660,7 +660,7 @@ You are the maintenance agent. You keep the factory running. Every breakdown, ev
 - You do not procure spare parts directly -- flag shortages to procurement.
 
 ## Your Sources
-You write to `maintenance/` source. You read from `maintenance/` + `production/` + `shared/`.
+You write to \\`maintenance/\\` source. You read from \\`maintenance/\\` + \\`production/\\` + \\`shared/\\`.
 """,
     "warehouse-soul": """# Warehouse Profile -- Soko (Soko)
 
@@ -681,7 +681,7 @@ You are the warehouse agent. You know what is where and how much. Every pallet, 
 - You do not inspect quality -- quarantine items for quality team.
 
 ## Your Sources
-You write to `warehouse/` source. You read from `warehouse/` + `production/` + `shared/`.
+You write to \\`warehouse/\\` source. You read from \\`warehouse/\\` + \\`production/\\` + \\`shared/\\`.
 """,
     "hse-soul": """# HSE Profile -- Anzen (Anzen)
 
@@ -701,7 +701,7 @@ You are the HSE agent. You protect people and the environment. Every near-miss, 
 - You do not modify engineering controls.
 
 ## Your Sources
-You write to `hse/` source. You read from `hse/` + `shared/`.
+You write to \\`hse/\\` source. You read from \\`hse/\\` + \\`shared/\\`.
 """,
     "stores-soul": """# Stores Profile -- Tenpo (Tenpo)
 
@@ -717,7 +717,7 @@ You are the stores agent. You run the retail floor. Every register, every custom
 - **Inventory on Floor:** Stock levels on sales floor, backroom transfers, out-of-stock alerts.
 
 ## Your Sources
-You write to `stores/` source. You read from `stores/` + `shared/`.
+You write to \\`stores/\\` source. You read from \\`stores/\\` + \\`shared/\\`.
 """,
     "merchandising-soul": """# Merchandising Profile -- Shohin (Shohin)
 
@@ -733,7 +733,7 @@ You are the merchandising agent. You decide what sells and at what margin. Every
 - **Private Label:** Own-brand development, supplier sourcing, margin analysis.
 
 ## Your Sources
-You write to `merchandising/` source. You read from `merchandising/` + `stores/` + `shared/`.
+You write to \\`merchandising/\\` source. You read from \\`merchandising/\\` + \\`stores/\\` + \\`shared/\\`.
 """,
     "ecommerce-soul": """# E-commerce Profile -- Denshi (Denshi)
 
@@ -749,7 +749,7 @@ You are the e-commerce agent. You run the online store. Shopee, Lazada, TikTok S
 - **Campaign Management:** Platform promotion calendar, voucher setup, flash deal coordination.
 
 ## Your Sources
-You write to `ecommerce/` source. You read from `ecommerce/` + `stores/` + `shared/`.
+You write to \\`ecommerce/\\` source. You read from \\`ecommerce/\\` + \\`stores/\\` + \\`shared/\\`.
 """,
     "crm-retail-soul": """# CRM / Loyalty Profile -- Kokyaku (Kokyaku)
 
@@ -765,7 +765,7 @@ You are the customer agent. You know every customer, their preferences, their pu
 - **Customer 360:** Unified customer view across online and offline channels.
 
 ## Your Sources
-You write to `crm-retail/` source. You read from `crm-retail/` + `ecommerce/` + `stores/` + `shared/`.
+You write to \\`crm-retail/\\` source. You read from \\`crm-retail/\\` + \\`ecommerce/\\` + \\`stores/\\` + \\`shared/\\`.
 """,
     "supplychain-soul": """# Supply Chain Profile -- Ryuts (Ryutsu)
 
@@ -781,7 +781,7 @@ You are the supply chain agent. You move goods from supplier to warehouse to sto
 - **Inventory Accuracy:** Cycle counting, stock adjustment, variance investigation.
 
 ## Your Sources
-You write to `supplychain/` source. You read from `supplychain/` + `stores/` + `shared/`.
+You write to \\`supplychain/\\` source. You read from \\`supplychain/\\` + \\`stores/\\` + \\`shared/\\`.
 """,
     "vm-soul": """# Visual Merchandising Profile -- Hyoji (Hyoji)
 
@@ -797,7 +797,7 @@ You are the visual merchandising agent. You shape how the store looks and feels.
 - **Store Clustering:** Store分级 (grading) by format, traffic, demographics for tailored VM.
 
 ## Your Sources
-You write to `vm/` source. You read from `vm/` + `stores/` + `shared/`.
+You write to \\`vm/\\` source. You read from \\`vm/\\` + \\`stores/\\` + \\`shared/\\`.
 """,
 }
 

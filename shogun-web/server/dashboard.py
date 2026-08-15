@@ -516,7 +516,10 @@ def _safe_float(val: Any, default: float = 0.0) -> float:
 
 def _run_finance_aggregation(pages: List[dict]) -> dict:
     """Aggregate gbrain finance pages into structured dashboard stats.
-    Supplies rich demo mock data when gbrain snapshots are empty so users can view all 5 tabs immediately.
+
+    Data source: gbrain snapshots only. When no snapshots are available,
+    returns an empty-state payload (zeros + empty lists) so the UI shows
+    "no data yet" — does NOT load mock/example data.
     """
     now = _now()
     cy, cm = now.year, now.month
@@ -627,58 +630,50 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         wht_queue: List[dict] = compliance_snap.get("wht_queue", [])
         expense_claim_audit: List[dict] = compliance_snap.get("expense_claim_audit", [])
     else:
-        # ── LOAD FROM EXAMPLES/FINANCE-BUDGET.JSON ──
-        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
-        mock_data = {}
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    file_content = json.load(f)
-                    mock_data = file_content.get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data from %s: %s", json_path, e)
+        # No snapshot data available — return empty-state, not fabricated mock data.
+        # The UI shows "no data yet / connect gbrain" rather than fake RM figures.
+        logger.info("Finance dashboard: no gbrain snapshots — returning empty state")
+        total_liquid_cash = 0.0
+        net_monthly_burn = 0.0
+        cash_runway_months = 0.0
+        runway_status = "unknown"
+        revenue_mtd = 0.0
+        revenue_ytd = 0.0
+        gross_margin = 0.0
+        ebitda_margin = 0.0
+        unpaid_statutory = 0.0
 
-        total_liquid_cash = _safe_float(mock_data.get("totalLiquidCash", 1450000.0))
-        net_monthly_burn = _safe_float(mock_data.get("netMonthlyBurn", 120000.0))
-        cash_runway_months = _safe_float(mock_data.get("cashRunwayMonths", 12.1))
-        runway_status = str(mock_data.get("runwayStatus", "healthy"))
-        revenue_mtd = _safe_float(mock_data.get("revenueMTD", 340000.0))
-        revenue_ytd = _safe_float(mock_data.get("revenueYTD", 3850000.0))
-        gross_margin = _safe_float(mock_data.get("grossMargin", 64.2))
-        ebitda_margin = _safe_float(mock_data.get("ebitdaMargin", 22.1))
-        unpaid_statutory = _safe_float(mock_data.get("unpaidStatutory", 42500.0))
+        risk_alerts: List[dict] = []
+        revenue_opex_trend: List[dict] = []
+        cash_flow_trend: List[dict] = []
 
-        risk_alerts = mock_data.get("riskAlerts", [])
-        revenue_opex_trend = mock_data.get("revenueOpexTrend", [])
-        cash_flow_trend = mock_data.get("cashFlowTrend", [])
+        bank_accounts: List[dict] = []
+        fx_positions: List[dict] = []
+        fixed_opex = 0.0
+        variable_opex = 0.0
+        forecast_13w = {"expected": [], "conservative": [], "optimistic": []}
 
-        bank_accounts = mock_data.get("bankAccounts", [])
-        fx_positions = mock_data.get("fxPositions", [])
-        fixed_opex = _safe_float(mock_data.get("fixedOpex", 85000.0))
-        variable_opex = _safe_float(mock_data.get("variableOpex", 35000.0))
-        forecast_13w = mock_data.get("forecast13w", {"expected": [], "conservative": [], "optimistic": []})
+        total_ar = 0.0
+        ar_overdue_30 = 0.0
+        dso = 0.0
+        total_ap = 0.0
+        ap_overdue = 0.0
+        dpo = 0.0
 
-        total_ar = _safe_float(mock_data.get("totalAR", 485000.0))
-        ar_overdue_30 = _safe_float(mock_data.get("arOverdue30", 145000.0))
-        dso = _safe_float(mock_data.get("dso", 38.0))
-        total_ap = _safe_float(mock_data.get("totalAP", 210000.0))
-        ap_overdue = _safe_float(mock_data.get("apOverdue", 32000.0))
-        dpo = _safe_float(mock_data.get("dpo", 28.0))
+        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
+        dunning_queue: List[dict] = []
+        ap_bills: List[dict] = []
 
-        ar_aging = mock_data.get("arAging", {"bucket_0_30": 340000.0, "bucket_31_60": 65000.0, "bucket_61_90": 40000.0, "bucket_90_plus": 40000.0})
-        dunning_queue = mock_data.get("dunningQueue", [])
-        ap_bills = mock_data.get("apBills", [])
+        bva_departments: List[dict] = []
+        unit_economics = {"gross_margin_pct": 0.0, "contribution_margin_pct": 0.0, "cac": 0.0, "ltv": 0.0, "ltv_cac_ratio": 0.0}
+        client_concentration: List[dict] = []
 
-        bva_departments = mock_data.get("bvaDepartments", [])
-        unit_economics = mock_data.get("unitEconomics", {"gross_margin_pct": 64.2, "contribution_margin_pct": 48.5, "cac": 4200.0, "ltv": 24000.0, "ltv_cac_ratio": 5.7})
-        client_concentration = mock_data.get("clientConcentration", [])
-
-        close_checklist = mock_data.get("closeChecklist", [])
-        statutory_schedule = mock_data.get("statutorySchedule", [])
-        sst_readiness = mock_data.get("sstReadiness", {"draft_status": "Draft In Progress", "taxable_sales": 520000.0, "sst_liability": 31200.0})
-        cp58_register = mock_data.get("cp58Register", [])
-        wht_queue = mock_data.get("whtQueue", [])
-        expense_claim_audit = mock_data.get("expenseClaimAudit", [])
+        close_checklist: List[dict] = []
+        statutory_schedule: List[dict] = []
+        sst_readiness = {"draft_status": "Not Started", "taxable_sales": 0.0, "sst_liability": 0.0}
+        cp58_register: List[dict] = []
+        wht_queue: List[dict] = []
+        expense_claim_audit: List[dict] = []
 
     return {
         # Tab 1 — Executive Pulse

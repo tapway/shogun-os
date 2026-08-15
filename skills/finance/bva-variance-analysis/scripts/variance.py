@@ -103,7 +103,7 @@ def compute_variance(budget_amount: float, actual_amount: float) -> tuple[float,
 
 
 def format_money(amount: float) -> str:
-    return f"${amount:,.2f}"
+    return f"RM {amount:,.2f}"
 
 
 def format_pct(pct: float) -> str:

@@ -241,7 +241,7 @@ def compute_bva_section(pl_data: dict, budget_json_path: str, dry_run: bool) -> 
 # ---------------------------------------------------------------------------
 
 def fmt_money(amount: float) -> str:
-    return f"${amount:,.2f}"
+    return f"RM {amount:,.2f}"
 
 
 def fmt_pct(val: float, sign: bool = True) -> str:

@@ -197,7 +197,7 @@ SAMPLE_MTD_PL = {
 # ---------------------------------------------------------------------------
 
 def fmt_money(amount: float) -> str:
-    return f"${amount:,.2f}"
+    return f"RM {amount:,.2f}"
 
 
 def compute_burn_rate(opex: float, days_in_period: int) -> float:
@@ -311,7 +311,7 @@ def run(dry_run: bool, output_path: Optional[str]) -> None:
     print(report)
 
     if output_path:
-        os.makedirs(os.path.dirname(output_path), exist_ok=True)
+        os.makedirs(os.path.dirname(output_path) or ".", exist_ok=True)
         with open(output_path, "w", encoding="utf-8") as f:
             f.write(report + "\n")
         print(f"\n✅ Report saved to: {output_path}")
