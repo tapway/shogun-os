@@ -328,7 +328,7 @@ function BvaSection({
             No breakdown data available.
           </div>
         ) : (
-          <div style={{ maxHeight: '280px', overflowY: 'auto' }}>
+          <div>
               <table className="w-full" style={{ borderCollapse: 'collapse', fontSize: '0.75rem' }}>
                 <thead>
                   <tr style={{ borderBottom: `1px solid ${BORDER}` }}>

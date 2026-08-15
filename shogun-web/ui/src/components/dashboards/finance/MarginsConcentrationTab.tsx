@@ -14,11 +14,11 @@ const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 
 const DONUT_COLORS = [
-  'var(--samurai-brand)',
-  'var(--samurai-lime)',
-  'var(--samurai-warning)',
-  '#f59e0b',
-  'var(--samurai-muted)',
+  '#6366f1', // indigo-500
+  '#84cc16', // lime-500
+  '#f59e0b', // amber-500
+  '#ec4899', // pink-500
+  '#14b8a6', // teal-500
 ];
 
 export function MarginsConcentrationTab({ stats, color }: Props) {

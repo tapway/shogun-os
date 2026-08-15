@@ -736,6 +736,7 @@ export interface BvaLineItem {
   variance: number;
   variance_pct: number;
   monthly_budget?: number[];
+  match_confidence?: 'high' | 'medium' | 'low' | 'none';
 }
 
 export interface UnitEconomics {
@@ -753,6 +754,8 @@ export interface ClientConcentrationItem {
 }
 
 export interface FinanceDashboardStats {
+  // Mock flag — true when data loaded from examples/*.json (demo mode)
+  mock?: boolean;
   // Tab 1 — Executive Pulse
   totalLiquidCash: number;
   netMonthlyBurn: number;

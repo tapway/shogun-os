@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Iterator, Optional
 
-from sqlalchemy import create_engine, event, select
+from sqlalchemy import create_engine, event, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -273,6 +273,25 @@ def init_db() -> None:
     SHOGUN_HOME.mkdir(parents=True, exist_ok=True)
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
+    # Ensure cron_jobs table exists on production DBs where create_all
+    # doesn't ALTER existing tables. Raw SQL fallback (PR #16 review).
+    with engine.connect() as conn:
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS cron_jobs (
+                id VARCHAR(128) PRIMARY KEY,
+                department VARCHAR(128) NOT NULL,
+                name VARCHAR(256) NOT NULL,
+                schedule VARCHAR(128) NOT NULL DEFAULT '0 9 * * 1-5',
+                prompt TEXT NOT NULL DEFAULT '',
+                skill_id VARCHAR(256) NOT NULL DEFAULT '',
+                enabled BOOLEAN NOT NULL DEFAULT 1,
+                deliver_channel_id VARCHAR(128) NOT NULL DEFAULT '',
+                tenant_id VARCHAR(36),
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.commit()
     with session_scope() as db:
         tenant = _ensure_tenant(db)
         _ensure_departments(db, tenant)

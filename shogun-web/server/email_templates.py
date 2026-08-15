@@ -420,6 +420,13 @@ async def send_email(
     smtp_password = creds.get("smtp_password", "")
     from_addr = creds.get("email_address", "")
 
+    # Check for masked password — can't authenticate with "***"
+    if smtp_password == "***":
+        raise HTTPException(
+            status.HTTP_400_BAD_REQUEST,
+            detail="SMTP password is masked. Re-enter the password in Settings → Comms → Email.",
+        )
+
     if not smtp_host or not smtp_password or not from_addr:
         raise HTTPException(
             status.HTTP_400_BAD_REQUEST,

@@ -1,6 +1,7 @@
 """Department dashboard endpoints — aggregates data via gbrain MCP."""
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
@@ -643,6 +644,10 @@ _ACCT_ENV_FILE = pathlib.Path.home() / ".hermes" / "profiles" / "finance-manager
 _QBO_CACHE: Dict[str, dict] = {}  # key -> {"data": ..., "ts": epoch}
 _QBO_CACHE_TTL = 300  # 5 minutes
 
+# Asset trend cache — historical data, doesn't change often (1 hour TTL)
+_ASSET_TREND_CACHE: dict = {"data": [], "ts": 0}
+_ASSET_TREND_TTL = 3600  # 1 hour
+
 
 def _load_acct_env() -> dict:
     """Load ACCT_* vars from the finance-manager profile .env file."""
@@ -1015,6 +1020,12 @@ def _match_qbo_actuals_to_budget(budget_items: List[dict], pl: dict) -> List[dic
     For each budget item, find the matching QBO revenue/expense account by
     normalized-name substring match, then fill in `actual_ytd`,
     `variance`, and `variance_pct`. Budget fields are preserved.
+
+    Each match is tagged with `match_confidence`:
+      - "high": exact normalized name match
+      - "medium": substring match (one name contains the other)
+      - "low": keyword overlap only (may produce false positives)
+      - "none": no match found, actual_ytd = 0
     """
     revenue_accts = pl.get("revenue_accounts", []) or []
     expense_accts = pl.get("expense_accounts", []) or []
@@ -1027,17 +1038,29 @@ def _match_qbo_actuals_to_budget(budget_items: List[dict], pl: dict) -> List[dic
         budget_ytd = _safe_float(item.get("budget_ytd", 0))
         actual_ytd = 0.0
         matched = None
+        match_confidence = "none"
 
-        # Try exact substring match first
+        # Try exact match first (highest confidence)
         for acct in pl_accounts:
             pl_name = _normalize_account_name(acct.get("account_name", ""))
-            if pl_name and (acct_name in pl_name or pl_name in acct_name):
+            if pl_name and acct_name == pl_name:
                 actual_ytd = _safe_float(acct.get("amount", 0))
                 matched = acct
+                match_confidence = "high"
                 break
 
-        # If no substring match, try keyword overlap (any word in common
-        # except very short words)
+        # Try substring match (medium confidence)
+        if matched is None:
+            for acct in pl_accounts:
+                pl_name = _normalize_account_name(acct.get("account_name", ""))
+                if pl_name and (acct_name in pl_name or pl_name in acct_name):
+                    actual_ytd = _safe_float(acct.get("amount", 0))
+                    matched = acct
+                    match_confidence = "medium"
+                    break
+
+        # If no substring match, try keyword overlap (low confidence — may
+        # produce false positives like "Salaries" matching "Salaries Payable")
         if matched is None and acct_name:
             acct_words = {w for w in acct_name.split() if len(w) > 3}
             if acct_words:
@@ -1047,6 +1070,7 @@ def _match_qbo_actuals_to_budget(budget_items: List[dict], pl: dict) -> List[dic
                     if acct_words & pl_words:
                         actual_ytd = _safe_float(acct.get("amount", 0))
                         matched = acct
+                        match_confidence = "low"
                         break
 
         variance = actual_ytd - budget_ytd
@@ -1055,9 +1079,24 @@ def _match_qbo_actuals_to_budget(budget_items: List[dict], pl: dict) -> List[dic
         item_out["actual_ytd"] = actual_ytd
         item_out["variance"] = variance
         item_out["variance_pct"] = round(variance_pct, 1)
+        item_out["match_confidence"] = match_confidence
         out.append(item_out)
 
     return out
+
+
+async def _build_asset_trend_async() -> List[dict]:
+    """Non-blocking asset trend with 1-hour cache.
+
+    Runs _build_asset_trend in a thread pool so it doesn't freeze the
+    FastAPI event loop. Cached for 1 hour (historical data).
+    """
+    if _ASSET_TREND_CACHE["data"] and (time.time() - _ASSET_TREND_CACHE["ts"]) < _ASSET_TREND_TTL:
+        return _ASSET_TREND_CACHE["data"]
+    trend = await asyncio.to_thread(_build_asset_trend)
+    _ASSET_TREND_CACHE["data"] = trend
+    _ASSET_TREND_CACHE["ts"] = time.time()
+    return trend
 
 
 def _build_asset_trend() -> List[dict]:
@@ -1460,7 +1499,7 @@ def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
     }
 
 
-def _run_finance_aggregation(pages: List[dict]) -> dict:
+async def _run_finance_aggregation(pages: List[dict]) -> dict:
     """Aggregate gbrain finance pages into structured dashboard stats.
 
     Data source: gbrain snapshots only. When no snapshots are available,
@@ -1528,6 +1567,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
 
     if has_live_qbo:
         # ── LIVE QBO DATA — primary path ──
+        mock = False  # live data, not mock
         # Assets + bank accounts from live BS via _build_live_assets
         live_assets = _build_live_assets(live_bs)
         current_assets = live_assets["currentAssets"]
@@ -1536,7 +1576,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         total_non_current_assets = live_assets["totalNonCurrentAssets"]
         total_assets_val = live_assets["totalAssets"]
         bank_accounts: List[dict] = live_assets["bankAccounts"]
-        asset_trend = _build_asset_trend()  # may be [] on fetch failure
+        asset_trend = await _build_asset_trend_async()  # may be [] on fetch failure
 
         # Cash: sum of bank/cash accounts from live BS
         total_liquid_cash = sum(
@@ -1694,8 +1734,11 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         cash_flow_trend: List[dict] = []
 
         # BvA: load budget items from mock JSON, match QBO actuals
+        # NOTE: budget items are real (from Budget Excel), but unit economics,
+        # client concentration, and compliance are fabricated demo data.
         json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
         mock_data = {}
+        mock = True  # BvA/concentration/compliance loaded from demo JSON
         if json_path.exists():
             try:
                 with open(json_path, "r", encoding="utf-8") as f:
@@ -1710,7 +1753,16 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         unit_economics: dict = mock_data.get("unitEconomics", {
             "gross_margin_pct": gross_margin, "contribution_margin_pct": 0,
             "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
-        client_concentration: List[dict] = mock_data.get("clientConcentration", [])
+        raw_client_concentration: List[dict] = mock_data.get("clientConcentration", [])
+        # Compute revenue_pct from revenue_ytd relative to total YTD revenue
+        total_client_revenue = sum(_safe_float(c.get("revenue_ytd", 0)) for c in raw_client_concentration)
+        if total_client_revenue > 0 and revenue_ytd > 0:
+            client_concentration: List[dict] = [
+                {**c, "revenue_pct": round((_safe_float(c.get("revenue_ytd", 0)) / revenue_ytd * 100), 1)}
+                for c in raw_client_concentration
+            ]
+        else:
+            client_concentration = raw_client_concentration
         close_checklist: List[dict] = mock_data.get("closeChecklist", [])
         statutory_schedule: List[dict] = mock_data.get("statutorySchedule", [])
         sst_readiness: dict = mock_data.get("sstReadiness", {
@@ -1720,6 +1772,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         expense_claim_audit: List[dict] = mock_data.get("expenseClaimAudit", [])
 
     elif has_real_data:
+        mock = False  # gbrain snapshot data, not mock
         total_liquid_cash = _safe_float(cash_snap.get("total_liquid_cash"))
         net_monthly_burn = _safe_float(cash_snap.get("net_monthly_burn"))
         cash_runway_months = _safe_float(cash_snap.get("cash_runway_months", 0))
@@ -1835,6 +1888,7 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         # No snapshot data available — return empty-state, not fabricated mock data.
         # The UI shows "no data yet / connect gbrain" rather than fake RM figures.
         logger.info("Finance dashboard: no gbrain snapshots — returning empty state")
+        mock = False  # empty state, not mock
         total_liquid_cash = 0.0
         net_monthly_burn = 0.0
         cash_runway_months = 0.0
@@ -1903,6 +1957,8 @@ def _run_finance_aggregation(pages: List[dict]) -> dict:
         cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
 
     return {
+        # Mock flag — true when data loaded from examples/*.json (demo mode)
+        "mock": mock,
         # Tab 1 — Executive Pulse
         "totalLiquidCash": total_liquid_cash,
         "netMonthlyBurn": net_monthly_burn,
@@ -1980,7 +2036,7 @@ async def get_finance_stats(
 ) -> dict:
     """Aggregated Finance dashboard stats — all 5 tabs."""
     pages = await gbrain_fetch_pages("finance", limit=300)
-    return _run_finance_aggregation(pages)
+    return await _run_finance_aggregation(pages)
 
 
 # ─── Procurement aggregation helpers ───
