@@ -457,44 +457,43 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
     if totalActiveDeals == 0 and not wonDeals:
-        # No real deals at all — return the full CRM mock wholesale (spec §1 Phase 1:
-        # "realistic mock data engine, zero code modification required for preview").
-        # Mirrors the finance/procurement fallback: every field below has a mock value
-        # so all 6 sub-tabs render populated. The aggregated accumulators above are
-        # discarded in this branch.
+        # No real deals at all — return an empty-state payload, not fabricated
+        # mock figures. Same policy as finance/procurement (PR #12 review: no
+        # fabricated numbers). The UI shows "no data yet / connect gbrain".
+        logger.info("CRM dashboard: no deal data — returning empty state")
         return {
-            "salesMTD": _safe_int(crm_mock.get("salesMTD")),
-            "salesQTD": _safe_int(crm_mock.get("salesQTD")),
-            "salesYTD": _safe_int(crm_mock.get("salesYTD")),
-            "totalPipelineValue": _safe_int(crm_mock.get("totalPipelineValue")),
-            "weightedPipelineValue": _safe_int(crm_mock.get("weightedPipelineValue")),
-            "pipelineCoverage": _safe_float(crm_mock.get("pipelineCoverage")),
-            "winRate": _safe_int(crm_mock.get("winRate")),
-            "avgDealSize": _safe_int(crm_mock.get("avgDealSize")),
-            "salesCycleDays": _safe_int(crm_mock.get("salesCycleDays"), 47),
-            "totalActiveDeals": _safe_int(crm_mock.get("totalActiveDeals")),
-            "hotDeals": _safe_int(crm_mock.get("hotDeals")),
-            "warmDeals": _safe_int(crm_mock.get("warmDeals")),
-            "coldDeals": _safe_int(crm_mock.get("coldDeals")),
-            "wonDeals": _safe_int(crm_mock.get("wonDeals")),
-            "byManager": crm_mock.get("byManager", []),
-            "byPartner": crm_mock.get("byPartner", []),
-            "byStage": crm_mock.get("byStage", []),
-            "byMonth": crm_mock.get("byMonth", []),
-            "byPriority": crm_mock.get("byPriority", []),
-            "wonByMonth": crm_mock.get("wonByMonth", []),
-            "byProduct": crm_mock.get("byProduct", []),
-            "atRiskByManager": crm_mock.get("atRiskByManager", []),
-            "atRiskByPartner": crm_mock.get("atRiskByPartner", []),
-            "byManagerByPartner": crm_mock.get("byManagerByPartner", []),
-            "topDeals": crm_mock.get("topDeals", []),
-            "channelVolume": crm_mock.get("channelVolume", {"shopee": 0, "lazada": 0, "fbMessenger": 0, "whatsapp": 0}),
-            "avgResponseMinutes": _safe_float(crm_mock.get("avgResponseMinutes")),
-            "slaCompliancePct": _safe_float(crm_mock.get("slaCompliancePct")),
-            "aiResolutionPct": _safe_float(crm_mock.get("aiResolutionPct")),
-            "chatToOrderPct": _safe_float(crm_mock.get("chatToOrderPct")),
-            "chatToOrderTrend": crm_mock.get("chatToOrderTrend", []),
-            "chatInbox": crm_mock.get("chatInbox", []),
+            "salesMTD": 0,
+            "salesQTD": 0,
+            "salesYTD": 0,
+            "totalPipelineValue": 0,
+            "weightedPipelineValue": 0,
+            "pipelineCoverage": 0.0,
+            "winRate": 0,
+            "avgDealSize": 0,
+            "salesCycleDays": 0,
+            "totalActiveDeals": 0,
+            "hotDeals": 0,
+            "warmDeals": 0,
+            "coldDeals": 0,
+            "wonDeals": 0,
+            "byManager": [],
+            "byPartner": [],
+            "byStage": [],
+            "byMonth": [],
+            "byPriority": [],
+            "wonByMonth": [],
+            "byProduct": [],
+            "atRiskByManager": [],
+            "atRiskByPartner": [],
+            "byManagerByPartner": [],
+            "topDeals": [],
+            "channelVolume": {"shopee": 0, "lazada": 0, "fbMessenger": 0, "whatsapp": 0},
+            "avgResponseMinutes": 0.0,
+            "slaCompliancePct": 0.0,
+            "aiResolutionPct": 0.0,
+            "chatToOrderPct": 0.0,
+            "chatToOrderTrend": [],
+            "chatInbox": [],
         }
 
     # Real deals exist — derive channel volume + SLA from frontmatter; inbox + trend still mock
@@ -2108,47 +2107,40 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         risk_alerts: List[dict] = inventory_snap.get("risk_alerts", [])
     else:
-        # ── LOAD FROM EXAMPLES/PROCUREMENT-MOCK.JSON ──
-        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "procurement-mock.json"
-        mock_data = {}
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    file_content = json.load(f)
-                    mock_data = file_content.get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data from %s: %s", json_path, e)
+        # No snapshot data available — return empty-state, not fabricated mock data.
+        # The UI shows "no data yet / connect gbrain" rather than fake MYR figures.
+        # Same policy as the finance dashboard (PR #12 review: no fabricated figures).
+        logger.info("Procurement dashboard: no gbrain snapshots — returning empty state")
+        total_inventory_valuation = 0.0
+        total_active_skus = 0.0
+        low_stock_alerts = 0.0
+        dead_slow_stock_capital = 0.0
+        open_po_count = 0.0
+        open_po_value = 0.0
+        procurement_spend_mtd = 0.0
+        procurement_spend_budget_mtd = 0.0
 
-        total_inventory_valuation = _safe_float(mock_data.get("totalInventoryValuation", 1850000.0))
-        total_active_skus = _safe_float(mock_data.get("totalActiveSkus", 1248.0))
-        low_stock_alerts = _safe_float(mock_data.get("lowStockAlerts", 7.0))
-        dead_slow_stock_capital = _safe_float(mock_data.get("deadSlowStockCapital", 285000.0))
-        open_po_count = _safe_float(mock_data.get("openPoCount", 14.0))
-        open_po_value = _safe_float(mock_data.get("openPoValue", 412000.0))
-        procurement_spend_mtd = _safe_float(mock_data.get("procurementSpendMtd", 348000.0))
-        procurement_spend_budget_mtd = _safe_float(mock_data.get("procurementSpendBudgetMtd", 380000.0))
+        risk_alerts: List[dict] = []
+        valuation_by_category: List[dict] = []
+        spend_vs_budget_trend: List[dict] = []
 
-        risk_alerts = mock_data.get("riskAlerts", [])
-        valuation_by_category = mock_data.get("valuationByCategory", [])
-        spend_vs_budget_trend = mock_data.get("spendVsBudgetTrend", [])
+        sku_catalog: List[dict] = []
+        dead_slow_stock: List[dict] = []
+        warehouse_bin_capacity: List[dict] = []
 
-        sku_catalog = mock_data.get("skuCatalog", [])
-        dead_slow_stock = mock_data.get("deadSlowStock", [])
-        warehouse_bin_capacity = mock_data.get("warehouseBinCapacity", [])
+        stock_movements: List[dict] = []
+        movement_type_distribution: List[dict] = []
+        shrinkage_flag_items: List[dict] = []
 
-        stock_movements = mock_data.get("stockMovements", [])
-        movement_type_distribution = mock_data.get("movementTypeDistribution", [])
-        shrinkage_flag_items = mock_data.get("shrinkageFlagItems", [])
+        po_pipeline: List[dict] = []
+        active_purchase_orders: List[dict] = []
+        executive_approval_queue: List[dict] = []
+        vendor_scorecard: List[dict] = []
+        vendor_spend_concentration: List[dict] = []
 
-        po_pipeline = mock_data.get("poPipeline", [])
-        active_purchase_orders = mock_data.get("activePurchaseOrders", [])
-        executive_approval_queue = mock_data.get("executiveApprovalQueue", [])
-        vendor_scorecard = mock_data.get("vendorScorecard", [])
-        vendor_spend_concentration = mock_data.get("vendorSpendConcentration", [])
-
-        bridge_status = mock_data.get("accountingBridge", {"enabled": False, "provider": "None", "connected": False})
-        po_bill_conversion_queue = mock_data.get("poBillConversionQueue", [])
-        gl_valuation_reconciliation = mock_data.get("glValuationReconciliation", [])
+        bridge_status = {"enabled": False, "provider": "None", "connected": False}
+        po_bill_conversion_queue: List[dict] = []
+        gl_valuation_reconciliation: List[dict] = []
 
     return {
         # Tab 1 — Executive Procurement & Reorder Pulse
