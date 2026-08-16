@@ -229,7 +229,7 @@ which hermes                    # Hermes Agent installed
 which psql                      # PostgreSQL (or let init-gbrain.sh install it)
 
 # 2. Clone this repo
-git clone https://github.com/limcheehow/shogun-os.git
+git clone https://github.com/tapway/shogun-os.git
 cd shogun-os
 
 # 3. Install skills, scripts, and templates
@@ -253,7 +253,7 @@ cd shogun-os
 
 ```bash
 # 1. Clone and install web dependencies
-git clone https://github.com/limcheehow/shogun-os.git
+git clone https://github.com/tapway/shogun-os.git
 cd shogun-os/shogun-web
 
 # 2. Install and verify
@@ -329,7 +329,7 @@ If you have an AI agent running (Hermes, OpenClaw, Codex, Claude Code), paste th
 
 ```
 Retrieve and follow the instructions at:
-https://raw.githubusercontent.com/limcheehow/shogun-os/main/INSTALL_FOR_AGENTS.md
+https://raw.githubusercontent.com/tapway/shogun-os/main/INSTALL_FOR_AGENTS.md
 ```
 
 The agent installs Shogun OS, creates profiles, sets up gbrain sources, configures Slack bots, wires scrum crons, and verifies the install end-to-end. ~30 minutes. You answer questions about Slack tokens and channel IDs.
@@ -425,7 +425,7 @@ Each runs as an isolated Hermes Agent profile with:
 
 Shipped in this repo, installable via Hermes skill tap:
 ```bash
-hermes skills tap add limcheehow/shogun-os
+hermes skills tap add tapway/shogun-os
 hermes skills install shogun-os/company-workflow
 ```
 

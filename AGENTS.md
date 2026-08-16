@@ -25,7 +25,7 @@ Shogun OS is NOT a single piece of software. It is a **reference architecture** 
 
 ```
 Retrieve and follow the instructions at:
-https://raw.githubusercontent.com/limcheehow/shogun-os/main/INSTALL_FOR_AGENTS.md
+https://raw.githubusercontent.com/tapway/shogun-os/main/INSTALL_FOR_AGENTS.md
 ```
 
 The full protocol covers: prerequisites, Google DWD, GBrain provisioning (PostgreSQL + Ollama + sources + schema pack via init-gbrain.sh), profile creation, Slack bot setup, cron wiring, model configuration, and verification.

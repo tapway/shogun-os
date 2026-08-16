@@ -25,5 +25,5 @@ Steps:
    Expect install_token starting with inst_
 7. Report health + bootstrap success (fingerprints only).
 
-Runbook detail: https://raw.githubusercontent.com/limcheehow/shogun-os/main/docs/architecture/SEAMLESS_INSTALL.md
+Runbook detail: https://raw.githubusercontent.com/tapway/shogun-os/main/docs/architecture/SEAMLESS_INSTALL.md
 ```

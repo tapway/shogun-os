@@ -109,7 +109,7 @@ You only need a stable `registry.shogun-os.ai` pointing at the registry service.
 
 ```bash
 # On the VPS
-git clone https://github.com/limcheehow/shogun-os.git
+git clone https://github.com/tapway/shogun-os.git
 cd shogun-os/shogun-web/registry
 
 cp .env.example .env

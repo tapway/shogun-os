@@ -36,7 +36,7 @@ which hermes && which gbrain
 ## Step 2: Clone Shogun OS
 
 ```bash
-git clone https://github.com/limcheehow/shogun-os.git
+git clone https://github.com/tapway/shogun-os.git
 cd shogun-os
 ```
 

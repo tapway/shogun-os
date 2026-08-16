@@ -21,7 +21,7 @@ The human must paste these into the agent task (or a local file the agent can re
 | `REGISTRY_DOMAIN` | `shogun-os.ai` |
 | `ADMIN_API_KEY` | Optional; generate if missing |
 | `REGISTRATION_TOKEN` | Optional; generate if missing |
-| `REPO_URL` | `https://github.com/limcheehow/shogun-os.git` |
+| `REPO_URL` | `https://github.com/tapway/shogun-os.git` |
 | `REPO_BRANCH` | `main` |
 | `REGISTRY_PORT` | `9000` (default) |
 | `PUBLIC_HOSTNAME` | `registry.shogun-os.ai` |
@@ -105,7 +105,7 @@ If `docker` still permission-denied: either `newgrp docker` / re-login, or prefi
 
 ```bash
 INSTALL_ROOT="${INSTALL_ROOT:-$HOME/shogun-os}"
-REPO_URL="${REPO_URL:-https://github.com/limcheehow/shogun-os.git}"
+REPO_URL="${REPO_URL:-https://github.com/tapway/shogun-os.git}"
 REPO_BRANCH="${REPO_BRANCH:-main}"
 
 if [[ -d "$INSTALL_ROOT/.git" ]]; then
@@ -491,7 +491,7 @@ When done, reply to the human with:
 ```text
 Execute the Shogun registry deploy runbook on this WSL machine:
 
-https://raw.githubusercontent.com/limcheehow/shogun-os/main/docs/ops/deploy-registry-wsl-azure.md
+https://raw.githubusercontent.com/tapway/shogun-os/main/docs/ops/deploy-registry-wsl-azure.md
 
 Use these secrets (do not commit them):
 

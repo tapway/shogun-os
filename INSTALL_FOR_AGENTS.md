@@ -26,7 +26,7 @@ curl -fsSL https://raw.githubusercontent.com/NousResearch/hermes-agent/main/scri
 ## Phase 1: Clone and Install
 
 ```bash
-git clone https://github.com/limcheehow/shogun-os.git
+git clone https://github.com/tapway/shogun-os.git
 cd shogun-os
 ./scripts/install.sh
 ```

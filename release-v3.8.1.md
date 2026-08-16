@@ -40,4 +40,4 @@
 - All passing: `python -m unittest discover -s tests -v`
 
 ## Full Changelog
-https://github.com/limcheehow/shogun-os/compare/v3.8.0...v3.8.1
+https://github.com/tapway/shogun-os/compare/v3.8.0...v3.8.1

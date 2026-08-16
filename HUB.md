@@ -6,19 +6,19 @@ Add it as a custom skill source to install Shogun OS skills directly.
 ## Add as a Tap
 
 ```bash
-hermes skills tap add limcheehow/shogun-os
+hermes skills tap add tapway/shogun-os
 ```
 
 ## Install Skills
 
 ```bash
 # Browse available skills
-hermes skills search --source limcheehow/shogun-os
+hermes skills search --source tapway/shogun-os
 
 # Install specific skills
-hermes skills install limcheehow/shogun-os/department-scrum
-hermes skills install limcheehow/shogun-os/brain-ingest-pipeline
-hermes skills install limcheehow/shogun-os/accounting-provider
+hermes skills install tapway/shogun-os/department-scrum
+hermes skills install tapway/shogun-os/brain-ingest-pipeline
+hermes skills install tapway/shogun-os/accounting-provider
 ```
 
 ## Skills Available
@@ -78,7 +78,7 @@ Approximate inventory: **~60+ installable skill packages** under `skills/` (incl
 | `respondio-bridge` | Respond.io webhook → Hermes → reply / escalate |
 | `chatwoot-bridge` | Chatwoot webhook → draft/auto-reply + SLA |
 
-Industry packs (manufacturing, retail) and nested skills under `skills/crm/`, `skills/devops/`, etc. are also present in-repo; use `hermes skills search --source limcheehow/shogun-os` for the live tap listing.
+Industry packs (manufacturing, retail) and nested skills under `skills/crm/`, `skills/devops/`, etc. are also present in-repo; use `hermes skills search --source tapway/shogun-os` for the live tap listing.
 
 ## Web Portal (v3.10.0)
 
@@ -147,7 +147,7 @@ scripts/verify-web.sh
 
 Shogun OS is a reference architecture for running an organization through Hermes Agent. Each department gets a dedicated AI agent with role-specific tools, memory, and autonomy — plus optional **web portal** chat/brain UI and **provider-abstracted** SaaS backends.
 
-See the [full repo](https://github.com/limcheehow/shogun-os) for profiles, templates, install scripts, and documentation.
+See the [full repo](https://github.com/tapway/shogun-os) for profiles, templates, install scripts, and documentation.
 
 ## Architecture
 
