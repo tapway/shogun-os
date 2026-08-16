@@ -1565,6 +1565,17 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     dunning_queue: List[dict] = []
     ar_invoices_list: List[dict] = []
 
+    # Demo-data store + flag — hoisted so EVERY branch (live / snapshot / empty)
+    # has it bound, so the empty-state path can't hit UnboundLocalError (PR #16
+    # review). Purely demo fabricated figures (unit economics, client
+    # concentration, compliance, static balance-sheet KPIs) are gated behind
+    # SEED_DEMO_BRAIN (default OFF) so a fresh install never renders fabricated
+    # RM financials (PR #12 + #16 review). Real QBO / gbrain snapshot data flows
+    # through regardless.
+    mock_data: dict = {}
+    mock: bool = False
+    seed_demo_brain = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
+
     if has_live_qbo:
         # ── LIVE QBO DATA — primary path ──
         mock = False  # live data, not mock
@@ -1737,14 +1748,22 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         # NOTE: budget items are real (from Budget Excel), but unit economics,
         # client concentration, and compliance are fabricated demo data.
         json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
-        mock_data = {}
-        mock = True  # BvA/concentration/compliance loaded from demo JSON
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    mock_data = json.load(f).get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data for BvA budgets: %s", e)
+        # Fabricated demo figures (unit economics, concentration, compliance,
+        # static balance-sheet KPIs) are gated behind SEED_DEMO_BRAIN (default
+        # OFF) per PR #16 review — a fresh install renders an empty state, never
+        # fabricated RM financials. Real budget/BvA line items still come from
+        # the live P&L below; this only gates the made-up showcase numbers.
+        if seed_demo_brain:
+            mock_data = {}
+            mock = True  # BvA/concentration/compliance from demo JSON
+            if json_path.exists():
+                try:
+                    with open(json_path, "r", encoding="utf-8") as f:
+                        mock_data = json.load(f).get("dashboard_mock", {})
+                except Exception as e:
+                    logger.warning("Failed to load mock data for BvA budgets: %s", e)
+        else:
+            mock = False  # real data only — no fabricated demos
         budget_items = mock_data.get("bvaLineItems", [])
         bva_line_items = _match_qbo_actuals_to_budget(budget_items, live_pl_ytd)
         bva_departments: List[dict] = bva_line_items  # alias for backward compat

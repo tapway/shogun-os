@@ -7,7 +7,7 @@ from contextlib import contextmanager
 from pathlib import Path
 from typing import Generator, Iterator, Optional
 
-from sqlalchemy import create_engine, event, select, text
+from sqlalchemy import create_engine, event, inspect, select, text
 from sqlalchemy.engine import Engine
 from sqlalchemy.orm import Session, sessionmaker
 
@@ -268,30 +268,51 @@ def _ensure_default_crons(db: Session) -> None:
         logger.info("Seeded cron job %s", spec["id"])
 
 
+def _ensure_cron_jobs_table(engine) -> None:
+    """Guarantee the cron_jobs table matches the CronJob ORM model exactly.
+
+    Handles the PR #16 review item #3 case that `Base.metadata.create_all` and
+    a bare `CREATE TABLE IF NOT EXISTS` both miss: an EXISTING cron_jobs table
+    (from an older deploy) that is missing columns the current code reads.
+    create_all() never ALTERs existing tables, and IF NOT EXISTS silently
+    ignores them. This helper:
+      1. creates the table if it doesn't exist (matching the model's columns),
+         and
+      2. ALTERs any existing table to ADD COLUMN for every ORM column it's
+         missing.
+    """
+    model_columns = {
+        c.name: str(c.type)
+        for c in CronJob.__table__.columns
+    }
+    with engine.connect() as conn:
+        insp = inspect(conn)
+        if not insp.has_table("cron_jobs"):
+            # Create from the ORM metadata so declared types match the model.
+            CronJob.__table__.create(bind=conn)
+            conn.commit()
+            return
+
+        existing = {c["name"] for c in insp.get_columns("cron_jobs")}
+        missing = sorted(set(model_columns) - existing)
+        # Column already handled / fully present → nothing to do.
+        if not missing:
+            return
+        for col in missing:
+            conn.execute(text(
+                f'ALTER TABLE cron_jobs ADD COLUMN "{col}" {model_columns[col]}'
+            ))
+        conn.commit()
+
+
 def init_db() -> None:
     """Create tables and seed tenant / department catalog."""
     SHOGUN_HOME.mkdir(parents=True, exist_ok=True)
     engine = get_engine()
     Base.metadata.create_all(bind=engine)
-    # Ensure cron_jobs table exists on production DBs where create_all
-    # doesn't ALTER existing tables. Raw SQL fallback (PR #16 review).
-    with engine.connect() as conn:
-        conn.execute(text("""
-            CREATE TABLE IF NOT EXISTS cron_jobs (
-                id VARCHAR(128) PRIMARY KEY,
-                department VARCHAR(128) NOT NULL,
-                name VARCHAR(256) NOT NULL,
-                schedule VARCHAR(128) NOT NULL DEFAULT '0 9 * * 1-5',
-                prompt TEXT NOT NULL DEFAULT '',
-                skill_id VARCHAR(256) NOT NULL DEFAULT '',
-                enabled BOOLEAN NOT NULL DEFAULT 1,
-                deliver_channel_id VARCHAR(128) NOT NULL DEFAULT '',
-                tenant_id VARCHAR(36),
-                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
-            )
-        """))
-        conn.commit()
+    # Ensure cron_jobs table exists + is up to date on production DBs where
+    # create_all doesn't ALTER existing tables (PR #16 review).
+    _ensure_cron_jobs_table(engine)
     with session_scope() as db:
         tenant = _ensure_tenant(db)
         _ensure_departments(db, tenant)

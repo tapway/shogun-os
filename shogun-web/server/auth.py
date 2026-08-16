@@ -366,6 +366,7 @@ async def change_password(
 
     user.password_hash = hash_password(body.new_password)
     user.first_login = False
+    user.is_temporary_password = False  # temp password consumed on first change
     db.add(user)
     db.commit()
     db.refresh(user)
