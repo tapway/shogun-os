@@ -28,22 +28,22 @@ interface ChatProps {
 function ToolCallCard({ call }: { call: ChatToolCall }) {
   const [open, setOpen] = useState(false);
   return (
-    <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50">
+    <div className="mt-2 overflow-hidden rounded-lg border border-slate-200 bg-slate-50 dark:border-slate-700 dark:bg-slate-800/60">
       <button
         type="button"
-        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100"
+        className="flex w-full items-center gap-2 px-3 py-2 text-left text-xs font-medium text-slate-700 hover:bg-slate-100 dark:text-slate-200 dark:hover:bg-slate-700/60"
         onClick={() => setOpen((v) => !v)}
       >
-        <Wrench className="h-3.5 w-3.5 text-slate-500" />
+        <Wrench className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
         <span className="flex-1 truncate">{call.name}</span>
         <span
           className={clsx(
             "rounded-full px-1.5 py-0.5 text-[10px] uppercase tracking-wide",
             call.status === "error"
-              ? "bg-rose-100 text-rose-700"
+              ? "bg-rose-100 text-rose-700 dark:bg-rose-500/15 dark:text-rose-400"
               : call.status === "running"
-                ? "bg-sky-100 text-sky-700"
-                : "bg-emerald-100 text-emerald-700",
+                ? "bg-sky-100 text-sky-700 dark:bg-sky-500/15 dark:text-sky-400"
+                : "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
           )}
         >
           {call.status || "done"}
@@ -55,10 +55,10 @@ function ToolCallCard({ call }: { call: ChatToolCall }) {
         )}
       </button>
       {open && (
-        <div className="space-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-600">
+        <div className="space-y-2 border-t border-slate-200 bg-white px-3 py-2 text-xs text-slate-600 dark:border-slate-700 dark:bg-slate-900 dark:text-slate-300">
           {call.arguments !== undefined && (
             <div>
-              <div className="mb-1 font-medium text-slate-500">Arguments</div>
+              <div className="mb-1 font-medium text-slate-500 dark:text-slate-400">Arguments</div>
               <pre className="overflow-x-auto rounded bg-slate-900 p-2 text-[11px] text-slate-100">
                 {typeof call.arguments === "string"
                   ? call.arguments
@@ -68,7 +68,7 @@ function ToolCallCard({ call }: { call: ChatToolCall }) {
           )}
           {call.result !== undefined && (
             <div>
-              <div className="mb-1 font-medium text-slate-500">Result</div>
+              <div className="mb-1 font-medium text-slate-500 dark:text-slate-400">Result</div>
               <pre className="max-h-48 overflow-auto rounded bg-slate-900 p-2 text-[11px] text-slate-100">
                 {typeof call.result === "string"
                   ? call.result
@@ -93,7 +93,7 @@ export function AttachmentPreview({
       {attachments.map((att) => (
         <div key={att.id}>
           {att.is_image ? (
-            <div className="overflow-hidden rounded-xl border border-slate-200/40 shadow-sm max-w-sm">
+            <div className="overflow-hidden rounded-xl border border-slate-200/40 shadow-sm max-w-sm dark:border-slate-700/40">
               <img
                 src={att.url}
                 alt={att.name}
@@ -105,13 +105,13 @@ export function AttachmentPreview({
               href={att.url}
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition shadow-sm"
+              className="inline-flex items-center gap-2 rounded-lg border border-slate-200/80 bg-white/90 px-3 py-1.5 text-xs text-slate-700 hover:bg-slate-100 transition shadow-sm dark:border-slate-700 dark:bg-slate-800/90 dark:text-slate-200 dark:hover:bg-slate-700"
             >
-              <FileText className="h-4 w-4 text-indigo-600" />
+              <FileText className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
               <span className="truncate max-w-[200px] font-medium">
                 {att.name}
               </span>
-              <Download className="h-3.5 w-3.5 text-slate-400" />
+              <Download className="h-3.5 w-3.5 text-slate-400 dark:text-slate-500" />
             </a>
           )}
         </div>
@@ -354,19 +354,19 @@ export default function Chat({ department }: ChatProps) {
   };
 
   return (
-    <div className="flex h-full min-h-[28rem] flex-col overflow-hidden rounded-xl border border-surface-border bg-white">
-      <div className="flex items-center justify-end border-b border-surface-border px-4 py-2.5">
+    <div className="flex h-full min-h-[28rem] flex-col overflow-hidden rounded-xl border border-surface-border bg-white dark:bg-slate-900 dark:border-slate-800">
+      <div className="flex items-center justify-end border-b border-surface-border px-4 py-2.5 dark:border-slate-800">
         <div className="flex items-center gap-3">
           <button
             type="button"
             onClick={handleNewSession}
             title="Start a new session"
-            className="flex items-center gap-1.5 rounded-lg border border-surface-border bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-surface-muted"
+            className="flex items-center gap-1.5 rounded-lg border border-surface-border bg-white px-2.5 py-1 text-xs font-medium text-slate-700 hover:bg-surface-muted dark:bg-slate-800 dark:text-slate-200 dark:hover:bg-slate-700"
           >
             <Plus className="h-3.5 w-3.5" />
             New Session
           </button>
-          <div className="flex items-center gap-1.5 text-xs text-slate-500">
+          <div className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400">
             {connected ? (
               <>
                 <Wifi className="h-3.5 w-3.5 text-emerald-500" /> Connected
@@ -382,13 +382,14 @@ export default function Chat({ department }: ChatProps) {
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {loadingHistory && (
-          <div className="flex items-center justify-center py-12 text-slate-400">
+          <div className="flex items-center justify-center py-12 text-slate-400 dark:text-slate-500">
             <Loader2 className="h-5 w-5 animate-spin" />
           </div>
         )}
         {!loadingHistory && messages.length === 0 && (
-          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500">
-            Start a conversation with the {department} AI agent.
+          <div className="rounded-lg border border-dashed border-slate-200 bg-slate-50 px-4 py-10 text-center text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800/50 dark:text-slate-400">
+            Start a conversation with the{" "}
+            <span className="capitalize">{department}</span> AI agent.
           </div>
         )}
 
@@ -405,7 +406,7 @@ export default function Chat({ department }: ChatProps) {
                 "max-w-[85%] min-w-0 overflow-hidden rounded-2xl px-4 py-3",
                 m.role === "user"
                   ? "bg-brand text-white shadow-sm"
-                  : "border border-surface-border bg-surface-muted text-slate-800",
+                  : "border border-surface-border bg-surface-muted text-slate-800 dark:text-slate-100 dark:border-slate-700 dark:bg-slate-800",
               )}
             >
               {m.attachments && m.attachments.length > 0 && (
@@ -429,7 +430,7 @@ export default function Chat({ department }: ChatProps) {
               ))}
 
               {m.streaming && (
-                <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400">
+                <div className="mt-1 flex items-center gap-1 text-[11px] text-slate-400 dark:text-slate-500">
                   <Loader2 className="h-3 w-3 animate-spin" /> Thinking…
                 </div>
               )}
@@ -438,7 +439,7 @@ export default function Chat({ department }: ChatProps) {
         ))}
         {sending && !messages.some((m) => m.streaming) && (
           <div className="flex justify-start">
-            <div className="flex items-center gap-2 rounded-2xl border border-surface-border bg-surface-muted px-3.5 py-2.5 text-sm text-slate-500">
+            <div className="flex items-center gap-2 rounded-2xl border border-surface-border bg-surface-muted px-3.5 py-2.5 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
               <Loader2 className="h-4 w-4 animate-spin" />
               Assistant is processing context…
             </div>
@@ -448,18 +449,18 @@ export default function Chat({ department }: ChatProps) {
       </div>
 
       {/* Input Form with Attachment Chips & Buttons */}
-      <div className="border-t border-surface-border p-3 space-y-2">
+      <div className="border-t border-surface-border p-3 space-y-2 dark:border-slate-800">
         {pendingAttachments.length > 0 && (
           <div className="flex flex-wrap gap-2 px-1">
             {pendingAttachments.map((att, i) => (
               <div
                 key={att.id}
-                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 shadow-sm"
+                className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-slate-50 px-2.5 py-1 text-xs text-slate-700 shadow-sm dark:border-slate-700 dark:bg-slate-800 dark:text-slate-200"
               >
                 {att.is_image ? (
-                  <ImageIcon className="h-3.5 w-3.5 text-indigo-500" />
+                  <ImageIcon className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
                 ) : (
-                  <FileText className="h-3.5 w-3.5 text-slate-500" />
+                  <FileText className="h-3.5 w-3.5 text-slate-500 dark:text-slate-400" />
                 )}
                 <span className="truncate max-w-[140px] font-medium">
                   {att.name}
@@ -471,7 +472,7 @@ export default function Chat({ department }: ChatProps) {
                       prev.filter((_, idx) => idx !== i),
                     )
                   }
-                  className="text-slate-400 hover:text-slate-600"
+                  className="text-slate-400 hover:text-slate-600 dark:hover:text-slate-200"
                 >
                   <X className="h-3.5 w-3.5" />
                 </button>
@@ -500,7 +501,7 @@ export default function Chat({ department }: ChatProps) {
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={uploading}
-            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition"
+            className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl border border-slate-200 bg-white text-slate-500 hover:bg-slate-50 hover:text-slate-900 transition dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
             title="Attach file or image"
           >
             {uploading ? (

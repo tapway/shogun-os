@@ -258,11 +258,11 @@ function MarkdownDocumentViewer({
 
         <div className="flex items-center gap-4 text-xs text-slate-500 dark:text-slate-400 font-medium">
           <div className="flex items-center gap-1.5">
-            <FileCheck className="h-3.5 w-3.5 text-indigo-500" />
+            <FileCheck className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />
             {wordCount} words
           </div>
           <div className="flex items-center gap-1.5">
-            <Clock className="h-3.5 w-3.5 text-indigo-500" />~{readTimeMinutes}{" "}
+            <Clock className="h-3.5 w-3.5 text-indigo-500 dark:text-indigo-400" />~{readTimeMinutes}{" "}
             min read
           </div>
         </div>
@@ -319,8 +319,8 @@ function CsvViewer({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-3">
-        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700">
-          <Table className="h-4 w-4 text-emerald-600" />
+        <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
+          <Table className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
           Data Table ({dataRows.length} rows)
         </div>
         <input
@@ -328,35 +328,35 @@ function CsvViewer({
           value={csvFilter}
           onChange={(e) => setCsvFilter(e.target.value)}
           placeholder="Filter rows..."
-          className="rounded-lg border border-slate-200 px-3 py-1 text-xs focus:outline-none"
+          className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs focus:outline-none dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 bg-white shadow-sm">
-        <table className="w-full text-left text-xs text-slate-700">
-          <thead className="bg-slate-50 border-b border-slate-200 text-slate-900 font-semibold">
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
+        <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
+          <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold">
             <tr>
-              <th className="px-3 py-2 w-10 text-slate-400">#</th>
+              <th className="px-3 py-2 w-10 text-slate-400 dark:text-slate-500">#</th>
               {headers.map((h, i) => (
                 <th
                   key={i}
-                  className="px-3 py-2 border-r last:border-0 border-slate-200 whitespace-nowrap"
+                  className="px-3 py-2 border-r last:border-0 border-slate-200 dark:border-slate-700 whitespace-nowrap"
                 >
                   <HighlightedText text={h} highlight={activeQuery} />
                 </th>
               ))}
             </tr>
           </thead>
-          <tbody className="divide-y divide-slate-100">
+          <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {filteredData.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-slate-50/80">
-                <td className="px-3 py-2 text-[10px] text-slate-400 font-mono">
+              <tr key={rIdx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
+                <td className="px-3 py-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
                   {rIdx + 1}
                 </td>
                 {headers.map((_, cIdx) => (
                   <td
                     key={cIdx}
-                    className="px-3 py-2 border-r last:border-0 border-slate-100 whitespace-nowrap"
+                    className="px-3 py-2 border-r last:border-0 border-slate-100 dark:border-slate-800 whitespace-nowrap"
                   >
                     <HighlightedText
                       text={row[cIdx] !== undefined ? row[cIdx] : ""}
@@ -386,15 +386,15 @@ function HtmlViewer({
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between border-b border-slate-200 pb-3">
-        <div className="flex items-center gap-1 rounded-lg bg-slate-100 p-1">
+      <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-700 pb-3">
+        <div className="flex items-center gap-1 rounded-lg bg-slate-100 dark:bg-slate-800 p-1">
           <button
             type="button"
             onClick={() => setMode("rendered")}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition ${
               mode === "rendered"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-white text-slate-900 dark:bg-slate-100 dark:text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             }`}
           >
             <Eye className="h-3.5 w-3.5" />
@@ -405,8 +405,8 @@ function HtmlViewer({
             onClick={() => setMode("code")}
             className={`flex items-center gap-1.5 rounded-md px-3 py-1 text-xs font-semibold transition ${
               mode === "code"
-                ? "bg-white text-slate-900 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
+                ? "bg-white text-slate-900 dark:bg-slate-100 dark:text-slate-900 shadow-sm"
+                : "text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
             }`}
           >
             <Code className="h-3.5 w-3.5" />
@@ -416,7 +416,7 @@ function HtmlViewer({
       </div>
 
       {mode === "rendered" ? (
-        <div className="rounded-xl border border-slate-200 bg-white shadow-sm overflow-hidden min-h-[400px]">
+        <div className="rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm overflow-hidden min-h-[400px]">
           <iframe
             title={filePath}
             srcDoc={content}
@@ -425,7 +425,7 @@ function HtmlViewer({
           />
         </div>
       ) : (
-        <pre className="rounded-xl border border-slate-200 bg-slate-900 p-4 font-mono text-xs text-slate-100 overflow-x-auto max-h-[500px]">
+        <pre className="rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-900 p-4 font-mono text-xs text-slate-100 overflow-x-auto max-h-[500px]">
           <code>
             {searchQuery.trim()
               ? content.split("\n").map((line, idx) => (
@@ -446,14 +446,14 @@ function PdfViewer({ path, filename }: { path: string; filename: string }) {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between rounded-xl border border-slate-200 bg-slate-50 p-4">
+      <div className="flex items-center justify-between rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-800 p-4">
         <div className="flex items-center gap-3">
-          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 text-rose-600 font-bold">
+          <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-rose-100 dark:bg-rose-500/15 text-rose-600 dark:text-rose-400 font-bold">
             PDF
           </div>
           <div>
-            <h4 className="text-sm font-bold text-slate-900">{filename}</h4>
-            <p className="text-xs text-slate-500">PDF Document Viewer</p>
+            <h4 className="text-sm font-bold text-slate-900 dark:text-white">{filename}</h4>
+            <p className="text-xs text-slate-500 dark:text-slate-400">PDF Document Viewer</p>
           </div>
         </div>
 
@@ -462,7 +462,7 @@ function PdfViewer({ path, filename }: { path: string; filename: string }) {
             href={pdfUrl}
             target="_blank"
             rel="noreferrer"
-            className="flex items-center gap-1.5 rounded-lg border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-100 shadow-sm"
+            className="flex items-center gap-1.5 rounded-lg border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-800 px-3 py-1.5 text-xs font-semibold text-slate-700 dark:text-slate-200 hover:bg-slate-100 dark:hover:bg-slate-700 shadow-sm"
           >
             <ExternalLink className="h-3.5 w-3.5" />
             Open Fullscreen
@@ -568,14 +568,14 @@ export default function BrainViewer({ department }: BrainViewerProps) {
   };
 
   return (
-    <div className="flex h-full min-h-[36rem] flex-col text-white space-y-4">
+    <div className="flex h-full min-h-[36rem] flex-col text-slate-900 dark:text-white space-y-4">
       {/* Header bar */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/60 pb-4 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700/60 pb-4 text-slate-900 dark:text-white">
         <div className="flex items-center gap-2">
           {selectedPath && (
             <button
               type="button"
-              className="btn-ghost !px-2 mr-1 text-slate-300 hover:text-white"
+              className="btn-ghost !px-2 mr-1 text-slate-500 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white"
               onClick={() => setSelectedPath(null)}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -583,8 +583,8 @@ export default function BrainViewer({ department }: BrainViewerProps) {
             </button>
           )}
           <div>
-            <h2 className="text-xl font-bold text-white">Department Brain</h2>
-            <p className="text-xs text-slate-300 mt-1">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white">Department Brain</h2>
+            <p className="text-xs text-slate-500 dark:text-slate-300 mt-1">
               {files.length} {files.length === 1 ? "file" : "files"}{" "}
               {query ? `matching "${query}"` : "available"}
             </p>

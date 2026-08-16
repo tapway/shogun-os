@@ -16,6 +16,7 @@ import type {
   ChatAttachment,
   ChatMessage,
   Company,
+  CommsChannelConfig,
   ConnectionTestResult,
   Connector,
   CreateStaffPayload,
@@ -23,15 +24,22 @@ import type {
   Department,
   DepartmentKey,
   DocumentArtifact,
+  EmailDraft,
+  EmailTemplate,
   FinanceDashboardStats,
+  GeneratedSkill,
   LoginPayload,
   OnboardingState,
   ProcurementDashboardStats,
   ProviderConfig,
   Skill,
+  SkillDetail,
+  SkillIntakeResponse,
+  CronJob,
   StaffMember,
   User,
 } from './types';
+
 
 const TOKEN_KEY = 'shogun_access_token';
 
@@ -124,6 +132,11 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  register: (payload: { company_name: string; admin_name: string; email: string; password: string }) =>
+    apiFetch<AuthResponse>('/api/auth/register', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
   logout: () =>
     apiFetch<void>('/api/auth/logout', { method: 'POST' }).catch(() => undefined),
   changePassword: (payload: ChangePasswordPayload) =>
@@ -135,6 +148,19 @@ export const authApi = {
   oauthCallback: (params: URLSearchParams) =>
     apiFetch<AuthResponse>(`/api/auth/callback?${params.toString()}`),
   myAccess: () => apiFetch<AccessInfo>('/api/auth/me/access'),
+  // Cross-domain SSO (Shogun = Website 2)
+  ssoInfo: () =>
+    apiFetch<{
+      sso_enabled: boolean;
+      trusted_origins: string[];
+      token_max_age_seconds: number;
+      auto_provision: boolean;
+    }>('/api/auth/sso-info'),
+  ssoExchange: (ssoToken: string) =>
+    apiFetch<AuthResponse>('/api/auth/sso-exchange', {
+      method: 'POST',
+      body: JSON.stringify({ token: ssoToken }),
+    }),
 };
 
 export const staffApi = {
@@ -152,6 +178,11 @@ export const staffApi = {
     }),
   remove: (id: number) =>
     apiFetch<{ ok: boolean }>(`/api/staff/${id}`, { method: 'DELETE' }),
+  updateRole: (id: number, role: string) =>
+    apiFetch<{ ok: boolean; user: StaffMember }>(`/api/staff/${id}/role`, {
+      method: 'PATCH',
+      body: JSON.stringify({ role }),
+    }),
   resetPassword: (id: number) =>
     apiFetch<{ ok: boolean; temporary_password: string }>(`/api/staff/${id}/reset-password`, {
       method: 'POST',
@@ -254,22 +285,36 @@ export const departmentsApi = {
     }
     return [];
   },
-  get: (name: string) => apiFetch<Department>(`/api/departments/${name}`),
+  get: async (name: string): Promise<Department> => {
+    const res = await apiFetch<{ department: Department } | Department>(`/api/departments/${name}`);
+    if (res && typeof res === 'object' && 'department' in res) return (res as { department: Department }).department;
+    return res as Department;
+  },
   activate: (name: string, config?: ProviderConfig) =>
     apiFetch<Department>(`/api/departments/${name}/activate`, {
       method: 'POST',
       body: JSON.stringify(config || {}),
     }),
-  updateConfig: (name: string, config: ProviderConfig) =>
-    apiFetch<Department>(`/api/departments/${name}/configure`, {
+  updateConfig: async (name: string, config: ProviderConfig): Promise<Department> => {
+    const res = await apiFetch<{ ok: boolean; department: Department } | Department>(`/api/departments/${name}/configure`, {
       method: 'POST',
-      body: JSON.stringify(config),
-    }),
+      body: JSON.stringify({
+        provider: config.provider,
+        config: config,
+      }),
+    });
+    if (res && typeof res === 'object' && 'department' in res) return (res as { department: Department }).department;
+    return res as Department;
+  },
   testConnection: (name: string, config?: ProviderConfig) =>
     apiFetch<ConnectionTestResult>(`/api/departments/${name}/test-connection`, {
       method: 'POST',
-      body: JSON.stringify(config || {}),
+      body: JSON.stringify({
+        provider: config?.provider,
+        config: config || {},
+      }),
     }),
+
   status: (name: string) =>
     apiFetch<{ status: string; gateway_status: string; provider_status: string }>(
       `/api/departments/${name}/status`,
@@ -282,7 +327,61 @@ export const departmentsApi = {
     apiFetch<FinanceDashboardStats>(`/api/departments/${dept}/dashboard/finance-stats`),
   dashboardProcurementStats: (dept: string) =>
     apiFetch<ProcurementDashboardStats>(`/api/departments/${dept}/dashboard/procurement-stats`),
+  getCrons: (dept: string) =>
+    apiFetch<{ crons: CronJob[] }>(`/api/departments/${dept}/crons`),
+  createCron: (dept: string, payload: Partial<CronJob>) =>
+    apiFetch<{ ok: boolean; cron: CronJob }>(`/api/departments/${dept}/crons`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  updateCron: (dept: string, cronId: string, payload: Partial<CronJob>) =>
+    apiFetch<{ ok: boolean; cron: CronJob }>(`/api/departments/${dept}/crons/${cronId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(payload),
+    }),
+  deleteCron: (dept: string, cronId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/departments/${dept}/crons/${cronId}`, {
+      method: 'DELETE',
+    }),
+
+  // Comms channel management — test bot tokens + discover chat IDs
+  testChannel: (dept: string, channelId: string) =>
+    apiFetch<{
+      ok: boolean;
+      channel_id: string;
+      platform: string;
+      bot_username?: string;
+      bot_name?: string;
+      error?: string;
+      last_tested_at: string;
+      channel: CommsChannelConfig;
+    }>(`/api/departments/${dept}/comms/test`, {
+      method: 'POST',
+      body: JSON.stringify({ channel_id: channelId }),
+    }),
+
+  discoverChats: (dept: string, channelId: string) =>
+    apiFetch<{
+      ok: boolean;
+      channel_id: string;
+      platform: string;
+      chats: Array<{
+        id: string;
+        title: string;
+        type: string;
+        username?: string;
+        is_member?: boolean;
+        num_members?: number;
+      }>;
+      error?: string;
+      source?: string;  // "state.db" or "getUpdates"
+      note?: string;    // guidance when no chats found
+    }>(`/api/departments/${dept}/comms/discover`, {
+      method: 'POST',
+      body: JSON.stringify({ channel_id: channelId }),
+    }),
 };
+
 
 export const brainApi = {
   list: async (dept: string, q?: string) => {
@@ -370,10 +469,19 @@ export const chatApi = {
 export const connectorsApi = {
   list: (dept: string) =>
     apiFetch<{ connectors: Connector[] }>(`/api/departments/${dept}/connectors`),
-  toggle: (dept: string, connectorId: string) =>
-    apiFetch<{ ok: boolean; connector: Connector }>(`/api/departments/${dept}/connectors/${connectorId}/toggle`, {
-      method: 'POST',
-    }),
+  connect: (dept: string, connectorId: string, credentials?: Record<string, string>) =>
+    apiFetch<{ ok: boolean; connector: Connector }>(
+      `/api/departments/${dept}/connectors/${connectorId}/connect`,
+      {
+        method: 'POST',
+        body: JSON.stringify({ credentials }),
+      },
+    ),
+  disconnect: (dept: string, connectorId: string) =>
+    apiFetch<{ ok: boolean; connector: Connector }>(
+      `/api/departments/${dept}/connectors/${connectorId}/disconnect`,
+      { method: 'POST' },
+    ),
 };
 
 export interface SkillRecommendation {
@@ -389,6 +497,8 @@ export interface SkillRecommendation {
 
 export const skillsApi = {
   listAll: () => apiFetch<{ skills: Skill[] }>('/api/skills'),
+  getDetail: (skillId: string) =>
+    apiFetch<SkillDetail>(`/api/skills/${skillId}`),
   listDepartment: (dept: string) =>
     apiFetch<{ skills: Skill[] }>(`/api/departments/${dept}/skills`),
   install: (skillId: string, dept?: string) =>
@@ -404,6 +514,26 @@ export const skillsApi = {
     apiFetch<SkillRecommendation>('/api/skills/recommend', {
       method: 'POST',
       body: JSON.stringify({ prompt }),
+    }),
+  intake: (history: Array<{ role: string; content: string }>, department: string) =>
+    apiFetch<SkillIntakeResponse>('/api/skills/intake', {
+      method: 'POST',
+      body: JSON.stringify({ history, department }),
+    }),
+  generate: (instruction: string, department: string, opts?: { skill_name?: string; description?: string }) =>
+    apiFetch<{ ok: boolean; status?: string; skill: GeneratedSkill; generated_by_model: string | null }>('/api/skills/generate', {
+      method: 'POST',
+      body: JSON.stringify({ instruction, department, ...opts }),
+    }),
+  test: (skill: GeneratedSkill, test_input: string) =>
+    apiFetch<{ ok: boolean; output: string; error?: string }>('/api/skills/test', {
+      method: 'POST',
+      body: JSON.stringify({ skill, test_input }),
+    }),
+  save: (skill: GeneratedSkill, department: string, meta: { created_by: string; created_at: string }) =>
+    apiFetch<{ ok: boolean; skill: GeneratedSkill }>('/api/skills/save', {
+      method: 'POST',
+      body: JSON.stringify({ skill, department, ...meta }),
     }),
 };
 
@@ -573,3 +703,35 @@ export function mergeDepartments(apiDepts: Department[] | undefined): Department
 }
 
 export type SetMessages = Dispatch<SetStateAction<ChatMessage[]>>;
+
+export const emailTemplatesApi = {
+  list: (dept: string) =>
+    apiFetch<{ templates: EmailTemplate[] }>(`/api/departments/${dept}/email-templates`),
+
+  create: (dept: string, data: { name: string; scenario: string; subject_template: string; body_template: string }) =>
+    apiFetch<{ template: EmailTemplate }>(`/api/departments/${dept}/email-templates`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  update: (dept: string, id: string, data: { name: string; scenario: string; subject_template: string; body_template: string }) =>
+    apiFetch<{ template: EmailTemplate }>(`/api/departments/${dept}/email-templates/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+
+  delete: (dept: string, id: string) =>
+    apiFetch<{ deleted: string }>(`/api/departments/${dept}/email-templates/${id}`, { method: 'DELETE' }),
+
+  draft: (dept: string, data: { template_id: string; context: Record<string, string | number | undefined>; custom_instructions?: string }) =>
+    apiFetch<EmailDraft>(`/api/departments/${dept}/email-templates/draft`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+
+  send: (dept: string, data: { to: string; subject: string; body: string }) =>
+    apiFetch<{ sent: boolean; to: string; subject: string }>(`/api/departments/${dept}/email-templates/send`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+};

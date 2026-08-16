@@ -20,7 +20,7 @@ export default function FloatingChat({
   return (
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end">
       {isOpen ? (
-        <div className="flex h-[540px] w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-200">
+        <div className="flex h-[540px] w-96 max-w-[calc(100vw-2rem)] max-h-[calc(100vh-6rem)] flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-2xl transition-all animate-in fade-in slide-in-from-bottom-4 duration-200 dark:border-slate-700 dark:bg-slate-900">
           {/* Header */}
           <div
             className="flex items-center justify-between px-4 py-3 text-white shadow-sm"

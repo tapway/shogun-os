@@ -333,6 +333,92 @@ DEFAULT_DEPARTMENTS: List[Dict[str, Any]] = [
 
 
 # ---------------------------------------------------------------------------
+# Industry catalog — industry selection drives which departments are on the menu
+# Shared departments (8) are always available regardless of industry.
+# Industry-specific departments only appear when their industry is selected.
+# ---------------------------------------------------------------------------
+
+INDUSTRY_CATALOG: List[Dict[str, Any]] = [
+    {
+        "slug": "general",
+        "label": "General / Services",
+        "description": "Consulting, software, agencies",
+        "icon": "🏢",
+        "departments": ["projects", "product"],
+    },
+    {
+        "slug": "manufacturing",
+        "label": "Manufacturing",
+        "description": "Factory, production, OEM",
+        "icon": "🏭",
+        "departments": ["production", "quality", "maintenance", "warehouse", "hse"],
+    },
+    {
+        "slug": "retail",
+        "label": "Retail",
+        "description": "Stores, e-commerce, omnichannel",
+        "icon": "🛒",
+        "departments": [
+            "stores", "merchandising", "e-commerce",
+            "crm-loyalty", "supply-chain", "visual-merchandising",
+        ],
+    },
+    {
+        "slug": "plantation",
+        "label": "Plantation",
+        "description": "Estate, mill, agriculture",
+        "icon": "🌴",
+        "departments": ["estate-ops", "worker-welfare"],
+    },
+]
+
+# Shared departments — always available regardless of industry
+SHARED_DEPARTMENTS: List[Dict[str, Any]] = [
+    {"name": "hr", "profile_name": "hr-manager", "label": "HR", "port_offset": 1},
+    {"name": "finance", "profile_name": "finance-manager", "label": "Finance", "port_offset": 2},
+    {"name": "procurement", "profile_name": "procurement-manager", "label": "Procurement", "port_offset": 3},
+    {"name": "crm", "profile_name": "crm-manager", "label": "CRM", "port_offset": 4},
+    {"name": "marketing", "profile_name": "marketing-manager", "label": "Marketing", "port_offset": 5},
+    {"name": "compliance", "profile_name": "compliance-manager", "label": "Compliance", "port_offset": 6},
+    {"name": "customer-support", "profile_name": "customer-support-manager", "label": "Customer Support", "port_offset": 7},
+    {"name": "coding", "profile_name": "coding-manager", "label": "Coding", "port_offset": 8},
+]
+
+# Industry-specific departments — only available when their industry is selected
+INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
+    "general": [
+        {"name": "projects", "profile_name": "projects-manager", "label": "Projects", "port_offset": 9},
+        {"name": "product", "profile_name": "product-manager", "label": "Product", "port_offset": 10},
+    ],
+    "manufacturing": [
+        {"name": "production", "profile_name": "production-manager", "label": "Production", "port_offset": 11},
+        {"name": "quality", "profile_name": "quality-manager", "label": "Quality", "port_offset": 12},
+        {"name": "maintenance", "profile_name": "maintenance-manager", "label": "Maintenance", "port_offset": 13},
+        {"name": "warehouse", "profile_name": "warehouse-manager", "label": "Warehouse", "port_offset": 14},
+        {"name": "hse", "profile_name": "hse-manager", "label": "HSE", "port_offset": 15},
+    ],
+    "retail": [
+        {"name": "stores", "profile_name": "stores-manager", "label": "Stores", "port_offset": 11},
+        {"name": "merchandising", "profile_name": "merchandising-manager", "label": "Merchandising", "port_offset": 12},
+        {"name": "e-commerce", "profile_name": "ecommerce-manager", "label": "E-commerce", "port_offset": 13},
+        {"name": "crm-loyalty", "profile_name": "crm-loyalty-manager", "label": "CRM/Loyalty", "port_offset": 14},
+        {"name": "supply-chain", "profile_name": "supply-chain-manager", "label": "Supply Chain", "port_offset": 15},
+        {"name": "visual-merchandising", "profile_name": "vm-manager", "label": "Visual Merchandising", "port_offset": 16},
+    ],
+    "plantation": [
+        {"name": "estate-ops", "profile_name": "estate-ops-manager", "label": "Estate Operations", "port_offset": 11},
+        {"name": "worker-welfare", "profile_name": "worker-welfare-manager", "label": "Worker Welfare", "port_offset": 12},
+    ],
+}
+
+
+def get_departments_for_industry(industry: str) -> List[Dict[str, Any]]:
+    """Return shared + industry-specific departments for the given industry."""
+    industry_depts = INDUSTRY_DEPARTMENTS.get(industry, [])
+    return list(SHARED_DEPARTMENTS) + list(industry_depts)
+
+
+# ---------------------------------------------------------------------------
 # SSO peer site management (~/.shogun-os/sso-peers.json)
 #
 # Each peer = one of the 6 "Website 1" instances. Each gets its own secret so

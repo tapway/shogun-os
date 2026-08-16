@@ -160,14 +160,14 @@ def _query_qbo(endpoint: str, query: str = None, limit: int = 50) -> dict:
 
 
 def _list_invoices(args: dict) -> dict:
-    # QBO uses a query language
+    # QBO uses a query language. Note: QBO SQL does not support '>'
+    # comparison on the Balance field, so we filter outstanding invoices
+    # client-side after fetching.
     conditions = []
     if args.get("date_from"):
         conditions.append(f"TxnDate >= '{args['date_from']}'")
     if args.get("date_to"):
         conditions.append(f"TxnDate <= '{args['date_to']}'")
-    if args.get("status") and args["status"] == "ready":
-        conditions.append("Balance > 0")
 
     where = " AND ".join(conditions) if conditions else ""
     query = f"SELECT * FROM Invoice WHERE {where} MAXRESULTS {args.get('limit', 50)}" if where else \
@@ -179,17 +179,22 @@ def _list_invoices(args: dict) -> dict:
 
     invoices = []
     for inv in data.get("QueryResponse", {}).get("Invoice", []):
+        balance = float(inv.get("Balance", 0))
+        # Client-side filter: status='ready' means outstanding (balance > 0)
+        if args.get("status") == "ready" and balance <= 0:
+            continue
         invoices.append({
             "id": inv.get("Id"),
             "number": inv.get("DocNumber", ""),
             "number2": inv.get("DocNumber", ""),
             "date": inv.get("TxnDate", ""),
+            "due_date": inv.get("DueDate", ""),
             "contact_id": inv.get("CustomerRef", {}).get("value", ""),
             "contact_name": inv.get("CustomerRef", {}).get("name", ""),
             "currency_code": inv.get("CurrencyRef", {}).get("value", "USD"),
             "total": float(inv.get("TotalAmt", 0)),
-            "balance_due": float(inv.get("Balance", 0)),
-            "status": "ready" if float(inv.get("Balance", 0)) > 0 else "paid",
+            "balance_due": balance,
+            "status": "ready" if balance > 0 else "paid",
         })
 
     return {"invoices": invoices, "total": len(invoices)}
@@ -207,11 +212,15 @@ def _create_invoice(args: dict) -> dict:
         payload["DocNumber"] = args["number2"]
 
     for item in args.get("form_items", []):
+        # Use SalesItemLineDetail with product_id (a Service item, not Inventory).
+        # Service items don't have inventory start date restrictions.
+        # Falls back to account_id if product_id not provided.
+        item_ref = str(item.get("product_id", item.get("account_id", "1")))
         line = {
             "DetailType": "SalesItemLineDetail",
             "Amount": float(item.get("quantity", 1)) * float(item.get("unit_price", 0)),
             "SalesItemLineDetail": {
-                "ItemRef": {"value": str(item.get("product_id", "1"))},
+                "ItemRef": {"value": item_ref},
                 "Qty": float(item.get("quantity", 1)),
                 "UnitPrice": float(item.get("unit_price", 0)),
             },
@@ -233,6 +242,7 @@ def _create_invoice(args: dict) -> dict:
 
 
 def _list_bills(args: dict) -> dict:
+    # QBO SQL does not support '>' on the Balance field — filter client-side.
     conditions = []
     if args.get("date_from"):
         conditions.append(f"TxnDate >= '{args['date_from']}'")
@@ -249,17 +259,22 @@ def _list_bills(args: dict) -> dict:
 
     bills = []
     for bill in data.get("QueryResponse", {}).get("Bill", []):
+        balance = float(bill.get("Balance", 0))
+        # Client-side filter: status='ready' means outstanding (balance > 0)
+        if args.get("status") == "ready" and balance <= 0:
+            continue
         bills.append({
             "id": bill.get("Id"),
             "number": bill.get("DocNumber", ""),
             "number2": bill.get("DocNumber", ""),
             "date": bill.get("TxnDate", ""),
+            "due_date": bill.get("DueDate", ""),
             "contact_id": bill.get("VendorRef", {}).get("value", ""),
             "contact_name": bill.get("VendorRef", {}).get("name", ""),
             "currency_code": bill.get("CurrencyRef", {}).get("value", "USD"),
             "total": float(bill.get("TotalAmt", 0)),
-            "balance_due": float(bill.get("Balance", 0)),
-            "status": "ready",
+            "balance_due": balance,
+            "status": "ready" if balance > 0 else "paid",
         })
 
     return {"bills": bills, "total": len(bills)}
@@ -282,7 +297,7 @@ def _create_bill(args: dict) -> dict:
             "Amount": float(item.get("quantity", 1)) * float(item.get("unit_price", 0)),
             "AccountBasedExpenseLineDetail": {
                 "AccountRef": {"value": str(item.get("account_id", "1"))},
-                "BillableStatus": "Billable",
+                "BillableStatus": "NotBillable",
             },
             "Description": item.get("description", ""),
         }
@@ -387,6 +402,64 @@ def _list_products(args: dict) -> dict:
     return {"products": products, "total": len(products)}
 
 
+def _to_float(val) -> float:
+    """Safely convert a QBO report cell value to float."""
+    if val is None:
+        return 0.0
+    try:
+        return float(str(val).replace(",", ""))
+    except (ValueError, TypeError):
+        return 0.0
+
+
+def _summary_amount(section: dict) -> float:
+    """Extract the numeric amount from a QBO Summary.ColData array.
+
+    QBO Summary ColData layout: [{value: "Total Income"}, {value: "12345.00"}]
+    Index 0 is the label, index 1 is the amount. Falls back to 0.
+    """
+    col_data = section.get("Summary", {}).get("ColData", [])
+    if len(col_data) >= 2:
+        return _to_float(col_data[1].get("value", "0"))
+    return 0.0
+
+
+def _section_name(section: dict) -> str:
+    """Extract the header label from a QBO report section."""
+    col_data = section.get("Header", {}).get("ColData", [])
+    if col_data:
+        return col_data[0].get("value", "")
+    return ""
+
+
+def _section_rows(section: dict) -> list:
+    """Get the data rows from a QBO report section."""
+    inner = section.get("Rows")
+    return inner.get("Row", []) if inner else []
+
+
+def _parse_report_rows(section_rows: list) -> list:
+    """Parse account-level rows from a QBO report section.
+
+    Each row's ColData: [{value: "Account Name"}, {value: "123.45"}].
+    Also recurses into nested "Rows.Row" (sub-sections like Total sections).
+    """
+    accounts = []
+    for row in section_rows:
+        cols = row.get("ColData", [])
+        if len(cols) >= 2 and cols[0].get("value") and not str(cols[0].get("value", "")).startswith("Total "):
+            accounts.append({
+                "account_id": "",
+                "account_name": cols[0].get("value", ""),
+                "amount": _to_float(cols[1].get("value", "0")),
+            })
+        # Recurse into nested sections (grouped rows)
+        nested = row.get("Rows")
+        if nested:
+            accounts.extend(_parse_report_rows(nested.get("Row", [])))
+    return accounts
+
+
 def _get_profit_loss(args: dict) -> dict:
     data = _api("GET", "/reports/ProfitAndLoss",
                 params={"start_date": args["date_from"], "end_date": args["date_to"], "minorversion": "65"})
@@ -401,31 +474,15 @@ def _get_profit_loss(args: dict) -> dict:
     total_expenses = 0
 
     for section in rows:
-        section_name = (section.get("Header", {}).get("ColData", [{}])[0].get("value", "") if
-                        section.get("Header", {}).get("ColData") else "")
-        section_rows = section.get("Rows", {}).get("Row", []) if section.get("Rows") else []
-        summary = section.get("Summary", {}).get("ColData", [{}])[0].get("value", "0") if section.get("Summary", {}).get("ColData") else "0"
+        name = _section_name(section)
+        section_rows = _section_rows(section)
 
-        if "Income" in section_name:
-            total_revenue = float(summary.replace(",", ""))
-            for row in section_rows:
-                cols = row.get("ColData", [])
-                if len(cols) >= 2:
-                    revenue_accounts.append({
-                        "account_id": "",
-                        "account_name": cols[0].get("value", ""),
-                        "amount": float(cols[1].get("value", "0").replace(",", "")) if cols[1].get("value") else 0,
-                    })
-        elif "Expense" in section_name:
-            total_expenses = float(summary.replace(",", ""))
-            for row in section_rows:
-                cols = row.get("ColData", [])
-                if len(cols) >= 2:
-                    expense_accounts.append({
-                        "account_id": "",
-                        "account_name": cols[0].get("value", ""),
-                        "amount": float(cols[1].get("value", "0").replace(",", "")) if cols[1].get("value") else 0,
-                    })
+        if "Income" in name:
+            total_revenue = _summary_amount(section)
+            revenue_accounts.extend(_parse_report_rows(section_rows))
+        elif "Expense" in name:
+            total_expenses = _summary_amount(section)
+            expense_accounts.extend(_parse_report_rows(section_rows))
 
     return {
         "total_revenue": total_revenue,
@@ -434,6 +491,57 @@ def _get_profit_loss(args: dict) -> dict:
         "revenue_accounts": revenue_accounts,
         "expense_accounts": expense_accounts,
     }
+
+
+def _collect_data_rows(section: dict, accounts: list):
+    """Recursively collect all Data rows from a section subtree."""
+    for row in _section_rows(section):
+        if row.get("type") == "Data":
+            cols = row.get("ColData", [])
+            if len(cols) >= 2 and cols[0].get("value"):
+                accounts.append({
+                    "account_id": "",
+                    "account_name": cols[0].get("value", ""),
+                    "amount": _to_float(cols[1].get("value", "0")),
+                })
+        else:
+            _collect_data_rows(row, accounts)
+
+
+def _walk_balance_sheet(section: dict, asset_accts: list, liability_accts: list,
+                        equity_accts: list, totals: dict):
+    """Walk the QBO balance sheet tree, assigning accounts to the right bucket.
+
+    QBO structure:
+      ASSETS (top) → Current Assets → Bank Accounts → Data rows
+      LIABILITIES AND EQUITY (combined) → Liabilities → ... → Data rows
+                                       → Equity → Data rows
+    """
+    name = _section_name(section).upper()
+
+    if "ASSET" in name and "LIABILITY" not in name:
+        totals["asset"] = _summary_amount(section)
+        _collect_data_rows(section, asset_accts)
+        return
+
+    if "LIABILIT" in name and "EQUITY" in name:
+        # Combined section — recurse into sub-sections
+        for sub in _section_rows(section):
+            sub_name = _section_name(sub).upper()
+            if "LIABILIT" in sub_name:
+                totals["liability"] = _summary_amount(sub)
+                _collect_data_rows(sub, liability_accts)
+            elif "EQUITY" in sub_name:
+                totals["equity"] = _summary_amount(sub)
+                _collect_data_rows(sub, equity_accts)
+        return
+
+    if "LIABILIT" in name:
+        totals["liability"] = _summary_amount(section)
+        _collect_data_rows(section, liability_accts)
+    elif "EQUITY" in name:
+        totals["equity"] = _summary_amount(section)
+        _collect_data_rows(section, equity_accts)
 
 
 def _get_balance_sheet(args: dict) -> dict:
@@ -445,56 +553,20 @@ def _get_balance_sheet(args: dict) -> dict:
     if "error" in data:
         return data
 
-    # Parse QBO balance sheet report structure
+    # Parse QBO balance sheet — sections are nested two levels deep
     rows = data.get("Rows", {}).get("Row", [])
     asset_accounts = []
     liability_accounts = []
     equity_accounts = []
-    total_assets = 0
-    total_liabilities = 0
-    total_equity = 0
+    totals = {}
 
     for section in rows:
-        section_name = (section.get("Header", {}).get("ColData", [{}])[0].get("value", "") if
-                        section.get("Header", {}).get("ColData") else "")
-        section_rows = section.get("Rows", {}).get("Row", []) if section.get("Rows") else []
-        summary = section.get("Summary", {}).get("ColData", [{}])[0].get("value", "0") if section.get("Summary", {}).get("ColData") else "0"
-
-        if "Asset" in section_name:
-            total_assets = float(summary.replace(",", ""))
-            for row in section_rows:
-                cols = row.get("ColData", [])
-                if len(cols) >= 2:
-                    asset_accounts.append({
-                        "account_id": "",
-                        "account_name": cols[0].get("value", ""),
-                        "amount": float(cols[1].get("value", "0").replace(",", "")) if cols[1].get("value") else 0,
-                    })
-        elif "Liability" in section_name:
-            total_liabilities = float(summary.replace(",", ""))
-            for row in section_rows:
-                cols = row.get("ColData", [])
-                if len(cols) >= 2:
-                    liability_accounts.append({
-                        "account_id": "",
-                        "account_name": cols[0].get("value", ""),
-                        "amount": float(cols[1].get("value", "0").replace(",", "")) if cols[1].get("value") else 0,
-                    })
-        elif "Equity" in section_name:
-            total_equity = float(summary.replace(",", ""))
-            for row in section_rows:
-                cols = row.get("ColData", [])
-                if len(cols) >= 2:
-                    equity_accounts.append({
-                        "account_id": "",
-                        "account_name": cols[0].get("value", ""),
-                        "amount": float(cols[1].get("value", "0").replace(",", "")) if cols[1].get("value") else 0,
-                    })
+        _walk_balance_sheet(section, asset_accounts, liability_accounts, equity_accounts, totals)
 
     return {
-        "total_assets": total_assets,
-        "total_liabilities": total_liabilities,
-        "total_equity": total_equity,
+        "total_assets": totals.get("asset", 0),
+        "total_liabilities": totals.get("liability", 0),
+        "total_equity": totals.get("equity", 0),
         "asset_accounts": asset_accounts,
         "liability_accounts": liability_accounts,
         "equity_accounts": equity_accounts,

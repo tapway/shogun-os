@@ -307,8 +307,11 @@ function LoginInner() {
               </button>
             </form>
 
-            <div className="sd-form-footer">
-              Shogun OS · Enterprise-grade multi-agent operations
+            <div className="sd-form-footer" style={{ flexDirection: 'row', justifyContent: 'center', gap: '0.5rem' }}>
+              <span>New to Shogun OS?</span>
+              <a href="/register" className="text-indigo-600 hover:text-indigo-500 dark:text-indigo-400 font-medium">
+                Register your company
+              </a>
             </div>
           </div>
         </div>

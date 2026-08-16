@@ -1,16 +1,74 @@
 export type StatusLevel = 'online' | 'degraded' | 'offline' | 'unknown' | 'pending';
 
 export type DepartmentKey =
+  // Shared (always available)
   | 'hr'
   | 'finance'
   | 'crm'
   | 'marketing'
   | 'compliance'
-  | 'support'
-  | 'engineering'
+  | 'customer-support'
+  | 'coding'
+  | 'procurement'
+  // General industry
   | 'projects'
   | 'product'
-  | 'procurement';
+  // Manufacturing industry
+  | 'production'
+  | 'quality'
+  | 'maintenance'
+  | 'warehouse'
+  | 'hse'
+  // Retail industry
+  | 'stores'
+  | 'merchandising'
+  | 'e-commerce'
+  | 'crm-loyalty'
+  | 'supply-chain'
+  | 'visual-merchandising'
+  // Plantation industry
+  | 'estate-ops'
+  | 'worker-welfare';
+
+export type IndustryKey = 'general' | 'manufacturing' | 'retail' | 'plantation';
+
+export const SHARED_DEPARTMENT_KEYS: DepartmentKey[] = [
+  'hr', 'finance', 'procurement', 'crm', 'marketing', 'compliance', 'customer-support', 'coding',
+];
+
+export const INDUSTRY_CATALOG: Record<
+  IndustryKey,
+  { label: string; description: string; icon: string; departments: DepartmentKey[] }
+> = {
+  general: {
+    label: 'General / Services',
+    description: 'Consulting, software, agencies',
+    icon: '🏢',
+    departments: ['projects', 'product'],
+  },
+  manufacturing: {
+    label: 'Manufacturing',
+    description: 'Factory, production, OEM',
+    icon: '🏭',
+    departments: ['production', 'quality', 'maintenance', 'warehouse', 'hse'],
+  },
+  retail: {
+    label: 'Retail',
+    description: 'Stores, e-commerce, omnichannel',
+    icon: '🛒',
+    departments: ['stores', 'merchandising', 'e-commerce', 'crm-loyalty', 'supply-chain', 'visual-merchandising'],
+  },
+  plantation: {
+    label: 'Plantation',
+    description: 'Estate, mill, agriculture',
+    icon: '🌴',
+    departments: ['estate-ops', 'worker-welfare'],
+  },
+};
+
+export function getDepartmentsForIndustry(industry: IndustryKey): DepartmentKey[] {
+  return [...SHARED_DEPARTMENT_KEYS, ...INDUSTRY_CATALOG[industry].departments];
+}
 
 export interface User {
   id: string;
@@ -36,7 +94,9 @@ export interface ProviderConfig {
   subdomain?: string;
   base_url?: string;
   extra?: Record<string, string>;
+  comms_channels?: CommsChannelConfig[];
 }
+
 
 export interface Department {
   key: DepartmentKey;
@@ -55,6 +115,7 @@ export interface Department {
 
 export interface OnboardingState {
   step: number;
+  industry?: IndustryKey | null;
   selected_departments: DepartmentKey[];
   company?: Partial<Company>;
   department_configs?: Partial<Record<DepartmentKey, ProviderConfig>>;
@@ -111,13 +172,89 @@ export interface Skill {
   id: string;
   name: string;
   description: string;
-  category: 'Finance' | 'CRM/Sales' | 'Operations' | 'Coding' | 'HR' | 'Procurement' | 'Executive';
+  category: string;
   installed: boolean;
   installing?: boolean;
   version?: string;
-  department_keys?: string[];
-  icon?: string;
+  department_key?: string;
   author?: string;
+  tags?: string[];
+  related_skills?: string[];
+  path?: string;
+  last_modified?: string;
+  size_bytes?: number;
+  icon?: string;
+  installed_departments?: string[];
+}
+
+export interface SkillDetail {
+  skill: Skill;
+  skill_md: string;
+}
+
+export interface GeneratedSkill {
+  id?: string;
+  name: string;
+  description: string;
+  skill_md?: string;
+  instruction?: string;
+  department?: string;
+  category?: string;
+  validation_errors?: string[];
+}
+
+export interface SkillIntakeResponse {
+  is_ready: boolean;
+  follow_up_question?: string;
+  missing_aspects?: string[];
+  summary?: string;
+  suggested_name?: string;
+}
+
+export interface CronJob {
+  id: string;
+  department: string;
+  name: string;
+  schedule: string;
+  prompt: string;
+  skill_id?: string;
+  enabled: boolean;
+  last_run?: string;
+  created_at?: string;
+  // Delivery target — which comms channel the cron output is posted to
+  deliver_channel_id?: string;   // CommsChannelConfig.id
+  deliver_channel_name?: string; // Convenience: channel name (e.g. "HR Telegram")
+}
+
+export interface CommsChannelConfig {
+  id?: string;
+  key: 'telegram' | 'slack' | 'discord' | 'whatsapp' | 'teams' | 'email' | 'signal' | 'matrix' | 'mattermost' | 'line' | 'sms' | 'webhooks' | 'google_chat' | 'dingtalk' | 'feishu' | 'wecom' | 'weixin' | 'homeassistant' | 'irc' | 'ntfy' | 'simplex' | 'yuanbao' | 'qqbot' | 'bluebubbles';
+  name: string;
+  enabled: boolean;
+  join_url?: string;
+  bot_token?: string;
+  channel_id?: string;
+  webhook_url?: string;
+  extra_id?: string;
+  allowed_users?: string;
+  credentials?: Record<string, string>;
+  status?: 'connected' | 'disconnected' | 'configured' | 'error';
+  // Live connection test results (populated by backend /comms/test endpoint)
+  last_tested_at?: string;       // ISO timestamp of last test
+  last_test_status?: 'ok' | 'error' | 'untested';
+  bot_username?: string;         // Discovered bot username (e.g. @my_dept_bot)
+  bot_name?: string;             // Discovered bot display name
+  last_error?: string;           // Last error message if status is 'error'
+}
+
+
+
+export interface ConnectorField {
+  field: string;
+  label: string;
+  placeholder: string;
+  type?: "text" | "password";
+  hint?: string;
 }
 
 export interface Connector {
@@ -126,9 +263,14 @@ export interface Connector {
   category: string;
   description: string;
   logo_icon: string;
-  status: 'disconnected' | 'connecting' | 'connected';
+  status: "disconnected" | "connecting" | "connected";
   connected_at?: string;
   config_summary?: string;
+  docs_url?: string;
+  instructions?: string[];
+  required_fields?: ConnectorField[];
+  recommended_fields?: ConnectorField[];
+  credentials?: Record<string, string>;
 }
 
 export interface ChatToolCall {
@@ -187,6 +329,7 @@ export const DEPARTMENT_CATALOG: Record<
   DepartmentKey,
   Omit<Department, 'active' | 'status' | 'gateway_status' | 'provider_status' | 'provider_config'>
 > = {
+  // ── Shared departments ──
   hr: {
     key: 'hr',
     name: 'HR',
@@ -232,24 +375,34 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Shield',
     profile_name: 'compliance-manager',
   },
-  support: {
-    key: 'support',
-    name: 'Support',
+  'customer-support': {
+    key: 'customer-support',
+    name: 'Customer Support',
     persona: 'Shien',
     description: 'Tickets, SLAs, and customer success workflows.',
     color: '#06b6d4',
     icon: 'LifeBuoy',
-    profile_name: 'customer-support',
+    profile_name: 'customer-support-manager',
   },
-  engineering: {
-    key: 'engineering',
-    name: 'Engineering',
+  coding: {
+    key: 'coding',
+    name: 'Coding',
     persona: 'Gijutsu',
     description: 'Codebase ops, deployments, and technical delivery.',
     color: '#6366f1',
     icon: 'Code2',
-    profile_name: 'engineering-manager',
+    profile_name: 'coding-manager',
   },
+  procurement: {
+    key: 'procurement',
+    name: 'Procurement',
+    persona: 'Chotatsu',
+    description: 'Purchase orders, vendors, and contract lifecycle.',
+    color: '#ef4444',
+    icon: 'Package',
+    profile_name: 'procurement-manager',
+  },
+  // ── General industry ──
   projects: {
     key: 'projects',
     name: 'Projects',
@@ -257,7 +410,7 @@ export const DEPARTMENT_CATALOG: Record<
     description: 'Delivery plans, scrum cadences, and milestones.',
     color: '#f97316',
     icon: 'Kanban',
-    profile_name: 'project-manager',
+    profile_name: 'projects-manager',
   },
   product: {
     key: 'product',
@@ -268,14 +421,125 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Boxes',
     profile_name: 'product-manager',
   },
-  procurement: {
-    key: 'procurement',
-    name: 'Procurement',
-    persona: 'Chotatsu',
-    description: 'Purchase orders, vendors, and contract lifecycle.',
-    color: '#ef4444',
-    icon: 'Package',
-    profile_name: 'procurement-manager',
+  // ── Manufacturing industry ──
+  production: {
+    key: 'production',
+    name: 'Production',
+    persona: 'Kojo',
+    description: 'Factory floor operations, OEE, work orders.',
+    color: '#0ea5e9',
+    icon: 'Factory',
+    profile_name: 'production-manager',
+  },
+  quality: {
+    key: 'quality',
+    name: 'Quality',
+    persona: 'Kensa',
+    description: 'QC inspections, NCRs, CAPA, lot traceability.',
+    color: '#22c55e',
+    icon: 'CheckCircle',
+    profile_name: 'quality-manager',
+  },
+  maintenance: {
+    key: 'maintenance',
+    name: 'Maintenance',
+    persona: 'Shuri',
+    description: 'PM, breakdowns, spare parts, MTBF/MTTR.',
+    color: '#eab308',
+    icon: 'Wrench',
+    profile_name: 'maintenance-manager',
+  },
+  warehouse: {
+    key: 'warehouse',
+    name: 'Warehouse',
+    persona: 'Soko',
+    description: 'Inventory, shipping, cycle counts.',
+    color: '#a855f7',
+    icon: 'Warehouse',
+    profile_name: 'warehouse-manager',
+  },
+  hse: {
+    key: 'hse',
+    name: 'HSE',
+    persona: 'Anzen',
+    description: 'Safety, incidents, permits, environmental monitoring.',
+    color: '#dc2626',
+    icon: 'AlertTriangle',
+    profile_name: 'hse-manager',
+  },
+  // ── Retail industry ──
+  stores: {
+    key: 'stores',
+    name: 'Stores',
+    persona: 'Tenpo',
+    description: 'Store operations, daily sales, customer experience.',
+    color: '#0284c7',
+    icon: 'Store',
+    profile_name: 'stores-manager',
+  },
+  merchandising: {
+    key: 'merchandising',
+    name: 'Merchandising',
+    persona: 'Shohin',
+    description: 'Buying, assortment, pricing, product performance.',
+    color: '#7c3aed',
+    icon: 'ShoppingBag',
+    profile_name: 'merchandising-manager',
+  },
+  'e-commerce': {
+    key: 'e-commerce',
+    name: 'E-commerce',
+    persona: 'Denshi',
+    description: 'Online store, marketplace ops, listings, orders.',
+    color: '#2563eb',
+    icon: 'ShoppingCart',
+    profile_name: 'ecommerce-manager',
+  },
+  'crm-loyalty': {
+    key: 'crm-loyalty',
+    name: 'CRM/Loyalty',
+    persona: 'Kokyaku',
+    description: 'Loyalty programs, customer segmentation.',
+    color: '#059669',
+    icon: 'Gift',
+    profile_name: 'crm-loyalty-manager',
+  },
+  'supply-chain': {
+    key: 'supply-chain',
+    name: 'Supply Chain',
+    persona: 'Ryutsu',
+    description: 'DC to store replenishment, distribution.',
+    color: '#d97706',
+    icon: 'Truck',
+    profile_name: 'supply-chain-manager',
+  },
+  'visual-merchandising': {
+    key: 'visual-merchandising',
+    name: 'Visual Merchandising',
+    persona: 'Hyoji',
+    description: 'Shelf layouts, planograms, display compliance.',
+    color: '#9333ea',
+    icon: 'LayoutGrid',
+    profile_name: 'vm-manager',
+  },
+  // ── Plantation industry ──
+  'estate-ops': {
+    key: 'estate-ops',
+    name: 'Estate Operations',
+    persona: 'Gozen',
+    description: 'Estate management, document scanning, site inspections.',
+    color: '#16a34a',
+    icon: 'Trees',
+    profile_name: 'estate-ops-manager',
+  },
+  'worker-welfare': {
+    key: 'worker-welfare',
+    name: 'Worker Welfare',
+    persona: 'Ryō',
+    description: 'Staff quarters, welfare, and site conditions.',
+    color: '#0891b2',
+    icon: 'Home',
+    profile_name: 'worker-welfare-manager',
   },
 };
 
@@ -304,7 +568,7 @@ export interface StaffMember {
   id: number;
   email: string;
   name: string;
-  role: 'admin' | 'hr_manager' | 'user';
+  role: 'admin' | 'hr_manager' | 'department_admin' | 'user';
   first_login: boolean;
   is_temporary_password: boolean;
   created_at?: string;
@@ -523,6 +787,19 @@ export interface FxPosition {
   bnm_fea_compliant: boolean;
 }
 
+export interface AssetCategory {
+  name: string;
+  amount: number;
+  icon: string;       // lucide icon name
+  sub_items?: { name: string; amount: number }[];
+}
+
+export interface AssetTrendPoint {
+  month: string;
+  current: number;
+  non_current: number;
+}
+
 export interface Forecast13wScenario {
   week: string;
   inflow: number;
@@ -557,12 +834,90 @@ export interface ApBillItem {
   approval_status: 'Pending' | 'Approved' | 'Paid' | 'On Hold';
 }
 
-export interface BvaDeptItem {
-  department: string;
+// ─── Email Templates ───
+
+export interface EmailTemplate {
+  id: string;
+  name: string;
+  scenario: string;
+  subject_template: string;
+  body_template: string;
+}
+
+export interface EmailDraftRequest {
+  template_id: string;
+  context: {
+    company?: string;
+    amount_due?: string | number;
+    overdue_days?: string | number;
+    invoice_no?: string;
+    [key: string]: string | number | undefined;
+  };
+  custom_instructions?: string;
+}
+
+export interface EmailDraft {
+  subject: string;
+  body: string;
+  source: 'llm' | 'template';
+}
+
+export interface SendEmailRequest {
+  to: string;
+  subject: string;
+  body: string;
+}
+
+export interface ApAgingBucket {
+  label: string;
+  amount: number;
+}
+
+export interface MonthlyPlTrendPoint {
+  month: string;
+  revenue: number;
+  expenses: number;
+  net_profit: number;
+}
+
+export interface CashFlowForecastPoint {
+  month: string;
+  total: number;   // central forecast
+  low: number;     // conservative (downside)
+  high: number;    // optimistic (upside)
+}
+
+export interface BurnTrendPoint {
+  month: string;
+  burn: number;    // total expenses for the month
+}
+
+export interface CashFlowBreakdownItem {
+  category: string;
+  actual_ytd: number;
+  actual_mtd: number;
+  pct_of_total: number;
+}
+
+export interface CashFlowBreakdown {
+  income: CashFlowBreakdownItem[];
+  expenses: CashFlowBreakdownItem[];
+  income_total_ytd: number;
+  income_total_mtd: number;
+  expense_total_ytd: number;
+  expense_total_mtd: number;
+}
+
+export interface BvaLineItem {
+  section: string;
+  account_name: string;
+  budget_annual: number;
   budget_ytd: number;
   actual_ytd: number;
   variance: number;
   variance_pct: number;
+  monthly_budget?: number[];
+  match_confidence?: 'high' | 'medium' | 'low' | 'none';
 }
 
 export interface UnitEconomics {
@@ -579,53 +934,9 @@ export interface ClientConcentrationItem {
   revenue_pct: number;
 }
 
-export interface CloseChecklistItem {
-  id: string;
-  label: string;
-  completed: boolean;
-}
-
-export interface StatutoryItem {
-  name: string;
-  due_date: string;
-  status: 'Pending' | 'Submitted' | 'Overdue';
-  amount?: number;
-}
-
-export interface SstReadiness {
-  draft_status: string;
-  taxable_sales: number;
-  sst_liability: number;
-}
-
-export interface Cp58Item {
-  contractor_name: string;
-  ic_or_reg: string;
-  total_paid_ytd: number;
-  threshold_exceeded: boolean;
-}
-
-export interface WhtQueueItem {
-  vendor: string;
-  country: string;
-  payment_amount: number;
-  wht_rate: number;
-  wht_amount: number;
-  section: string;
-}
-
-export interface ExpenseClaimItem {
-  employee: string;
-  claim_date: string;
-  amount: number;
-  category: string;
-  receipt_attached: boolean;
-  sst_compliant: boolean;
-  policy_exceeded: boolean;
-  audit_status: 'Approved' | 'Flagged' | 'Rejected';
-}
-
 export interface FinanceDashboardStats {
+  // Mock flag — true when data loaded from examples/*.json (demo mode)
+  mock?: boolean;
   // Tab 1 — Executive Pulse
   totalLiquidCash: number;
   netMonthlyBurn: number;
@@ -639,12 +950,36 @@ export interface FinanceDashboardStats {
   riskAlerts: FinanceRiskAlert[];
   revenueOpexTrend: FinanceTrendPoint[];
   cashFlowTrend: FinanceTrendPoint[];
-  // Tab 2 — Cash & Runway
+  // Overview tab — additional QBO-live KPIs
+  totalLiabilities: number;
+  totalEquity: number;
+  debtToEquity: number;
+  equityRatio: number;
+  arToApCoverage: number;
+  netWorkingCapital: number;
+  grossWorkingCapital: number;
+  grossProfitMargin: number;
+  totalCurrentLiabilities: number;
+  apAgingByTarget: ApAgingBucket[];
+  monthlyPlTrend: MonthlyPlTrendPoint[];
+  // Cash Flow tab
+  arAgingByTarget: ApAgingBucket[];
+  cashFlowForecast: CashFlowForecastPoint[];
+  burnTrend: BurnTrendPoint[];
+  cashFlowBreakdown: CashFlowBreakdown;
+  // Tab 2 — Assets
   bankAccounts: BankAccount[];
   fxPositions: FxPosition[];
   forecast13w: { conservative: Forecast13wScenario[]; expected: Forecast13wScenario[]; optimistic: Forecast13wScenario[] };
   fixedOpex: number;
   variableOpex: number;
+  // Asset tab
+  currentAssets: AssetCategory[];
+  nonCurrentAssets: AssetCategory[];
+  assetTrend: AssetTrendPoint[];
+  totalCurrentAssets: number;
+  totalNonCurrentAssets: number;
+  totalAssets: number;
   // Tab 3 — AR & AP
   totalAR: number;
   arOverdue30: number;
@@ -654,18 +989,12 @@ export interface FinanceDashboardStats {
   dpo: number;
   arAging: ArAgingBuckets;
   dunningQueue: DunningItem[];
+  arInvoices: DunningItem[];
   apBills: ApBillItem[];
   // Tab 4 — BvA & Unit Economics
-  bvaDepartments: BvaDeptItem[];
+  bvaLineItems: BvaLineItem[];
   unitEconomics: UnitEconomics;
   clientConcentration: ClientConcentrationItem[];
-  // Tab 5 — Close & Tax
-  closeChecklist: CloseChecklistItem[];
-  statutorySchedule: StatutoryItem[];
-  sstReadiness: SstReadiness;
-  cp58Register: Cp58Item[];
-  whtQueue: WhtQueueItem[];
-  expenseClaimAudit: ExpenseClaimItem[];
 }
 
 // ─── Procurement Dashboard Types ───

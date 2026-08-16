@@ -17,6 +17,8 @@ from starlette.middleware.sessions import SessionMiddleware
 from config import get_config, save_config
 from database import init_db, session_scope
 from registry import register_with_central
+import comms
+import email_templates
 
 import auth
 import dashboard
@@ -117,6 +119,13 @@ def create_app() -> FastAPI:
     app.include_router(registry.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")
     app.include_router(staff.router, prefix="/api")
+    app.include_router(comms.router, prefix="/api")
+    app.include_router(email_templates.router, prefix="/api")
+
+    # Static mount for chat uploads
+    uploads_dir = Path(cfg.db_path).parent / "chat_uploads"
+    uploads_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/chat/uploads", StaticFiles(directory=str(uploads_dir)), name="chat_uploads")
 
     # Static mount for chat uploads
     uploads_dir = Path(cfg.db_path).parent / "chat_uploads"

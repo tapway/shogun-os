@@ -15,7 +15,13 @@ metadata:
 
 ## Overview
 
-Tracks line-item spending against budget baselines and flags department cost overruns exceeding 10%. The skill produces a Budget vs. Actual variance report with per-line variance amounts, variance percentages, and a ">10% overrun" flag for each line — implemented via the local `variance.py` script that reads `finance/budget.json` from the gbrain finance source and calls existing `acct_get_profit_loss` / `acct_get_balance_sheet` contract tools for actuals. No contract edit or plugin change is involved.
+Tracks line-item spending against budget baselines and flags P&L line overruns exceeding 10%. The skill produces a Budget vs. Actual variance report with per-line variance amounts, variance percentages, and a ">10% overrun" flag for each line — implemented via the local `variance.py` script that reads `finance/budget.json` from the gbrain finance source and calls existing `acct_get_profit_loss` / `acct_get_balance_sheet` contract tools for actuals. No contract edit or plugin change is involved.
+
+**Budget source**: The 2026 Budget Excel parsed by `scripts/parse-budget-excel.py` into `finance/budget.json`. The Excel has P&L line items grouped into Revenue / Cost of Sales / Other Income / Expenses sections, with monthly budget columns (Jan–Dec) and an annual TOTAL column.
+
+**Actual source**: QuickBooks Online (QBO) via `acct_get_profit_loss` MCP tool. The P&L returns `{lines: [{account_code, account_name, actual_amount}]}` which is matched against budget lines by account_code, then by account_name.
+
+**Dashboard output**: The `dashboard-snapshot-writer` `_build_bva_snapshot()` function loads `budget.json`, matches against QBO P&L actuals, and produces `line_items: [{section, account_name, budget_annual, budget_ytd, actual_ytd, variance, variance_pct}]` — the Finance dashboard's "Budget vs Actuals" tab renders this grouped by section.
 
 ## When to Use
 

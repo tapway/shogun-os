@@ -3,51 +3,786 @@
   "year": 2026,
   "currency": "MYR",
   "budget_baseline": {
-    "payroll_benefits": 34000.0,
-    "saas_cloud_infrastructure": 8500.0,
-    "marketing_customer_acquisition": 8000.0,
-    "facilities_admin": 2600.0
+    "Hardware": 2249300,
+    "Maintenance": 338600,
+    "Professional Services": 1292700,
+    "Services (OTC)": 1069700,
+    "Software (OTC)": 424400,
+    "Software Subscription": 4224700,
+    "Cloud & Software Cost": 1339800,
+    "Hardware Costs": 863900,
+    "Freight and delivery": 151000,
+    "Sales Commission": 111600,
+    "Subcontracted Services": 385000,
+    "Grant": 3016100,
+    "MV car instalment": 5400,
+    "Total Advertisement and promotions": 218000,
+    "Total Business Development Costs": 133300,
+    "Depreciation": 44200,
+    "Total for Employee Benefits": 336900,
+    "Total for Finance costs": 14500,
+    "Total for Human Resources": 92300,
+    "Total for Insurance": 45000,
+    "Total for Interest costs": 54600,
+    "Total for Office Expenses": 59300,
+    "Total for Payroll": 4025300,
+    "Total for Professional Fees": 30000,
+    "Total for Rent, Utilities & Phone": 174400,
+    "Subscription fees": 500,
+    "Total for Taxes": 6800,
+    "Attestation fees": 100,
+    "Auditors' remuneration": 17900,
+    "Software and Hosting": 111100,
+    "Exchange Gain or Loss": 62100
   },
   "lines": [
     {
-      "account_code": "5100",
-      "account_name": "Payroll & Benefits",
-      "budget_amount": 34000.0,
-      "driver": "headcount x average salary",
-      "notes": "Monthly base payroll"
+      "account_code": "4100",
+      "account_name": "Hardware",
+      "section": "Revenue",
+      "budget_amount": 2427600,
+      "budget_ytd": 745900,
+      "monthly_budget": [
+        0,
+        107700,
+        342890,
+        240450,
+        204040,
+        118690,
+        253730,
+        33390,
+        89120,
+        62560,
+        33390,
+        154560
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
     },
     {
-      "account_code": "5200",
-      "account_name": "SaaS & Cloud Infrastructure",
-      "budget_amount": 8500.0,
-      "driver": "server nodes + API token consumption",
-      "notes": "AWS, OpenAI, cloud hosting"
+      "account_code": "4101",
+      "account_name": "Maintenance",
+      "section": "Revenue",
+      "budget_amount": 566600,
+      "budget_ytd": 175900,
+      "monthly_budget": [
+        25150,
+        25250,
+        26850,
+        45310,
+        48690,
+        54660,
+        55240,
+        58100,
+        58480,
+        59050,
+        59430,
+        60050
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
     },
     {
-      "account_code": "5300",
-      "account_name": "Marketing & Customer Acquisition",
-      "budget_amount": 8000.0,
-      "driver": "monthly ad spend + campaign budget",
-      "notes": "Digital ad spend & events"
+      "account_code": "4102",
+      "account_name": "Professional Services",
+      "section": "Revenue",
+      "budget_amount": 1865600,
+      "budget_ytd": 694600,
+      "monthly_budget": [
+        45250,
+        250970,
+        160630,
+        145770,
+        26420,
+        107560,
+        77490,
+        7030,
+        16720,
+        87830,
+        7030,
+        50150
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
     },
     {
-      "account_code": "5400",
-      "account_name": "Facilities & Admin",
-      "budget_amount": 2600.0,
-      "driver": "office lease + utilities",
-      "notes": "Monthly office rent and utilities"
+      "account_code": "4103",
+      "account_name": "Services (OTC)",
+      "section": "Revenue",
+      "budget_amount": 1781700,
+      "budget_ytd": 372700,
+      "monthly_budget": [
+        0,
+        125790,
+        38390,
+        118810,
+        47240,
+        31540,
+        125630,
+        14700,
+        26380,
+        14700,
+        14700,
+        31350
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "4104",
+      "account_name": "Software (OTC)",
+      "section": "Revenue",
+      "budget_amount": 930100,
+      "budget_ytd": 200900,
+      "monthly_budget": [
+        0,
+        0,
+        232050,
+        88640,
+        0,
+        0,
+        0,
+        0,
+        0,
+        222040,
+        0,
+        0
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "4105",
+      "account_name": "Software Subscription",
+      "section": "Revenue",
+      "budget_amount": 2157800,
+      "budget_ytd": 551500,
+      "monthly_budget": [
+        95780,
+        122220,
+        165120,
+        188290,
+        197980,
+        234760,
+        235930,
+        307730,
+        317450,
+        318620,
+        319420,
+        334020
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5106",
+      "account_name": "Cloud & Software Cost",
+      "section": "Cost of Sales",
+      "budget_amount": 832300,
+      "budget_ytd": 228100,
+      "monthly_budget": [
+        28380,
+        29800,
+        31290,
+        32850,
+        34500,
+        36220,
+        38030,
+        39930,
+        41930,
+        44030,
+        46230,
+        48540
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5107",
+      "account_name": "Hardware Costs",
+      "section": "Cost of Sales",
+      "budget_amount": 1128900,
+      "budget_ytd": 437300,
+      "monthly_budget": [
+        0,
+        79720,
+        204730,
+        159140,
+        103290,
+        71240,
+        128040,
+        17180,
+        51800,
+        17180,
+        17180,
+        94130
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5108",
+      "account_name": "Freight and delivery",
+      "section": "Cost of Sales",
+      "budget_amount": 181700,
+      "budget_ytd": 42600,
+      "monthly_budget": [
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600,
+        10600
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5109",
+      "account_name": "Sales Commission",
+      "section": "Cost of Sales",
+      "budget_amount": 139800,
+      "budget_ytd": 38600,
+      "monthly_budget": [
+        4330,
+        18040,
+        27310,
+        23310,
+        13070,
+        14050,
+        19840,
+        10850,
+        12980,
+        23000,
+        11180,
+        15900
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5110",
+      "account_name": "Subcontracted Services",
+      "section": "Cost of Sales",
+      "budget_amount": 610700,
+      "budget_ytd": 190200,
+      "monthly_budget": [
+        0,
+        22110,
+        0,
+        55560,
+        53900,
+        16580,
+        126020,
+        16580,
+        16580,
+        16580,
+        16580,
+        19900
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "5111",
+      "account_name": "Software (OTC)",
+      "section": "Cost of Sales",
+      "budget_amount": 460900,
+      "budget_ytd": 163700,
+      "monthly_budget": [
+        0,
+        0,
+        125100,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0,
+        0
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "6112",
+      "account_name": "Grant",
+      "section": "Other Income",
+      "budget_amount": 1596300,
+      "budget_ytd": 420000,
+      "monthly_budget": [
+        0,
+        383870,
+        0,
+        0,
+        383870,
+        0,
+        0,
+        383870,
+        0,
+        0,
+        383870,
+        0
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "6113",
+      "account_name": "MV car instalment",
+      "section": "Other Income",
+      "budget_amount": 7300,
+      "budget_ytd": 2800,
+      "monthly_budget": [
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740,
+        740
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7114",
+      "account_name": "Total Advertisement and promotions",
+      "section": "Expenses",
+      "budget_amount": 254200,
+      "budget_ytd": 84200,
+      "monthly_budget": [
+        3490,
+        13680,
+        2020,
+        5280,
+        70430,
+        2020,
+        27450,
+        11420,
+        1390,
+        5060,
+        11420,
+        1390
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7115",
+      "account_name": "Total Business Development Costs",
+      "section": "Expenses",
+      "budget_amount": 163900,
+      "budget_ytd": 47800,
+      "monthly_budget": [
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4670
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7116",
+      "account_name": "Depreciation",
+      "section": "Expenses",
+      "budget_amount": 31600,
+      "budget_ytd": 9900,
+      "monthly_budget": [
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700,
+        1700
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7117",
+      "account_name": "Total for Employee Benefits",
+      "section": "Expenses",
+      "budget_amount": 507300,
+      "budget_ytd": 192600,
+      "monthly_budget": [
+        20150,
+        20150,
+        21950,
+        20150,
+        20150,
+        21950,
+        20150,
+        20150,
+        21950,
+        20150,
+        20150,
+        48930
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7118",
+      "account_name": "Total for Finance costs",
+      "section": "Expenses",
+      "budget_amount": 9600,
+      "budget_ytd": 3800,
+      "monthly_budget": [
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710,
+        710
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7119",
+      "account_name": "Total for Human Resources",
+      "section": "Expenses",
+      "budget_amount": 41600,
+      "budget_ytd": 8700,
+      "monthly_budget": [
+        8130,
+        1010,
+        0,
+        3050,
+        7770,
+        0,
+        0,
+        0,
+        0,
+        0,
+        1530,
+        1530
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7120",
+      "account_name": "Total for Insurance",
+      "section": "Expenses",
+      "budget_amount": 100200,
+      "budget_ytd": 35900,
+      "monthly_budget": [
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320,
+        4320
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7121",
+      "account_name": "Total for Interest costs",
+      "section": "Expenses",
+      "budget_amount": 23500,
+      "budget_ytd": 6500,
+      "monthly_budget": [
+        3570,
+        3510,
+        3450,
+        3390,
+        3330,
+        3270,
+        3200,
+        3140,
+        3080,
+        3020,
+        2960,
+        2900
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7122",
+      "account_name": "Total for Office Expenses",
+      "section": "Expenses",
+      "budget_amount": 51000,
+      "budget_ytd": 20100,
+      "monthly_budget": [
+        6910,
+        2150,
+        7250,
+        2150,
+        2150,
+        5210,
+        2150,
+        2150,
+        2490,
+        2150,
+        2150,
+        2490
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7123",
+      "account_name": "Total for Payroll",
+      "section": "Expenses",
+      "budget_amount": 2450300,
+      "budget_ytd": 843300,
+      "monthly_budget": [
+        273460,
+        292640,
+        296810,
+        297300,
+        297300,
+        303540,
+        303540,
+        306390,
+        306390,
+        306390,
+        306390,
+        306390
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7124",
+      "account_name": "Total for Professional Fees",
+      "section": "Expenses",
+      "budget_amount": 47400,
+      "budget_ytd": 12000,
+      "monthly_budget": [
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750,
+        2750
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7125",
+      "account_name": "Total for Rent, Utilities & Phone",
+      "section": "Expenses",
+      "budget_amount": 73200,
+      "budget_ytd": 21000,
+      "monthly_budget": [
+        4670,
+        4670,
+        4670,
+        4670,
+        4670,
+        4990,
+        8200,
+        8200,
+        8200,
+        8200,
+        8200,
+        8200
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7126",
+      "account_name": "Subscription fees",
+      "section": "Expenses",
+      "budget_amount": 800,
+      "budget_ytd": 300,
+      "monthly_budget": [
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20,
+        20
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7127",
+      "account_name": "Total for Taxes",
+      "section": "Expenses",
+      "budget_amount": 11400,
+      "budget_ytd": 2700,
+      "monthly_budget": [
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850,
+        850
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7128",
+      "account_name": "Attestation fees",
+      "section": "Expenses",
+      "budget_amount": 100,
+      "budget_ytd": 0,
+      "monthly_budget": [
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10,
+        10
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7129",
+      "account_name": "Auditors' remuneration",
+      "section": "Expenses",
+      "budget_amount": 14700,
+      "budget_ytd": 3400,
+      "monthly_budget": [
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880,
+        880
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7130",
+      "account_name": "Software and Hosting",
+      "section": "Expenses",
+      "budget_amount": 104700,
+      "budget_ytd": 37200,
+      "monthly_budget": [
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460,
+        5460
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
+    },
+    {
+      "account_code": "7131",
+      "account_name": "Exchange Gain or Loss",
+      "section": "Expenses",
+      "budget_amount": 23800,
+      "budget_ytd": 6300,
+      "monthly_budget": [
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300,
+        1300
+      ],
+      "driver": "",
+      "notes": "From 2026 Budget Excel"
     }
   ],
   "dashboard_mock": {
-    "totalLiquidCash": 1450000.0,
-    "netMonthlyBurn": 120000.0,
-    "cashRunwayMonths": 12.1,
+    "totalLiquidCash": 2072200,
+    "netMonthlyBurn": 165400,
+    "cashRunwayMonths": 0,
     "runwayStatus": "healthy",
-    "revenueMTD": 340000.0,
-    "revenueYTD": 3850000.0,
-    "grossMargin": 64.2,
-    "ebitdaMargin": 22.1,
-    "unpaidStatutory": 42500.0,
+    "revenueMTD": 274600,
+    "revenueYTD": 2148000,
+    "grossMargin": 100,
+    "ebitdaMargin": 0,
+    "unpaidStatutory": 24900,
     "riskAlerts": [
       {
         "type": "concentration",
@@ -66,98 +801,596 @@
       }
     ],
     "revenueOpexTrend": [
-      {"month": "Aug", "revenue": 280000, "opex": 190000, "net": 90000},
-      {"month": "Sep", "revenue": 295000, "opex": 200000, "net": 95000},
-      {"month": "Oct", "revenue": 310000, "opex": 190000, "net": 120000},
-      {"month": "Nov", "revenue": 325000, "opex": 210000, "net": 115000},
-      {"month": "Dec", "revenue": 340000, "opex": 190000, "net": 150000},
-      {"month": "Jan", "revenue": 355000, "opex": 200000, "net": 155000},
-      {"month": "Feb", "revenue": 370000, "opex": 190000, "net": 180000},
-      {"month": "Mar", "revenue": 385000, "opex": 210000, "net": 175000},
-      {"month": "Apr", "revenue": 400000, "opex": 190000, "net": 210000},
-      {"month": "May", "revenue": 415000, "opex": 200000, "net": 215000},
-      {"month": "Jun", "revenue": 430000, "opex": 190000, "net": 240000},
-      {"month": "Jul", "revenue": 445000, "opex": 210000, "net": 235000}
+      {
+        "month": "Aug",
+        "revenue": 276100,
+        "opex": 108200,
+        "net": 113500
+      },
+      {
+        "month": "Sep",
+        "revenue": 373400,
+        "opex": 125700,
+        "net": 92700
+      },
+      {
+        "month": "Oct",
+        "revenue": 325400,
+        "opex": 145400,
+        "net": 164700
+      },
+      {
+        "month": "Nov",
+        "revenue": 300000,
+        "opex": 149500,
+        "net": 119500
+      },
+      {
+        "month": "Dec",
+        "revenue": 418200,
+        "opex": 133200,
+        "net": 121800
+      },
+      {
+        "month": "Jan",
+        "revenue": 530800,
+        "opex": 230000,
+        "net": 145400
+      },
+      {
+        "month": "Feb",
+        "revenue": 376500,
+        "opex": 118000,
+        "net": 130400
+      },
+      {
+        "month": "Mar",
+        "revenue": 322700,
+        "opex": 228500,
+        "net": 127800
+      },
+      {
+        "month": "Apr",
+        "revenue": 288100,
+        "opex": 108500,
+        "net": 237500
+      },
+      {
+        "month": "May",
+        "revenue": 302500,
+        "opex": 281100,
+        "net": 292300
+      },
+      {
+        "month": "Jun",
+        "revenue": 245500,
+        "opex": 140200,
+        "net": 280600
+      },
+      {
+        "month": "Jul",
+        "revenue": 317800,
+        "opex": 132800,
+        "net": 337300
+      }
     ],
     "cashFlowTrend": [
-      {"month": "Aug", "cash": 1100000, "netFlow": 25000},
-      {"month": "Sep", "cash": 1130000, "netFlow": 40000},
-      {"month": "Oct", "cash": 1160000, "netFlow": 25000},
-      {"month": "Nov", "cash": 1190000, "netFlow": 40000},
-      {"month": "Dec", "cash": 1220000, "netFlow": 25000},
-      {"month": "Jan", "cash": 1250000, "netFlow": 40000},
-      {"month": "Feb", "cash": 1280000, "netFlow": 25000},
-      {"month": "Mar", "cash": 1310000, "netFlow": 40000},
-      {"month": "Apr", "cash": 1340000, "netFlow": 25000},
-      {"month": "May", "cash": 1370000, "netFlow": 40000},
-      {"month": "Jun", "cash": 1400000, "netFlow": 25000},
-      {"month": "Jul", "cash": 1450000, "netFlow": 40000}
+      {
+        "month": "Aug",
+        "cash": 1178100,
+        "netFlow": 24300
+      },
+      {
+        "month": "Sep",
+        "cash": 1451600,
+        "netFlow": 52300
+      },
+      {
+        "month": "Oct",
+        "cash": 800900,
+        "netFlow": 14900
+      },
+      {
+        "month": "Nov",
+        "cash": 1108000,
+        "netFlow": 36900
+      },
+      {
+        "month": "Dec",
+        "cash": 1179800,
+        "netFlow": 30700
+      },
+      {
+        "month": "Jan",
+        "cash": 1466700,
+        "netFlow": 59400
+      },
+      {
+        "month": "Feb",
+        "cash": 766000,
+        "netFlow": 22600
+      },
+      {
+        "month": "Mar",
+        "cash": 1099500,
+        "netFlow": 54500
+      },
+      {
+        "month": "Apr",
+        "cash": 1003200,
+        "netFlow": 17300
+      },
+      {
+        "month": "May",
+        "cash": 1299600,
+        "netFlow": 36900
+      },
+      {
+        "month": "Jun",
+        "cash": 1090000,
+        "netFlow": 18700
+      },
+      {
+        "month": "Jul",
+        "cash": 2063700,
+        "netFlow": 37700
+      }
+    ],
+    "monthlyPlTrend": [
+      {
+        "month": "Feb 26",
+        "revenue": 163400,
+        "expenses": 115500,
+        "net_profit": 5500
+      },
+      {
+        "month": "Mar 26",
+        "revenue": 134900,
+        "expenses": 120200,
+        "net_profit": 0
+      },
+      {
+        "month": "Apr 26",
+        "revenue": 191000,
+        "expenses": 185400,
+        "net_profit": 0
+      },
+      {
+        "month": "May 26",
+        "revenue": 323700,
+        "expenses": 153300,
+        "net_profit": 9900
+      },
+      {
+        "month": "Jun 26",
+        "revenue": 171300,
+        "expenses": 207200,
+        "net_profit": 5600
+      },
+      {
+        "month": "Jul 26",
+        "revenue": 202200,
+        "expenses": 341600,
+        "net_profit": 0
+      }
+    ],
+    "arAgingByTarget": [
+      {
+        "label": "1-30 DPD",
+        "amount": 229600
+      },
+      {
+        "label": "31-60 DPD",
+        "amount": 256800
+      },
+      {
+        "label": "61-90 DPD",
+        "amount": 191000
+      },
+      {
+        "label": "90+ DPD",
+        "amount": 369200
+      }
+    ],
+    "cashFlowForecast": [
+      {
+        "month": "Aug 26",
+        "total": 2171400,
+        "low": 1894000,
+        "high": 1730400
+      },
+      {
+        "month": "Sep 26",
+        "total": 1864200,
+        "low": 851600,
+        "high": 1340900
+      },
+      {
+        "month": "Oct 26",
+        "total": 2305900,
+        "low": 1440200,
+        "high": 1799900
+      },
+      {
+        "month": "Nov 26",
+        "total": 2009200,
+        "low": 762500,
+        "high": 1920100
+      },
+      {
+        "month": "Dec 26",
+        "total": 1654700,
+        "low": 1897200,
+        "high": 1193200
+      },
+      {
+        "month": "Jan 27",
+        "total": 2468700,
+        "low": 833300,
+        "high": 1274900
+      }
+    ],
+    "burnTrend": [
+      {
+        "month": "Feb 26",
+        "burn": 438000
+      },
+      {
+        "month": "Mar 26",
+        "burn": 470100
+      },
+      {
+        "month": "Apr 26",
+        "burn": 294100
+      },
+      {
+        "month": "May 26",
+        "burn": 248000
+      },
+      {
+        "month": "Jun 26",
+        "burn": 556100
+      },
+      {
+        "month": "Jul 26",
+        "burn": 373100
+      }
     ],
     "bankAccounts": [
-      {"name": "Maybank Islamic Berhad (Operating Account)", "currency": "MYR", "balance": 950000, "balance_myr": 950000, "last_reconciled": "2026-07-28"},
-      {"name": "CIMB Bank Berhad (Payroll Reserve)", "currency": "MYR", "balance": 320000, "balance_myr": 320000, "last_reconciled": "2026-07-28"},
-      {"name": "RHB Islamic Bank (USD Reserve)", "currency": "USD", "balance": 40000, "balance_myr": 180000, "last_reconciled": "2026-07-25"}
+      {
+        "name": "Maybank Islamic Berhad (Operating Account)",
+        "currency": "MYR",
+        "balance": 1039800,
+        "balance_myr": 1063400,
+        "last_reconciled": "2026-07-28"
+      },
+      {
+        "name": "CIMB Bank Berhad (Payroll Reserve)",
+        "currency": "MYR",
+        "balance": 294200,
+        "balance_myr": 346800,
+        "last_reconciled": "2026-07-28"
+      },
+      {
+        "name": "RHB Islamic Bank (USD Reserve)",
+        "currency": "USD",
+        "balance": 40900,
+        "balance_myr": 258200,
+        "last_reconciled": "2026-07-25"
+      }
     ],
     "fxPositions": [
-      {"currency": "USD", "long": 45000, "short": 10000, "net": 35000, "bnm_fea_compliant": true},
-      {"currency": "SGD", "long": 20000, "short": 5000, "net": 15000, "bnm_fea_compliant": true},
-      {"currency": "EUR", "long": 8000, "short": 12000, "net": -4000, "bnm_fea_compliant": true}
+      {
+        "currency": "USD",
+        "long": 31700,
+        "short": 12200,
+        "net": 25900,
+        "bnm_fea_compliant": 0
+      },
+      {
+        "currency": "SGD",
+        "long": 23400,
+        "short": 4000,
+        "net": 12200,
+        "bnm_fea_compliant": 0
+      },
+      {
+        "currency": "EUR",
+        "long": 4600,
+        "short": 11500,
+        "net": -4000,
+        "bnm_fea_compliant": 0
+      }
     ],
-    "fixedOpex": 85000.0,
-    "variableOpex": 35000.0,
+    "fixedOpex": 127200,
+    "variableOpex": 20100,
     "forecast13w": {
       "expected": [
-        {"week": "Week 1", "inflow": 80000, "outflow": 60000, "net": 20000, "cumulative": 1470000},
-        {"week": "Week 2", "inflow": 90000, "outflow": 65000, "net": 25000, "cumulative": 1495000},
-        {"week": "Week 3", "inflow": 100000, "outflow": 60000, "net": 40000, "cumulative": 1535000},
-        {"week": "Week 4", "inflow": 80000, "outflow": 65000, "net": 15000, "cumulative": 1550000},
-        {"week": "Week 5", "inflow": 90000, "outflow": 60000, "net": 30000, "cumulative": 1580000},
-        {"week": "Week 6", "inflow": 100000, "outflow": 65000, "net": 35000, "cumulative": 1615000},
-        {"week": "Week 7", "inflow": 80000, "outflow": 60000, "net": 20000, "cumulative": 1635000},
-        {"week": "Week 8", "inflow": 90000, "outflow": 65000, "net": 25000, "cumulative": 1660000},
-        {"week": "Week 9", "inflow": 100000, "outflow": 60000, "net": 40000, "cumulative": 1700000},
-        {"week": "Week 10", "inflow": 80000, "outflow": 65000, "net": 15000, "cumulative": 1715000},
-        {"week": "Week 11", "inflow": 90000, "outflow": 60000, "net": 30000, "cumulative": 1745000},
-        {"week": "Week 12", "inflow": 100000, "outflow": 65000, "net": 35000, "cumulative": 1780000},
-        {"week": "Week 13", "inflow": 80000, "outflow": 60000, "net": 20000, "cumulative": 1800000}
+        {
+          "week": "Week 1",
+          "inflow": 80000,
+          "outflow": 60000,
+          "net": 20000,
+          "cumulative": 1470000
+        },
+        {
+          "week": "Week 2",
+          "inflow": 90000,
+          "outflow": 65000,
+          "net": 25000,
+          "cumulative": 1495000
+        },
+        {
+          "week": "Week 3",
+          "inflow": 100000,
+          "outflow": 60000,
+          "net": 40000,
+          "cumulative": 1535000
+        },
+        {
+          "week": "Week 4",
+          "inflow": 80000,
+          "outflow": 65000,
+          "net": 15000,
+          "cumulative": 1550000
+        },
+        {
+          "week": "Week 5",
+          "inflow": 90000,
+          "outflow": 60000,
+          "net": 30000,
+          "cumulative": 1580000
+        },
+        {
+          "week": "Week 6",
+          "inflow": 100000,
+          "outflow": 65000,
+          "net": 35000,
+          "cumulative": 1615000
+        },
+        {
+          "week": "Week 7",
+          "inflow": 80000,
+          "outflow": 60000,
+          "net": 20000,
+          "cumulative": 1635000
+        },
+        {
+          "week": "Week 8",
+          "inflow": 90000,
+          "outflow": 65000,
+          "net": 25000,
+          "cumulative": 1660000
+        },
+        {
+          "week": "Week 9",
+          "inflow": 100000,
+          "outflow": 60000,
+          "net": 40000,
+          "cumulative": 1700000
+        },
+        {
+          "week": "Week 10",
+          "inflow": 80000,
+          "outflow": 65000,
+          "net": 15000,
+          "cumulative": 1715000
+        },
+        {
+          "week": "Week 11",
+          "inflow": 90000,
+          "outflow": 60000,
+          "net": 30000,
+          "cumulative": 1745000
+        },
+        {
+          "week": "Week 12",
+          "inflow": 100000,
+          "outflow": 65000,
+          "net": 35000,
+          "cumulative": 1780000
+        },
+        {
+          "week": "Week 13",
+          "inflow": 80000,
+          "outflow": 60000,
+          "net": 20000,
+          "cumulative": 1800000
+        }
       ],
       "conservative": [
-        {"week": "Week 1", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1445000},
-        {"week": "Week 2", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1445000},
-        {"week": "Week 3", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1440000},
-        {"week": "Week 4", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1440000},
-        {"week": "Week 5", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1435000},
-        {"week": "Week 6", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1435000},
-        {"week": "Week 7", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1430000},
-        {"week": "Week 8", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1430000},
-        {"week": "Week 9", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1425000},
-        {"week": "Week 10", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1425000},
-        {"week": "Week 11", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1420000},
-        {"week": "Week 12", "inflow": 65000, "outflow": 65000, "net": 0, "cumulative": 1420000},
-        {"week": "Week 13", "inflow": 60000, "outflow": 65000, "net": -5000, "cumulative": 1415000}
+        {
+          "week": "Week 1",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1445000
+        },
+        {
+          "week": "Week 2",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1445000
+        },
+        {
+          "week": "Week 3",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1440000
+        },
+        {
+          "week": "Week 4",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1440000
+        },
+        {
+          "week": "Week 5",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1435000
+        },
+        {
+          "week": "Week 6",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1435000
+        },
+        {
+          "week": "Week 7",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1430000
+        },
+        {
+          "week": "Week 8",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1430000
+        },
+        {
+          "week": "Week 9",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1425000
+        },
+        {
+          "week": "Week 10",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1425000
+        },
+        {
+          "week": "Week 11",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1420000
+        },
+        {
+          "week": "Week 12",
+          "inflow": 65000,
+          "outflow": 65000,
+          "net": 0,
+          "cumulative": 1420000
+        },
+        {
+          "week": "Week 13",
+          "inflow": 60000,
+          "outflow": 65000,
+          "net": -5000,
+          "cumulative": 1415000
+        }
       ],
       "optimistic": [
-        {"week": "Week 1", "inflow": 100000, "outflow": 55000, "net": 45000, "cumulative": 1495000},
-        {"week": "Week 2", "inflow": 102000, "outflow": 55000, "net": 47000, "cumulative": 1542000},
-        {"week": "Week 3", "inflow": 104000, "outflow": 55000, "net": 49000, "cumulative": 1591000},
-        {"week": "Week 4", "inflow": 106000, "outflow": 55000, "net": 51000, "cumulative": 1642000},
-        {"week": "Week 5", "inflow": 108000, "outflow": 55000, "net": 53000, "cumulative": 1695000},
-        {"week": "Week 6", "inflow": 110000, "outflow": 55000, "net": 55000, "cumulative": 1750000},
-        {"week": "Week 7", "inflow": 112000, "outflow": 55000, "net": 57000, "cumulative": 1807000},
-        {"week": "Week 8", "inflow": 114000, "outflow": 55000, "net": 59000, "cumulative": 1866000},
-        {"week": "Week 9", "inflow": 116000, "outflow": 55000, "net": 61000, "cumulative": 1927000},
-        {"week": "Week 10", "inflow": 118000, "outflow": 55000, "net": 63000, "cumulative": 1990000},
-        {"week": "Week 11", "inflow": 120000, "outflow": 55000, "net": 65000, "cumulative": 2055000},
-        {"week": "Week 12", "inflow": 122000, "outflow": 55000, "net": 67000, "cumulative": 2122000},
-        {"week": "Week 13", "inflow": 124000, "outflow": 55000, "net": 69000, "cumulative": 2191000}
+        {
+          "week": "Week 1",
+          "inflow": 100000,
+          "outflow": 55000,
+          "net": 45000,
+          "cumulative": 1495000
+        },
+        {
+          "week": "Week 2",
+          "inflow": 102000,
+          "outflow": 55000,
+          "net": 47000,
+          "cumulative": 1542000
+        },
+        {
+          "week": "Week 3",
+          "inflow": 104000,
+          "outflow": 55000,
+          "net": 49000,
+          "cumulative": 1591000
+        },
+        {
+          "week": "Week 4",
+          "inflow": 106000,
+          "outflow": 55000,
+          "net": 51000,
+          "cumulative": 1642000
+        },
+        {
+          "week": "Week 5",
+          "inflow": 108000,
+          "outflow": 55000,
+          "net": 53000,
+          "cumulative": 1695000
+        },
+        {
+          "week": "Week 6",
+          "inflow": 110000,
+          "outflow": 55000,
+          "net": 55000,
+          "cumulative": 1750000
+        },
+        {
+          "week": "Week 7",
+          "inflow": 112000,
+          "outflow": 55000,
+          "net": 57000,
+          "cumulative": 1807000
+        },
+        {
+          "week": "Week 8",
+          "inflow": 114000,
+          "outflow": 55000,
+          "net": 59000,
+          "cumulative": 1866000
+        },
+        {
+          "week": "Week 9",
+          "inflow": 116000,
+          "outflow": 55000,
+          "net": 61000,
+          "cumulative": 1927000
+        },
+        {
+          "week": "Week 10",
+          "inflow": 118000,
+          "outflow": 55000,
+          "net": 63000,
+          "cumulative": 1990000
+        },
+        {
+          "week": "Week 11",
+          "inflow": 120000,
+          "outflow": 55000,
+          "net": 65000,
+          "cumulative": 2055000
+        },
+        {
+          "week": "Week 12",
+          "inflow": 122000,
+          "outflow": 55000,
+          "net": 67000,
+          "cumulative": 2122000
+        },
+        {
+          "week": "Week 13",
+          "inflow": 124000,
+          "outflow": 55000,
+          "net": 69000,
+          "cumulative": 2191000
+        }
       ]
     },
-    "totalAR": 485000.0,
-    "arOverdue30": 145000.0,
-    "dso": 38.0,
-    "totalAP": 210000.0,
-    "apOverdue": 32000.0,
-    "dpo": 28.0,
+    "totalAR": 345900,
+    "arOverdue30": 111000,
+    "dso": 100,
+    "totalAP": 290000,
+    "apOverdue": 44100,
+    "dpo": 0,
     "arAging": {
       "bucket_0_30": 340000.0,
       "bucket_31_60": 65000.0,
@@ -165,24 +1398,76 @@
       "bucket_90_plus": 40000.0
     },
     "dunningQueue": [
-      {"invoice_no": "INV-2026-089", "customer": "Syarikat Tenaga Digital Sdn Bhd", "due_date": "2026-06-15", "amount": 65000.0, "aging_days": 46, "bucket": "31-60", "dunning_status": "Reminder 1 Sent"},
-      {"invoice_no": "INV-2026-074", "customer": "Pembekal Logistik Nusantara Sdn Bhd", "due_date": "2026-05-30", "amount": 40000.0, "aging_days": 62, "bucket": "61-90", "dunning_status": "Escalated to Sales"},
-      {"invoice_no": "INV-2026-042", "customer": "Perusahaan Binaan Klang Sdn Bhd", "due_date": "2026-04-10", "amount": 40000.0, "aging_days": 112, "bucket": "90+", "dunning_status": "Legal Notice Required"},
-      {"invoice_no": "INV-2026-102", "customer": "Tekno Utama Holdings Sdn Bhd", "due_date": "2026-07-10", "amount": 25000.0, "aging_days": 21, "bucket": "0-30", "dunning_status": "Pending Initial Review"}
+      {
+        "invoice_no": "INV-2026-089",
+        "customer": "Syarikat Tenaga Digital Sdn Bhd",
+        "due_date": "2026-06-15",
+        "amount": 42800,
+        "aging_days": 100,
+        "bucket": "31-60",
+        "dunning_status": "Reminder 1 Sent"
+      },
+      {
+        "invoice_no": "INV-2026-074",
+        "customer": "Pembekal Logistik Nusantara Sdn Bhd",
+        "due_date": "2026-05-30",
+        "amount": 48100,
+        "aging_days": 100,
+        "bucket": "61-90",
+        "dunning_status": "Escalated to Sales"
+      },
+      {
+        "invoice_no": "INV-2026-042",
+        "customer": "Perusahaan Binaan Klang Sdn Bhd",
+        "due_date": "2026-04-10",
+        "amount": 59500,
+        "aging_days": 100,
+        "bucket": "90+",
+        "dunning_status": "Legal Notice Required"
+      },
+      {
+        "invoice_no": "INV-2026-102",
+        "customer": "Tekno Utama Holdings Sdn Bhd",
+        "due_date": "2026-07-10",
+        "amount": 12700,
+        "aging_days": 0,
+        "bucket": "0-30",
+        "dunning_status": "Pending Initial Review"
+      }
     ],
     "apBills": [
-      {"bill_no": "BILL-TM-901", "vendor": "Telekom Malaysia Berhad (Unifi Biz)", "due_date": "2026-08-05", "amount": 3500.0, "match_status": "Matched", "approval_status": "Approved"},
-      {"bill_no": "BILL-TNB-884", "vendor": "Tenaga Nasional Berhad (TNB Utility)", "due_date": "2026-08-01", "amount": 12500.0, "match_status": "Matched", "approval_status": "Approved"},
-      {"bill_no": "BILL-SEWA-872", "vendor": "Perbadanan Bangunan Menara Maybank", "due_date": "2026-07-20", "amount": 45000.0, "match_status": "Matched", "approval_status": "Paid"},
-      {"bill_no": "BILL-KERTAS-860", "vendor": "Percetakan Merdeka Enterprise", "due_date": "2026-07-15", "amount": 8400.0, "match_status": "PO Mismatch", "approval_status": "On Hold"}
-    ],
-    "bvaDepartments": [
-      {"department": "Sales", "budget_ytd": 600000.0, "actual_ytd": 580000.0, "variance": -20000.0, "variance_pct": -3.3},
-      {"department": "Engineering", "budget_ytd": 950000.0, "actual_ytd": 940000.0, "variance": -10000.0, "variance_pct": -1.1},
-      {"department": "Marketing", "budget_ytd": 350000.0, "actual_ytd": 399700.0, "variance": 49700.0, "variance_pct": 14.2},
-      {"department": "HR", "budget_ytd": 200000.0, "actual_ytd": 195000.0, "variance": -5000.0, "variance_pct": -2.5},
-      {"department": "Finance", "budget_ytd": 180000.0, "actual_ytd": 178000.0, "variance": -2000.0, "variance_pct": -1.1},
-      {"department": "Admin", "budget_ytd": 120000.0, "actual_ytd": 122000.0, "variance": 2000.0, "variance_pct": 1.7}
+      {
+        "bill_no": "BILL-TM-901",
+        "vendor": "Telekom Malaysia Berhad (Unifi Biz)",
+        "due_date": "2026-08-05",
+        "amount": 2800,
+        "match_status": "Matched",
+        "approval_status": "Approved"
+      },
+      {
+        "bill_no": "BILL-TNB-884",
+        "vendor": "Tenaga Nasional Berhad (TNB Utility)",
+        "due_date": "2026-08-01",
+        "amount": 14500,
+        "match_status": "Matched",
+        "approval_status": "Approved"
+      },
+      {
+        "bill_no": "BILL-SEWA-872",
+        "vendor": "Perbadanan Bangunan Menara Maybank",
+        "due_date": "2026-07-20",
+        "amount": 64800,
+        "match_status": "Matched",
+        "approval_status": "Paid"
+      },
+      {
+        "bill_no": "BILL-KERTAS-860",
+        "vendor": "Percetakan Merdeka Enterprise",
+        "due_date": "2026-07-15",
+        "amount": 5300,
+        "match_status": "PO Mismatch",
+        "approval_status": "On Hold"
+      }
     ],
     "unitEconomics": {
       "gross_margin_pct": 64.2,
@@ -192,44 +1477,1030 @@
       "ltv_cac_ratio": 5.7
     },
     "clientConcentration": [
-      {"name": "Syarikat Tenaga Digital Sdn Bhd", "revenue_ytd": 943250.0, "revenue_pct": 24.5},
-      {"name": "Perusahaan Tekno Utama Sdn Bhd", "revenue_ytd": 700700.0, "revenue_pct": 18.2},
-      {"name": "Pembekal Logistik Nusantara Sdn Bhd", "revenue_ytd": 539000.0, "revenue_pct": 14.0},
-      {"name": "Konsortium Binaan Klang Sdn Bhd", "revenue_ytd": 442750.0, "revenue_pct": 11.5},
-      {"name": "Kumpulan Runcit Harapan Sdn Bhd", "revenue_ytd": 315700.0, "revenue_pct": 8.2}
+      {
+        "name": "Syarikat Tenaga Digital Sdn Bhd",
+        "revenue_ytd": 580500,
+        "revenue_pct": 0
+      },
+      {
+        "name": "Perusahaan Tekno Utama Sdn Bhd",
+        "revenue_ytd": 738000,
+        "revenue_pct": 0
+      },
+      {
+        "name": "Pembekal Logistik Nusantara Sdn Bhd",
+        "revenue_ytd": 595500,
+        "revenue_pct": 0
+      },
+      {
+        "name": "Konsortium Binaan Klang Sdn Bhd",
+        "revenue_ytd": 311500,
+        "revenue_pct": 0
+      },
+      {
+        "name": "Kumpulan Runcit Harapan Sdn Bhd",
+        "revenue_ytd": 241200,
+        "revenue_pct": 0
+      }
     ],
-    "closeChecklist": [
-      {"id": "bank_rec", "label": "Bank Payment Reconciliation", "completed": true},
-      {"id": "payroll", "label": "Payroll & Statutory Accounting Posted", "completed": true},
-      {"id": "gl_journal", "label": "GL Journal Prep & Accruals Posted", "completed": true},
-      {"id": "expense_audit", "label": "Expense Claim Audit Completed", "completed": false},
-      {"id": "fin_statements", "label": "Financial Statements Drafted", "completed": false}
+    "bvaLineItems": [
+      {
+        "section": "Revenue",
+        "account_name": "Hardware",
+        "budget_annual": 2774200,
+        "budget_ytd": 817900,
+        "actual_ytd": 80600,
+        "variance": -471602.0,
+        "variance_pct": -77.6,
+        "monthly_budget": [
+          0.0,
+          73108.0,
+          232765.93,
+          163228.5,
+          138511.0,
+          80568.43,
+          172240.0,
+          22665.0,
+          60498.03,
+          42465.0,
+          22665.0,
+          104920.33
+        ]
+      },
+      {
+        "section": "Revenue",
+        "account_name": "Maintenance",
+        "budget_annual": 595700,
+        "budget_ytd": 100100,
+        "actual_ytd": 30100,
+        "variance": -69089.6,
+        "variance_pct": -53.6,
+        "monthly_budget": [
+          18919.54,
+          18994.54,
+          20197.48,
+          34081.62,
+          36624.97,
+          41118.18,
+          41551.49,
+          43704.49,
+          43987.81,
+          44421.12,
+          44704.43,
+          45170.05
+        ]
+      },
+      {
+        "section": "Revenue",
+        "account_name": "Professional Services",
+        "budget_annual": 2120100,
+        "budget_ytd": 663900,
+        "actual_ytd": 123300,
+        "variance": -422000.49,
+        "variance_pct": -72.3,
+        "monthly_budget": [
+          42000.0,
+          232953.7,
+          149100.0,
+          135307.74,
+          24521.74,
+          99841.74,
+          71921.74,
+          6521.74,
+          15521.74,
+          81521.74,
+          6521.74,
+          46546.09
+        ]
+      },
+      {
+        "section": "Revenue",
+        "account_name": "Services (OTC)",
+        "budget_annual": 1835900,
+        "budget_ytd": 477100,
+        "actual_ytd": 17500,
+        "variance": -434846.1,
+        "variance_pct": -95.9,
+        "monthly_budget": [
+          0.0,
+          172811.44,
+          52736.3,
+          163219.29,
+          64905.0,
+          43336.4,
+          172586.07,
+          20200.0,
+          36245.2,
+          20200.0,
+          20200.0,
+          43067.5
+        ]
+      },
+      {
+        "section": "Revenue",
+        "account_name": "Software (OTC)",
+        "budget_annual": 600500,
+        "budget_ytd": 251700,
+        "actual_ytd": 2700,
+        "variance": -435675.3,
+        "variance_pct": -99.6,
+        "monthly_budget": [
+          0.0,
+          0.0,
+          316669.0,
+          120960.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          303000.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "section": "Revenue",
+        "account_name": "Software Subscription",
+        "budget_annual": 5040500,
+        "budget_ytd": 708400,
+        "actual_ytd": 428600,
+        "variance": -356348.82,
+        "variance_pct": -52.6,
+        "monthly_budget": [
+          84335.12,
+          107620.46,
+          145395.42,
+          165795.42,
+          174328.75,
+          206713.08,
+          207743.08,
+          270963.08,
+          279523.35,
+          280553.35,
+          281253.35,
+          294116.82
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Cloud & Software Cost",
+        "budget_annual": 1041800,
+        "budget_ytd": 143200,
+        "actual_ytd": 224500,
+        "variance": 110500,
+        "variance_pct": 100,
+        "monthly_budget": [
+          40000.0,
+          42000.0,
+          44100.0,
+          46305.0,
+          48620.25,
+          51051.26,
+          53603.83,
+          56284.02,
+          59098.22,
+          62053.13,
+          65155.79,
+          68413.57
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Hardware Costs",
+        "budget_annual": 1907700,
+        "budget_ytd": 648200,
+        "actual_ytd": 915400,
+        "variance": 126400,
+        "variance_pct": 0,
+        "monthly_budget": [
+          0.0,
+          69440.0,
+          178330.0,
+          138619.08,
+          89967.76,
+          62056.6,
+          111525.7,
+          14963.6,
+          45117.6,
+          14963.6,
+          14963.6,
+          81988.32
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Freight and delivery",
+        "budget_annual": 98700,
+        "budget_ytd": 55200,
+        "actual_ytd": 107400,
+        "variance": 31300,
+        "variance_pct": 100,
+        "monthly_budget": [
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0,
+          8620.0
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Sales Commission",
+        "budget_annual": 137900,
+        "budget_ytd": 82600,
+        "actual_ytd": 109300,
+        "variance": 32900,
+        "variance_pct": 100,
+        "monthly_budget": [
+          2905.09,
+          12109.76,
+          18337.28,
+          15651.85,
+          8777.83,
+          9431.56,
+          13320.85,
+          7281.09,
+          8715.52,
+          15443.22,
+          7506.89,
+          10676.42
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Subcontracted Services",
+        "budget_annual": 740000,
+        "budget_ytd": 58300,
+        "actual_ytd": 607600,
+        "variance": 316500,
+        "variance_pct": 500,
+        "monthly_budget": [
+          0.0,
+          18666.12,
+          0.0,
+          46900.0,
+          45500.0,
+          14000.0,
+          106380.0,
+          14000.0,
+          14000.0,
+          14000.0,
+          14000.0,
+          16800.0
+        ]
+      },
+      {
+        "section": "Cost of Sales",
+        "account_name": "Software (OTC)",
+        "budget_annual": 446900,
+        "budget_ytd": 234100,
+        "actual_ytd": 284500,
+        "variance": 34800,
+        "variance_pct": 0,
+        "monthly_budget": [
+          0.0,
+          0.0,
+          171600.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0
+        ]
+      },
+      {
+        "section": "Other Income",
+        "account_name": "Grant",
+        "budget_annual": 1824300,
+        "budget_ytd": 1372200,
+        "actual_ytd": 0.0,
+        "variance": -1000000.0,
+        "variance_pct": -100.0,
+        "monthly_budget": [
+          0.0,
+          500000.0,
+          0.0,
+          0.0,
+          500000.0,
+          0.0,
+          0.0,
+          500000.0,
+          0.0,
+          0.0,
+          500000.0,
+          0.0
+        ]
+      },
+      {
+        "section": "Other Income",
+        "account_name": "MV car instalment",
+        "budget_annual": 13900,
+        "budget_ytd": 1900,
+        "actual_ytd": 8800,
+        "variance": 3900,
+        "variance_pct": 100,
+        "monthly_budget": [
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0,
+          538.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total Advertisement and promotions",
+        "budget_annual": 404100,
+        "budget_ytd": 77100,
+        "actual_ytd": 20700,
+        "variance": -66495.88,
+        "variance_pct": -62.8,
+        "monthly_budget": [
+          3900.0,
+          15270.0,
+          2250.0,
+          5900.0,
+          78638.0,
+          2250.0,
+          30650.0,
+          12750.0,
+          1550.0,
+          5650.0,
+          12750.0,
+          1550.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total Business Development Costs",
+        "budget_annual": 80300,
+        "budget_ytd": 25300,
+        "actual_ytd": 70700,
+        "variance": 31300,
+        "variance_pct": 100,
+        "monthly_budget": [
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0,
+          6100.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Depreciation",
+        "budget_annual": 48300,
+        "budget_ytd": 10000,
+        "actual_ytd": 29700,
+        "variance": 9200,
+        "variance_pct": 100,
+        "monthly_budget": [
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15,
+          2227.15
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Employee Benefits",
+        "budget_annual": 287800,
+        "budget_ytd": 167700,
+        "actual_ytd": 83300,
+        "variance": 12700,
+        "variance_pct": 0,
+        "monthly_budget": [
+          22405.03,
+          22405.03,
+          24405.03,
+          22405.03,
+          22405.03,
+          24405.03,
+          22405.03,
+          22405.03,
+          24405.03,
+          22405.03,
+          22405.03,
+          54405.03
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Finance costs",
+        "budget_annual": 8100,
+        "budget_ytd": 3300,
+        "actual_ytd": 7600,
+        "variance": 2200,
+        "variance_pct": 100,
+        "monthly_budget": [
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Human Resources",
+        "budget_annual": 71300,
+        "budget_ytd": 29000,
+        "actual_ytd": 23900,
+        "variance": -10557.74,
+        "variance_pct": -32.3,
+        "monthly_budget": [
+          13330.0,
+          1653.4,
+          0.0,
+          5004.5,
+          12745.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          0.0,
+          2505.0,
+          2505.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Insurance",
+        "budget_annual": 67100,
+        "budget_ytd": 28300,
+        "actual_ytd": 10000,
+        "variance": -3413.67,
+        "variance_pct": -14.6,
+        "monthly_budget": [
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6,
+          4679.6
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Interest costs",
+        "budget_annual": 59600,
+        "budget_ytd": 12000,
+        "actual_ytd": 10200,
+        "variance": -3146.23,
+        "variance_pct": -27.3,
+        "monthly_budget": [
+          2385.53,
+          2345.51,
+          2304.75,
+          2264.3,
+          2223.84,
+          2182.46,
+          2141.65,
+          2100.33,
+          2059.5,
+          2018.37,
+          1976.63,
+          1935.26
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Office Expenses",
+        "budget_annual": 61500,
+        "budget_ytd": 17700,
+        "actual_ytd": 15300,
+        "variance": 1500,
+        "variance_pct": 0,
+        "monthly_budget": [
+          5080.0,
+          1580.0,
+          5330.0,
+          1580.0,
+          1580.0,
+          3830.0,
+          1580.0,
+          1580.0,
+          1830.0,
+          1580.0,
+          1580.0,
+          1830.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Payroll",
+        "budget_annual": 3977200,
+        "budget_ytd": 1003900,
+        "actual_ytd": 2510500,
+        "variance": 767200,
+        "variance_pct": 0,
+        "monthly_budget": [
+          231406.89,
+          247636.89,
+          251173.36,
+          251588.36,
+          251588.36,
+          256864.09,
+          256864.09,
+          259273.99,
+          259273.99,
+          259273.99,
+          259273.99,
+          259273.99
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Professional Fees",
+        "budget_annual": 37000,
+        "budget_ytd": 10900,
+        "actual_ytd": 16300,
+        "variance": 4800,
+        "variance_pct": 0,
+        "monthly_budget": [
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0,
+          2408.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Rent, Utilities & Phone",
+        "budget_annual": 110100,
+        "budget_ytd": 35300,
+        "actual_ytd": 49600,
+        "variance": 24800,
+        "variance_pct": 100,
+        "monthly_budget": [
+          4900.0,
+          4900.0,
+          4900.0,
+          4900.0,
+          4900.0,
+          5230.0,
+          8600.0,
+          8600.0,
+          8600.0,
+          8600.0,
+          8600.0,
+          8600.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Subscription fees",
+        "budget_annual": 500,
+        "budget_ytd": 200,
+        "actual_ytd": 100,
+        "variance": 100,
+        "variance_pct": 100,
+        "monthly_budget": [
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0,
+          30.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Total for Taxes",
+        "budget_annual": 12300,
+        "budget_ytd": 3500,
+        "actual_ytd": 5200,
+        "variance": 2200,
+        "variance_pct": 100,
+        "monthly_budget": [
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0,
+          600.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Attestation fees",
+        "budget_annual": 100,
+        "budget_ytd": 0,
+        "actual_ytd": 0,
+        "variance": -5.0,
+        "variance_pct": -20.0,
+        "monthly_budget": [
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0,
+          5.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Auditors' remuneration",
+        "budget_annual": 8900,
+        "budget_ytd": 2000,
+        "actual_ytd": 1200,
+        "variance": -2312.0,
+        "variance_pct": -66.1,
+        "monthly_budget": [
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0,
+          700.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Software and Hosting",
+        "budget_annual": 114100,
+        "budget_ytd": 22100,
+        "actual_ytd": 62600,
+        "variance": 26300,
+        "variance_pct": 100,
+        "monthly_budget": [
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0,
+          5300.0
+        ]
+      },
+      {
+        "section": "Expenses",
+        "account_name": "Exchange Gain or Loss",
+        "budget_annual": 34400,
+        "budget_ytd": 8700,
+        "actual_ytd": 11700,
+        "variance": 7300,
+        "variance_pct": 100,
+        "monthly_budget": [
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0,
+          2500.0
+        ]
+      }
     ],
-    "statutorySchedule": [
-      {"name": "EPF (KWSP) Remittance", "due_date": "2026-08-15", "status": "Submitted", "amount": 28400.0},
-      {"name": "SOCSO (PERKESO) Remittance", "due_date": "2026-08-15", "status": "Submitted", "amount": 3200.0},
-      {"name": "EIS (SIP) Remittance", "due_date": "2026-08-15", "status": "Submitted", "amount": 650.0},
-      {"name": "LHDN PCB Tax Deduction", "due_date": "2026-08-15", "status": "Pending", "amount": 10250.0}
+    "currentAssets": [
+      {
+        "name": "Cash and Cash Equivalents",
+        "amount": 1957100,
+        "icon": "Landmark",
+        "sub_items": [
+          {
+            "name": "Operating Bank Accounts",
+            "amount": 950000
+          },
+          {
+            "name": "Payroll Bank Accounts",
+            "amount": 350000
+          },
+          {
+            "name": "Petty Cash",
+            "amount": 5000
+          },
+          {
+            "name": "Undeposited Funds",
+            "amount": 145000
+          },
+          {
+            "name": "Short-Term Deposits",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "name": "Trade and Other Receivables",
+        "amount": 277800,
+        "icon": "FileText",
+        "sub_items": [
+          {
+            "name": "Trade Receivables",
+            "amount": 420000
+          },
+          {
+            "name": "Accrued Income",
+            "amount": 35000
+          },
+          {
+            "name": "Staff Advances",
+            "amount": 15000
+          },
+          {
+            "name": "Security Deposits",
+            "amount": 15000
+          },
+          {
+            "name": "Other Receivables",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "name": "Inventories",
+        "amount": 292600,
+        "icon": "Package",
+        "sub_items": [
+          {
+            "name": "Raw Materials",
+            "amount": 120000
+          },
+          {
+            "name": "Work in Progress",
+            "amount": 80000
+          },
+          {
+            "name": "Finished Goods",
+            "amount": 120000
+          },
+          {
+            "name": "Stock-in-Trade",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "name": "Prepayments and Deposits",
+        "amount": 96000,
+        "icon": "CalendarClock",
+        "sub_items": [
+          {
+            "name": "Prepaid Expenses",
+            "amount": 55000
+          },
+          {
+            "name": "Prepaid Subscriptions",
+            "amount": 15000
+          },
+          {
+            "name": "Rental Deposits",
+            "amount": 15000
+          },
+          {
+            "name": "Utility Deposits",
+            "amount": 0
+          }
+        ]
+      }
     ],
-    "sstReadiness": {
-      "draft_status": "Draft In Progress",
-      "taxable_sales": 520000.0,
-      "sst_liability": 31200.0
-    },
-    "cp58Register": [
-      {"contractor_name": "Reka Bentuk Merdeka Studio Enterprise", "ic_or_reg": "SSM: 202103988102", "total_paid_ytd": 18500.0, "threshold_exceeded": true},
-      {"contractor_name": "Perunding Awan KL Enterprise", "ic_or_reg": "SSM: 202201992819", "total_paid_ytd": 12000.0, "threshold_exceeded": true},
-      {"contractor_name": "Logistik Pantai Timur Services", "ic_or_reg": "SSM: 202302910283", "total_paid_ytd": 4200.0, "threshold_exceeded": false}
+    "nonCurrentAssets": [
+      {
+        "name": "Property, Plant and Equipment",
+        "amount": 1284700,
+        "icon": "Building2",
+        "sub_items": [
+          {
+            "name": "Office Equipment",
+            "amount": 420000
+          },
+          {
+            "name": "Renovation and Fit-Out",
+            "amount": 650000
+          },
+          {
+            "name": "Motor Vehicles",
+            "amount": 280000
+          },
+          {
+            "name": "Computer Hardware",
+            "amount": 0
+          },
+          {
+            "name": "Software Licenses (Capitalized)",
+            "amount": 500000
+          }
+        ]
+      },
+      {
+        "name": "Accumulated Depreciation",
+        "amount": -420000,
+        "icon": "TrendingDown",
+        "sub_items": [
+          {
+            "name": "Depreciation - Office Equipment",
+            "amount": -180000
+          },
+          {
+            "name": "Depreciation - Motor Vehicles",
+            "amount": -120000
+          },
+          {
+            "name": "Depreciation - Fit-Out",
+            "amount": -120000
+          },
+          {
+            "name": "Depreciation - Computer Hardware",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "name": "Intangible Assets",
+        "amount": 179500,
+        "icon": "Brain",
+        "sub_items": [
+          {
+            "name": "Capitalized Software",
+            "amount": 100000
+          },
+          {
+            "name": "Trademarks",
+            "amount": 50000
+          },
+          {
+            "name": "Goodwill",
+            "amount": 0
+          },
+          {
+            "name": "Development Costs",
+            "amount": 0
+          }
+        ]
+      },
+      {
+        "name": "Deferred Tax Assets",
+        "amount": 74600,
+        "icon": "ShieldCheck",
+        "sub_items": [
+          {
+            "name": "Deferred Tax - Unutilized Losses",
+            "amount": 45000
+          },
+          {
+            "name": "Deferred Tax - Capital Allowances",
+            "amount": 30000
+          },
+          {
+            "name": "Deferred Tax - Provisions",
+            "amount": 0
+          }
+        ]
+      }
     ],
-    "whtQueue": [
-      {"vendor": "Cloud Infrastructure International Inc (US)", "country": "United States", "payment_amount": 18000.0, "wht_rate": 10.0, "wht_amount": 1800.0, "section": "Section 109B"},
-      {"vendor": "Tech Consulting Singapore Pte Ltd (SG)", "country": "Singapore", "payment_amount": 11250.0, "wht_rate": 10.0, "wht_amount": 1125.0, "section": "Section 107A"}
-    ],
-    "expenseClaimAudit": [
-      {"employee": "Shahrul Nizam", "claim_date": "2026-07-26", "amount": 850.0, "category": "Travel & Outstation Fuel", "receipt_attached": true, "sst_compliant": true, "policy_exceeded": false, "audit_status": "Approved"},
-      {"employee": "Farhad Faisal", "claim_date": "2026-07-24", "amount": 1420.0, "category": "Client Entertainment", "receipt_attached": true, "sst_compliant": false, "policy_exceeded": true, "audit_status": "Flagged"},
-      {"employee": "Nazrul Shah", "claim_date": "2026-07-20", "amount": 310.0, "category": "Office Supplies", "receipt_attached": true, "sst_compliant": true, "policy_exceeded": false, "audit_status": "Approved"},
-      {"employee": "Muhammad Izzat", "claim_date": "2026-07-18", "amount": 2200.0, "category": "Computer Hardware", "receipt_attached": false, "sst_compliant": false, "policy_exceeded": true, "audit_status": "Rejected"}
+    "totalCurrentAssets": 1740900,
+    "totalNonCurrentAssets": 1913300,
+    "totalAssets": 2019700,
+    "assetTrend": [
+      {
+        "month": "Sep",
+        "current": 2645800,
+        "non_current": 1962200
+      },
+      {
+        "month": "Oct",
+        "current": 1282900,
+        "non_current": 1445100
+      },
+      {
+        "month": "Nov",
+        "current": 1446400,
+        "non_current": 2294800
+      },
+      {
+        "month": "Dec",
+        "current": 2229300,
+        "non_current": 872600
+      },
+      {
+        "month": "Jan",
+        "current": 1640700,
+        "non_current": 2147900
+      },
+      {
+        "month": "Feb",
+        "current": 2118600,
+        "non_current": 2095300
+      },
+      {
+        "month": "Mar",
+        "current": 2644600,
+        "non_current": 2413400
+      },
+      {
+        "month": "Apr",
+        "current": 2481200,
+        "non_current": 2369400
+      },
+      {
+        "month": "May",
+        "current": 3186400,
+        "non_current": 1825900
+      },
+      {
+        "month": "Jun",
+        "current": 2853100,
+        "non_current": 1665900
+      },
+      {
+        "month": "Jul",
+        "current": 3113500,
+        "non_current": 1749900
+      },
+      {
+        "month": "Aug",
+        "current": 3304400,
+        "non_current": 2091800
+      }
     ]
   }
 }
