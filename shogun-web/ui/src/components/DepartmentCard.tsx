@@ -54,9 +54,9 @@ export default function DepartmentCard({ department, onAdd }: DepartmentCardProp
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">{displayName}</h3>
-            <p className="text-sm text-slate-500">{meta.persona}</p>
-            <p className="mt-2 text-sm text-slate-600 line-clamp-2">{meta.description}</p>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">{displayName}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{meta.persona}</p>
+            <p className="mt-2 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">{meta.description}</p>
           </div>
         </div>
         <button type="button" className="btn-secondary mt-4 w-full" onClick={onAdd}>
@@ -77,14 +77,14 @@ export default function DepartmentCard({ department, onAdd }: DepartmentCardProp
             <Icon className="h-5 w-5" />
           </div>
           <div>
-            <h3 className="font-semibold text-slate-900">{displayName}</h3>
-            <p className="text-sm text-slate-500">{meta.persona}</p>
+            <h3 className="font-semibold text-slate-900 dark:text-slate-100">{displayName}</h3>
+            <p className="text-sm text-slate-500 dark:text-slate-400">{meta.persona}</p>
           </div>
         </div>
         <StatusBadge status={department.status || department.gateway_status} />
       </div>
 
-      <p className="mt-3 flex-1 text-sm text-slate-600 line-clamp-2">{meta.description}</p>
+      <p className="mt-3 flex-1 text-sm text-slate-600 line-clamp-2 dark:text-slate-300">{meta.description}</p>
 
       <div className="mt-4 grid grid-cols-3 gap-2">
         <Link

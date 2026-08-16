@@ -54,7 +54,7 @@ export default function RightChatDock({
       <button
         type="button"
         onClick={() => setIsOpen(true)}
-        className="fixed right-0 top-20 z-40 flex items-center gap-2 rounded-l-xl border border-r-0 border-slate-200 bg-white py-3 px-2.5 shadow-lg transition hover:bg-slate-50 text-slate-700"
+        className="fixed right-0 top-20 z-40 flex items-center gap-2 rounded-l-xl border border-r-0 border-slate-200 bg-white py-3 px-2.5 shadow-lg transition hover:bg-slate-50 text-slate-700 dark:border-slate-700 dark:bg-slate-900 dark:hover:bg-slate-800 dark:text-slate-200"
         title={`Open ${displayName} Assistant Dock`}
       >
         <div className="relative">
@@ -80,13 +80,13 @@ export default function RightChatDock({
         }`}
         title="Drag center line to resize dock (double-click to reset width)"
       >
-        <div className="h-8 w-1 rounded-full bg-slate-300 group-hover:bg-brand transition-colors" />
+        <div className="h-8 w-1 rounded-full bg-slate-300 group-hover:bg-brand transition-colors dark:bg-slate-600" />
       </div>
 
       {/* Main Dock Container */}
       <aside
         style={{ width: `${width}px` }}
-        className="h-full border-l border-surface-border bg-white flex flex-col shadow-sm select-none overflow-hidden"
+        className="h-full border-l border-surface-border bg-white flex flex-col shadow-sm select-none overflow-hidden dark:bg-slate-900 dark:border-slate-800"
       >
         {/* Header */}
         <div

@@ -32,8 +32,8 @@ export function LineChart({
   }
 
   const palette = colors || chartColors(color, dataKeys?.length || 1);
-  const formatter = (value: unknown) =>
-    [unit ? `${unit}${Number(value ?? 0).toLocaleString()}` : Number(value ?? 0).toLocaleString()] as [string];
+  const formatter = (value: unknown, name: string) =>
+    [unit ? `${unit}${Number(value ?? 0).toLocaleString()}` : Number(value ?? 0).toLocaleString(), name] as [string, string];
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -44,7 +44,7 @@ export function LineChart({
           tick={CHART_TICK} axisLine={false} tickLine={false}
           tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
         />
-        <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} />
+        <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} labelFormatter={(label) => `${label}`} />
         {dataKeys && dataKeys.length > 0 && (
           <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
         )}
@@ -66,4 +66,4 @@ export function LineChart({
       </RechartsLineChart>
     </ResponsiveContainer>
   );
-}
+}

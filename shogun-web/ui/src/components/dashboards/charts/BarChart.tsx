@@ -23,20 +23,22 @@ interface BarChartProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onClick?: (entry: any) => void;
   dataKeys?: string[];
+  name?: string;
+  labels?: Record<string, string>;
   interval?: number | 'preserveStart' | 'preserveEnd' | 'preserveStartEnd';
 }
 
 export function BarChart({
   data, xKey, yKey, color = '#6366f1', colors, unit = '',
-  height = 250, stacked = false, onClick, dataKeys, interval = 0,
+  height = 250, stacked = false, onClick, dataKeys, name, labels, interval = 0,
 }: BarChartProps) {
   if (!data || data.length === 0) {
     return <ChartEmpty />;
   }
 
   const palette = colors || chartColors(color, dataKeys?.length || 1);
-  const formatter = (value: unknown) =>
-    [unit ? `${unit}${Number(value ?? 0).toLocaleString()}` : Number(value ?? 0).toLocaleString()] as [string];
+  const formatter = (value: unknown, name: string) =>
+    [unit ? `${unit}${Number(value ?? 0).toLocaleString()}` : Number(value ?? 0).toLocaleString(), name] as [string, string];
 
   return (
     <ResponsiveContainer width="100%" height={height}>
@@ -54,16 +56,16 @@ export function BarChart({
           tick={CHART_TICK} axisLine={false} tickLine={false}
           tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
         />
-        <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} />
+        <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} labelFormatter={(label) => `${label}`} />
         {dataKeys && dataKeys.length > 0
           ? dataKeys.map((k, i) => (
               <Bar
-                key={k} dataKey={k} fill={palette[i % palette.length]}
+                key={k} dataKey={k} name={labels?.[k] || k} fill={palette[i % palette.length]}
                 stackId={stacked ? 'stack' : undefined}
                 radius={[3, 3, 0, 0]}
               />
             ))
-          : <Bar dataKey={yKey} fill={palette[0]} radius={[3, 3, 0, 0]} />
+          : <Bar dataKey={yKey} name={name || yKey} fill={palette[0]} radius={[3, 3, 0, 0]} />
         }
       </RechartsBarChart>
     </ResponsiveContainer>

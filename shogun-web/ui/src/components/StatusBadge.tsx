@@ -46,7 +46,7 @@ export default function StatusBadge({
   return (
     <span
       className={clsx(
-        'inline-flex items-center gap-1.5 font-medium text-slate-600',
+        'inline-flex items-center gap-1.5 font-medium text-slate-600 dark:text-slate-300',
         size === 'sm' ? 'text-xs' : 'text-sm',
         className,
       )}

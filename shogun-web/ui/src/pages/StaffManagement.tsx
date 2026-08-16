@@ -20,7 +20,27 @@ import type {
   StaffAssignment,
 } from "../lib/types";
 
+function fallbackCopyText(text: string) {
+
+  const textArea = document.createElement("textarea");
+  textArea.value = text;
+  textArea.style.position = "fixed";
+  textArea.style.left = "-999999px";
+  textArea.style.top = "-999999px";
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    document.execCommand("copy");
+    toast.success("Password copied to clipboard");
+  } catch (err) {
+    toast.error("Could not copy password automatically");
+  }
+  document.body.removeChild(textArea);
+}
+
 export default function StaffManagement() {
+
   const { user: currentUser } = useAuth();
   const queryClient = useQueryClient();
   const [showAddModal, setShowAddModal] = useState(false);
@@ -63,8 +83,8 @@ export default function StaffManagement() {
     <div className="mx-auto max-w-5xl">
       <div className="mb-6 flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold text-white">Staff Directory</h1>
-          <p className="text-sm text-slate-300">
+          <h1 className="text-xl font-semibold text-slate-900 dark:text-white">Staff Directory</h1>
+          <p className="text-sm text-slate-600 dark:text-slate-300">
             {staff.length} staff · {allDepts.length} departments
           </p>
         </div>
@@ -125,6 +145,7 @@ export default function StaffManagement() {
                 <th className="px-4 py-3">Name</th>
                 <th className="px-4 py-3">Email</th>
                 <th className="px-4 py-3">Dept</th>
+                <th className="px-4 py-3">Role</th>
                 <th className="px-4 py-3">Comms</th>
                 <th className="px-4 py-3">Source</th>
                 <th className="px-4 py-3">Status</th>
@@ -135,8 +156,8 @@ export default function StaffManagement() {
               {staff.length === 0 && (
                 <tr>
                   <td
-                    colSpan={7}
-                    className="px-4 py-12 text-center text-sm text-slate-500"
+                    colSpan={8}
+                    className="px-4 py-12 text-center text-sm text-slate-500 dark:text-slate-400"
                   >
                     No staff members yet. Add one to get started.
                   </td>
@@ -206,28 +227,34 @@ export default function StaffManagement() {
             </button>
             <div className="text-center">
               <KeyRound className="mx-auto mb-3 h-10 w-10 text-brand" />
-              <h2 className="text-base font-semibold text-slate-900">
+              <h2 className="text-base font-semibold text-slate-900 dark:text-white">
                 Temporary Password
               </h2>
-              <p className="mt-1 text-sm text-slate-500">
+              <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
                 Share this with {showPasswordModal.name}. It will not be shown
                 again.
               </p>
-              <div className="mt-4 rounded-lg bg-slate-100 px-4 py-3 font-mono text-lg font-bold tracking-wider text-slate-900">
+              <div className="mt-4 rounded-lg bg-slate-100 dark:bg-slate-800 px-4 py-3 font-mono text-xl font-bold tracking-widest text-slate-900 dark:text-emerald-400 border border-slate-200 dark:border-slate-700 select-all">
                 {showPasswordModal.password}
               </div>
               <button
                 type="button"
-                className="btn-primary mt-4 w-full"
+                className="btn-primary mt-4 w-full flex items-center justify-center gap-2"
                 onClick={() => {
-                  navigator.clipboard
-                    .writeText(showPasswordModal.password)
-                    .then(() => toast.success("Copied"))
-                    .catch(() => toast.error("Copy failed"));
+                  const text = showPasswordModal.password;
+                  if (navigator.clipboard && window.isSecureContext) {
+                    navigator.clipboard
+                      .writeText(text)
+                      .then(() => toast.success("Password copied to clipboard"))
+                      .catch(() => fallbackCopyText(text));
+                  } else {
+                    fallbackCopyText(text);
+                  }
                 }}
               >
                 Copy Password
               </button>
+
               <button
                 type="button"
                 className="btn-secondary mt-2 w-full"
@@ -254,70 +281,108 @@ function StaffRow({
   onPasswordReset: (id: number, name: string) => void;
   onRemove: (id: number) => void;
 }) {
+  const queryClient = useQueryClient();
+
   const roleBadge = (role: string) => {
+    const label =
+      role === "admin" || role === "owner"
+        ? "Admin"
+        : role === "department_admin"
+          ? "Manager"
+          : "Staff";
     const styles: Record<string, string> = {
-      admin: "bg-purple-100 text-purple-700",
-      hr_manager: "bg-sky-100 text-sky-700",
-      user: "bg-slate-100 text-slate-700",
+      Admin: "bg-purple-100 text-purple-700 dark:bg-purple-500/15 dark:text-purple-400",
+      Manager: "bg-emerald-100 text-emerald-700 dark:bg-emerald-500/15 dark:text-emerald-400",
+      Staff: "bg-slate-100 text-slate-700 dark:bg-slate-700 dark:text-slate-200",
     };
     return (
       <span
-        className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[role] || styles.user}`}
+        className={`rounded-full px-2 py-0.5 text-xs font-medium ${styles[label]}`}
       >
-        {role === "hr_manager" ? "HR" : role === "admin" ? "Admin" : "User"}
+        {label}
       </span>
     );
   };
 
+  const roleMutation = useMutation({
+    mutationFn: ({ id, role }: { id: number; role: string }) =>
+      staffApi.updateRole(id, role),
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["staff"] });
+      toast.success("Role updated");
+    },
+    onError: (err: unknown) => {
+      toast.error(err instanceof Error ? err.message : "Failed to update role");
+    },
+  });
+
   return (
-    <tr className="border-b border-slate-800 last:border-0 hover:bg-slate-800/50">
-      <td className="px-4 py-3 font-medium text-white">{staff.name}</td>
-      <td className="px-4 py-3 text-slate-200">{staff.email}</td>
+    <tr className="border-b border-slate-200 dark:border-slate-800 last:border-0 hover:bg-slate-50 dark:hover:bg-slate-800/50">
+      <td className="px-4 py-3 font-medium text-slate-900 dark:text-white">{staff.name}</td>
+      <td className="px-4 py-3 text-slate-700 dark:text-slate-200">{staff.email}</td>
       <td className="px-4 py-3">
         <div className="flex flex-wrap gap-1">
           {staff.assignments.map((a) => (
             <span
               key={a.department}
-              className="rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-xs text-slate-200"
+              className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-0.5 text-xs text-slate-700 dark:text-slate-200"
             >
               {a.department_name || a.department}
               {a.title ? ` — ${a.title}` : ""}
             </span>
           ))}
           {staff.assignments.length === 0 && (
-            <span className="text-xs text-slate-400">—</span>
+            <span className="text-xs text-slate-400 dark:text-slate-500">—</span>
           )}
         </div>
       </td>
       <td className="px-4 py-3">
-        <div className="flex flex-wrap gap-1 text-xs text-slate-300">
+        {canManageRole ? (
+          <select
+            value={staff.role}
+            disabled={roleMutation.isPending}
+            onChange={(e) =>
+              roleMutation.mutate({ id: staff.id, role: e.target.value })
+            }
+            className="rounded-md border border-slate-300 dark:border-slate-700 bg-white dark:bg-slate-800 px-2 py-1 text-xs text-slate-900 dark:text-white focus:border-brand focus:outline-none disabled:opacity-60"
+          >
+            <option value="user">Staff</option>
+            <option value="department_admin">Manager</option>
+            <option value="admin">Admin</option>
+          </select>
+        ) : (
+          roleBadge(staff.role)
+        )}
+      </td>
+      <td className="px-4 py-3">
+        <div className="flex flex-wrap gap-1 text-xs text-slate-700 dark:text-slate-300">
           {staff.phone && <span title="Phone">{staff.phone}</span>}
           {staff.slack_user_id && (
-            <span className="rounded bg-purple-950/80 border border-purple-800 px-1.5 py-0.5 font-mono text-purple-300">
+            <span className="rounded bg-purple-100 dark:bg-purple-950/80 border border-purple-200 dark:border-purple-800 px-1.5 py-0.5 font-mono text-purple-700 dark:text-purple-300">
               S:{staff.slack_user_id}
             </span>
           )}
           {staff.telegram_user_id && (
-            <span className="rounded bg-sky-950/80 border border-sky-800 px-1.5 py-0.5 font-mono text-sky-300">
+            <span className="rounded bg-sky-100 dark:bg-sky-950/80 border border-sky-200 dark:border-sky-800 px-1.5 py-0.5 font-mono text-sky-700 dark:text-sky-300">
               T:{staff.telegram_user_id}
             </span>
           )}
           {!staff.phone && !staff.slack_user_id && !staff.telegram_user_id && (
-            <span className="text-slate-500">—</span>
+            <span className="text-slate-400 dark:text-slate-500">—</span>
           )}
         </div>
       </td>
       <td className="px-4 py-3">
-        <span className="rounded-full bg-slate-800 border border-slate-700 px-2.5 py-0.5 text-xs text-slate-300">
+        <span className="rounded-full bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 px-2.5 py-0.5 text-xs text-slate-700 dark:text-slate-300">
           {staff.source || "manual"}
         </span>
       </td>
       <td className="px-4 py-3">
         <span
-          className={`inline-flex items-center gap-1 text-xs ${staff.first_login ? "text-amber-400" : "text-emerald-400"}`}
+          className={`inline-flex items-center gap-1 text-xs ${staff.first_login ? "text-amber-600 dark:text-amber-400" : "text-emerald-600 dark:text-emerald-400"}`}
         >
           <span
-            className={`h-1.5 w-1.5 rounded-full ${staff.first_login ? "bg-amber-400" : "bg-emerald-400"}`}
+            className={`h-1.5 w-1.5 rounded-full ${staff.first_login ? "bg-amber-500 dark:bg-amber-400" : "bg-emerald-500 dark:bg-emerald-400"}`}
           />
           {staff.first_login ? "Pending" : "Active"}
         </span>
@@ -336,10 +401,10 @@ function StaffRow({
             <button
               type="button"
               className="btn-ghost !px-2 !py-1 text-rose-500 hover:text-rose-700"
-              title="Remove from all departments"
+              title="Delete staff member"
               onClick={() => {
                 if (
-                  window.confirm(`Remove ${staff.name} from all departments?`)
+                  window.confirm(`Delete ${staff.name}? This cannot be undone.`)
                 ) {
                   onRemove(staff.id);
                 }
@@ -430,7 +495,7 @@ function AddStaffModal({
         >
           <X className="h-5 w-5" />
         </button>
-        <h2 className="mb-4 text-base font-semibold text-slate-900">
+        <h2 className="mb-4 text-base font-semibold text-slate-900 dark:text-white">
           Add Staff
         </h2>
 
@@ -461,8 +526,8 @@ function AddStaffModal({
                 value={role}
                 onChange={(e) => setRole(e.target.value)}
               >
-                <option value="user">User</option>
-                <option value="hr_manager">HR Manager</option>
+                <option value="user">Staff</option>
+                <option value="department_admin">Manager</option>
                 <option value="admin">Admin</option>
               </select>
             </div>
@@ -521,7 +586,7 @@ function AddStaffModal({
             <div className="space-y-2">
               {assignments.map((a) => (
                 <div key={a.department} className="flex items-center gap-2">
-                  <span className="min-w-[120px] text-sm font-medium text-slate-700">
+                  <span className="min-w-[120px] text-sm font-medium text-slate-700 dark:text-slate-200">
                     {a.department}
                   </span>
                   <input

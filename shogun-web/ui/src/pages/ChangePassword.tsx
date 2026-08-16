@@ -6,7 +6,9 @@ import { ApiError, authApi } from '../lib/api';
 import { useAuth } from '../lib/auth';
 
 export default function ChangePassword() {
-  const { refreshUser } = useAuth();
+
+  const { logout } = useAuth();
+
   const navigate = useNavigate();
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
@@ -33,9 +35,9 @@ export default function ChangePassword() {
         current_password: currentPassword,
         new_password: newPassword,
       });
-      await refreshUser();
-      toast.success('Password updated');
-      navigate('/onboarding', { replace: true });
+      toast.success('Password updated successfully! Please log in with your new password.');
+      await logout();
+      navigate('/login', { replace: true });
     } catch (err) {
       setError(err instanceof ApiError || err instanceof Error ? err.message : 'Update failed');
     } finally {
@@ -43,17 +45,18 @@ export default function ChangePassword() {
     }
   };
 
+
   return (
-    <div className="flex min-h-screen items-center justify-center bg-surface-muted px-4 py-10">
+    <div className="flex min-h-screen items-center justify-center bg-surface-muted px-4 py-10 dark:bg-slate-950">
       <div className="card w-full max-w-md p-8">
-        <h1 className="text-xl font-semibold text-slate-900">Change your password</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-xl font-semibold text-slate-900 dark:text-slate-100">Change your password</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           For security, you must set a new password before continuing.
         </p>
 
         <form className="mt-6 space-y-4" onSubmit={onSubmit}>
           {error && (
-            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700">
+            <div className="rounded-lg border border-rose-200 bg-rose-50 px-3 py-2 text-sm text-rose-700 dark:border-rose-900 dark:bg-rose-950 dark:text-rose-300">
               {error}
             </div>
           )}
@@ -87,7 +90,7 @@ export default function ChangePassword() {
               value={newPassword}
               onChange={(e) => setNewPassword(e.target.value)}
             />
-            <p className="mt-1 text-xs text-slate-400">Minimum 8 characters</p>
+            <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Minimum 8 characters</p>
           </div>
 
           <div>

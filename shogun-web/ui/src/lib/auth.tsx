@@ -118,8 +118,11 @@ export function ProtectedRoute({ children }: { children: ReactNode }) {
     return <Navigate to="/change-password" replace />;
   }
 
+  const isAdminOwner = user.role === 'admin' || user.role === 'owner';
+
   if (
     user.first_login &&
+    isAdminOwner &&
     !user.must_change_password &&
     location.pathname !== '/onboarding'
   ) {
@@ -135,10 +138,12 @@ export function PublicOnlyRoute({ children }: { children: ReactNode }) {
   if (loading) return <FullScreenLoader />;
 
   if (user) {
+    const isAdminOwner = user.role === 'admin' || user.role === 'owner';
     if (user.must_change_password) return <Navigate to="/change-password" replace />;
-    if (user.first_login) return <Navigate to="/onboarding" replace />;
+    if (user.first_login && isAdminOwner) return <Navigate to="/onboarding" replace />;
     return <Navigate to="/dashboard" replace />;
   }
 
   return <>{children}</>;
 }
+

@@ -30,29 +30,29 @@ function ToolDetailCard({ tool }: { tool: ChatToolCall }) {
   const [showDetails, setShowDetails] = useState(false);
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs">
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-xs dark:border-slate-700 dark:bg-slate-800/60">
       <div
-        className="flex items-center justify-between px-3 py-2 bg-slate-50 cursor-pointer hover:bg-slate-100/80 transition"
+        className="flex items-center justify-between px-3 py-2 bg-slate-50 cursor-pointer hover:bg-slate-100/80 transition dark:bg-slate-900 dark:hover:bg-slate-800/80"
         onClick={() => setShowDetails((v) => !v)}
       >
         <div className="flex items-center gap-2">
           <Wrench className="h-3.5 w-3.5 text-brand" />
-          <span className="text-xs font-mono font-semibold text-slate-800">
+          <span className="text-xs font-mono font-semibold text-slate-800 dark:text-slate-200">
             {tool.name}
           </span>
         </div>
         <div className="flex items-center gap-2">
-          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase">
+          <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold text-emerald-700 uppercase dark:bg-emerald-500/15 dark:text-emerald-400">
             {tool.status || "Executed"}
           </span>
-          <span className="text-[10px] text-slate-400">
+          <span className="text-[10px] text-slate-400 dark:text-slate-500">
             {showDetails ? "Hide details ▲" : "View details ▼"}
           </span>
         </div>
       </div>
 
       {showDetails && (
-        <div className="p-3 border-t border-slate-200 bg-slate-900 space-y-2 text-xs font-mono">
+        <div className="p-3 border-t border-slate-200 bg-slate-900 space-y-2 text-xs font-mono dark:border-slate-700">
           {tool.arguments !== undefined && (
             <div>
               <div className="text-[10px] uppercase font-semibold text-slate-400 mb-1">
@@ -175,14 +175,14 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
   };
 
   return (
-    <div className="flex h-full min-h-[36rem] flex-col text-white space-y-4">
+    <div className="flex h-full min-h-[36rem] flex-col text-slate-900 dark:text-white space-y-4">
       {/* Top Header */}
-      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-700/60 pb-4 text-white">
+      <div className="flex flex-wrap items-center justify-between gap-4 border-b border-slate-200 dark:border-slate-700/60 pb-4 text-slate-900 dark:text-white">
         <div className="flex items-center gap-2">
           {selectedSessionId && (
             <button
               type="button"
-              className="btn-ghost !px-2 mr-1 text-slate-300 hover:text-white"
+              className="btn-ghost !px-2 mr-1 text-slate-600 hover:text-slate-900 dark:text-slate-300 dark:hover:text-white"
               onClick={() => setSelectedSessionId(null)}
             >
               <ArrowLeft className="h-4 w-4" />
@@ -190,11 +190,11 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
             </button>
           )}
           <div>
-            <h2 className="text-xl font-bold text-white flex items-center gap-2">
+            <h2 className="text-xl font-bold text-slate-900 dark:text-white flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-brand" />
               Chat History
             </h2>
-            <p className="text-xs text-slate-300 mt-1">
+            <p className="text-xs text-slate-600 dark:text-slate-300 mt-1">
               {sessions.length} chat{" "}
               {sessions.length === 1 ? "session" : "sessions"} logged
             </p>
@@ -202,14 +202,14 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
         </div>
 
         <div className="flex flex-wrap items-center gap-2">
-          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1">
+          <div className="flex items-center gap-1 rounded-lg border border-slate-200 bg-white p-1 dark:border-slate-700 dark:bg-slate-800">
             <button
               type="button"
               onClick={() => setFilterType("all")}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
                 filterType === "all"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               All Sessions
@@ -219,8 +219,8 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
               onClick={() => setFilterType("tools")}
               className={`rounded-md px-2.5 py-1 text-xs font-medium transition ${
                 filterType === "tools"
-                  ? "bg-slate-900 text-white"
-                  : "text-slate-600 hover:bg-slate-100"
+                  ? "bg-slate-900 text-white dark:bg-slate-100 dark:text-slate-900"
+                  : "text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               With Tools
@@ -228,7 +228,7 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
           </div>
 
           <div className="relative min-w-[220px]">
-            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+            <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400 dark:text-slate-500" />
             <input
               className="input pl-9 text-xs py-1.5"
               placeholder="Search sessions…"
@@ -410,8 +410,8 @@ export default function ChatHistory({ department }: ChatHistoryProps) {
                     )}
 
                     {m.tool_calls && m.tool_calls.length > 0 && (
-                      <div className="mt-5 pt-4 border-t border-slate-200/80 space-y-3">
-                        <div className="text-xs font-semibold text-slate-700 flex items-center gap-1.5">
+                      <div className="mt-5 pt-4 border-t border-slate-200/80 dark:border-slate-700 space-y-3">
+                        <div className="text-xs font-semibold text-slate-700 dark:text-slate-200 flex items-center gap-1.5">
                           <Wrench className="h-3.5 w-3.5 text-brand" />
                           Executed Tools ({m.tool_calls.length})
                         </div>

@@ -4,6 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   Boxes, Code2, Copy, ExternalLink, Globe2, Handshake, Kanban, LayoutDashboard,
   LifeBuoy, Loader2, Megaphone, MessageSquare, Package, Plus, Shield, Users, Wallet, Brain,
+  Factory, CheckCircle, Wrench, Warehouse, AlertTriangle,
+  Store, ShoppingBag, ShoppingCart, Gift, Truck, LayoutGrid,
+  Trees, Home,
   type LucideIcon,
 } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -18,6 +21,12 @@ import {
 
 const ICONS: Record<string, LucideIcon> = {
   Users, Wallet, Handshake, Megaphone, Shield, LifeBuoy, Code2, Kanban, Boxes, Package,
+  // Manufacturing
+  Factory, CheckCircle, Wrench, Warehouse, AlertTriangle,
+  // Retail
+  Store, ShoppingBag, ShoppingCart, Gift, Truck, LayoutGrid,
+  // Plantation
+  Trees, Home,
 };
 
 function mergeCatalog(remote: Department[] | undefined): Department[] {
@@ -63,25 +72,37 @@ export default function Dashboard() {
   const publicUrl = statusQuery.data?.registry?.public_url || statusQuery.data?.onboarding?.public_url;
   const isLive = Boolean(statusQuery.data?.registry?.live || publicUrl);
 
-  // Non-admin users: redirect to first assigned department or no-access
+  const isGlobalAdmin = user?.role === 'admin' || user?.role === 'owner';
+
   const accessQuery = useQuery({
     queryKey: ['my-access'],
     queryFn: () => authApi.myAccess(),
     staleTime: 30_000,
   });
 
-  if (accessQuery.data && user?.role !== 'admin' && user?.role !== 'owner') {
+  if (accessQuery.data && !isGlobalAdmin) {
     if (!accessQuery.data.has_access) {
       return <Navigate to="/no-access" replace />;
     }
-    if (accessQuery.data.assigned_departments.length > 0) {
-      return <Navigate to={`/department/${accessQuery.data.assigned_departments[0].department}`} replace />;
-    }
   }
 
-  const departments = useMemo(() => mergeCatalog(deptsQuery.data), [deptsQuery.data]);
+  const assignedKeys = useMemo(() => {
+    if (isGlobalAdmin) return null;
+    const assigned = accessQuery.data?.assigned_departments || [];
+    return assigned.map((a) => (a.department || '').toLowerCase());
+  }, [isGlobalAdmin, accessQuery.data?.assigned_departments]);
+
+  const departments = useMemo(() => {
+    const list = mergeCatalog(deptsQuery.data);
+    if (assignedKeys && assignedKeys.length > 0) {
+      return list.filter((d) => assignedKeys.includes(d.key.toLowerCase()));
+    }
+    return list;
+  }, [deptsQuery.data, assignedKeys]);
+
   const active = departments.filter((d) => d.active);
-  const inactive = departments.filter((d) => !d.active);
+  const inactive = isGlobalAdmin ? departments.filter((d) => !d.active) : [];
+
 
   const activateMutation = useMutation({
     mutationFn: (key: DepartmentKey) => departmentsApi.activate(key, {}),

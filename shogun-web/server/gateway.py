@@ -66,15 +66,17 @@ def _authenticate_ws(websocket: WebSocket) -> Optional[int]:
     return int(claims["user_id"])
 
 
-def _get_chat_history_file(dept_name: str) -> Path:
+def _get_chat_history_file(dept_name: str, user_id: Optional[int] = None) -> Path:
     cfg = get_config()
     history_dir = Path(cfg.db_path).parent / "chat_history"
     history_dir.mkdir(parents=True, exist_ok=True)
+    if user_id:
+        return history_dir / f"{dept_name.lower()}_user_{user_id}.json"
     return history_dir / f"{dept_name.lower()}.json"
 
 
-def _save_history_message(dept_name: str, user_text: str, reply_text: str, msg_id: str) -> None:
-    file_path = _get_chat_history_file(dept_name)
+def _save_history_message(dept_name: str, user_text: str, reply_text: str, msg_id: str, user_id: Optional[int] = None) -> None:
+    file_path = _get_chat_history_file(dept_name, user_id)
     existing = []
     if file_path.is_file():
         try:
@@ -104,6 +106,7 @@ def _save_history_message(dept_name: str, user_text: str, reply_text: str, msg_i
             json.dump(existing, fh, indent=2)
     except Exception as exc:
         logger.warning("Could not save history message: %s", exc)
+
 
 
 import os
@@ -303,6 +306,10 @@ async def _generate_department_response_async(
         "engineering": ("Engineering", "Koku", "technical architecture, code reviews, and CI/CD pipelines"),
         "projects": ("Projects", "Koku", "project milestones, task tracking, and deliverable management"),
         "product": ("Product", "Koku", "product roadmap, feature specifications, and user feedback"),
+        "customer-support": ("Customer Support", "Shien", "customer support tickets, SLAs, and customer success workflows"),
+        "coding": ("Coding", "Gijutsu", "codebase ops, deployments, and technical delivery"),
+        "estate-ops": ("Estate Operations", "Gozen", "estate management, document scanning, site inspections, and worker welfare"),
+        "worker-welfare": ("Worker Welfare", "Ryō", "staff quarters, welfare, and site conditions"),
     }
 
     display_name, persona, duties = catalog_personas.get(
@@ -453,7 +460,7 @@ async def _generate_department_response_async(
 
 
 async def _handle_embedded_agent_session(
-    websocket: WebSocket, profile_name: str, dept: Department
+    websocket: WebSocket, profile_name: str, dept: Department, user_id: Optional[int] = None
 ) -> None:
     """Fallback handler when upstream Hermes daemon port is not listening."""
     dept_name = dept.name.capitalize()
@@ -513,8 +520,8 @@ async def _handle_embedded_agent_session(
 
             await websocket.send_json({"type": "done", "id": msg_id})
 
-            # Save to department chat history
-            _save_history_message(dept.name.lower(), user_text, reply_text, msg_id)
+            # Save to department chat history (user-scoped)
+            _save_history_message(dept.name.lower(), user_text, reply_text, msg_id, user_id=user_id)
 
         except WebSocketDisconnect:
             break
@@ -579,8 +586,9 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
         db.close()
 
     if not port:
-        await _handle_embedded_agent_session(websocket, resolved_profile, dept)
+        await _handle_embedded_agent_session(websocket, resolved_profile, dept, user_id=user_id)
         return
+
 
     upstream_url = f"ws://127.0.0.1:{int(port)}/ws"
 

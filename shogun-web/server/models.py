@@ -117,6 +117,8 @@ class User(Base):
             "role": self.role,
             "first_login": self.first_login,
             "is_temporary_password": self.is_temporary_password,
+            "must_change_password": bool(self.is_temporary_password),
+
             "phone": self.phone,
             "slack_user_id": self.slack_user_id,
             "telegram_user_id": self.telegram_user_id,
@@ -178,6 +180,7 @@ class Department(Base):
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="inactive")
     provider_config: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     gateway_port: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    industry: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
@@ -193,6 +196,7 @@ class Department(Base):
             "status": self.status,
             "provider_config": self.provider_config or {},
             "gateway_port": self.gateway_port,
+            "industry": self.industry,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
 
