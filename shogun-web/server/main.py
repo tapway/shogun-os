@@ -127,10 +127,15 @@ def create_app() -> FastAPI:
     uploads_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/api/chat/uploads", StaticFiles(directory=str(uploads_dir)), name="chat_uploads")
 
-    # Static mount for chat uploads
-    uploads_dir = Path(cfg.db_path).parent / "chat_uploads"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/api/chat/uploads", StaticFiles(directory=str(uploads_dir)), name="chat_uploads")
+    # Static mount for site inspection photos (facility dashboard)
+    inspections_dir = Path(cfg.db_path).parent / "site_inspections"
+    inspections_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/site-photos", StaticFiles(directory=str(inspections_dir)), name="site_photos")
+
+    # Static mount for scanned document uploads (dashboard_uploads)
+    scans_dir = Path(cfg.db_path).parent / "dashboard_uploads"
+    scans_dir.mkdir(parents=True, exist_ok=True)
+    app.mount("/api/doc-uploads", StaticFiles(directory=str(scans_dir)), name="doc_uploads")
 
     @app.get("/api/health")
     async def api_health() -> dict:

@@ -15,6 +15,7 @@ import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
 import { RfqVendorSourcingTab } from "./RfqVendorSourcingTab";
 import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
 import { ThreeWayMatchTab } from "./ThreeWayMatchTab";
+import { DocumentScanningTab } from "../shared/DocumentScanningTab";
 import {
   ProcurementActionModal,
   type ProcurementActionType,
@@ -29,6 +30,7 @@ const TABS: DashboardTab[] = [
   { id: "barcode", label: "Warehouse & Stock Audit", icon: "Warehouse" },
   { id: "matching", label: "Invoice Matching", icon: "ShieldCheck" },
   { id: "bridge", label: "Accounting Bridge", icon: "Scale" },
+  { id: "scan", label: "Document Scanning", icon: "FileScan" },
 ];
 
 interface ProcurementDashboardProps {
@@ -163,6 +165,9 @@ export function ProcurementDashboard({
           color={color}
           onAction={handleAction}
         />
+      )}
+      {activeTab === "scan" && (
+        <DocumentScanningTab department={department} color={color} />
       )}
 
       <ProcurementActionModal

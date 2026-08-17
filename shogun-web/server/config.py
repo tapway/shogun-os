@@ -368,7 +368,7 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "label": "Plantation",
         "description": "Estate, mill, agriculture",
         "icon": "🌴",
-        "departments": ["estate-ops", "worker-welfare"],
+        "departments": ["facility"],
     },
 ]
 
@@ -406,8 +406,7 @@ INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
         {"name": "visual-merchandising", "profile_name": "vm-manager", "label": "Visual Merchandising", "port_offset": 16},
     ],
     "plantation": [
-        {"name": "estate-ops", "profile_name": "estate-ops-manager", "label": "Estate Operations", "port_offset": 11},
-        {"name": "worker-welfare", "profile_name": "worker-welfare-manager", "label": "Worker Welfare", "port_offset": 12},
+        {"name": "facility", "profile_name": "facility-manager", "label": "Facility Management", "port_offset": 11},
     ],
 }
 

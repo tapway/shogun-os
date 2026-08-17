@@ -49,6 +49,9 @@ class Tenant(Base):
     onboarding_states: Mapped[List["OnboardingState"]] = relationship(
         back_populates="tenant", cascade="all, delete-orphan"
     )
+    site_inspection_units: Mapped[List["SiteInspectionUnit"]] = relationship(
+        back_populates="tenant", cascade="all, delete-orphan"
+    )
 
     def to_dict(self) -> Dict[str, Any]:
         return {
@@ -119,6 +122,7 @@ class User(Base):
             "is_temporary_password": self.is_temporary_password,
             "must_change_password": bool(self.is_temporary_password),
 
+            "avatar_url": self.avatar_url,
             "phone": self.phone,
             "slack_user_id": self.slack_user_id,
             "telegram_user_id": self.telegram_user_id,
@@ -286,5 +290,146 @@ class CronJob(Base):
             "deliver_channel_id": self.deliver_channel_id or "",
             "deliver_channel_name": self.deliver_channel_name or "",
             "last_run": self.last_run,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SiteInspectionUnit(Base):
+    """A staff quarter unit that can be inspected."""
+    __tablename__ = "site_inspection_units"
+    __table_args__ = (UniqueConstraint("tenant_id", "site_name", "block_name", "unit_number", name="uq_site_unit"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    site_name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    block_name: Mapped[str] = mapped_column(String(128), nullable=False, index=True)
+    unit_number: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    capacity: Mapped[int] = mapped_column(Integer, nullable=False, default=1)
+    unit_type: Mapped[str] = mapped_column(String(64), nullable=False, default="single")
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    tenant: Mapped["Tenant"] = relationship(back_populates="site_inspection_units")
+    inspections: Mapped[List["SiteInspection"]] = relationship(
+        back_populates="unit", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "site_name": self.site_name,
+            "block_name": self.block_name,
+            "unit_number": self.unit_number,
+            "capacity": self.capacity,
+            "unit_type": self.unit_type,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class SiteInspection(Base):
+    """A single inspection record for a unit, with one or more photos."""
+    __tablename__ = "site_inspections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    unit_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("site_inspection_units.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    inspected_by: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    inspection_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    photos: Mapped[List] = mapped_column(JSON, nullable=False, default=list)  # [{path, room, assessment}]
+    merged_assessment: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    furniture_count: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    cleanliness: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    site_condition: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    safety_hazards: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    overall_rating: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    priority_actions: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    unit: Mapped["SiteInspectionUnit"] = relationship(back_populates="inspections")
+
+    def to_dict(self) -> Dict[str, Any]:
+        # Synthesize web-accessible URL for photos that only have a disk path
+        # (old records stored {path, filename, room} without a url field).
+        photos_out: List[Dict[str, Any]] = []
+        for p in (self.photos or []):
+            if isinstance(p, dict):
+                url = p.get("url")
+                if not url and p.get("path"):
+                    import os as _os
+                    url = f"/api/site-photos/{_os.path.basename(p['path'])}"
+                photos_out.append({**p, "url": url or ""})
+            else:
+                photos_out.append({"url": "", "filename": str(p), "assessment": ""})
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "unit_id": self.unit_id,
+            "inspected_by": self.inspected_by,
+            "inspection_date": self.inspection_date.isoformat() if self.inspection_date else None,
+            "photos": photos_out,
+            "merged_assessment": self.merged_assessment,
+            "furniture_count": self.furniture_count,
+            "cleanliness": self.cleanliness,
+            "site_condition": self.site_condition,
+            "safety_hazards": self.safety_hazards,
+            "overall_rating": self.overall_rating,
+            "priority_actions": self.priority_actions,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class ScannedDocument(Base):
+    """A scanned document record with OCR summary + interpretation."""
+    __tablename__ = "scanned_documents"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    department: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    scanned_by: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    filename: Mapped[str] = mapped_column(String(512), nullable=False, default="")
+    file_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    file_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    document_type: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # OCR summary (short text)
+    ocr_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    # Interpretation: fields, validation, risks, etc. (full JSON)
+    interpretation: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    scan_date: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    tenant: Mapped["Tenant"] = relationship()
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "department": self.department,
+            "scanned_by": self.scanned_by,
+            "filename": self.filename,
+            "file_url": self.file_url or "",
+            "document_type": self.document_type,
+            "ocr_summary": self.ocr_summary,
+            "interpretation": self.interpretation,
+            "scan_date": self.scan_date.isoformat() if self.scan_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }

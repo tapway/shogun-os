@@ -11,6 +11,7 @@ from __future__ import annotations
 import asyncio
 import json
 import logging
+import re
 import time
 from datetime import datetime, timezone
 from pathlib import Path
@@ -121,6 +122,7 @@ def _get_llm_credentials() -> dict:
     api_base = os.environ.get("OPENAI_API_BASE") or "https://dashscope-intl.aliyuncs.com/compatible-mode/v1"
     model = os.environ.get("PRIMARY_MODEL") or "glm-5.2"
     vision_model = os.environ.get("VISION_MODEL") or "qwen-vl-max"
+    subagent_model = os.environ.get("SUBAGENT_MODEL") or "deepseek-v4-flash"
 
     if not api_key:
         search_paths = [
@@ -145,12 +147,14 @@ def _get_llm_credentials() -> dict:
                             model = v
                         elif k == "VISION_MODEL" and not os.environ.get("VISION_MODEL"):
                             vision_model = v
+                        elif k == "SUBAGENT_MODEL" and not os.environ.get("SUBAGENT_MODEL"):
+                            subagent_model = v
                 except Exception:
                     pass
             if api_key:
                 break
 
-    return {"api_key": api_key, "api_base": api_base, "model": model, "vision_model": vision_model}
+    return {"api_key": api_key, "api_base": api_base, "model": model, "vision_model": vision_model, "subagent_model": subagent_model}
 
 
 async def _fetch_department_context_data(dept_name: str, prompt: str) -> dict:
@@ -269,11 +273,11 @@ async def _call_llm_for_department(
             {"role": "user", "content": user_message_content},
         ],
         "temperature": 0.3,
-        "max_tokens": 1024,
+        "max_tokens": 2048,
     }
 
     try:
-        async with httpx.AsyncClient(timeout=30.0) as client:
+        async with httpx.AsyncClient(timeout=60.0) as client:
             resp = await client.post(url, json=payload, headers=headers)
             if resp.status_code == 200:
                 body = resp.json()
@@ -285,6 +289,58 @@ async def _call_llm_for_department(
             logger.warning("LLM call returned %s: %s", resp.status_code, resp.text[:200])
     except Exception as exc:
         logger.warning("LLM API call exception: %s", exc)
+
+    return None
+
+
+async def _call_deepseek(prompt: str, system_prompt: str = "", max_tokens: int = 2048) -> Optional[str]:
+    """Call the DeepSeek model (subagent_model) directly for text tasks.
+
+    Used for document summarisation and interpretation where the OCR text
+    is already extracted — no vision needed, just fast text LLM.
+    """
+    creds = _get_llm_credentials()
+    api_key = creds["api_key"]
+    if not api_key:
+        return None
+
+    api_base = creds["api_base"].rstrip("/")
+    model = creds.get("subagent_model") or "deepseek-v4-flash"
+    url = f"{api_base}/chat/completions"
+
+    sys_content = system_prompt or (
+        "You are a document analysis assistant. "
+        "Analyse the provided document text and return ONLY a JSON object as requested. "
+        "Do not add markdown code fences or explanations outside the JSON."
+    )
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+    }
+    payload = {
+        "model": model,
+        "messages": [
+            {"role": "system", "content": sys_content},
+            {"role": "user", "content": prompt},
+        ],
+        "temperature": 0.3,
+        "max_tokens": max_tokens,
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.post(url, json=payload, headers=headers)
+            if resp.status_code == 200:
+                body = resp.json()
+                choices = body.get("choices", [])
+                if choices:
+                    content = choices[0].get("message", {}).get("content", "")
+                    if content and content.strip():
+                        return content.strip()
+        logger.warning("DeepSeek call returned %s: %s", resp.status_code, resp.text[:200])
+    except Exception as exc:
+        logger.warning("DeepSeek API call exception: %s", exc)
 
     return None
 
@@ -308,15 +364,24 @@ async def _generate_department_response_async(
         "product": ("Product", "Koku", "product roadmap, feature specifications, and user feedback"),
         "customer-support": ("Customer Support", "Shien", "customer support tickets, SLAs, and customer success workflows"),
         "coding": ("Coding", "Gijutsu", "codebase ops, deployments, and technical delivery"),
-        "estate-ops": ("Estate Operations", "Gozen", "estate management, document scanning, site inspections, and worker welfare"),
-        "worker-welfare": ("Worker Welfare", "Ryō", "staff quarters, welfare, and site conditions"),
+        "facility": ("Facility Management", "Eizen", "facility management, quarters inspection, document scanning, and site conditions"),
     }
 
     display_name, persona, duties = catalog_personas.get(
         key, (dept_name.capitalize(), "Assistant", "department workflows and operations")
     )
 
-    if any(q in p_lower for q in ["who are you", "who r u", "what do you do", "who are u", "hi", "hello", "identity"]):
+    # Match greetings as whole words only — substring "hi" would otherwise match
+    # inside "this", "his", "site-inspection-storage", etc. and wrongly short-circuit
+    # real prompts (scan-document, inspect-site, inspect-unit).
+    if any(q in p_lower for q in ["who are you", "who r u", "what do you do", "who are u", "identity"]):
+        return (
+            f"Hello! I am **{display_name}** ({persona}), your AI Department Operator for Shogun OS.\n\n"
+            f"I specialize in **{duties}**.\n\n"
+            f"You can ask me questions about **{display_name}** documents, operational data, active tasks, or ask me to perform actions for your team."
+        )
+    # Short greetings — require word boundaries so "hi"/"hello" don't match mid-word.
+    if re.search(r"\b(hi|hello)\b", p_lower):
         return (
             f"Hello! I am **{display_name}** ({persona}), your AI Department Operator for Shogun OS.\n\n"
             f"I specialize in **{duties}**.\n\n"

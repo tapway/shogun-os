@@ -542,6 +542,7 @@ html[data-theme="light"] {
   background: var(--samurai-surface);
   border-right: 1px solid var(--samurai-border);
   transition: width 0.3s ease;
+  overflow: hidden;
 }
 .sd-sidebar-shell.collapsed {
   width: 4.25rem;
@@ -598,6 +599,7 @@ html[data-theme="light"] .sd-sidebar-head img {
 .sd-sidebar-nav {
   flex: 1;
   overflow-y: auto;
+  overflow-x: hidden;
   padding: 0.75rem 0.6rem;
   display: flex;
   flex-direction: column;
@@ -654,7 +656,7 @@ html[data-theme="light"] .sd-sidebar-head img {
 }
 .sd-nav-item .sd-nav-label {
   flex: 1;
-  truncate: 1;
+  min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -676,6 +678,41 @@ html[data-theme="light"] .sd-sidebar-head img {
   border-radius: 0.4rem;
   flex-shrink: 0;
   color: #fff;
+}
+
+.sd-dept-row {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  gap: 0;
+}
+.sd-dept-row .sd-nav-item {
+  flex: 1;
+  min-width: 0;
+}
+.sd-dept-row .sd-status-dot-wrap {
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  margin-left: -0.5rem;
+}
+.sd-dept-row .sd-toggle-btn {
+  flex-shrink: 0;
+  width: 1.75rem;
+  height: 1.75rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 0.4rem;
+  background: none;
+  border: none;
+  color: var(--samurai-muted);
+  cursor: pointer;
+  transition: background 150ms ease, color 150ms ease;
+}
+.sd-dept-row .sd-toggle-btn:hover {
+  background: var(--samurai-hover-ui);
+  color: var(--samurai-text);
 }
 
 .sd-subnav {
@@ -1320,4 +1357,11 @@ html[data-theme="light"] .sd-sidebar-head img {
 }
 .sd-chart-card .recharts-tooltip-label {
   color: var(--samurai-text) !important;
+}
+
+/* Native date input calendar picker icon — invert in dark themes so it's white */
+html[data-theme="dark"] input[type="date"]::-webkit-calendar-picker-indicator,
+html[data-theme="blue"] input[type="date"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
 }

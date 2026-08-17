@@ -10,6 +10,7 @@ import { ArCollectionsTab } from './ArCollectionsTab';
 import { ApPaymentsTab } from './ApPaymentsTab';
 import { BvaUnitEconomicsTab } from './BvaUnitEconomicsTab';
 import { MarginsConcentrationTab } from './MarginsConcentrationTab';
+import { FinanceDocScanTab } from './FinanceDocScanTab';
 
 const TABS: DashboardTab[] = [
   { id: 'overview',  label: 'Overview',                  icon: 'LayoutDashboard' },
@@ -19,6 +20,7 @@ const TABS: DashboardTab[] = [
   { id: 'ap',        label: 'AP & Payments',             icon: 'CreditCard' },
   { id: 'bva',       label: 'Budget vs Actuals',         icon: 'BarChart3' },
   { id: 'margins',   label: 'Margins & Concentration',    icon: 'PieChart' },
+  { id: 'scan',      label: 'Document Scanning',         icon: 'FileScan' },
 ];
 
 interface FinanceDashboardProps {
@@ -72,6 +74,7 @@ export function FinanceDashboard({ department, color }: FinanceDashboardProps) {
         {activeTab === 'ap'       && <ApPaymentsTab stats={stats} color={color} />}
         {activeTab === 'bva'      && <BvaUnitEconomicsTab stats={stats} color={color} />}
         {activeTab === 'margins'  && <MarginsConcentrationTab stats={stats} color={color} />}
+        {activeTab === 'scan'     && <FinanceDocScanTab department={department} color={color} />}
       </div>
     </div>
   );
