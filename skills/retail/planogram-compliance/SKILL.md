@@ -1,6 +1,7 @@
 ---
 name: planogram-compliance
 description: "Store layout audits, shelf compliance scoring, photo validation workflow, and fixture standards enforcement. Ensures consistent product placement across stores."
+departments: [visual-merchandising]
 version: 1.0.0
 tags: [retail, planogram, compliance, layout, shelf, merchandising, audit]
 triggers:

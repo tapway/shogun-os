@@ -1,6 +1,7 @@
 ---
 name: gbrain-idea-ingest
 description: "Structured ingestion of links, articles, tweets, and web content into gbrain — extract entities, write summary, cross-link to known people/companies/projects."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [gbrain, ingest, ideas, links, articles]

@@ -21,7 +21,7 @@ from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
 from gateway import _get_llm_credentials
-from models import CronJob, Department, User
+from models import Tenant, CronJob, Department, User
 
 logger = logging.getLogger(__name__)
 
@@ -91,7 +91,9 @@ async def get_department(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Return department detail with redacted provider config."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     data = dept.to_dict()
     data["provider_config"] = _redact_provider_config(dept.provider_config)
@@ -110,7 +112,9 @@ async def get_department_brain(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Proxy a lightweight listing/search against gbrain for this department source."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     cfg = get_config()
     base = cfg.gbrain_base_url.rstrip("/")
@@ -380,7 +384,9 @@ async def get_brain_file_content(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Read content of a file in department brain or profile directory."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     target = Path(path).expanduser()
     if not target.is_file():
@@ -410,7 +416,9 @@ async def list_department_docs(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """List department artifacts from the brain folder and Hermes profile directory."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     cfg = get_config()
 
@@ -488,7 +496,9 @@ async def department_status(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Report gateway reachability and provider configuration status."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     cfg = get_config()
 
@@ -567,7 +577,9 @@ async def get_department_chat_history(
     db: Session = Depends(get_db),
 ) -> List[Dict[str, Any]]:
     """Return saved chat history for a specific department (scoped to user)."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     file_path = _get_chat_history_file(dept.name.lower(), user.id)
     if not file_path.is_file():
@@ -590,7 +602,9 @@ async def save_department_chat_message(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Persist chat messages for a specific department (scoped to user)."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     file_path = _get_chat_history_file(dept.name.lower(), user.id)
 
@@ -654,7 +668,9 @@ async def clear_department_chat_history(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Delete saved chat history for a specific department (user-scoped)."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     file_path = _get_chat_history_file(dept.name.lower(), user.id)
     if file_path.is_file():
@@ -1746,15 +1762,26 @@ def _get_all_skills() -> List[Dict[str, Any]]:
 
 
 def _get_department_skills(dept_key: str) -> List[Dict[str, Any]]:
-    """Get skills installed to a specific department (from persistent state).
+    """Get skills for a specific department.
 
-    Returns only skills that are in this department's install list — NOT all
-    skills from the disk directory. This is the user-curated install list.
+    If the department has curated installs, return only those.
+    If no installs yet (first-time), return ALL skills as installed —
+    the user sees everything available and can curate later.
     """
     dept_key = dept_key.lower()
     all_skills = _get_all_skills()
     installs = _load_skill_installs()
     installed_ids = installs.get(dept_key, set())
+
+    if not installed_ids:
+        # First-time: show all skills as installed for this department
+        result = []
+        for s in all_skills:
+            entry = dict(s)
+            entry["department_key"] = dept_key
+            entry["installed"] = True
+            result.append(entry)
+        return result
 
     # Return only installed skills, enriched with department_key
     result = []
@@ -1764,11 +1791,6 @@ def _get_department_skills(dept_key: str) -> List[Dict[str, Any]]:
             entry["department_key"] = dept_key
             entry["installed"] = True
             result.append(entry)
-
-    # Also include skills from this dept's disk directory that aren't in the
-    # install list only if the user hasn't curated yet (first-time: show all
-    # dept skills as installed). We don't do this — the spec says "all skills
-    # at beginning when create new department is status of not installed."
 
     return result
 
@@ -1787,7 +1809,9 @@ async def upload_chat_file(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Store uploaded image or document file for department chat."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     cfg = get_config()
     upload_dir = Path(cfg.db_path).parent / "chat_uploads" / dept.name.lower()
@@ -1831,7 +1855,9 @@ async def list_department_connectors(
     Merges seed metadata (name, description, fields, instructions) with
     persisted state (status, credentials). Secrets are masked.
     """
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     connectors = _get_merged_connectors(dept)
     return {"connectors": connectors}
@@ -1853,7 +1879,9 @@ async def connect_department_connector(
     - If no credentials are provided AND none are saved, return 400 with
       ``needs_credentials: True`` so the UI can prompt for them.
     """
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     key = dept.name.lower()
     seed = _DEPARTMENT_CONNECTORS.get(key, [])
@@ -1915,7 +1943,9 @@ async def disconnect_department_connector(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Disconnect a connector — credentials are preserved for next connect."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     key = dept.name.lower()
     seed = _DEPARTMENT_CONNECTORS.get(key, [])
@@ -1939,7 +1969,9 @@ async def list_department_skills(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Return skills for a department — scanned from disk + runtime installs."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     key = dept.name.lower()
     skills = _get_department_skills(key)
@@ -1958,7 +1990,9 @@ async def delete_department_skill(
     Removing from the department skills page updates the persistent install
     state, so the skill shows as "not installed" in the SkillLibrary page.
     """
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     key = dept.name.lower()
     removed = _uninstall_skill_from_dept(skill_id, key)

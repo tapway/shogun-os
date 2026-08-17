@@ -1,6 +1,7 @@
 ---
 name: quality-capa
 description: "CAPA lifecycle: Open → Investigation → Action Plan → Implementation → Effectiveness Check → Closed. Root cause analysis (5 Whys). Aging and closure rate dashboard."
+departments: [quality]
 version: 1.0.0
 tags: [manufacturing, quality, capa, corrective-action, root-cause, 5-whys]
 triggers:

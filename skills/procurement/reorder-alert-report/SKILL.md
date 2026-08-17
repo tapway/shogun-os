@@ -1,6 +1,7 @@
 ---
 name: reorder-alert-report
 description: "Use when generating a formatted reorder alert report listing all SKUs at or below their reorder threshold, with recommended order quantities and preferred vendor. Standalone script: scripts/reorder_alerts.py."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

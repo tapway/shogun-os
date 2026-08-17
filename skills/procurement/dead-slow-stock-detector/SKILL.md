@@ -1,6 +1,7 @@
 ---
 name: dead-slow-stock-detector
 description: "Use to detect dead and slow-moving stock — SKUs with more than 8 months of inventory cover or no sales movement in 180+ days. Ranks by capital tied up and generates an action-to-flush recommendation per SKU."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: maintenance-downtime
 description: "Unplanned downtime event logging. Pareto by equipment/reason/shift. MTBF and MTTR calculation. Downtime cost estimation."
+departments: [maintenance]
 version: 1.0.0
 tags: [manufacturing, maintenance, downtime, mtbf, mttr, pareto]
 triggers:

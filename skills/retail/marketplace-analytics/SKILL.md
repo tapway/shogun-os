@@ -1,6 +1,7 @@
 ---
 name: marketplace-analytics
 description: "Sales by platform/channel, ad spend ROI analysis, competitor pricing monitoring, and customer review sentiment analysis. Provides actionable marketplace intelligence."
+departments: [merchandising]
 version: 1.0.0
 tags: [retail, ecommerce, marketplace, analytics, competitors, pricing, sentiment]
 triggers:

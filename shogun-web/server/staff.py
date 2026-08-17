@@ -19,7 +19,7 @@ from auth import (
     require_admin,
 )
 from database import get_db, get_primary_tenant
-from models import Department, User, UserDepartment
+from models import Department, Tenant, User, UserDepartment
 
 logger = logging.getLogger(__name__)
 
@@ -108,7 +108,9 @@ async def list_staff(
     db: Session = Depends(get_db),
 ) -> dict:
     """List all staff with their department assignments."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     users = (
         db.execute(
             select(User).where(User.tenant_id == tenant.id).order_by(User.email)
@@ -126,7 +128,9 @@ async def create_staff(
     db: Session = Depends(get_db),
 ) -> dict:
     """Create a new user with department assignments. Returns temp password once."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
 
     # Check for existing user with same email
     existing = db.execute(
@@ -195,7 +199,9 @@ async def get_staff(
     db: Session = Depends(get_db),
 ) -> dict:
     """Get a single staff member with assignments."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -210,7 +216,9 @@ async def update_staff(
     db: Session = Depends(get_db),
 ) -> dict:
     """Update staff name, role, and/or department assignments."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -244,7 +252,6 @@ async def update_staff(
             db.delete(e)
 
         # Add new assignments
-        tenant = get_primary_tenant(db)
         for a in body.assignments:
             dept = db.execute(
                 select(Department).where(Department.tenant_id == tenant.id, Department.name == a.department)
@@ -274,7 +281,9 @@ async def update_staff_role(
     db: Session = Depends(get_db),
 ) -> dict:
     """Change a staff member's role. Company Admins only."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -297,7 +306,9 @@ async def delete_staff(
     db: Session = Depends(get_db),
 ) -> dict:
     """Permanently delete a staff member and all their assignments."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -340,7 +351,9 @@ async def reset_staff_password(
     db: Session = Depends(get_db),
 ) -> dict:
     """Generate a new temporary password for a staff member."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     staff_user = db.get(User, staff_id)
     if staff_user is None or staff_user.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Staff not found")
@@ -377,7 +390,9 @@ async def import_staff_csv(
     skipped = 0
     errors: List[str] = []
     temp_passwords: Dict[str, str] = {}
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
 
     for row_num, row in enumerate(reader, start=2):
         email = (row.get("email") or "").strip().lower()
@@ -478,7 +493,9 @@ async def staff_directory(
     db: Session = Depends(get_db),
 ) -> dict:
     """Searchable, filterable staff directory."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     query = select(User).where(User.tenant_id == tenant.id)
 
     if q:
@@ -508,7 +525,9 @@ async def sync_briohr(
     """Trigger BrioHR employee sync."""
     from briohr_sync import sync_employees
 
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     try:
         result = await sync_employees(db, tenant_id=tenant.id)
         return {"ok": True, **result}

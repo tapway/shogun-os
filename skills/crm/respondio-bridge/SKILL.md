@@ -1,6 +1,7 @@
 ---
 name: respondio-bridge
 description: "Runtime bridge between Kizuna (Hermes CRM) and Respond.io. Handles inbound webhooks, sends replies with template support, syncs contacts to brain, tracks response SLA, and manages conversation assignment."
+departments: [crm]
 triggers:
   - "respondio"
   - "respond.io"

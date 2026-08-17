@@ -1,4 +1,11 @@
-# Shopee Open Platform API v2 Connector
+---
+name: shopee-connector
+description: "Connect to Shopee Open Platform API v2 for orders, products, listings, analytics, returns."
+version: 1.0.0
+departments: [e-commerce]
+tags: [retail, ecommerce, connector]
+---
+
 
 Connects Shogun OS to Shopee Open Platform API v2 for marketplace operations. Provides read/write access to orders, products, listings, analytics, and returns. Uses HMAC-SHA256 request signing with zero external dependencies (stdlib only).
 

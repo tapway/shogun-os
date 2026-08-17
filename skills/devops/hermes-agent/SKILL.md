@@ -1,6 +1,7 @@
 ---
 name: hermes-agent
 description: Manage Hermes Agent itself — CLI, gateway lifecycle, platform connections (Telegram, Slack, etc.), configuration, and troubleshooting.
+departments: [shared]
 category: devops
 tags: [hermes, gateway, telegram, slack, platform, troubleshooting, config]
 ---

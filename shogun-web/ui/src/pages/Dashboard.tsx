@@ -30,25 +30,27 @@ const ICONS: Record<string, LucideIcon> = {
 };
 
 function mergeCatalog(remote: Department[] | undefined): Department[] {
+  if (!remote || remote.length === 0) return [];
   const map = new Map((remote || []).map((d) => [d.key || (d as { name?: string }).name, d]));
-  return DEPARTMENT_KEYS.map((key) => {
+  // Only show departments that exist in the DB (were activated during onboarding)
+  return remote.map((r) => {
+    const key = (r.key || (r as { name?: string }).name || '') as DepartmentKey;
     const base = DEPARTMENT_CATALOG[key];
-    const r = map.get(key);
     return {
       ...base,
       ...r,
       key,
       name: base?.name || (r?.name ? r.name.charAt(0).toUpperCase() + r.name.slice(1) : key),
-      persona: r?.persona || base.persona,
-      description: r?.description || base.description,
-      color: r?.color || base.color,
-      icon: r?.icon || base.icon,
+      persona: r?.persona || base?.persona || '',
+      description: r?.description || base?.description || '',
+      color: r?.color || base?.color || '#6366f1',
+      icon: r?.icon || base?.icon || 'Boxes',
       active: r?.active ?? (r as { status?: string } | undefined)?.status === 'active',
       status: r?.status || 'offline',
       gateway_status: r?.gateway_status,
       provider_status: r?.provider_status,
       provider_config: r?.provider_config,
-      profile_name: r?.profile_name || base.profile_name,
+      profile_name: r?.profile_name || base?.profile_name,
     };
   });
 }
@@ -101,7 +103,8 @@ export default function Dashboard() {
   }, [deptsQuery.data, assignedKeys]);
 
   const active = departments.filter((d) => d.active);
-  const inactive = isGlobalAdmin ? departments.filter((d) => !d.active) : [];
+  // All registered company users are admins — always show inactive departments for self-activation
+  const inactive = departments.filter((d) => !d.active);
 
 
   const activateMutation = useMutation({
@@ -178,7 +181,7 @@ export default function Dashboard() {
           <h1>Company dashboard</h1>
           <p>Welcome back{user?.name ? `, ${user.name}` : ''}. One place for every department agent — activate, chat, and monitor from here.</p>
         </div>
-        {inactive.length > 0 && (
+        {isGlobalAdmin && inactive.length > 0 && (
           <button type="button" className="sd-btn sd-btn-secondary" onClick={() => setAdding(inactive[0].key)}>
             <Plus className="h-4 w-4" /> Add Department
           </button>
@@ -224,7 +227,7 @@ export default function Dashboard() {
         </div>
       )}
 
-      {inactive.length > 0 && (
+      {isGlobalAdmin && inactive.length > 0 && (
         <div className="mt-10">
           <h2 className="sd-sidebar-section" style={{ padding: '0 0 0.75rem' }}>Available departments</h2>
           <div className="sd-grid sd-dept-grid">

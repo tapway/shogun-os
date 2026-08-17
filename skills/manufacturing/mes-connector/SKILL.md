@@ -1,6 +1,7 @@
 ---
 name: mes-connector
 description: "MES/SCADA data ingestion. Adapters for Ignition/Inductive Automation (MQTT + REST). Modbus TCP for direct PLC reads. Reads machine states, counts, downtime events."
+departments: [production]
 version: 1.0.0
 tags: [manufacturing, mes, scada, ignition, modbus, plc, iot]
 triggers:

@@ -1,6 +1,7 @@
 ---
 name: mfrs15-revenue-recognition
 description: "Use when validating compliance with MFRS 15 5-Step model, Standalone Selling Price (SSP) allocation in MYR, deferred revenue amortization, or SST exclusion from transaction price. Produces a revenue recognition schedule and compliance flag per contract."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

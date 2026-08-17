@@ -1,4 +1,11 @@
-# Lazada Seller Center REST API Connector
+---
+name: lazada-connector
+description: "Connect to Lazada Open Platform API for orders, products, finance, seller performance."
+version: 1.0.0
+departments: [e-commerce]
+tags: [retail, ecommerce, connector]
+---
+
 
 Connects Shogun OS to Lazada Open Platform (LOP) API for Southeast Asian marketplace operations. Provides read/write access to orders, products, finance data, and seller performance. Uses Lazada's custom HMAC-SHA256 signing with zero external dependencies (stdlib only).
 

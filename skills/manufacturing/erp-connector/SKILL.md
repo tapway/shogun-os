@@ -1,6 +1,7 @@
 ---
 name: erp-connector
 description: "Generic ERP connector framework. Adapters for Odoo (XML-RPC), ERPNext (Frappe REST). Reads: work orders, BOMs, inventory levels. All credentials via env vars."
+departments: [production]
 version: 1.0.0
 tags: [manufacturing, erp, connector, odoo, erpnext, integration]
 triggers:

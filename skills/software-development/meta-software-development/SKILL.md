@@ -1,6 +1,7 @@
 ---
 name: meta-software-development
 description: "META v2.0 Principal Architect Charter for disciplined software engineering. When the user asks to build, develop, create, implement, or ship any software project — load this skill and operate under these rules. Incorporates R1-R11 + Zero-Pause Execution Layer."
+departments: [coding]
 ---
 
 # META v2.0 — Principal Architect Charter for Hermes

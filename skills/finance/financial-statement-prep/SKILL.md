@@ -1,6 +1,7 @@
 ---
 name: financial-statement-prep
 description: "Use when preparing statutory Profit & Loss, Balance Sheet, Statement of Cash Flows, and Statement of Changes in Equity compliant with MFRS / MPERS."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

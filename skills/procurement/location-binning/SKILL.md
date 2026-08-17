@@ -1,6 +1,7 @@
 ---
 name: location-binning
 description: "Use when managing warehouse locations, storage bins, and shelf assignments for inventory items. Creates and updates procurement/locations/ pages and assigns items to bins."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

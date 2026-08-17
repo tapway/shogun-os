@@ -1,6 +1,7 @@
 ---
 name: release
 description: Bump semver, generate changelog, create git tag. Triggers include "release", "bump version", "ship release", "tag release", "publish v".
+departments: [coding]
 category: software-development
 ---
 

@@ -1,6 +1,7 @@
 ---
 name: reorder-alert-watchdog
 description: "Use when checking for items at or below their reorder threshold and drafting Purchase Orders for the preferred vendor. Posts a reorder alert summary to #procurement."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: bva-variance-analysis
 description: "Use when tracking line-item spending against budget baselines and flagging department cost overruns exceeding 10%. Produces a Budget vs. Actual variance report with flagged lines and a BvA section for the monthly board report."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: brain-file-delivery
 description: "Enforce file-attachment delivery for newly created or modified brain files. After any brain file write, send the file as an attachment to both Telegram (MEDIA:) and Slack (3-step upload API). NO links — actual file attachments only."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [brain, gbrain, delivery, slack, telegram, attachments]

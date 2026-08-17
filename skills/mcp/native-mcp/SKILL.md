@@ -1,6 +1,7 @@
 ---
 name: native-mcp
 description: "MCP client: connect servers, register tools (stdio/HTTP)."
+departments: [shared]
 version: 1.0.0
 author: Hermes Agent
 license: MIT

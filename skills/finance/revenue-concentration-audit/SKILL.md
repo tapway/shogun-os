@@ -1,6 +1,7 @@
 ---
 name: revenue-concentration-audit
 description: "Use when auditing revenue breakdown by client and flagging concentration risks (>20% total revenue from a single customer). Produces a client revenue concentration table with risk flags."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

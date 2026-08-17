@@ -1,6 +1,7 @@
 ---
 name: inventory-item-management
 description: "Use when creating, reading, or updating inventory item brain pages — SKU master data, current stock levels, reorder points, preferred vendor, and bin/location assignment."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

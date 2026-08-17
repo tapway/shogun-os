@@ -1,6 +1,7 @@
 ---
 name: gbrain-ingest
 description: "Ingest URLs, files, and documents into gbrain — auto-detect type, extract entities, file correctly, cross-link."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [gbrain, ingest, import, file]

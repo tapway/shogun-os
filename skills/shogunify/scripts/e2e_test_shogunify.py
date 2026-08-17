@@ -142,6 +142,7 @@ def scaffold_demo_skill(pdir: Path) -> Path:
         tpl.replace("{{SKILL_NAME}}", DEMO_SKILL)
         .replace("{{TRIGGER}}", "user asks for a demo echo")
         .replace("{{ONE_LINE_BEHAVIOR}}", "Echo a fixed confirmation string for E2E")
+        .replace("{{DEPARTMENTS}}", "shared")  # demo skill is shared across all departments
         .replace("{{TAGS}}", "demo, e2e, test")
         .replace("{{CATEGORY}}", "testing")
         .replace("{{TITLE}}", "Demo Echo Skill")
@@ -159,6 +160,14 @@ def scaffold_demo_skill(pdir: Path) -> Path:
         .replace("{{CRITERION_2}}", "done")
         .replace("{{PITFALL_1}}", "Do not install outside test profile")
     )
+    # Assert no unsubstituted placeholders remain — a leftover {{ would
+    # embed the literal token as a department value, defeating validation.
+    leftover = re.findall(r"\{\{[A-Z_]+\}\}", body)
+    if leftover:
+        raise RuntimeError(f"Unsubstituted template placeholders: {leftover}")
+    # Assert departments field rendered to a non-empty value
+    if "departments: [shared]" not in body:
+        raise RuntimeError("departments field did not render — check template + replace chain")
     skill_dir = pdir / "skills" / DEMO_SKILL
     if skill_dir.exists():
         shutil.rmtree(skill_dir)
@@ -192,6 +201,7 @@ def scaffold_demo_connector(tmp_repo: Path) -> None:
             .replace("{{ENTITY}}", "item")
             .replace("{{REQUIRED_FIELD}}", "sku")
             .replace("{{SKILL_NAME}}", "demo-inventory-provider")
+            .replace("{{DEPARTMENT}}", "inventory")  # generic-skill.md.tpl department tag
             .replace("{{MCP_SERVER_NAME}}", "demo-inventory")
             .replace("{{PROFILE}}", PROFILE)
             .replace("{{PROVIDER_ENV}}", "INV_PROVIDER")

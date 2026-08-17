@@ -1,6 +1,7 @@
 ---
 name: assortment-planning
 description: "Category performance analysis (sales, margin, turnover), SKU rationalization, and new product intake calendar management. Optimizes product mix across stores."
+departments: [merchandising]
 version: 1.0.0
 tags: [retail, assortment, category, sku, product, planning]
 triggers:

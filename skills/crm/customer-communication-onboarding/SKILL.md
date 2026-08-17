@@ -1,6 +1,7 @@
 ---
 name: customer-communication-onboarding
 description: "Kizuna (CRM) post-Shogun onboarding wizard — sets up the Customer Communication Platform (Respond.io or Chatwoot) after core Hermes installation is complete. Runs as Step 4.5 of Kizuna's department-specific onboarding."
+departments: [crm]
 triggers:
   - "cc setup"
   - "customer communication"

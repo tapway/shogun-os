@@ -1,6 +1,7 @@
 ---
 name: document-ocr
 description: "Use when extracting raw text from a PDF or image file. Input: file path. Output: raw text. Tries pymupdf first (text PDFs), falls back to liteparse (scanned/images). Does NOT classify, summarize, or store."
+departments: [shared]
 version: 1.0.0
 author: Shogun OS
 category: shared

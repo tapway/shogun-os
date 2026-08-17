@@ -1,6 +1,7 @@
 ---
 name: gbrain-media-ingest
 description: "Ingest video, audio, PDFs, and screenshots into gbrain — extract transcripts/OCR, describe content, extract entities, file correctly."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [gbrain, ingest, media, video, audio, pdf]

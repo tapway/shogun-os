@@ -1,6 +1,7 @@
 ---
 name: profile-enrichment
 description: "Universal profile enrichment skill for user's brain. After any interaction (email, meeting, calendar event, social media export), enriches ~/brain/persons/ or ~/brain/friends-and-family/ with web-researched profiles, LinkedIn data, and timeline entries. Used by all brain-enrichment cron jobs. Also covers spreadsheet-based event contact enrichment (different output: fill xlsx in place, not create brain files)."
+departments: [shared]
 version: 2.6.0
 author: user
 tags: [brain, enrichment, people, companies, friends, facebook, linkedin, research, spreadsheet]

@@ -1,6 +1,7 @@
 ---
 name: cfo-executive-reporting
 description: "Use when compiling on-demand Weekly Pulse and Monthly Board reports delivered directly to Slack or Telegram. Produces a formatted executive report and triggers delivery via the department-scrum comm layer."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: gbrain-brain-ops
 description: "Core brain operations — the read-enrich-write loop, sync, backup, health checks, and source attribution. Foundation layer for all gbrain work."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [gbrain, ops, sync, health]

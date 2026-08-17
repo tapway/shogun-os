@@ -1,6 +1,7 @@
 ---
 name: general-ledger-journal-prep
 description: "Use when maintaining the double-entry general ledger, accruals, prepayments, fixed asset depreciation schedules, and intercompany transactions."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

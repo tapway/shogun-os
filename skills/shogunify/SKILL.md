@@ -1,6 +1,7 @@
 ---
 name: shogunify
 description: "Use when adding a Shogun OS integration, skill, workflow/cron, or connector — structured questionnaire that produces gbrain-compliant + Hermes-profile-aware artifacts. Slash: /shogunify."
+departments: [shared]
 version: 1.0.0
 author: Shogun OS
 license: MIT
@@ -79,7 +80,7 @@ Load the matching questionnaire and ask **only unanswered** questions (skip what
 |------|-----------|
 | integration (new domain or connector) | `references/questionnaire-integration.md` |
 | provider-only (existing CONTRACT) | same file, "Provider-only branch" |
-| skill | `references/questionnaire-skill.md` |
+| skill | `references/questionnaire-skill.md` (includes required `departments` field) |
 | workflow / cron | `references/questionnaire-workflow.md` |
 | profile (new dept agent) | `references/questionnaire-profile.md` |
 
@@ -120,6 +121,7 @@ python3 ~/shogun-os/skills/shogunify/scripts/install-to-profiles.py --skill shog
 ### 5. Verify
 
 - [ ] `SKILL.md` frontmatter: `name` + `description` (≤1024), starts with `---`
+- [ ] `departments` field present and valid (run `python3 scripts/validate-skills.py`)
 - [ ] Artifact visible under **owning profile's** `skills/` (or default home)
 - [ ] Slash: new session on that profile → `/commands` or try `/<skill-name>`
 - [ ] MCP tools listed if connector (`hermes -p <profile> mcp list` / tools)

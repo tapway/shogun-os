@@ -1,6 +1,7 @@
 ---
 name: expense-claim-audit
 description: "Use when auditing staff expense reimbursement claims for receipt validity, corporate travel policy limits, and SST compliance before payout. Produces an approved/rejected claims list with compliance flags."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

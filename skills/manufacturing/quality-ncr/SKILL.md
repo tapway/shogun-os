@@ -1,6 +1,7 @@
 ---
 name: quality-ncr
 description: "Non-Conformance Report management. Create, disposition (use-as-is / rework / scrap / RTV), track closure. Defect Pareto, aging report."
+departments: [quality]
 version: 1.0.0
 tags: [manufacturing, quality, ncr, non-conformance, defects, pareto]
 triggers:

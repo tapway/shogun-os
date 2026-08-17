@@ -6,6 +6,7 @@ description: |
   lock management, schema packs, brainstorm, publish, capture, and
   common troubleshooting (PGLite, Supabase, API keys).
   Generic version — no company-specific content.
+departments: [shared]
 triggers:
   - "gbrain sync"
   - "gbrain embed"

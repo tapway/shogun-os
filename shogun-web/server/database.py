@@ -187,7 +187,7 @@ def _ensure_tenant(db: Session) -> Tenant:
     return tenant
 
 
-DEFAULT_ACTIVE_NAMES = {"crm", "finance", "procurement"}
+DEFAULT_ACTIVE_NAMES: set[str] = set()  # no departments active by default — only activated via onboarding
 
 
 def _ensure_departments(db: Session, tenant: Tenant) -> None:
@@ -289,6 +289,38 @@ def init_db() -> None:
                 tenant_id VARCHAR(36),
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS site_inspection_units (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                site_name VARCHAR(256) NOT NULL,
+                block_name VARCHAR(128) NOT NULL,
+                unit_number VARCHAR(64) NOT NULL,
+                capacity INTEGER NOT NULL DEFAULT 1,
+                unit_type VARCHAR(64) NOT NULL DEFAULT 'single',
+                status VARCHAR(32) NOT NULL DEFAULT 'active',
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE (tenant_id, site_name, block_name, unit_number)
+            )
+        """))
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS site_inspections (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                unit_id INTEGER NOT NULL REFERENCES site_inspection_units(id) ON DELETE CASCADE,
+                inspected_by VARCHAR(256) NOT NULL DEFAULT '',
+                inspection_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                photos JSON NOT NULL DEFAULT '[]',
+                merged_assessment JSON,
+                furniture_count VARCHAR(256),
+                cleanliness VARCHAR(64),
+                site_condition TEXT,
+                safety_hazards TEXT,
+                overall_rating VARCHAR(64),
+                priority_actions TEXT,
+                created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """))
         conn.commit()

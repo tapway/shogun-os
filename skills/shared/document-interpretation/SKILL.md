@@ -1,6 +1,7 @@
 ---
 name: document-interpretation
 description: "Use when classifying a document type and extracting key fields from raw text. Input: raw text. Output: {type, fields, summary}. Does NOT OCR. Does NOT store."
+departments: [shared]
 version: 1.0.0
 author: Shogun OS
 category: shared

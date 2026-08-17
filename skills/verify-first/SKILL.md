@@ -1,6 +1,7 @@
 ---
 name: verify-first
 description: Behavioral overlay — cautious, verify-before-claiming, challenge assumptions. Load for interactive sessions where the user wants skeptical/rigorous behavior.
+departments: [shared]
 category: productivity
 trigger: User has requested cautious/doubtful/verify-first behavior in their preferences.
 ---

@@ -36,7 +36,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return null;
     }
     try {
-      const me = await authApi.me();
+      const res = await authApi.me();
+      // Backend returns {user: {...}} — extract the user object
+      const me = (res as unknown as { user?: typeof res }).user ?? res;
       setUser(me);
       return me;
     } catch {

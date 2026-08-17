@@ -2,6 +2,7 @@
 name: {{SKILL_NAME}}
 description: "Use when {{TRIGGER}}. {{ONE_LINE_BEHAVIOR}}."
 version: 1.0.0
+departments: [{{DEPARTMENTS}}]
 author: Shogun OS
 license: MIT
 metadata:
@@ -44,5 +45,6 @@ Don't use for: {{COUNTER_TRIGGERS}}
 ## Verification Checklist
 
 - [ ] Skill installed under owning profile `skills/{{SKILL_NAME}}/`
+- [ ] `departments` field present and valid (run `python3 scripts/validate-skills.py`)
 - [ ] `/{{SKILL_NAME}}` loads on that profile
 - [ ] Happy-path workflow completed once

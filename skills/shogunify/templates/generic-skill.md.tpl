@@ -1,6 +1,7 @@
 ---
 name: {{SKILL_NAME}}
 category: connector
+departments: [{{DEPARTMENT}}]
 setup_time: 5 min
 cost: $0
 depends_on: []

@@ -1,6 +1,7 @@
 ---
 name: treasury-fx-facility-mgmt
 description: "Use when monitoring foreign exchange (FX) exposure, Bank Negara Malaysia (BNM) FEA regulations, Debt Service Coverage Ratio (DSCR), or bank credit line terms. Produces an FX exposure report, DSCR computation, and credit facility utilisation summary."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

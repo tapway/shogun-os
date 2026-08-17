@@ -1,6 +1,7 @@
 ---
 name: dashboard-snapshot-writer
 description: "Use when refreshing the Finance dashboard with live system data. Calls acct_* MCP tools, computes the 5-tab payload, and writes JSON snapshots to finance/snapshots/*.json gbrain pages. Idempotent + empty-brain-safe. Standalone script: scripts/write_snapshots.py. Slash trigger: /refresh-finance-dashboard."
+departments: [finance, procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

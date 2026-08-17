@@ -1,6 +1,7 @@
 ---
 name: internal-control-governance
 description: "Use when testing internal controls aligned with MCCG (Malaysian Code on Corporate Governance) and Bursa Malaysia SRMIC guidelines. Produces an internal control test report and segregation-of-duties matrix."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

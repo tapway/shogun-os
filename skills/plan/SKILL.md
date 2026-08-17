@@ -1,6 +1,7 @@
 ---
 name: plan
 description: "Plan mode: write markdown plan to .hermes/plans/, no exec."
+departments: [shared]
 version: 1.0.0
 author: Hermes Agent
 license: MIT

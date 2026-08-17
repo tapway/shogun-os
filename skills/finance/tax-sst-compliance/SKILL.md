@@ -1,6 +1,7 @@
 ---
 name: tax-sst-compliance
 description: "Use when monitoring SST-02 return filing, CP204 corporate tax estimate filings, Form C annual tax compliance, or tax penalty prevention. Produces a compliance calendar and filing checklist."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

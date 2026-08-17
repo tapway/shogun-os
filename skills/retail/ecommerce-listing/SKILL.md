@@ -1,6 +1,7 @@
 ---
 name: ecommerce-listing
 description: "Product listing sync to Shopee/Lazada, image compliance checking, SEO title optimization, and inventory accuracy across platforms. Manages multi-channel e-commerce catalog."
+departments: [merchandising]
 version: 1.0.0
 tags: [retail, ecommerce, listing, marketplace, catalog, shopee, lazada]
 triggers:

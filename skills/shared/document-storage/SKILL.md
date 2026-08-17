@@ -1,6 +1,7 @@
 ---
 name: document-storage
 description: "Use when storing a scanned document's fields and summary to gbrain. Input: {fields, summary, source}. Output: gbrain page path. Does NOT interpret. Does NOT retrieve."
+departments: [shared]
 version: 1.0.0
 author: Shogun OS
 category: shared

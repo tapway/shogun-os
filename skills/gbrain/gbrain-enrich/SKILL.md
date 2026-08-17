@@ -1,6 +1,7 @@
 ---
 name: gbrain-enrich
 description: "Tiered enrichment for person, company, and project pages — add facts, timeline entries, cross-links, and data validation."
+departments: [shared]
 version: 1.0.0
 author: user
 tags: [gbrain, enrich, profile, augment]

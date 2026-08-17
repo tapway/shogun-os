@@ -1,6 +1,7 @@
 ---
 name: accounting-bridge-sync
 description: "Optional P2 bridge skill: documents how procurement events trigger accounting entries — PO-received to Purchase Bill, inventory cost sync, and GL valuation variance — via acct_* tools. Gated on ENABLE_ACCOUNTING_SYNC env flag."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: microsoft-integration
 description: "Microsoft 365 Graph API client — mail, calendar, OneDrive, and directory via OAuth 2.0 client credentials."
+departments: [shared]
 version: 1.0.0
 author: Nous Research
 license: MIT

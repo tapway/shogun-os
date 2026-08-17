@@ -1,6 +1,7 @@
 ---
 name: cash-runway-forecasting
 description: "Use when computing net monthly burn rate, cash runway (months), or 13-week rolling liquidity forecasts. Produces a runway summary and 13-week cash forecast table."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

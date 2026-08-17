@@ -1,6 +1,7 @@
 ---
 name: slack-formatting
 description: "Format output for Slack-optimized delivery — mrkdwn text AND Block Kit JSON blocks (header, table, alert, section, context, actions, card, data_table). Use mrkdwn for cron job text delivery via send_message. Use Block Kit JSON for rich messages via Slack API (curl chat.postMessage)."
+departments: [shared]
 version: 2.0.0
 author: user
 license: MIT

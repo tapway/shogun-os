@@ -1,6 +1,7 @@
 ---
 name: deploy
 description: Generate deployment checklist and execute deployments for  projects. Triggers include "deploy", "ship", "push to production", "release to staging".
+departments: [coding]
 category: software-development
 ---
 

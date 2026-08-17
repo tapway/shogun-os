@@ -1,6 +1,7 @@
 ---
 name: document-processing
 description: Process documents — extract text from PDFs and scans (OCR), and edit PDF text/typos/titles. Covers pymupdf, marker-pdf, and nano-pdf CLI.
+departments: [shared]
 category: productivity
 tags: [pdf, ocr, document, text-extraction, pymupdf, marker-pdf, nano-pdf]
 ---

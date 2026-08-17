@@ -1,6 +1,7 @@
 ---
 name: hermes-cron-jobs
 description: Manage Hermes Agent scheduled cron jobs — create, edit, pause, resume, and troubleshoot recurring tasks. Covers the CLI quirks that differ from the general hermes-agent docs.
+departments: [shared]
 category: devops
 tags: [hermes, cron, scheduled-tasks, CLI]
 ---

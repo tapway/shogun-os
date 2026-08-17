@@ -4,6 +4,7 @@ version: 1.0.0
 description: |
   Format messages for Lark (Feishu) delivery — text formatting,
   CardKit JSON cards, markdown, and interactive components.
+departments: [shared]
 triggers:
   - "lark message format"
   - "format for lark"

@@ -1,6 +1,7 @@
 ---
 name: work-order-tracking
 description: "Tracks work orders from release to completion. Reads from ERP connector or manual entry. Reports WIP, backlog, on-time delivery rate."
+departments: [production]
 version: 1.0.0
 tags: [manufacturing, work-order, production, wip, backlog, scheduling]
 triggers:
