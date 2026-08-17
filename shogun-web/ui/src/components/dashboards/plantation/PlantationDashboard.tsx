@@ -1,13 +1,15 @@
 import { useState } from 'react';
-import { FileScan, Home, Search } from 'lucide-react';
-import { DocumentScanningTab } from './DocumentScanningTab';
-import { SiteInspectionTab } from './SiteInspectionTab';
-import { StoredDocumentsTab } from './StoredDocumentsTab';
+import { Home, Camera, FileText, FileScan } from 'lucide-react';
+import { UnitRegistrationTab } from './UnitRegistrationTab';
+import { DailyInspectionTab } from './DailyInspectionTab';
+import { InspectionRecordsTab } from './InspectionRecordsTab';
+import { EstateLegalScanTab } from './EstateLegalScanTab';
 
 const TABS = [
-  { id: 'scan', label: 'Document Scanning', icon: FileScan },
-  { id: 'inspect', label: 'Site Inspection', icon: Home },
-  { id: 'stored', label: 'Stored Documents', icon: Search },
+  { id: 'units', label: 'Unit Registration', icon: Home },
+  { id: 'inspect', label: 'Daily Inspection', icon: Camera },
+  { id: 'records', label: 'Inspection Records', icon: FileText },
+  { id: 'scan', label: 'Legal Doc Scanning', icon: FileScan },
 ] as const;
 
 type TabId = typeof TABS[number]['id'];
@@ -18,12 +20,11 @@ interface PlantationDashboardProps {
 }
 
 export function PlantationDashboard({ department, color }: PlantationDashboardProps) {
-  const [activeTab, setActiveTab] = useState<TabId>('scan');
+  const [activeTab, setActiveTab] = useState<TabId>('units');
 
   return (
     <div className="space-y-4">
-      {/* Tab bar */}
-      <div className="flex gap-1 border-b border-slate-200 dark:border-slate-700">
+      <div className="sd-subnav-bar">
         {TABS.map((tab) => {
           const Icon = tab.icon;
           const active = activeTab === tab.id;
@@ -31,24 +32,19 @@ export function PlantationDashboard({ department, color }: PlantationDashboardPr
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`flex items-center gap-2 px-4 py-2 text-sm font-medium transition ${
-                active
-                  ? 'border-b-2 text-slate-900 dark:text-white'
-                  : 'text-slate-500 hover:text-slate-700 dark:hover:text-slate-300'
-              }`}
-              style={active ? { borderColor: color } : {}}
+              className={`sd-subnav-pill ${active ? 'active' : ''}`}
             >
-              <Icon className="h-4 w-4" />
+              <Icon className="h-3.5 w-3.5" />
               {tab.label}
             </button>
           );
         })}
       </div>
 
-      {/* Tab content */}
-      {activeTab === 'scan' && <DocumentScanningTab color={color} />}
-      {activeTab === 'inspect' && <SiteInspectionTab color={color} />}
-      {activeTab === 'stored' && <StoredDocumentsTab color={color} />}
+      {activeTab === 'units' && <UnitRegistrationTab />}
+      {activeTab === 'inspect' && <DailyInspectionTab />}
+      {activeTab === 'records' && <InspectionRecordsTab />}
+      {activeTab === 'scan' && <EstateLegalScanTab department={department} color={color} />}
     </div>
   );
 }

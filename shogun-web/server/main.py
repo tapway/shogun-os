@@ -8,14 +8,16 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
 
-from fastapi import FastAPI, Request
+from fastapi import FastAPI, Request, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, Response
 from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
+from auth import get_current_user
 from config import get_config, save_config
 from database import init_db, session_scope
+from models import User
 from registry import register_with_central
 import comms
 import email_templates
@@ -127,10 +129,31 @@ def create_app() -> FastAPI:
     uploads_dir.mkdir(parents=True, exist_ok=True)
     app.mount("/api/chat/uploads", StaticFiles(directory=str(uploads_dir)), name="chat_uploads")
 
-    # Static mount for chat uploads
-    uploads_dir = Path(cfg.db_path).parent / "chat_uploads"
-    uploads_dir.mkdir(parents=True, exist_ok=True)
-    app.mount("/api/chat/uploads", StaticFiles(directory=str(uploads_dir)), name="chat_uploads")
+    # Authenticated file serving for site inspection photos
+    inspections_dir = Path(cfg.db_path).parent / "site_inspections"
+    inspections_dir.mkdir(parents=True, exist_ok=True)
+
+    @app.get("/api/site-photos/{filename:path}")
+    async def serve_site_photo(filename: str, user: User = Depends(get_current_user)):
+        """Serve inspection photos — requires authentication."""
+        safe = Path(filename).name  # prevent path traversal
+        file_path = inspections_dir / safe
+        if not file_path.is_file():
+            raise HTTPException(status_code=404, detail="Photo not found")
+        return FileResponse(file_path)
+
+    # Authenticated file serving for scanned document uploads
+    scans_dir = Path(cfg.db_path).parent / "dashboard_uploads"
+    scans_dir.mkdir(parents=True, exist_ok=True)
+
+    @app.get("/api/doc-uploads/{filename:path}")
+    async def serve_doc_upload(filename: str, user: User = Depends(get_current_user)):
+        """Serve scanned documents — requires authentication."""
+        safe = Path(filename).name  # prevent path traversal
+        file_path = scans_dir / safe
+        if not file_path.is_file():
+            raise HTTPException(status_code=404, detail="Document not found")
+        return FileResponse(file_path)
 
     @app.get("/api/health")
     async def api_health() -> dict:

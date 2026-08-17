@@ -109,6 +109,7 @@ Not a Hermes skill package — install from the repo:
 | Project | `project-manager` | 9108 |
 | Product | `product-manager` | 9109 |
 | Coding | `coding-agent` | 9110 |
+| Facility Management | `facility-manager` | 9111 |
 
 Full profile matrix: [`PROFILE_CATALOG.md`](PROFILE_CATALOG.md). Recipe graph: [`RECIPE_INDEX.md`](RECIPE_INDEX.md).
 

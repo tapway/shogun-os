@@ -125,6 +125,7 @@ check_skill "shogunify"
 check_skill "customer-communication-onboarding" "crm/customer-communication-onboarding"
 check_skill "respondio-bridge" "crm/respondio-bridge"
 check_skill "chatwoot-bridge" "crm/chatwoot-bridge"
+check_skill "quarters-inspection"
 
 echo ""
 

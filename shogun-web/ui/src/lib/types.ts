@@ -27,8 +27,7 @@ export type DepartmentKey =
   | 'supply-chain'
   | 'visual-merchandising'
   // Plantation industry
-  | 'estate-ops'
-  | 'worker-welfare';
+  | 'facility';
 
 export type IndustryKey = 'general' | 'manufacturing' | 'retail' | 'plantation';
 
@@ -62,7 +61,7 @@ export const INDUSTRY_CATALOG: Record<
     label: 'Plantation',
     description: 'Estate, mill, agriculture',
     icon: '🌴',
-    departments: ['estate-ops', 'worker-welfare'],
+    departments: ['facility'],
   },
 };
 
@@ -75,6 +74,8 @@ export interface User {
   email: string;
   name: string;
   avatar_url?: string | null;
+  logo_url?: string | null;
+  company_name?: string | null;
   first_login: boolean;
   must_change_password: boolean;
   company_id?: string | null;
@@ -523,23 +524,14 @@ export const DEPARTMENT_CATALOG: Record<
     profile_name: 'vm-manager',
   },
   // ── Plantation industry ──
-  'estate-ops': {
-    key: 'estate-ops',
-    name: 'Estate Operations',
-    persona: 'Gozen',
-    description: 'Estate management, document scanning, site inspections.',
+  'facility': {
+    key: 'facility',
+    name: 'Facility Management',
+    persona: 'Eizen',
+    description: 'Facility management, quarters inspection, document scanning, site conditions.',
     color: '#16a34a',
     icon: 'Trees',
-    profile_name: 'estate-ops-manager',
-  },
-  'worker-welfare': {
-    key: 'worker-welfare',
-    name: 'Worker Welfare',
-    persona: 'Ryō',
-    description: 'Staff quarters, welfare, and site conditions.',
-    color: '#0891b2',
-    icon: 'Home',
-    profile_name: 'worker-welfare-manager',
+    profile_name: 'facility-manager',
   },
 };
 

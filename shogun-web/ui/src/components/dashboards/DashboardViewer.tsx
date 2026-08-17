@@ -11,7 +11,7 @@ const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: str
   crm: CrmDashboard,
   finance: FinanceDashboard,
   procurement: ProcurementDashboard,
-  'estate-ops': PlantationDashboard,
+  'facility': PlantationDashboard,
 };
 
 interface DashboardViewerProps {

@@ -1,0 +1,60 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Quarters Inspection Pack",
+  "description": "User-supplied inventory + checklist for staff quarters inspection",
+  "type": "object",
+  "required": ["id", "room_type", "title", "version", "inventory", "checklist"],
+  "properties": {
+    "id": {
+      "type": "string",
+      "description": "Unique pack identifier, e.g. plantation-type-a-v1"
+    },
+    "site_id": {
+      "type": "string",
+      "description": "Site/estate identifier"
+    },
+    "room_type": {
+      "type": "string",
+      "description": "Room type key, e.g. type_a"
+    },
+    "title": {
+      "type": "string",
+      "description": "Human-readable pack title"
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "inventory": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "expected_count"],
+        "properties": {
+          "id": { "type": "string", "description": "Item identifier, e.g. bed" },
+          "label": { "type": "string", "description": "Human-readable label" },
+          "expected_count": { "type": "integer", "minimum": 0 },
+          "required": { "type": "boolean", "default": true }
+        },
+        "additionalProperties": false
+      }
+    },
+    "checklist": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "label", "category", "severity"],
+        "properties": {
+          "id": { "type": "string", "description": "Checklist item identifier" },
+          "label": { "type": "string", "description": "Human-readable label" },
+          "category": { "type": "string", "enum": ["cleanliness", "site_condition", "furniture", "safety"] },
+          "severity": { "type": "string", "enum": ["critical", "major", "minor"] }
+        },
+        "additionalProperties": false
+      }
+    }
+  },
+  "additionalProperties": false
+}

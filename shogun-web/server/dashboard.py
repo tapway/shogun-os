@@ -14,13 +14,15 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 
 from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
+from pydantic import BaseModel
+from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
 from gbrain_client import gbrain_fetch_pages
-from models import Department, User
+from models import Tenant, Department, User
 
 logger = logging.getLogger(__name__)
 
@@ -555,7 +557,7 @@ async def get_dashboard_config(
     db: Session = Depends(get_db),
 ) -> dict:
     """Return dashboard configuration for this department."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     dept = db.query(Department).filter(
         Department.tenant_id == tenant.id, Department.name == name
     ).first()
@@ -577,29 +579,43 @@ async def get_dashboard_config(
         "finance": {
             "enabled": True,
             "tabs": [
-                {"id": "pulse", "label": "Executive Pulse", "icon": "LayoutDashboard"},
-                {"id": "runway", "label": "Cash & Runway", "icon": "TrendingUp"},
-                {"id": "ops", "label": "AR & AP Ops", "icon": "Receipt"},
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "cashflow", "label": "Cash Flow", "icon": "Waves"},
+                {"id": "cash", "label": "Assets", "icon": "TrendingUp"},
+                {"id": "ar", "label": "AR & Collections", "icon": "Receipt"},
+                {"id": "ap", "label": "AP & Payments", "icon": "CreditCard"},
                 {"id": "bva", "label": "Budget vs Actuals", "icon": "BarChart3"},
-                {"id": "compliance", "label": "Close & Tax", "icon": "ShieldCheck"},
+                {"id": "margins", "label": "Margins & Concentration", "icon": "PieChart"},
+                {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
         "procurement": {
             "enabled": True,
             "tabs": [
-                {"id": "pulse", "label": "Procurement & Reorder Pulse", "icon": "LayoutDashboard"},
-                {"id": "inventory", "label": "Inventory & Dead Stock", "icon": "Package"},
-                {"id": "movements", "label": "Stock Movement Audit", "icon": "ArrowLeftRight"},
-                {"id": "po", "label": "POs & Vendor Scorecard", "icon": "ClipboardList"},
+                {"id": "pulse", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "requisitions", "label": "Purchase Requisitions", "icon": "FileText"},
+                {"id": "sourcing", "label": "RFQ & Vendor Sourcing", "icon": "Award"},
+                {"id": "po", "label": "POs & Vendors", "icon": "ClipboardList"},
+                {"id": "inventory", "label": "Inventory", "icon": "Package"},
+                {"id": "barcode", "label": "Warehouse & Stock Audit", "icon": "Warehouse"},
+                {"id": "matching", "label": "Invoice Matching", "icon": "ShieldCheck"},
                 {"id": "bridge", "label": "Accounting Bridge", "icon": "Scale"},
+                {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
-        "estate-ops": {
+        "compliance": {
             "enabled": True,
             "tabs": [
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
-                {"id": "inspect", "label": "Site Inspection", "icon": "Home"},
-                {"id": "stored", "label": "Stored Documents", "icon": "Search"},
+            ],
+        },
+        "facility": {
+            "enabled": True,
+            "tabs": [
+                {"id": "units", "label": "Unit Registration", "icon": "Home"},
+                {"id": "inspect", "label": "Daily Inspection", "icon": "Camera"},
+                {"id": "records", "label": "Inspection Records", "icon": "FileText"},
+                {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
     }
@@ -2192,16 +2208,33 @@ async def get_procurement_stats(
 # ---------------------------------------------------------------------------
 
 
-async def _call_estate_agent(name: str, prompt: str) -> str:
-    """Call the Hermes agent for the estate-ops department via the gateway."""
+async def _call_estate_agent(name: str, prompt: str, photo_paths: Optional[List[str]] = None) -> str:
+    """Call the Hermes agent for the facility department via the gateway.
+
+    If photo_paths are provided, they are passed as image attachments so the
+    gateway base64-encodes them and switches to the Qwen vision model.
+    """
     try:
         from gateway import _generate_department_response_async
     except ImportError:
         # Fallback: try a direct LLM call via the gateway's embedded agent
         return '{"error": "Gateway agent function not available — start the Hermes gateway"}'
 
+    attachments = None
+    if photo_paths:
+        attachments = []
+        for p in photo_paths:
+            ext = pathlib.Path(p).suffix.lower()
+            mime_map = {".png": "image/png", ".jpg": "image/jpeg", ".jpeg": "image/jpeg",
+                        ".webp": "image/webp", ".gif": "image/gif"}
+            attachments.append({
+                "path": p,
+                "is_image": True,
+                "mime_type": mime_map.get(ext, "image/png"),
+            })
+
     response = await _generate_department_response_async(
-        name, prompt, soul_content="", attachments=None
+        name, prompt, soul_content="", attachments=attachments,
     )
     return response
 
@@ -2225,24 +2258,189 @@ async def scan_document(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ):
-    """Upload a document, send to Hermes agent for OCR + interpretation + storage."""
+    """Upload a document, OCR it, then use DeepSeek for summary + interpretation.
+    Saves the scan result to the scanned_documents table.
+
+    Flow: upload → OCR (pymupdf for PDF, vision model for images) → DeepSeek → save.
+    """
+    from models import ScannedDocument
+    from gateway import _call_deepseek
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+
     cfg = get_config()
     upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
-    upload_dir.mkdir(exist_ok=True)
-    file_path = upload_dir / file.filename
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    # Prefix with UUID to prevent filename collisions across tenants
+    import uuid as _uuid
+    safe_name = pathlib.Path(file.filename or "document").name
+    unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+    file_path = upload_dir / unique_name
     with open(file_path, "wb") as f:
         content = await file.read()
         f.write(content)
+    file_url = f"/api/doc-uploads/{unique_name}"
 
-    prompt = (
-        f"Scan the document at {file_path}: "
-        f"OCR it (use document-ocr skill), classify the type (use document-interpretation), "
-        f"extract key fields, generate a summary, and store to gbrain (use document-storage). "
-        f"Return JSON with: document_type, fields, summary, storage_path."
+    # --- Step 1: OCR — extract raw text from the document ---
+    ocr_text = ""
+    ext = pathlib.Path(safe_name).suffix.lower()
+
+    if ext == ".pdf":
+        # Try pymupdf first (text-based PDFs)
+        try:
+            import fitz  # pymupdf
+            doc = fitz.open(str(file_path))
+            for page in doc:
+                ocr_text += page.get_text()
+            doc.close()
+        except ImportError:
+            pass
+        except Exception as exc:
+            logger.warning("pymupdf OCR failed: %s", exc)
+
+    if not ocr_text and ext in (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif"):
+        # Fall back to vision model (scanned PDFs, images)
+        # For scanned PDFs: render pages as images first (PyMuPDF), don't send raw PDF to VLM
+        vision_images = []
+        if ext == ".pdf":
+            try:
+                import fitz
+                doc = fitz.open(str(file_path))
+                for page_num, page in enumerate(doc):
+                    pix = page.get_pixmap(dpi=200)
+                    img_path = file_path.parent / f"{file_path.stem}_p{page_num}.png"
+                    pix.save(str(img_path))
+                    vision_images.append(str(img_path))
+                doc.close()
+            except Exception as exc:
+                logger.warning("PDF page rendering failed: %s", exc)
+        else:
+            vision_images = [str(file_path)]
+
+        try:
+            from gateway import _call_llm_for_department
+            for img_path in vision_images:
+                vision_resp = await _call_llm_for_department(
+                    name,
+                    "OCR this document. Extract ALL text visible in the document. Return the raw text only, no commentary.",
+                    "",
+                    "Document OCR task",
+                    attachments=[{"path": img_path, "is_image": True}],
+                )
+                if vision_resp:
+                    ocr_text += vision_resp + "\n"
+            # Clean up temporary page images
+            for img_path in vision_images:
+                if os.path.abspath(img_path) != os.path.abspath(str(file_path)):
+                    try:
+                        os.remove(img_path)
+                    except OSError:
+                        pass
+        except Exception as exc:
+            logger.warning("Vision OCR fallback failed: %s", exc)
+
+    if not ocr_text:
+        ocr_text = "(OCR could not extract text from this document.)"
+
+    # --- Step 2: Department-specific DeepSeek analysis ---
+    ocr_text_truncated = ocr_text[:8000]  # prevent token overflow
+
+    if name in ("finance", "procurement"):
+        # Finance: extract fields as bullet points, NO summary
+        deepseek_prompt = (
+            f"You are a finance document scanner. Below is the OCR text from an invoice, quotation, or receipt.\n\n"
+            f"=== DOCUMENT TEXT ===\n{ocr_text_truncated}\n=== END DOCUMENT TEXT ===\n\n"
+            f"Extract ALL key fields from this document. Return ONLY a JSON object:\n"
+            f'{{"document_type": "invoice|quotation|receipt|other", '
+            f'"fields": {{'
+            f'"vendor": "vendor/supplier name", '
+            f'"document_number": "invoice/quotation/receipt number", '
+            f'"date": "document date", '
+            f'"due_date": "due date if present", '
+            f'"subtotal": "subtotal amount with currency", '
+            f'"tax": "tax amount with currency", '
+            f'"total": "total amount with currency", '
+            f'"line_items": ["each line item with description and amount"]'
+            f'}}, '
+            f'"validation": {{"valid": true/false, "message": "verify subtotal + tax = total"}}}}\n\n'
+            f"List ALL fields as key-value pairs. Do NOT write a summary. Do NOT add explanation outside JSON."
+        )
+    elif name in ("facility", "compliance"):
+        # Estate Ops / Compliance: summary + interpretation (legal docs, contracts)
+        deepseek_prompt = (
+            f"You are a legal document analyst. Below is the OCR text from a legal document, contract, or agreement.\n\n"
+            f"=== DOCUMENT TEXT ===\n{ocr_text_truncated}\n=== END DOCUMENT TEXT ===\n\n"
+            f"Analyse this legal document. Return ONLY a JSON object:\n"
+            f'{{"document_type": "employment_contract|service_agreement|lease|nda|other", '
+            f'"summary": "3-4 sentences summarising what this document is about, who the parties are, and the key terms", '
+            f'"interpretation": {{'
+            f'"parties": ["list all parties"], '
+            f'"duration": "contract duration if applicable", '
+            f'"value": "contract value or salary if applicable", '
+            f'"key_obligations": ["list key obligations of each party"], '
+            f'"termination_clause": "termination conditions", '
+            f'"penalty_clause": "penalty clauses if any"'
+            f'}}, '
+            f'"risks": ["list any risks: unlimited liability, auto-renewal, short notice, etc."], '
+            f'"recommendations": ["list actionable recommendations"]}}\n\n'
+            f"Write a clear summary (3-4 sentences) AND a detailed interpretation. Both are required."
+        )
+    else:
+        # Generic fallback
+        deepseek_prompt = (
+            f"You are a document analysis assistant. Below is the OCR text from a document.\n\n"
+            f"=== DOCUMENT TEXT ===\n{ocr_text_truncated}\n=== END DOCUMENT TEXT ===\n\n"
+            f"Return ONLY a JSON object with: document_type, fields, summary, risks, validation.\n"
+            f"No markdown fences, no explanation outside JSON."
+        )
+
+    deepseek_response = await _call_deepseek(deepseek_prompt)
+    result = _extract_json_from_text(deepseek_response, is_array=False) if deepseek_response else {"raw_response": deepseek_response or "No response from DeepSeek"}
+
+    # If DeepSeek failed, fall back to the OCR text as summary
+    if not deepseek_response:
+        result = {
+            "document_type": "unknown",
+            "fields": {},
+            "summary": ocr_text[:200] + "..." if len(ocr_text) > 200 else ocr_text,
+            "risks": [],
+            "validation": {"valid": True, "message": "DeepSeek unavailable — showing raw OCR text"},
+            "ocr_text": ocr_text,
+        }
+
+    # Persist to DB
+    doc = ScannedDocument(
+        tenant_id=tenant.id,
+        department=name,
+        scanned_by=user.name or user.email,
+        filename=file.filename or "document",
+        file_path=str(file_path),
+        file_url=file_url,
+        document_type=str(result.get("document_type", "")) if isinstance(result, dict) else "",
+        ocr_summary=str(result.get("summary", "")) if isinstance(result, dict) else "",
+        interpretation=result if isinstance(result, dict) else {"raw_response": result},
     )
-    response_text = await _call_estate_agent(name, prompt)
-    result = _extract_json_from_text(response_text, is_array=False)
-    return result
+    db.add(doc)
+    db.commit()
+    db.refresh(doc)
+    return doc.to_dict()
+
+
+@router.get("/scanned-documents")
+async def list_scanned_documents(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """List all scanned documents for this department."""
+    from models import ScannedDocument
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    docs = db.execute(
+        select(ScannedDocument).where(
+            ScannedDocument.tenant_id == tenant.id,
+            ScannedDocument.department == name,
+        ).order_by(ScannedDocument.scan_date.desc())
+    ).scalars().all()
+    return {"documents": [d.to_dict() for d in docs]}
 
 
 @router.post("/inspect-site")
@@ -2289,3 +2487,331 @@ async def search_documents(
     response_text = await _call_estate_agent(name, prompt)
     results = _extract_json_from_text(response_text, is_array=True)
     return {"results": results}
+
+
+# ---------------------------------------------------------------------------
+# Site Inspection Units — CRUD + inspection upload
+# ---------------------------------------------------------------------------
+
+class CreateUnitPayload(BaseModel):
+    site_name: str
+    block_name: str
+    unit_number: str
+    capacity: int = 1
+    unit_type: str = "single"  # single, family, dormitory
+
+
+class PhotoMeta(BaseModel):
+    """Metadata for a single photo in a save-inspection request."""
+    path: str          # absolute path on server (from assess step)
+    filename: str
+    url: str = ""      # web-accessible URL (/api/site-photos/<basename>)
+    room: str = ""
+    assessment: str = ""
+
+
+class SaveInspectionPayload(BaseModel):
+    """Payload for the second step — persist an assessed inspection."""
+    photos: List[PhotoMeta]
+    furniture_count: str = ""
+    cleanliness: str = ""
+    site_condition: str = ""
+    safety_hazards: str = ""
+    overall_rating: str = ""
+    priority_actions: str = ""
+    merged_assessment: Dict[str, Any] = {}
+
+
+@router.post("/site-units")
+async def create_site_unit(
+    body: CreateUnitPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Register a new staff quarter unit."""
+    from models import SiteInspectionUnit
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    existing = db.execute(
+        select(SiteInspectionUnit).where(
+            SiteInspectionUnit.tenant_id == tenant.id,
+            SiteInspectionUnit.site_name == body.site_name,
+            SiteInspectionUnit.block_name == body.block_name,
+            SiteInspectionUnit.unit_number == body.unit_number,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail="Unit already exists")
+    unit = SiteInspectionUnit(
+        tenant_id=tenant.id,
+        site_name=body.site_name,
+        block_name=body.block_name,
+        unit_number=body.unit_number,
+        capacity=body.capacity,
+        unit_type=body.unit_type,
+    )
+    db.add(unit)
+    db.commit()
+    db.refresh(unit)
+    return unit.to_dict()
+
+
+@router.get("/site-units")
+async def list_site_units(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List all registered units for this tenant."""
+    from models import SiteInspectionUnit
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    units = db.execute(
+        select(SiteInspectionUnit).where(SiteInspectionUnit.tenant_id == tenant.id).order_by(
+            SiteInspectionUnit.site_name, SiteInspectionUnit.block_name, SiteInspectionUnit.unit_number
+        )
+    ).scalars().all()
+    return {"units": [u.to_dict() for u in units]}
+
+
+@router.delete("/site-units/{unit_id}")
+async def delete_site_unit(
+    unit_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a unit and all its inspection records."""
+    from models import SiteInspectionUnit
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    unit = db.execute(
+        select(SiteInspectionUnit).where(
+            SiteInspectionUnit.id == unit_id,
+            SiteInspectionUnit.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+    db.delete(unit)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/site-units/{unit_id}/assess")
+async def assess_unit(
+    unit_id: int,
+    files: List[UploadFile] = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Step 1 — upload photos, run vision assessment, return results WITHOUT saving to DB.
+
+    Photos are saved to disk so the LLM can read them and so the caller can
+    display them via /api/site-photos/<basename>.  The caller must POST the
+    returned photos + assessment to /site-units/{id}/inspections to persist.
+    """
+    from models import SiteInspectionUnit
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    unit = db.execute(
+        select(SiteInspectionUnit).where(
+            SiteInspectionUnit.id == unit_id,
+            SiteInspectionUnit.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "site_inspections"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    photos: List[Dict[str, Any]] = []
+    for i, f in enumerate(files):
+        safe_name = pathlib.Path(f.filename or f"photo_{i}").name
+        # Sanitize unit fields to produce URL-safe filenames (no spaces/slashes)
+        def _slug(s: str) -> str:
+            return "".join(c if c.isalnum() or c in "-_" else "_" for c in s)
+        stored_name = f"{_slug(unit.site_name)}_{_slug(unit.block_name)}_{_slug(unit.unit_number)}_{i}_{safe_name}"
+        file_path = upload_dir / stored_name
+        with open(file_path, "wb") as out:
+            content = await f.read()
+            out.write(content)
+        photos.append({
+            "path": str(file_path),
+            "filename": f.filename or f"photo_{i}",
+            "url": f"/api/site-photos/{stored_name}",
+            "room": "",
+            "assessment": "",
+        })
+
+    # --- Run 3 atomic skills PER PHOTO ---
+    # Each photo gets its own furniture-count, cleanliness-check, site-condition-check
+    # call (with that single photo as the image attachment).
+    # Photos are processed sequentially to avoid Dashscope 429 burst-rate limiting.
+    async def _assess_one_photo(photo: Dict[str, Any], idx: int) -> Dict[str, Any]:
+        single_path = [photo["path"]]
+
+        async def _run_skill(skill_name: str, instruction: str) -> Dict[str, Any]:
+            prompt = (
+                f"Use the {skill_name} skill. {instruction}\n"
+                f"Photo to assess:\n- {photo['path']}\n\n"
+                f"Return ONLY a JSON object with your assessment."
+            )
+            text = await _call_estate_agent("facility", prompt, photo_paths=single_path)
+            return _extract_json_from_text(text, is_array=False)
+
+        furniture, cleanliness, condition = await asyncio.gather(
+            _run_skill("furniture-count", "Count and catalog every visible piece of furniture in this photo. Return JSON: {furniture: [{item, quantity, condition}], total_items, summary}."),
+            _run_skill("cleanliness-check", "Assess the cleanliness of each surface visible in this photo. Return JSON: {cleanliness: {floor, walls, bedding, surfaces, overall}, summary}."),
+            _run_skill("site-condition-check", "Assess the structural condition (walls, ceiling, windows, lighting, ventilation) and safety hazards in this photo. Return JSON: {site_condition: {walls, ceiling, windows, lighting, ventilation}, safety_hazards: [...], overall_rating, priority_actions: [...]}."),
+        )
+        return {
+            "filename": photo["filename"],
+            "url": photo["url"],
+            "path": photo["path"],
+            "furniture_result": furniture,
+            "cleanliness_result": cleanliness,
+            "condition_result": condition,
+        }
+
+    # Process photos sequentially (each photo's 3 skills run in parallel internally)
+    per_photo = []
+    for i, photo in enumerate(photos):
+        result = await _assess_one_photo(photo, i)
+        per_photo.append(result)
+
+    # Merge per-photo assessments into the photos list for backward compat
+    for i, pr in enumerate(per_photo):
+        if i < len(photos):
+            photos[i]["assessment"] = ""
+
+    return {
+        "unit_id": unit.id,
+        "unit_label": f"{unit.site_name} — {unit.block_name} — {unit.unit_number}",
+        "photos": photos,
+        # Per-photo results — each photo has its own 3 skill results
+        "per_photo": per_photo,
+        # Flattened overall summary (aggregated across all photos)
+        "furniture_count": sum(len(pr.get("furniture_result", {}).get("furniture", [])) for pr in per_photo) if per_photo else 0,
+        # Cleanliness overall — take first photo (cleanliness is uniform per room, not per photo)
+        "cleanliness": per_photo[0].get("cleanliness_result", {}).get("cleanliness", {}).get("overall", "") if per_photo else "",
+        # Aggregate safety hazards + priority actions across all photos
+        "site_condition": "; ".join(
+            s for pr in per_photo
+            for s in (pr.get("condition_result", {}).get("site_condition", {}).values() if isinstance(pr.get("condition_result", {}).get("site_condition"), dict) else [])
+            if s
+        ) if per_photo else "",
+        "safety_hazards": "; ".join(
+            h for pr in per_photo
+            for h in (pr.get("condition_result", {}).get("safety_hazards") or [])
+        ) if per_photo else "",
+        "overall_rating": "; ".join(
+            pr.get("condition_result", {}).get("overall_rating", "")
+            for pr in per_photo
+            if pr.get("condition_result", {}).get("overall_rating")
+        ) if per_photo else "",
+        "priority_actions": "; ".join(
+            a for pr in per_photo
+            for a in (pr.get("condition_result", {}).get("priority_actions") or [])
+        ) if per_photo else "",
+        "merged_assessment": {
+            "per_photo": per_photo,
+        },
+    }
+
+
+@router.post("/site-units/{unit_id}/inspections")
+async def save_inspection(
+    unit_id: int,
+    body: SaveInspectionPayload,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Step 2 — persist an assessed inspection (photos + results) to the database.
+
+    Called after the user reviews the assessment from /assess and clicks Close/Save.
+    """
+    from models import SiteInspectionUnit, SiteInspection
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    unit = db.execute(
+        select(SiteInspectionUnit).where(
+            SiteInspectionUnit.id == unit_id,
+            SiteInspectionUnit.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not unit:
+        raise HTTPException(status_code=404, detail="Unit not found")
+
+    inspection = SiteInspection(
+        tenant_id=tenant.id,
+        unit_id=unit.id,
+        inspected_by=user.name or user.email,
+        photos=[p.model_dump() for p in body.photos],
+        merged_assessment=body.merged_assessment or None,
+        furniture_count=body.furniture_count,
+        cleanliness=body.cleanliness,
+        site_condition=body.site_condition,
+        safety_hazards=body.safety_hazards,
+        overall_rating=body.overall_rating,
+        priority_actions=body.priority_actions,
+    )
+    db.add(inspection)
+    db.commit()
+    db.refresh(inspection)
+    return inspection.to_dict()
+
+
+@router.get("/site-units/{unit_id}/inspections")
+async def list_unit_inspections(
+    unit_id: int,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get inspection history for a unit."""
+    from models import SiteInspection
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    inspections = db.execute(
+        select(SiteInspection).where(
+            SiteInspection.unit_id == unit_id,
+            SiteInspection.tenant_id == tenant.id,
+        ).order_by(SiteInspection.inspection_date.desc())
+    ).scalars().all()
+    return {"inspections": [i.to_dict() for i in inspections]}
+
+
+@router.get("/inspections")
+async def list_all_inspections(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    unit_ids: Optional[str] = Query(None, description="Comma-separated unit IDs"),
+    date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+) -> dict:
+    """Get all inspection records for this tenant, optionally filtered by units and date range."""
+    from models import SiteInspection
+    from datetime import datetime as _dt, timezone as _tz
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    query = select(SiteInspection).where(SiteInspection.tenant_id == tenant.id)
+
+    # Filter by unit IDs (comma-separated)
+    if unit_ids:
+        try:
+            ids = [int(x.strip()) for x in unit_ids.split(",") if x.strip()]
+            if ids:
+                query = query.where(SiteInspection.unit_id.in_(ids))
+        except ValueError:
+            pass
+
+    # Filter by date range
+    if date_from:
+        try:
+            df = _dt.fromisoformat(date_from).replace(tzinfo=_tz.utc)
+            query = query.where(SiteInspection.inspection_date >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = _dt.fromisoformat(date_to).replace(tzinfo=_tz.utc) + timedelta(days=1)  # inclusive end
+            query = query.where(SiteInspection.inspection_date < dt)
+        except ValueError:
+            pass
+
+    query = query.order_by(SiteInspection.inspection_date.desc())
+    inspections = db.execute(query).scalars().all()
+    return {"inspections": [i.to_dict() for i in inspections]}
