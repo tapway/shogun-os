@@ -1,0 +1,25 @@
+{
+  "id": "plantation-type-a-v1",
+  "site_id": "estate-demo",
+  "room_type": "type_a",
+  "title": "Plantation Staff Quarter — Type A",
+  "version": 1,
+  "inventory": [
+    { "id": "bed", "label": "Bed", "expected_count": 2, "required": true },
+    { "id": "mattress", "label": "Mattress", "expected_count": 2, "required": true },
+    { "id": "cupboard", "label": "Cupboard", "expected_count": 1, "required": true },
+    { "id": "fan", "label": "Ceiling fan", "expected_count": 1, "required": false },
+    { "id": "table", "label": "Study table", "expected_count": 1, "required": false },
+    { "id": "chair", "label": "Chair", "expected_count": 1, "required": false }
+  ],
+  "checklist": [
+    { "id": "floors_clean", "label": "Floors free of litter and standing water", "category": "cleanliness", "severity": "major" },
+    { "id": "no_mold", "label": "No visible mold on walls/ceiling", "category": "site_condition", "severity": "critical" },
+    { "id": "furniture_undamaged", "label": "Furniture free of major damage", "category": "furniture", "severity": "major" },
+    { "id": "bedding_clean", "label": "Bedding is clean and fresh", "category": "cleanliness", "severity": "major" },
+    { "id": "walls_intact", "label": "Walls have no cracks or peeling paint", "category": "site_condition", "severity": "major" },
+    { "id": "lighting_functional", "label": "Lighting fixtures are functional", "category": "site_condition", "severity": "minor" },
+    { "id": "ventilation_adequate", "label": "Adequate ventilation (window or fan)", "category": "site_condition", "severity": "major" },
+    { "id": "no_safety_hazards", "label": "No exposed wiring or fire hazards", "category": "safety", "severity": "critical" }
+  ]
+}
