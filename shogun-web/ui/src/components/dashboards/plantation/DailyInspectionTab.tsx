@@ -39,7 +39,10 @@ interface AssessResult {
   per_photo: PerPhotoResult[];
   furniture_count: number;
   cleanliness: string;
+  site_condition: string;
+  safety_hazards: string;
   overall_rating: string;
+  priority_actions: string;
   merged_assessment: { per_photo: PerPhotoResult[] };
 }
 
@@ -63,6 +66,8 @@ export function DailyInspectionTab() {
 
   const handleFiles = (fileList: FileList | null) => {
     if (!fileList) return;
+    // Revoke previous blob URLs to prevent memory leak
+    previews.forEach((url) => URL.revokeObjectURL(url));
     const arr = Array.from(fileList);
     setFiles(arr);
     setPreviews(arr.map((f) => URL.createObjectURL(f)));
@@ -109,10 +114,10 @@ export function DailyInspectionTab() {
           photos: result.photos.map((p) => ({ path: p.path, filename: p.filename, url: p.url, room: p.room, assessment: '' })),
           furniture_count: String(result.furniture_count),
           cleanliness: result.cleanliness,
-          site_condition: '',
-          safety_hazards: '',
+          site_condition: result.site_condition || '',
+          safety_hazards: result.safety_hazards || '',
           overall_rating: result.overall_rating,
-          priority_actions: '',
+          priority_actions: result.priority_actions || '',
           merged_assessment: result.merged_assessment,
         }),
       });
@@ -122,6 +127,7 @@ export function DailyInspectionTab() {
       }
       setSavedMsg(`Saved — inspection #${(await res.json()).id} recorded.`);
       setResult(null);
+      previews.forEach((url) => URL.revokeObjectURL(url));
       setFiles([]);
       setPreviews([]);
       setSelectedUnit(null);
@@ -134,8 +140,10 @@ export function DailyInspectionTab() {
 
   const handleCloseDiscard = () => {
     setResult(null);
+    previews.forEach((url) => URL.revokeObjectURL(url));
     setFiles([]);
     setPreviews([]);
+    setSelectedUnit(null);
     setError(null);
   };
 

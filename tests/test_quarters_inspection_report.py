@@ -62,10 +62,12 @@ class TestMissingKeys:
 
 
 class TestFailedItemsCrossCheck:
-    def test_failed_item_missing_from_failed_items(self):
+    def test_failed_item_without_fail_status(self):
+        """An id in failed_items must have a corresponding fail status."""
         r = valid_report()
-        r["failed_items"] = ["no_mold"]  # cupboard is also fail but missing
-        with pytest.raises(ReportValidationError, match="'cupboard' has status 'fail' but is missing"):
+        # "bed" has status "pass" but we add it to failed_items
+        r["failed_items"] = ["cupboard", "no_mold", "bed"]
+        with pytest.raises(ReportValidationError, match="in failed_items but has no corresponding fail"):
             validate_report(r)
 
     def test_overall_status_pass_with_fails(self):
@@ -115,3 +117,37 @@ class TestDuplicateIds:
         r["checklist_results"][1]["id"] = r["checklist_results"][0]["id"]
         with pytest.raises(ReportValidationError, match="Duplicate checklist_results id"):
             validate_report(r)
+
+
+class TestOptionalFieldValidation:
+    def test_invalid_confidence(self):
+        r = valid_report(confidence="certain")
+        with pytest.raises(ReportValidationError, match="confidence.*must be"):
+            validate_report(r)
+
+    def test_valid_confidence(self):
+        for level in ("low", "medium", "high"):
+            validate_report(valid_report(confidence=level))
+
+    def test_invalid_media_count_type(self):
+        r = valid_report(media_count="four")
+        with pytest.raises(ReportValidationError, match="media_count.*must be"):
+            validate_report(r)
+
+    def test_negative_media_count(self):
+        r = valid_report(media_count=-1)
+        with pytest.raises(ReportValidationError, match="media_count.*must be"):
+            validate_report(r)
+
+    def test_missing_confidence_ok(self):
+        """confidence is optional — absent should pass."""
+        r = valid_report()
+        del r["confidence"]
+        validate_report(r)
+
+    def test_missing_media_count_ok(self):
+        """media_count is optional — absent should pass."""
+        r = valid_report()
+        if "media_count" in r:
+            del r["media_count"]
+        validate_report(r)

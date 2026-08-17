@@ -2229,7 +2229,6 @@ async def _call_estate_agent(name: str, prompt: str, photo_paths: Optional[List[
                         ".webp": "image/webp", ".gif": "image/gif"}
             attachments.append({
                 "path": p,
-                "url": f"site-photo{ext}",  # triggers is_image detection in gateway
                 "is_image": True,
                 "mime_type": mime_map.get(ext, "image/png"),
             })
@@ -2271,12 +2270,15 @@ async def scan_document(
     cfg = get_config()
     upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
     upload_dir.mkdir(parents=True, exist_ok=True)
+    # Prefix with UUID to prevent filename collisions across tenants
+    import uuid as _uuid
     safe_name = pathlib.Path(file.filename or "document").name
-    file_path = upload_dir / safe_name
+    unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+    file_path = upload_dir / unique_name
     with open(file_path, "wb") as f:
         content = await file.read()
         f.write(content)
-    file_url = f"/api/doc-uploads/{safe_name}"
+    file_url = f"/api/doc-uploads/{unique_name}"
 
     # --- Step 1: OCR — extract raw text from the document ---
     ocr_text = ""
@@ -2297,17 +2299,42 @@ async def scan_document(
 
     if not ocr_text and ext in (".pdf", ".png", ".jpg", ".jpeg", ".webp", ".gif"):
         # Fall back to vision model (scanned PDFs, images)
+        # For scanned PDFs: render pages as images first (PyMuPDF), don't send raw PDF to VLM
+        vision_images = []
+        if ext == ".pdf":
+            try:
+                import fitz
+                doc = fitz.open(str(file_path))
+                for page_num, page in enumerate(doc):
+                    pix = page.get_pixmap(dpi=200)
+                    img_path = file_path.parent / f"{file_path.stem}_p{page_num}.png"
+                    pix.save(str(img_path))
+                    vision_images.append(str(img_path))
+                doc.close()
+            except Exception as exc:
+                logger.warning("PDF page rendering failed: %s", exc)
+        else:
+            vision_images = [str(file_path)]
+
         try:
             from gateway import _call_llm_for_department
-            vision_resp = await _call_llm_for_department(
-                name,
-                "OCR this document. Extract ALL text visible in the document. Return the raw text only, no commentary.",
-                "",
-                "Document OCR task",
-                attachments=[{"path": str(file_path), "url": f"doc{ext}", "is_image": True, "mime_type": "application/pdf" if ext == ".pdf" else f"image/{ext[1:]}"}],
-            )
-            if vision_resp:
-                ocr_text = vision_resp
+            for img_path in vision_images:
+                vision_resp = await _call_llm_for_department(
+                    name,
+                    "OCR this document. Extract ALL text visible in the document. Return the raw text only, no commentary.",
+                    "",
+                    "Document OCR task",
+                    attachments=[{"path": img_path, "is_image": True}],
+                )
+                if vision_resp:
+                    ocr_text += vision_resp + "\n"
+            # Clean up temporary page images
+            for img_path in vision_images:
+                if os.path.abspath(img_path) != os.path.abspath(str(file_path)):
+                    try:
+                        os.remove(img_path)
+                    except OSError:
+                        pass
         except Exception as exc:
             logger.warning("Vision OCR fallback failed: %s", exc)
 
@@ -2660,13 +2687,29 @@ async def assess_unit(
         "photos": photos,
         # Per-photo results — each photo has its own 3 skill results
         "per_photo": per_photo,
-        # Flattened overall summary (for backward-compat display)
+        # Flattened overall summary (aggregated across all photos)
         "furniture_count": sum(len(pr.get("furniture_result", {}).get("furniture", [])) for pr in per_photo) if per_photo else 0,
+        # Cleanliness overall — take first photo (cleanliness is uniform per room, not per photo)
         "cleanliness": per_photo[0].get("cleanliness_result", {}).get("cleanliness", {}).get("overall", "") if per_photo else "",
-        "site_condition": "",
-        "safety_hazards": "",
-        "overall_rating": per_photo[0].get("condition_result", {}).get("overall_rating", "") if per_photo else "",
-        "priority_actions": "",
+        # Aggregate safety hazards + priority actions across all photos
+        "site_condition": "; ".join(
+            s for pr in per_photo
+            for s in (pr.get("condition_result", {}).get("site_condition", {}).values() if isinstance(pr.get("condition_result", {}).get("site_condition"), dict) else [])
+            if s
+        ) if per_photo else "",
+        "safety_hazards": "; ".join(
+            h for pr in per_photo
+            for h in (pr.get("condition_result", {}).get("safety_hazards") or [])
+        ) if per_photo else "",
+        "overall_rating": "; ".join(
+            pr.get("condition_result", {}).get("overall_rating", "")
+            for pr in per_photo
+            if pr.get("condition_result", {}).get("overall_rating")
+        ) if per_photo else "",
+        "priority_actions": "; ".join(
+            a for pr in per_photo
+            for a in (pr.get("condition_result", {}).get("priority_actions") or [])
+        ) if per_photo else "",
         "merged_assessment": {
             "per_photo": per_photo,
         },

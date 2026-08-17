@@ -106,28 +106,43 @@ def validate_report(report: Dict[str, Any]) -> None:
         if not isinstance(fid, str):
             raise ReportValidationError(f"failed_items[{i}] must be a string")
 
-    # Cross-check: every failed inventory/checklist id must appear in failed_items
-    expected_failed: List[str] = []
+    # Cross-check: every id in failed_items must actually have status=fail
+    # (but not every fail must be in failed_items — optional items may fail
+    #  without contributing to failed_items / overall_status)
+    all_fail_ids: set[str] = set()
     for item in inv:
         if item["status"] == "fail":
-            expected_failed.append(item["id"])
+            all_fail_ids.add(item["id"])
     for item in cl:
         if item["status"] == "fail":
-            expected_failed.append(item["id"])
+            all_fail_ids.add(item["id"])
 
-    for ef in expected_failed:
-        if ef not in failed:
+    # Every id in failed_items must actually be a fail
+    for fid in failed:
+        if fid not in all_fail_ids:
             raise ReportValidationError(
-                f"'{ef}' has status 'fail' but is missing from failed_items"
+                f"'{fid}' is in failed_items but has no corresponding fail status"
             )
 
     # Cross-check: overall_status must match failed_items
-    has_fails = len(expected_failed) > 0
+    has_fails = len(failed) > 0
     if has_fails and report["overall_status"] != "fail":
         raise ReportValidationError(
-            f"overall_status is '{report['overall_status']}' but there are {len(expected_failed)} failed items"
+            f"overall_status is '{report['overall_status']}' but there are {len(failed)} failed items"
         )
     if not has_fails and report["overall_status"] != "pass":
         raise ReportValidationError(
             f"overall_status is '{report['overall_status']}' but there are no failed items"
         )
+
+    # Validate optional schema-constrained fields (keep in sync with report.schema.json)
+    if "confidence" in report:
+        if report["confidence"] not in ("low", "medium", "high"):
+            raise ReportValidationError(
+                f"'confidence' must be 'low', 'medium', or 'high', got '{report['confidence']}'"
+            )
+    if "media_count" in report:
+        if not isinstance(report["media_count"], int) or report["media_count"] < 0:
+            raise ReportValidationError(
+                f"'media_count' must be a non-negative integer, got {report.get('media_count')!r}"
+            )

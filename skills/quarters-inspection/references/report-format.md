@@ -60,6 +60,10 @@ See `schema/quarters-inspection/report.schema.json` for the formal JSON Schema.
 - `overall_status: "pass"` — iff no `fail` in inventory_results or checklist_results
 - `overall_status: "fail"` — if any item fails (missing required inventory = fail)
 
+## Fail-Closed Policy
+
+Checklist items not assessed by the VLM (e.g. blocked camera angle, item not visible) default to `status: "fail"`. This is **stricter than inventory handling** (where missing items default to observed=0) because checklist items are safety-critical (no mold, no exposed wiring). A checklist item the VLM couldn't assess is treated as a failure requiring follow-up, not silently skipped.
+
 ## Markdown Render
 
 The `render_report_markdown()` function produces:

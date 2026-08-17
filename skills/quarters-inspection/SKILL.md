@@ -40,7 +40,7 @@ inspect pack plantation-type-a-v1
 
 If no pack supplied, default rubrics from the atomic skills are used.
 
-### 2. Inspect Unit (Telegram)
+### 2. Inspect Unit (Telegram — pack-driven flow)
 
 ```
 inspect <site_id> <unit_id> [pack_id]
@@ -49,15 +49,24 @@ inspect <site_id> <unit_id> [pack_id]
 
 The agent:
 1. Loads the pack (or uses defaults)
-2. Builds VLM prompt via `assess_media_prompt.py`
-3. Calls the 3 atomic skills per photo:
-   - `furniture-count` → counts items vs pack inventory
-   - `cleanliness-check` → assesses surfaces vs checklist
-   - `site-condition-check` → assesses structure + safety
-4. Parses VLM JSON via `parse_observations_json()`
+2. Builds a single VLM prompt via `assess_media_prompt.py` from the pack's inventory + checklist
+3. Sends photos + prompt to the VLM (Qwen-VL)
+4. Parses VLM JSON response via `parse_observations_json()` — expects shape: `{inventory: [{id, observed}], checklist: [{id, status}], summaries, confidence}`
 5. Builds report via `build_report.py` (deterministic pass/fail)
 6. Renders markdown report
-7. Replies with structured report + failed flags
+
+### 2b. Inspect Unit (Web portal — atomic skills flow)
+
+The web portal uses a **separate path** that calls 3 atomic skills independently per photo:
+- `furniture-count` → emits `{furniture: [{item, quantity, condition}], total_items, summary}`
+- `cleanliness-check` → emits `{cleanliness: {floor, walls, bedding, surfaces, overall}, summary}`
+- `site-condition-check` → emits `{site_condition: {...}, safety_hazards: [...], overall_rating, priority_actions: [...]}`
+
+These atomic skill outputs are stored directly in `merged_assessment.per_photo[]` — they do **not** go through `build_report.py`. The two flows are separate:
+- **Telegram/pack-driven**: `assess_media_prompt.py` → VLM → `parse_observations_json()` → `build_report.py` → structured pass/fail report
+- **Web portal/atomic**: 3 separate VLM calls → per-photo JSON stored in DB → displayed in dashboard UI
+
+The agent replies with a structured report + failed flags.
 
 ### 3. Inspect Unit (Web Portal)
 
@@ -92,3 +101,5 @@ Structured report (see `references/report-format.md`):
 - ❌ Skipping validation — always run `validate_report()` on the final report
 - ❌ Resident identity/face recognition — not in scope, do not attempt
 - ❌ Auto work orders — v1 only reports, does not create maintenance tickets
+- ⚠️ **Fail-closed checklist**: unassessed checklist items default to "fail" — this is intentional (safety-critical). If the VLM can't see an item, the report flags it for manual follow-up rather than silently passing.
+- ⚠️ **Two separate flows**: Telegram (pack-driven → `build_report.py`) and web portal (atomic skills → per-photo JSON in DB) produce different output shapes. See workflow sections 2 and 2b above.

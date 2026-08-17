@@ -13,8 +13,11 @@ Usage:
 
 from __future__ import annotations
 
+import logging
 from datetime import datetime, timezone
 from typing import Any, Dict, List, Optional
+
+logger = logging.getLogger(__name__)
 
 # Import validators from sibling module
 import os
@@ -51,21 +54,35 @@ def build_report(
     pack_inv = {item["id"]: item for item in pack["inventory"]}
     pack_cl = {item["id"]: item for item in pack["checklist"]}
 
-    obs_inv = {item["id"]: item for item in observations.get("inventory", [])}
-    obs_cl = {item["id"]: item for item in observations.get("checklist", [])}
+    # Safely build observation lookups — guard against malformed VLM output
+    # (VLM may return non-dict items like ["bed", "mattress"] or [42])
+    obs_inv: Dict[str, Dict[str, Any]] = {}
+    for item in observations.get("inventory", []):
+        if isinstance(item, dict) and "id" in item and isinstance(item["id"], str):
+            obs_inv[item["id"]] = item
+        else:
+            logger.debug("Dropping malformed inventory observation: %r", item)
+
+    obs_cl: Dict[str, Dict[str, Any]] = {}
+    for item in observations.get("checklist", []):
+        if isinstance(item, dict) and "id" in item and isinstance(item["id"], str):
+            obs_cl[item["id"]] = item
+        else:
+            logger.debug("Dropping malformed checklist observation: %r", item)
 
     # Build inventory_results
     inventory_results: List[Dict[str, Any]] = []
     for inv_id, inv_item in pack_inv.items():
         expected = inv_item["expected_count"]
         obs = obs_inv.get(inv_id, {})
-        observed = obs.get("observed", 0)
-        # pass if observed >= expected (for required items); for optional, pass if observed >= 0
+        observed = obs.get("observed", 0) if isinstance(obs, dict) else 0
         required = inv_item.get("required", True)
         if required:
             status = "pass" if observed >= expected else "fail"
         else:
-            status = "pass" if observed >= 0 else "fail"
+            # Optional items: report status but never contribute to failed_items
+            # Use expected as threshold so missing optional items are flagged as informational
+            status = "pass" if observed >= expected else "fail"
         inventory_results.append({
             "id": inv_id,
             "label": inv_item.get("label", inv_id),
@@ -76,10 +93,18 @@ def build_report(
         })
 
     # Build checklist_results
+    # Fail-closed policy: absent checklist items (VLM didn't assess them, e.g. blocked
+    # camera angle) default to "fail". This is stricter than inventory handling but
+    # ensures safety-critical checks (no mold, no exposed wiring) are never silently
+    # skipped. Documented in SKILL.md and report-format.md.
     checklist_results: List[Dict[str, Any]] = []
     for cl_id, cl_item in pack_cl.items():
         obs = obs_cl.get(cl_id, {})
-        status = obs.get("status", "fail")  # default fail if not observed
+        if not isinstance(obs, dict):
+            obs = {}
+        status = obs.get("status", "fail")  # fail-closed: unassessed = fail
+        if status not in ("pass", "fail"):
+            status = "fail"  # sanitize invalid statuses
         checklist_results.append({
             "id": cl_id,
             "label": cl_item.get("label", cl_id),
@@ -87,11 +112,15 @@ def build_report(
             "notes": obs.get("notes", ""),
         })
 
-    # Derive failed_items
+    # Derive failed_items — only from required inventory items + checklist items
+    # Optional inventory items that fail are reported but don't contribute to overall_status
     failed_items: List[str] = []
     for item in inventory_results:
         if item["status"] == "fail":
-            failed_items.append(item["id"])
+            # Only required items contribute to failed_items / overall_status
+            pack_item = pack_inv.get(item["id"], {})
+            if pack_item.get("required", True):
+                failed_items.append(item["id"])
     for item in checklist_results:
         if item["status"] == "fail":
             failed_items.append(item["id"])

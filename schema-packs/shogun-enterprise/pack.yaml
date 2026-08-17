@@ -335,6 +335,23 @@ page_types:
     extractable: true
     expert_routing: true
 
+  # ── Facilities ──────────────────────────────────────────────────
+  - name: inspection-pack
+    primitive: concept
+    path_prefixes:
+      - facilities/packs/
+    aliases: []
+    extractable: true
+    expert_routing: false
+
+  - name: quarters-inspection
+    primitive: temporal
+    path_prefixes:
+      - facilities/inspections/
+    aliases: []
+    extractable: true
+    expert_routing: false
+
 # ──────────────────────────────────────────────────────────────────
 # Link verbs (enterprise relationship types)
 # ──────────────────────────────────────────────────────────────────
@@ -395,23 +412,6 @@ link_types:
   - name: references
     inference:
       regex: \\b(references|references|refers to|see also)\\b
-
-  # ── Facilities ──────────────────────────────────────────────────
-  - name: inspection-pack
-    primitive: concept
-    path_prefixes:
-      - facilities/packs/
-    aliases: []
-    extractable: true
-    expert_routing: false
-
-  - name: quarters-inspection
-    primitive: temporal
-    path_prefixes:
-      - facilities/inspections/
-    aliases: []
-    extractable: true
-    expert_routing: false
 
 # ──────────────────────────────────────────────────────────────────
 # Frontmatter links: field → verb mappings per page type

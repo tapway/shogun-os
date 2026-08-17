@@ -189,3 +189,25 @@ def test_missing_observations_default_to_fail():
     # mattress (required, expected 2) and cupboard (required, expected 1) should fail
     assert "mattress" in report["failed_items"]
     assert "cupboard" in report["failed_items"]
+    # fan (optional, expected 1, observed 0) should have status fail but NOT in failed_items
+    fan_result = [r for r in report["inventory_results"] if r["id"] == "fan"][0]
+    assert fan_result["status"] == "fail"
+    assert "fan" not in report["failed_items"]
+
+
+def test_malformed_vlm_json_does_not_crash():
+    """VLM returns non-dict items (strings, ints) — build_report must not crash."""
+    pack = load_sample_pack()
+    malformed_obs = {
+        "inventory": ["bed", "mattress", 42, None, {"id": "bed", "observed": 2}],
+        "checklist": ["floors_clean", 99, {"id": "no_mold", "status": "fail"}],
+    }
+    meta = {"unit_id": "test", "submitter": "test"}
+    report = build_report(pack, malformed_obs, meta)
+    # bed should be present (valid entry), others dropped
+    bed = [r for r in report["inventory_results"] if r["id"] == "bed"][0]
+    assert bed["observed"] == 2
+    assert bed["status"] == "pass"
+    # no_mold should be fail (from valid checklist entry)
+    assert "no_mold" in report["failed_items"]
+    assert report["overall_status"] == "fail"
