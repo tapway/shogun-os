@@ -208,14 +208,18 @@ for node in ast.walk(gp_tree):
                     break
 
 expected_types = {"base", "coding", "engineering", "hr", "finance", "procurement",
-                  "crm", "product", "marketing", "compliance", "support", "executive", "all"}
+                  "crm", "product", "marketing", "compliance", "support", "executive",
+                  "project-manager", "all",
+                  "production", "quality", "maintenance", "warehouse", "hse", "stores",
+                  "merchandising", "ecommerce", "crm-retail", "supplychain", "vm",
+                  "facility"}
 actual_types = set(profile_types)
 if actual_types == expected_types:
-    ok(f"PROFILE_META has 13 types", f"{len(actual_types)} found: {sorted(actual_types)}")
+    ok(f"PROFILE_META has {len(actual_types)} types", f"{len(actual_types)} found: {sorted(actual_types)}")
 else:
     missing = expected_types - actual_types
     extra = actual_types - expected_types
-    fail("PROFILE_META has 13 types", f"missing: {missing}, extra: {extra}")
+    fail(f"PROFILE_META has {len(expected_types)} types", f"missing: {missing}, extra: {extra}")
 
 # 3.2 SOUL_SNIPPETS dict exists
 has_soul_snippets = False
