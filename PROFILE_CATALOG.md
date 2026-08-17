@@ -425,6 +425,21 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 
 ---
 
+## Plantation Industry (Estate, Mill, Agriculture)
+
+| # | Profile | Persona | Kanji | Role | Profile slug | Gateway port |
+|---|---------|---------|-------|------|-------------|-------------|
+| 1 | Facility Management | Eizen | 営繕 | Staff quarters inspection, facility management, document scanning | `facility-manager` | 9111 |
+
+| Aspect | Value |
+|--------|-------|
+| Skills | `company-workflow`, `quarters-inspection`, `furniture-count`, `cleanliness-check`, `site-condition-check`, `estate-legal-scan` |
+| Gbrain source | `facilities/` |
+| Cron templates | none |
+| SOUL snippet | `facility-soul` |
+
+---
+
 ## Choosing an Industry
 
 During `./scripts/install.sh --deploy`, you'll be prompted to select your industry (`--deploy` is boolean; do not pass `--deploy all`):
@@ -432,6 +447,7 @@ During `./scripts/install.sh --deploy`, you'll be prompted to select your indust
 1. **General** (services, consulting, software) — deploys Projects + Product on top of shared profiles (~10 profiles)
 2. **Manufacturing** (factory, production, OEM) — deploys Production, Quality, Maintenance, Warehouse, HSE on top of shared profiles (~13 profiles)
 3. **Retail** (stores, e-commerce, omnichannel) — deploys Stores, Merchandising, E-commerce, CRM-Loyalty, Supply Chain, VM (~14 profiles)
+4. **Plantation** (estate, mill, agriculture) — deploys Facility Management on top of shared profiles (~9 profiles)
 
 To skip the prompt:
 

@@ -79,7 +79,8 @@ gbrain sources/
 ├── marketing/
 ├── compliance/
 ├── engineering/
-└── support/
+├── support/
+└── facilities/      ← Facility management (quarters inspection packs + reports)
 ```
 
 **Federated read:** Every profile can read from `shared/` (staff directory, company policies, taxonomy). Writes go to the profile's own source.
