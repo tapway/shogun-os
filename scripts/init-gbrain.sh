@@ -179,12 +179,9 @@ else
   if [[ "$USER_EXISTS" == "1" ]]; then
     ok "gbrain database user already exists"
   else
-<<<<<<< HEAD
     # ⚠️  SECURITY: Using well-known default password. Change post-install:
     #   sudo -u postgres psql -c "ALTER USER gbrain PASSWORD '<strong-password>';"
     #   Then update ~/.pgpass: 127.0.0.1:5432:gbrain:gbrain:<strong-password>
-=======
->>>>>>> e91dd72 (v3.11.0: GBrain production integration)
     sudo -u postgres psql -c "CREATE USER gbrain WITH PASSWORD 'gbrain';" 2>&1 || {
       err "Failed to create gbrain database user"
       exit 1
@@ -259,7 +256,7 @@ else
     ok "gbrain already initialized at $BRAIN_DIR"
   else
     info "Initializing gbrain..."
-    "$GBRAIN_BIN" init --dir "$BRAIN_DIR" 2>&1 || warn "gbrain init may have already been run"
+    "$GBRAIN_BIN" init --pglite --path "$BRAIN_DIR" 2>&1 || warn "gbrain init may have already been run"
     ok "gbrain initialized at $BRAIN_DIR"
   fi
 fi
@@ -453,7 +450,6 @@ fi
 echo ""
 echo -e "${CYAN}━━━ Schema Pack ━━━${NC}"
 
-<<<<<<< HEAD
 SCHEMA_PACK_REPO_PATH="$REPO_DIR/schema-packs/shogun-enterprise/pack.yaml"
 SCHEMA_PACK_USER_PATH="$HOME/.gbrain/schema-packs/shogun-enterprise/pack.yaml"
 SCHEMA_PACK_FOUND=false
@@ -484,13 +480,6 @@ if [[ -f "$SCHEMA_PACK_REPO_PATH" ]]; then
 elif [[ -f "$SCHEMA_PACK_USER_PATH" ]]; then
   SCHEMA_PACK_FOUND=true
   ok "Schema pack found at ~/.gbrain: shogun-enterprise"
-=======
-SCHEMA_PACK_PATH="$HOME/.gbrain/schema-packs/shogun-enterprise/pack.yaml"
-SCHEMA_PACK_FOUND=false
-if [[ -f "$SCHEMA_PACK_PATH" ]]; then
-  SCHEMA_PACK_FOUND=true
-  ok "Schema pack found: shogun-enterprise"
->>>>>>> e91dd72 (v3.11.0: GBrain production integration)
   if [[ "$DRY_RUN" == true ]]; then
     ok "[DRY-RUN] Would run: gbrain schema use shogun-enterprise"
   else
@@ -501,12 +490,8 @@ if [[ -f "$SCHEMA_PACK_PATH" ]]; then
     fi
   fi
 else
-<<<<<<< HEAD
   info "Schema pack not found at repo path or ~/.gbrain/"
   info "Commit shogun-enterprise pack.yaml to repo or install manually"
-=======
-  info "Schema pack not found at $SCHEMA_PACK_PATH"
->>>>>>> e91dd72 (v3.11.0: GBrain production integration)
   info "It can be created later with:  gbrain schema pack create shogun-enterprise"
 fi
 
@@ -521,7 +506,6 @@ EXISTING_CRON=$(crontab -l 2>/dev/null || echo "")
 if echo "$EXISTING_CRON" | grep -q "gbrain-dream-cron"; then
   ok "Cron entry already exists: gbrain-dream-cron"
 else
-<<<<<<< HEAD
   DREAM_CRON_ENTRY="0 2 * * * $REPO_DIR/scripts/gbrain-dream-cron.sh"
   if [[ "$DRY_RUN" == true ]]; then
     ok "[DRY-RUN] Would add cron: $DREAM_CRON_ENTRY"
@@ -530,22 +514,12 @@ else
     # Idempotent: remove any existing gbrain-dream-cron entry, then add new one
     (crontab -l 2>/dev/null | grep -v 'gbrain-dream-cron'; echo "$DREAM_CRON_ENTRY") | crontab -
     ok "Added cron: $DREAM_CRON_ENTRY"
-=======
-  CRON_ENTRY="0 2 * * * \$HOME/shogun-os/scripts/gbrain-dream-cron.sh"
-  if [[ "$DRY_RUN" == true ]]; then
-    ok "[DRY-RUN] Would add cron: $CRON_ENTRY"
-  else
-    CRON_INSTALLED=$((CRON_INSTALLED + 1))
-    (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
-    ok "Added cron: $CRON_ENTRY"
->>>>>>> e91dd72 (v3.11.0: GBrain production integration)
   fi
 fi
 
 if echo "$EXISTING_CRON" | grep -q "gbrain-backup"; then
   ok "Cron entry already exists: gbrain-backup"
 else
-<<<<<<< HEAD
   BACKUP_CRON_ENTRY="30 2 * * * $REPO_DIR/scripts/gbrain-backup.sh"
   if [[ "$DRY_RUN" == true ]]; then
     ok "[DRY-RUN] Would add cron: $BACKUP_CRON_ENTRY"
@@ -554,15 +528,6 @@ else
     # Idempotent: remove any existing gbrain-backup entry, then add new one
     (crontab -l 2>/dev/null | grep -v 'gbrain-backup'; echo "$BACKUP_CRON_ENTRY") | crontab -
     ok "Added cron: $BACKUP_CRON_ENTRY"
-=======
-  CRON_ENTRY="30 2 * * * \$HOME/shogun-os/scripts/gbrain-backup.sh"
-  if [[ "$DRY_RUN" == true ]]; then
-    ok "[DRY-RUN] Would add cron: $CRON_ENTRY"
-  else
-    CRON_INSTALLED=$((CRON_INSTALLED + 1))
-    (crontab -l 2>/dev/null; echo "$CRON_ENTRY") | crontab -
-    ok "Added cron: $CRON_ENTRY"
->>>>>>> e91dd72 (v3.11.0: GBrain production integration)
   fi
 fi
 
