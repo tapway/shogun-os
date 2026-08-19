@@ -132,9 +132,13 @@ Each Hermes Agent profile is **isolated by design**:
 
 ## Before Shipping
 
-Run the verification suite after any change:
+Run the test suite and verification after any change:
 
 ```bash
+# Full test suite (CI runs this too)
+bash scripts/run-tests.sh
+
+# Skill validation
 ./scripts/verify-install.sh --quick
 ```
 
