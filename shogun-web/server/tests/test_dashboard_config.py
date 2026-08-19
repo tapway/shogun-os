@@ -80,38 +80,46 @@ def test_get_dashboard_config_crm_returns_6_tabs():
     assert len(result["tabs"]) == 6
 
 
-def test_get_dashboard_config_finance_returns_5_tabs():
+def test_get_dashboard_config_finance_returns_8_tabs():
     result = asyncio.run(_call_dashboard_config_inner("finance"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
-    assert "pulse" in tab_ids
-    assert "runway" in tab_ids
-    assert "ops" in tab_ids
+    assert "overview" in tab_ids
+    assert "cashflow" in tab_ids
+    assert "cash" in tab_ids
+    assert "ar" in tab_ids
+    assert "ap" in tab_ids
     assert "bva" in tab_ids
-    assert "compliance" in tab_ids
-    assert len(result["tabs"]) == 5
+    assert "margins" in tab_ids
+    assert "scan" in tab_ids
+    assert len(result["tabs"]) == 8
 
 
-def test_get_dashboard_config_procurement_returns_5_tabs():
+def test_get_dashboard_config_procurement_returns_9_tabs():
     result = asyncio.run(_call_dashboard_config_inner("procurement"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
     assert "pulse" in tab_ids
-    assert "inventory" in tab_ids
-    assert "movements" in tab_ids
+    assert "requisitions" in tab_ids
+    assert "sourcing" in tab_ids
     assert "po" in tab_ids
+    assert "inventory" in tab_ids
+    assert "barcode" in tab_ids
+    assert "matching" in tab_ids
     assert "bridge" in tab_ids
-    assert len(result["tabs"]) == 5
+    assert "scan" in tab_ids
+    assert len(result["tabs"]) == 9
 
 
-def test_get_dashboard_config_estate_ops_returns_3_tabs():
-    result = asyncio.run(_call_dashboard_config_inner("estate-ops"))
+def test_get_dashboard_config_facility_returns_4_tabs():
+    result = asyncio.run(_call_dashboard_config_inner("facility"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
-    assert "scan" in tab_ids
+    assert "units" in tab_ids
     assert "inspect" in tab_ids
-    assert "stored" in tab_ids
-    assert len(result["tabs"]) == 3
+    assert "records" in tab_ids
+    assert "scan" in tab_ids
+    assert len(result["tabs"]) == 4
 
 
 def test_get_dashboard_config_unknown_returns_disabled():
