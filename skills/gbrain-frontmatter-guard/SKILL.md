@@ -1,6 +1,7 @@
 ---
 name: gbrain-frontmatter-guard
 description: "Validate YAML frontmatter on every brain write — gate malformed YAML, missing required fields, incorrect types, and null bytes before they corrupt pages."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, frontmatter, validation, quality]

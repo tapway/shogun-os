@@ -1,6 +1,7 @@
 ---
 name: profile-management
 description: Manage Hermes profiles end-to-end — persona authoring (SOUL.md), channel wiring (routing profiles to Telegram/Slack chats), and Slack bot creation. Load for any profile lifecycle task.
+departments: [shared]
 category: devops
 tags: [hermes, profiles, persona, SOUL, slack, telegram, routing, channel-prompt]
 ---

@@ -17,7 +17,7 @@ from sqlalchemy.orm.attributes import flag_modified
 from auth import get_current_user, require_admin
 from config import DEFAULT_DEPARTMENTS, get_config
 from database import get_db, get_primary_tenant
-from models import Department, OnboardingState, User
+from models import Tenant, Department, OnboardingState, User
 from registry import go_live as registry_go_live
 
 logger = logging.getLogger(__name__)
@@ -141,7 +141,9 @@ async def get_onboarding_ui(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -154,7 +156,9 @@ async def put_onboarding_ui(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -202,7 +206,9 @@ async def onboarding_go_live(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Claim a public *.shogun-os.ai URL — no token, no Cloudflare account."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
 
@@ -244,7 +250,9 @@ async def onboarding_status(
 ) -> Dict[str, Any]:
     from registry import registry_status as rs
 
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -256,7 +264,9 @@ async def get_onboarding_state(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -275,7 +285,9 @@ async def save_onboarding_step(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -311,7 +323,9 @@ async def complete_onboarding(
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
     """Mark onboarding complete. URL was already claimed during installation."""
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
     state = _get_onboarding(db, tenant.id)
@@ -332,7 +346,9 @@ async def list_departments(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     # Admins and HR see all departments; regular users see only their assigned ones
     if user.role in {"admin", "owner", "hr_manager"}:
         depts = list(
@@ -379,7 +395,9 @@ async def activate_department(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = db.execute(
         select(Department).where(Department.tenant_id == tenant.id, Department.name == name)
     ).scalar_one_or_none()
@@ -417,7 +435,9 @@ async def configure_department(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = db.execute(
         select(Department).where(Department.tenant_id == tenant.id, Department.name == name)
     ).scalar_one_or_none()
@@ -547,7 +567,9 @@ async def test_department_connection(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = db.execute(
         select(Department).where(Department.tenant_id == tenant.id, Department.name == name)
     ).scalar_one_or_none()
@@ -607,7 +629,9 @@ async def deactivate_department(
     user: User = Depends(require_admin),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    tenant = get_primary_tenant(db)
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = db.execute(
         select(Department).where(Department.tenant_id == tenant.id, Department.name == name)
     ).scalar_one_or_none()

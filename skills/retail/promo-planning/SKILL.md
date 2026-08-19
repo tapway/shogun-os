@@ -1,6 +1,7 @@
 ---
 name: promo-planning
 description: "Promotional calendar management, display allocation by store cluster, signage generation, and post-promo analysis. Plans, executes, and measures promotional campaigns."
+departments: [visual-merchandising]
 version: 1.0.0
 tags: [retail, promotion, marketing, calendar, signage, analysis]
 triggers:

@@ -1,6 +1,7 @@
 ---
 name: inventory-valuation-report
 description: "Use when generating a full inventory valuation report — total stock value by SKU and category, with optional GL comparison. Standalone script: scripts/inventory_valuation.py."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

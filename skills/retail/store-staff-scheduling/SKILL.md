@@ -1,6 +1,7 @@
 ---
 name: store-staff-scheduling
 description: "Shift planning, attendance tracking, break compliance monitoring, and labor cost vs sales ratio analysis. Optimizes staff allocation based on traffic forecasts."
+departments: [stores]
 version: 1.0.0
 tags: [retail, staffing, scheduling, attendance, labor, hr]
 triggers:

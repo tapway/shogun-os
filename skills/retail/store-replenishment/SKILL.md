@@ -1,6 +1,7 @@
 ---
 name: store-replenishment
 description: "Auto-reorder from warehouse to stores, min/max by SKU, allocation logic per store cluster, and lead time tracking. Optimizes store inventory levels."
+departments: [supply-chain]
 version: 1.0.0
 tags: [retail, replenishment, inventory, reorder, allocation, supply-chain]
 triggers:

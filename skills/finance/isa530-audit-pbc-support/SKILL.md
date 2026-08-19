@@ -1,6 +1,7 @@
 ---
 name: isa530-audit-pbc-support
 description: "Use when executing ISA 530 Audit Sampling (deterministic Python random sampling), packaging Prepared by Client (PBC) documents, or vaulting audit trails. Produces a sample selection list and a PBC document package."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

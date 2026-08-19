@@ -1,6 +1,7 @@
 ---
 name: gbrain-capture
 description: "Quick capture of thoughts, ideas, and observations to gbrain — preserve exact phrasing, file under ideas/ or concepts/."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, capture, ideas, thoughts]

@@ -36,7 +36,7 @@ from config import (
 )
 from database import get_db, get_primary_tenant
 from models import Session as DbSession
-from models import User
+from models import Tenant, User
 
 logger = logging.getLogger(__name__)
 
@@ -281,6 +281,7 @@ def _user_response(user: User) -> Dict[str, Any]:
     if user.tenant is not None:
         payload["company_name"] = user.tenant.company_name
         payload["subdomain"] = user.tenant.subdomain
+        payload["logo_url"] = user.tenant.logo_url
     return payload
 
 
@@ -305,7 +306,8 @@ def _issue_login_response(db: Session, user: User) -> JSONResponse:
     body = {
         "user": _user_response(user),
         "requires_password_change": bool(user.first_login),
-        "token": token,
+        "access_token": token,  # matches AuthResponse type on the frontend
+        "token": token,         # backward-compat alias for older clients
     }
     response = JSONResponse(content=body)
     set_session_cookie(response, token)
@@ -319,18 +321,20 @@ def _issue_login_response(db: Session, user: User) -> JSONResponse:
 
 @router.post("/login")
 async def login(body: LoginRequest, db: Session = Depends(get_db)) -> JSONResponse:
-    """Authenticate with email + password (scrypt)."""
-    try:
-        tenant = get_primary_tenant(db)
-        email = body.email.lower().strip()
-        user = db.execute(
-            select(User).where(User.tenant_id == tenant.id, User.email == email)
-        ).scalar_one_or_none()
+    """Authenticate with email + password (scrypt).
 
-        if user is None:
-            user = db.execute(
-                select(User).where(User.email == email)
-            ).scalar_one_or_none()
+    Login is tenant-scoped: the email is looked up globally (so the user
+    does not have to know their tenant subdomain), but the returned session
+    is always bound to the user's ``tenant_id`` — never to the primary tenant.
+    """
+    try:
+        email = body.email.lower().strip()
+        # Global lookup — user may belong to any tenant. The session token
+        # encodes user.id, and get_current_user() resolves the tenant from
+        # user.tenant_id, so the primary-tenant scope does NOT leak here.
+        user = db.execute(
+            select(User).where(User.email == email)
+        ).scalar_one_or_none()
 
         if user is None or not user.password_hash:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -359,12 +363,16 @@ class RegisterRequest(BaseModel):
 async def register(body: RegisterRequest, db: Session = Depends(get_db)) -> JSONResponse:
     """Register a new company (tenant) + admin user, then auto-login.
 
-    For single-tenant installations, the admin user is created on the existing
-    tenant. For multi-tenant installations, a new tenant is created.
+    Single-tenant mode (``auto_register=False``): the admin user is created on
+    the existing primary tenant and the company_name is updated to match.
+
+    Multi-tenant mode (``auto_register=True``): a new tenant is created with a
+    random unique subdomain, and default departments + onboarding state are
+    seeded so the new tenant is immediately usable.
     """
     email = body.email.lower().strip()
 
-    # Check if email already exists
+    # Check if email already exists (global — emails are unique across tenants)
     existing = db.execute(
         select(User).where(User.email == email)
     ).scalar_one_or_none()
@@ -374,17 +382,62 @@ async def register(body: RegisterRequest, db: Session = Depends(get_db)) -> JSON
             detail="An account with this email already exists. Try signing in instead.",
         )
 
-    # Use the existing (primary) tenant — single-tenant model for now
-    tenant = get_primary_tenant(db)
+    # Validate company name is not empty after stripping
+    company_name = body.company_name.strip()
+    if not company_name:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Company name is required.",
+        )
 
-    # Update the tenant's company name if the default is still "Shogun OS"
-    if tenant.company_name == "Shogun OS":
-        tenant.company_name = body.company_name.strip()
-        db.add(tenant)
+    cfg = get_config()
 
-    # Create the admin user
-    # first_login=True triggers the onboarding wizard redirect (via ProtectedRoute).
-    # is_temporary_password=False because the user chose their own password (not a temp).
+    if not cfg.auto_register:
+        # ── Single-tenant mode: reuse the primary tenant ──
+        # Update company_name if it's still the default, and create the admin
+        # user on the existing (already-seeded) tenant.
+        tenant = get_primary_tenant(db)
+        if tenant.company_name == "Shogun OS":
+            tenant.company_name = company_name
+            db.add(tenant)
+    else:
+        # ── Multi-tenant mode: create a fresh tenant ──
+        # Wrap generation + insert in an IntegrityError retry loop so that a
+        # real UNIQUE-constraint collision on flush (concurrent register) is
+        # handled with rollback + regenerate, not a raw 500.
+        from sqlalchemy.exc import IntegrityError
+
+        tenant = None
+        for _attempt in range(3):
+            subdomain = f"co-{secrets.token_hex(4)}"
+            candidate = Tenant(
+                subdomain=subdomain,
+                company_name=company_name,
+                timezone="UTC",
+                status="active",
+            )
+            db.add(candidate)
+            try:
+                db.flush()  # triggers UNIQUE constraint check
+                tenant = candidate
+                break
+            except IntegrityError:
+                db.rollback()
+                tenant = None
+                continue
+        if tenant is None:
+            raise HTTPException(
+                status_code=500,
+                detail="Could not generate unique subdomain after 3 attempts",
+            )
+
+        # Seed default departments + onboarding state for the new tenant
+        from database import _ensure_departments, _ensure_onboarding
+        _ensure_departments(db, tenant)
+        _ensure_onboarding(db, tenant)
+        db.flush()
+
+    # Create the admin user on the (new or existing) tenant
     user = User(
         tenant_id=tenant.id,
         email=email,

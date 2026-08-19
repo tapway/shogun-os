@@ -1,6 +1,7 @@
 ---
 name: monthly-board-report
 description: "Use when generating the Monthly Financial Performance & Board Report — P&L breakdown, balance sheet ratios, BvA variance analysis, and customer concentration risk. Produces a formatted board report delivered to Slack/Telegram and saved to gbrain."
+departments: [finance]
 version: 1.1.0
 author: Shogun OS
 license: MIT

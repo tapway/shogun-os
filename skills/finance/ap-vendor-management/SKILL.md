@@ -1,6 +1,7 @@
 ---
 name: ap-vendor-management
 description: "Use when handling supplier invoices, 3-way matching (PO + GRN + Invoice), payment batching, or vendor account reconciliation. Produces a payment batch and vendor reconciliation statement."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

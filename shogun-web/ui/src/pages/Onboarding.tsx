@@ -61,9 +61,23 @@ export default function Onboarding() {
     queryFn: () => onboardingApi.get(),
   });
 
+  const [hasLoaded, setHasLoaded] = useState(false);
+
   useEffect(() => {
     const s = stateQuery.data;
     if (!s) return;
+    // Always redirect to /dashboard if onboarding is completed — even on
+    // repeat visits and refetches. This check runs independently of hasLoaded
+    // so a completed status that arrives after the initial hydration still
+    // triggers the redirect.
+    if (s.completed) {
+      navigate('/dashboard', { replace: true });
+      return;
+    }
+    // Hydrate form state from server only once (prevents clobbering user
+    // input on re-renders / refetches).
+    if (hasLoaded) return;
+    setHasLoaded(true);
     if (typeof s.step === 'number') setStep(Math.min(Math.max(s.step, 0), STEPS.length - 1));
     if (s.industry) setIndustry(s.industry as IndustryKey);
     if (s.selected_departments?.length) setSelected(s.selected_departments);
@@ -73,8 +87,7 @@ export default function Onboarding() {
     if (s.department_configs) setConfigs(s.department_configs);
     if (s.public_url) setPublicUrl(s.public_url);
     else if (s.go_live?.public_url) setPublicUrl(s.go_live.public_url);
-    if (s.completed) navigate('/dashboard', { replace: true });
-  }, [stateQuery.data, navigate]);
+  }, [stateQuery.data, navigate, hasLoaded]);
 
   const saveMutation = useMutation({
     mutationFn: (payload: Partial<OnboardingState>) => onboardingApi.save(payload),
@@ -209,8 +222,11 @@ export default function Onboarding() {
 
   const launch = async () => {
     try {
+      // 1. Mark onboarding complete on backend (sets first_login=false)
       await onboardingApi.complete();
+      // 2. Save final state
       await persist({ step: 4, completed: true });
+      // 3. Refresh user to get updated first_login=false
       await refreshUser();
       toast.success(publicUrl ? `Welcome - ${publicUrl}` : 'Welcome to Shogun OS');
       navigate('/dashboard', { replace: true });
@@ -252,16 +268,27 @@ export default function Onboarding() {
                 <button
                   key={key}
                   type="button"
-                  onClick={() => setIndustry(key)}
-                  className={`rounded-lg border p-6 text-center transition ${
+                  onClick={() => {
+                    setIndustry(key);
+                    saveMutation.mutate({ step: 0, industry: key });
+                  }}
+                  className="rounded-lg border p-6 text-center transition"
+                  style={
                     isSelected
-                      ? 'border-brand bg-brand/5 ring-2 ring-brand'
-                      : 'border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600'
-                  }`}
+                      ? {
+                          borderColor: 'var(--samurai-lime)',
+                          borderWidth: '2px',
+                          background: 'color-mix(in srgb, var(--samurai-lime) 14%, transparent)',
+                          boxShadow: '0 0 0 3px color-mix(in srgb, var(--samurai-lime) 25%, transparent)',
+                        }
+                      : {
+                          borderColor: 'var(--samurai-border)',
+                        }
+                  }
                 >
                   <div className="text-4xl">{ind.icon}</div>
-                  <div className="mt-2 font-semibold text-slate-900 dark:text-slate-100">{ind.label}</div>
-                  <div className="mt-1 text-xs text-slate-500 dark:text-slate-400">{ind.description}</div>
+                  <div className="mt-2 font-semibold" style={{ color: isSelected ? 'var(--samurai-lime)' : 'var(--samurai-text)' }}>{ind.label}</div>
+                  <div className="mt-1 text-xs" style={{ color: 'var(--samurai-muted)' }}>{ind.description}</div>
                 </button>
               );
             })}
@@ -283,14 +310,22 @@ export default function Onboarding() {
         return (
           <label
             key={key}
-            className={`card cursor-pointer p-4 transition ${
-              checked ? 'ring-2 ring-brand border-brand/30' : 'hover:border-slate-300 dark:hover:border-slate-600'
-            }`}
+            className="card cursor-pointer p-4 transition"
+            style={
+              checked
+                ? {
+                    borderColor: 'var(--samurai-lime)',
+                    borderWidth: '2px',
+                    boxShadow: '0 0 0 3px color-mix(in srgb, var(--samurai-lime) 20%, transparent)',
+                  }
+                : undefined
+            }
           >
             <div className="flex items-start gap-3">
               <input
                 type="checkbox"
-                className="mt-1 h-4 w-4 rounded border-slate-300 text-brand focus:ring-brand dark:border-slate-600"
+                className="mt-1 h-4 w-4 rounded"
+                style={{ accentColor: 'var(--samurai-lime)' }}
                 checked={checked}
                 onChange={() => toggleDept(key)}
               />
@@ -300,7 +335,7 @@ export default function Onboarding() {
                     className="h-2.5 w-2.5 rounded-full"
                     style={{ backgroundColor: d.color }}
                   />
-                  <span className="font-semibold text-slate-900 dark:text-slate-100">{d.name}</span>
+                  <span className="font-semibold" style={{ color: 'var(--samurai-text)' }}>{d.name}</span>
                   <span className="text-xs text-slate-400 dark:text-slate-500">{d.persona}</span>
                 </div>
                 <p className="mt-1 text-sm text-slate-600 dark:text-slate-300">{d.description}</p>
@@ -601,6 +636,7 @@ export default function Onboarding() {
     );
   }, [
     step,
+    industry,
     selected,
     companyName,
     timezone,

@@ -1,6 +1,7 @@
 ---
 name: obsidian
 description: Read, search, create, and edit notes in the Obsidian vault.
+departments: [shared]
 platforms: [linux, macos, windows]
 ---
 

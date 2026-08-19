@@ -1,6 +1,7 @@
 ---
 name: gbrain-query
 description: "Three-layer gbrain query pipeline: search → recall → think. Use for ALL brain queries instead of raw MCP calls."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, query, search, think]

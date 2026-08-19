@@ -1,6 +1,7 @@
 ---
 name: payroll-statutory-accounting
 description: "Use when auditing monthly payroll disbursements and verifying statutory employee/employer contributions for EPF (KWSP), SOCSO (PERKESO), EIS (SIP), and PCB tax. Produces a payroll reconciliation and statutory contribution schedule."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

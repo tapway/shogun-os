@@ -1,6 +1,7 @@
 ---
 name: timeline-inject-v2
 description: "Inject ## Timeline sections with gbrain-compatible format: - **YYYY-MM-DD** | Source — Summary. For companies and people pages."
+departments: [shared]
 version: 2.0.0
 author: Your Company
 tags: [brain, timeline, gbrain]

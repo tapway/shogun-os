@@ -4,6 +4,7 @@ description: >-
   Classify brain email pages into categories (project, deal, support, hr, other),
   detect risk/negative sentiment, and route to appropriate profiles. Designed as
   a post-collection processor for the Gmail→gbrain pipeline.
+departments: [shared]
 version: 1.0.0
 tags: [gbrain, email, classification, routing, risk, sentiment]
 ---

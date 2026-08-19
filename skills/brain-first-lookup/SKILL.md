@@ -1,6 +1,7 @@
 ---
 name: brain-first-lookup
 description: "Mandatory brain-first lookup protocol: query gbrain before any external API call. Check brain for people, companies, entities before searching the web or other sources."
+departments: [shared]
 version: 1.1.0
 author: Your Company
 tags: [gbrain, lookup, protocol]

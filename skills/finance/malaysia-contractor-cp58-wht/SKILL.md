@@ -1,6 +1,7 @@
 ---
 name: malaysia-contractor-cp58-wht
 description: "Use when tracking payouts to local independent contractors/agents for LHDN Form CP58 (>RM 5,000 threshold), LHDN Self-Billed e-Invoicing, or Section 107A/109B Withholding Tax (WHT) for foreign vendors. Produces a CP58 register and WHT computation."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

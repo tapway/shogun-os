@@ -1,6 +1,7 @@
 ---
 name: ecommerce-order-management
 description: "Cross-platform order consolidation, fulfillment routing, return/refund processing, and delivery tracking. Manages orders from multiple marketplaces in a unified workflow."
+departments: [supply-chain]
 version: 1.0.0
 tags: [retail, ecommerce, orders, fulfillment, returns, delivery]
 triggers:

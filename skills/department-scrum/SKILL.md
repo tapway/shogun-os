@@ -1,6 +1,7 @@
 ---
 name: department-scrum
 description: "Universal cross-department scrum workflow — 3-tier cadence (9am/11am/5pm). Any profile loads this for their daily standup, quality tracking, and brain cross-reference. Replaces per-dept hardcoded scripts with profile-parameterized config."
+departments: [shared]
 version: 3.0.0
 tags: [shared, scrum, standup, cron, cross-department, compliance, production-hardened]
 triggers:

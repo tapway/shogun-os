@@ -1,6 +1,7 @@
 ---
 name: search-router
 description: Intelligent search router — analyzes query intent and routes to Exa (official/factual), last30days (community/sentiment), or both. Load before any research task.
+departments: [shared]
 category: research
 tags: [search, router, exa, last30days, research]
 ---

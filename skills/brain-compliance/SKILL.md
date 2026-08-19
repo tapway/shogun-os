@@ -3,6 +3,7 @@ name: brain-compliance
 description: >-
   Standards and validation for Gbrain-compliant brain pages.
   Mandatory to load whenever writing, editing, or creating brain files.
+departments: [shared]
 version: 1.1.0
 author: user
 tags: [brain, gbrain, compliance, standards]

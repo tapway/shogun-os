@@ -1,4 +1,11 @@
-# AutoCount AOTG Connector
+---
+name: autocount-connector
+description: "Connect to AutoCount AOTG API for stock balances, invoices, debtor aging, POs."
+version: 1.0.0
+departments: [e-commerce]
+tags: [retail, ecommerce, connector]
+---
+
 
 Connects Shogun OS to AutoCount AOTG (AutoCount Online Transfer Gateway) — Malaysia's most popular SMB accounting software. Provides read/write access to stock balances, sales invoices, debtor aging, purchase orders, and stock adjustments.
 

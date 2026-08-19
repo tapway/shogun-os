@@ -1,6 +1,7 @@
 ---
 name: warehouse-inventory
 description: "Inventory levels by category (raw, WIP, finished). Aging analysis (slow-moving, dead stock). Reorder point alerts. Cycle count scheduling."
+departments: [warehouse]
 version: 1.0.0
 tags: [manufacturing, warehouse, inventory, stock, cycle-count, reorder]
 triggers:

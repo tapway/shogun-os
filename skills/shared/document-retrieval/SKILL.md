@@ -1,6 +1,7 @@
 ---
 name: document-retrieval
 description: "Use when searching for previously scanned documents by keyword. Input: query string. Output: matching document summaries. Does NOT store."
+departments: [shared]
 version: 1.0.0
 author: Shogun OS
 category: shared

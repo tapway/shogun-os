@@ -1,6 +1,7 @@
 ---
 name: store-sales-dashboard
 description: "Daily sales by store, hourly trends, staff performance, customer count, and sales vs budget variance analysis. Generates interactive dashboards with drill-down capability."
+departments: [merchandising]
 version: 1.0.0
 tags: [retail, sales, dashboard, reporting, analytics]
 triggers:

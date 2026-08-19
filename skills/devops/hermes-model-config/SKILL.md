@@ -1,6 +1,7 @@
 ---
 name: hermes-model-config
 description: Configure, audit, and troubleshoot Hermes Agent model providers — primary, custom, fallback, and cron overrides.
+departments: [shared]
 category: devops
 tags: [hermes, model, provider, fallback, custom-providers, configuration, audit]
 ---

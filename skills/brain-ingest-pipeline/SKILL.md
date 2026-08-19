@@ -1,6 +1,7 @@
 ---
 name: brain-ingest-pipeline
 description: "Unified brain ingest pipeline for email, calendar, and meetings — all three follow the same COLLECT → ROUTE → BRIDGE → ENRICH → VALIDATE flow."
+departments: [shared]
 version: 1.0.0
 tags: [brain, ingest, pipeline, email, calendar, meetings]
 triggers:

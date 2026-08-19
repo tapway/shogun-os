@@ -1,6 +1,7 @@
 ---
 name: gbrain-maintain
 description: "Brain health maintenance — run health checks, find and fix orphans, detect stale pages, fix broken links, check embedding coverage."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, maintain, health, cleanup]

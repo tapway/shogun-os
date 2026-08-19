@@ -1913,6 +1913,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         # The UI shows "no data yet / connect gbrain" rather than fake RM figures.
         logger.info("Finance dashboard: no gbrain snapshots — returning empty state")
         mock = False  # empty state, not mock
+        mock_data: Dict[str, Any] = {}
         total_liquid_cash = 0.0
         net_monthly_burn = 0.0
         cash_runway_months = 0.0

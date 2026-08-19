@@ -1,6 +1,7 @@
 ---
 name: budget-financial-modeling
 description: "Use when authoring annual operating budgets (OPEX/CAPEX), driver-based financial models, or rolling 12-month projections. Produces a structured budget model and projection file saved to the finance gbrain source."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: company-workflow
 description: "Mandatory workflow enforcement for all feature/bug requests in Shogun OS. Gate sequence: triage → RCA → brainstorm → plan → TDD → E2E. No skipping."
+departments: [shared]
 version: 1.0.0
 tags: [shared, workflow, enforcement, quality, gates]
 triggers:

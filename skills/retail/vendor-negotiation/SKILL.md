@@ -1,6 +1,7 @@
 ---
 name: vendor-negotiation
 description: "Vendor scorecards (delivery, quality, price), margin analysis, contract expiry alerts, and rebate tracking. Supports procurement negotiations with data-driven insights."
+departments: [supply-chain]
 version: 1.0.0
 tags: [retail, vendor, procurement, negotiation, supply-chain]
 triggers:

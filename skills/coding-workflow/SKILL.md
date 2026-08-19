@@ -1,6 +1,7 @@
 ---
 name: coding-workflow
 description: Master workflow for all coding tasks at your company — delegates to coding-agent profile. Triggers include "build", "implement", "code", "fix bug", "add feature", "refactor", "deploy", "release".
+departments: [coding]
 category: software-development
 ---
 

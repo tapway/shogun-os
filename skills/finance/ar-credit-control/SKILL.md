@@ -1,6 +1,7 @@
 ---
 name: ar-credit-control
 description: "Use when managing customer billing, payment collections, aging buckets, credit limits, or automated dunning follow-ups. Produces an AR aging summary, dunning queue, and collections action list."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: hse-incident
 description: "Incident types: Near-miss, First Aid, Medical Treatment, LTI, Fatality. Severity matrix. Investigation workflow. Leading/lagging indicators."
+departments: [hse]
 version: 1.0.0
 tags: [manufacturing, hse, safety, incident, near-miss, lti, investigation]
 triggers:

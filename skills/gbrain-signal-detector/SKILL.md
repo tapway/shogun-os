@@ -1,6 +1,7 @@
 ---
 name: gbrain-signal-detector
 description: "Always-on ambient signal capture for gbrain. Detects original thinking, entity mentions, and ideas from conversations — captures them to the brain."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, capture, enrichment]

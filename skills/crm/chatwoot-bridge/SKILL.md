@@ -1,6 +1,7 @@
 ---
 name: chatwoot-bridge
 description: "Runtime bridge between Kizuna (Hermes CRM) and Chatwoot. Handles inbound webhooks, sends replies, manages conversation assignment, tracks SLA, and syncs contacts to brain."
+departments: [crm]
 triggers:
   - "chatwoot"
   - "chatwoot webhook"

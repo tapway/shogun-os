@@ -1,6 +1,7 @@
 ---
 name: brain-e2e-tests
 description: "Comprehensive E2E test suite for brain compliance, timeline, cron validation, and HR migration. Run after any brain infrastructure change."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [brain, gbrain, testing, compliance, e2e]

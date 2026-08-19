@@ -1,6 +1,7 @@
 ---
 name: production-oee
 description: "Calculates OEE (Availability × Performance × Quality), generates daily OEE reports with trend analysis and top loss identification. Configurable target OEE (default 85%)."
+departments: [production]
 version: 1.0.0
 tags: [manufacturing, oee, production, metrics, reporting]
 triggers:

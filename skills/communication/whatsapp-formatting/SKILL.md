@@ -1,6 +1,7 @@
 ---
 name: whatsapp-formatting
 description: "Convert markdown-formatted text into WhatsApp-optimized plain text. WhatsApp supports only bold, italic, strikethrough, monospace, ordered/unordered lists, and blockquotes — NO tables, headings, or hyperlinks."
+departments: [shared]
 version: 1.0.0
 author: user
 license: MIT

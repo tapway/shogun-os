@@ -4,6 +4,7 @@ description: >-
   Classify brain meeting pages into team categories (sales, marketing, project, hr, management),
   extract action items and decisions, route to project/deal pages with timeline entries,
   and detect risk signals. Post-collection processor for the Drive→Meeting→gbrain pipeline.
+departments: [shared]
 version: 1.0.0
 tags: [gbrain, meeting, classification, routing, risk, action-items]
 ---

@@ -1,6 +1,7 @@
 ---
 name: add-profile-dashboard
 description: "Step-by-step guide for AI agents to add a profile-specific operational dashboard to the Shogun OS web portal, following the CRM dashboard pattern."
+departments: [shared]
 ---
 
 # Add a Profile Dashboard

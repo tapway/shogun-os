@@ -1,6 +1,7 @@
 ---
 name: maintenance-pm
 description: "Preventive maintenance schedule. Due/overdue tracking. Work order generation. PM compliance rate."
+departments: [maintenance]
 version: 1.0.0
 tags: [manufacturing, maintenance, preventive, pm, schedule, compliance]
 triggers:

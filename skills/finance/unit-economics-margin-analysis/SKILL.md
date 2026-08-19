@@ -1,6 +1,7 @@
 ---
 name: unit-economics-margin-analysis
 description: "Use when calculating Gross Margin %, Net Margin %, EBITDA, Customer Acquisition Cost (CAC), or Client Profitability. Produces a unit-economics summary and margin breakdown by revenue line."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

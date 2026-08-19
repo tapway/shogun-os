@@ -101,27 +101,25 @@ function DepartmentNavItem({
 
   return (
     <div>
-      <div className="flex items-center">
+      <div className="sd-dept-row">
         <NavLink
           to={`/department/${deptKey}?tab=dashboard`}
           onClick={onNavigate}
-          className={clsx('sd-nav-item flex-1', isCurrentDept && 'active')}
+          className={clsx('sd-nav-item', isCurrentDept && 'active')}
           style={{ borderLeftColor: isCurrentDept ? color : 'transparent' }}
         >
           <span className="sd-nav-dept-icon" style={{ backgroundColor: color }}><Icon className="h-3.5 w-3.5" /></span>
           <span className="sd-nav-label">{deptName}</span>
-          <StatusDot status={status} />
         </NavLink>
-        <div className="sd-icon-btn !h-7 !w-7" title="Expand">
-          <button
-            type="button"
-            onClick={() => setExpanded((v) => !v)}
-            className="flex items-center justify-center h-full w-full"
-            aria-label="Toggle sub-menu"
-          >
-            {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
-          </button>
-        </div>
+        <span className="sd-status-dot-wrap"><StatusDot status={status} /></span>
+        <button
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="sd-toggle-btn"
+          aria-label="Toggle sub-menu"
+        >
+          {expanded ? <ChevronDown className="h-3.5 w-3.5" /> : <ChevronRight className="h-3.5 w-3.5" />}
+        </button>
       </div>
       {expanded && (
         <div className="sd-subnav">
@@ -221,11 +219,41 @@ export default function Layout() {
   const theme: Theme = (localStorage.getItem('samurai-theme') as Theme) || 'blue';
   const logoSrc = theme === 'light' ? logoLight : theme === 'dark' ? logoDark : logoBlue;
   const mobileLogoSrc = theme === 'light' ? mobileLogoLight : mobileLogo;
+  const companyLogo = user?.logo_url || undefined;
 
   const sidebar = (
     <div className="flex h-full flex-col">
       <div className="sd-sidebar-head">
-        <img src={collapsed ? mobileLogoSrc : logoSrc} alt="SamurAI" style={{ width: collapsed ? '2rem' : 'min(230px, 100%)' }} />
+        {companyLogo ? (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '0.6rem', minWidth: 0 }}>
+            <img
+              src={companyLogo}
+              alt={user?.company_name || 'Company'}
+              style={{
+                maxHeight: '2.5rem',
+                width: '2.5rem',
+                flexShrink: 0,
+                objectFit: 'contain',
+                borderRadius: '0.4rem',
+              }}
+            />
+            {!collapsed && (
+              <span style={{
+                fontFamily: 'var(--font-display)',
+                fontSize: '0.9rem',
+                fontWeight: 600,
+                color: 'var(--samurai-text)',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {user?.company_name || 'Company'}
+              </span>
+            )}
+          </div>
+        ) : (
+          <img src={collapsed ? mobileLogoSrc : logoSrc} alt="SamurAI" style={{ width: collapsed ? '2rem' : 'min(230px, 100%)' }} />
+        )}
       </div>
 
       <nav className="sd-sidebar-nav">
@@ -277,10 +305,21 @@ export default function Layout() {
 
       <div className="sd-sidebar-footer">
         <div className="sd-user-tile">
-          <div className="sd-user-avatar">{(user?.name || user?.email || '?').charAt(0).toUpperCase()}</div>
+          {user?.avatar_url ? (
+            <img
+              src={user.avatar_url}
+              alt={user?.name || 'User'}
+              className="sd-user-avatar"
+              style={{ objectFit: 'cover', borderRadius: '999px' }}
+            />
+          ) : (
+            <div className="sd-user-avatar">{(user?.name || user?.email || '?').charAt(0).toUpperCase()}</div>
+          )}
           <div className="sd-user-meta">
             <div className="sd-user-name">{user?.name || 'User'}</div>
-            <div className="sd-user-email">{user?.email}</div>
+            <div className="sd-user-email" style={{ textTransform: 'capitalize' }}>
+              {user?.role === 'admin' || user?.role === 'owner' ? 'Admin' : user?.role || 'User'}
+            </div>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 ---
 name: period-end-close-checklist
 description: "Use when executing trial balance verification, sub-ledger to GL balancing, period locking, and month-end close checklists."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

@@ -1,6 +1,7 @@
 ---
 name: handover-workflow
 description: "Sales-to-Project handover lifecycle — won deal handover, project initiation gates, activity sync, and risk detection. Bridges CRM and project management agents."
+departments: [crm]
 version: 1.0.0
 tags: [crm, projects, handover, workflow, gates]
 triggers:
@@ -167,7 +168,7 @@ gate_status: gated
 Creates a handover page from a won deal. Called by the CRM agent.
 
 ```bash
-python3 ~/.hermes/scripts/create-handover.py \
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/create-handover.py \
   --deal "deals/acme-foo" \
   --customer "Acme Corp" \
   --scope "Implementation of widget system" \
@@ -183,13 +184,13 @@ Processes a pending handover — reviews, progresses gates, creates project, mov
 
 ```bash
 # Review handover
-python3 ~/.hermes/scripts/process-handover.py --review "deals/acme-foo"
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/process-handover.py --review "deals/acme-foo"
 
 # Progress a gate
-python3 ~/.hermes/scripts/process-handover.py --gate 1 "deals/acme-foo"
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/process-handover.py --gate 1 "deals/acme-foo"
 
 # Complete handover (creates project, moves to completed)
-python3 ~/.hermes/scripts/process-handover.py --complete "deals/acme-foo"
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/process-handover.py --complete "deals/acme-foo"
 ```
 
 ### `sync-deal-activity.py`
@@ -198,13 +199,13 @@ Bridges email activity into deal/project pages. Runs as a cron job after email c
 
 ```bash
 # Dry run — preview what would change
-python3 ~/.hermes/scripts/sync-deal-activity.py --dry-run
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/sync-deal-activity.py --dry-run
 
 # Live run — update deal/project pages
-python3 ~/.hermes/scripts/sync-deal-activity.py
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/sync-deal-activity.py
 
 # Live run + Slack DM owners about risks
-python3 ~/.hermes/scripts/sync-deal-activity.py --dm
+python3 ~/.hermes/skills/crm/handover-workflow/scripts/sync-deal-activity.py --dm
 ```
 
 ## Cron Jobs
@@ -215,7 +216,7 @@ python3 ~/.hermes/scripts/sync-deal-activity.py --dm
 hermes cron create \
   --name "handover-detection" \
   --schedule "*/15 * * * *" \
-  --script ~/.hermes/scripts/create-handover.py \
+  --script ~/.hermes/skills/crm/handover-workflow/scripts/create-handover.py \
   --no-agent \
   --deliver <HANDOVER_NOTIFY_CHANNEL>
 ```
@@ -226,7 +227,7 @@ hermes cron create \
 hermes cron create \
   --name "deal-project-activity-sync" \
   --schedule "35 8-19 * * 1-5" \
-  --script ~/.hermes/scripts/sync-deal-activity.py \
+  --script ~/.hermes/skills/crm/handover-workflow/scripts/sync-deal-activity.py \
   --no-agent \
   --deliver local
 ```

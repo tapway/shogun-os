@@ -1,6 +1,7 @@
 ---
 name: bank-payment-reconciliation
 description: "Use when reconciling daily bank feeds and payment gateway settlements (Stripe, FPX, Credit Cards) against QuickBooks general ledger records."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

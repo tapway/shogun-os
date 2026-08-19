@@ -1,6 +1,7 @@
 ---
 name: weekly-inventory-valuation
 description: "Use when computing total inventory valuation — sum(current_stock x unit_cost) across all SKUs. Optionally compares to the accounting GL balance if ENABLE_ACCOUNTING_SYNC=true and writes a discrepancy report."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT

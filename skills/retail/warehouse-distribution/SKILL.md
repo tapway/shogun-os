@@ -1,6 +1,7 @@
 ---
 name: warehouse-distribution
 description: "Inbound receiving, putaway, pick-pack-ship, cross-docking, wave planning, and carrier dispatch. Manages end-to-end warehouse and distribution center operations."
+departments: [supply-chain]
 version: 1.0.0
 tags: [retail, warehouse, distribution, logistics, fulfillment, inbound, outbound]
 triggers:

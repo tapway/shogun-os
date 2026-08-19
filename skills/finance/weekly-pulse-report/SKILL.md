@@ -1,6 +1,7 @@
 ---
 name: weekly-pulse-report
 description: "Use when generating the Weekly Financial Pulse report — cash & runway status, AR aging collections focus, AP commitments, and MTD revenue & spend pacing. Produces a formatted report delivered to Slack/Telegram and saved to gbrain."
+departments: [finance]
 version: 1.0.0
 author: Shogun OS
 license: MIT

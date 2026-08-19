@@ -5,6 +5,7 @@ description: |
   Lark (Feishu) workspace integration — mirror of google-workspace for
   calendar, docs, wiki, drive, tasks, and search. Uses YSzEthan/lark-office-mcp
   for docs/wiki/tasks/search and a native calendar script for events.
+departments: [shared]
 triggers:
   - "lark calendar"
   - "feishu"

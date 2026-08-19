@@ -1,6 +1,7 @@
 ---
 name: gbrain-think
 description: "Use gbrain's multi-hop synthesis layer to produce cited answers with conflict and gap analysis. Produces better answers than raw search."
+departments: [shared]
 version: 1.0.0
 author: Your Company
 tags: [gbrain, synthesis, query]

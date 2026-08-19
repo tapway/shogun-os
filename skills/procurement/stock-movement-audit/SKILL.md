@@ -1,6 +1,7 @@
 ---
 name: stock-movement-audit
 description: "Use when recording or auditing inventory movements — goods received, issued, adjusted, returned, or damaged. Appends immutable movement entries to procurement/stock-movements/ and updates running stock levels."
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT
