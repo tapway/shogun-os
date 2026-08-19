@@ -16,8 +16,10 @@ from starlette.middleware.sessions import SessionMiddleware
 
 from auth import get_current_user
 from config import get_config, save_config
-from database import init_db, session_scope
-from models import User
+from database import get_db, init_db, session_scope
+from models import ScannedDocument, SiteInspection, Tenant, User
+from sqlalchemy import select
+from sqlalchemy.orm import Session
 from registry import register_with_central
 import comms
 import email_templates
@@ -35,6 +37,12 @@ logging.basicConfig(
     format="%(asctime)s %(levelname)s [%(name)s] %(message)s",
 )
 logger = logging.getLogger("shogun.web")
+
+
+def _primary_tenant_id(db: Session) -> int:
+    """Resolve the primary tenant id (fallback for legacy/single-tenant users)."""
+    from database import get_primary_tenant
+    return get_primary_tenant(db).id
 
 
 @asynccontextmanager
@@ -134,12 +142,32 @@ def create_app() -> FastAPI:
     inspections_dir.mkdir(parents=True, exist_ok=True)
 
     @app.get("/api/site-photos/{filename:path}")
-    async def serve_site_photo(filename: str, user: User = Depends(get_current_user)):
-        """Serve inspection photos — requires authentication."""
+    async def serve_site_photo(
+        filename: str,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        """Serve inspection photos — auth required, tenant-scoped."""
         safe = Path(filename).name  # prevent path traversal
         file_path = inspections_dir / safe
         if not file_path.is_file():
             raise HTTPException(status_code=404, detail="Photo not found")
+
+        # Tenant-ownership check: the file must be referenced by at least one
+        # inspection record belonging to this user's tenant.
+        tid = user.tenant_id
+        tenant_id = tid if tid else _primary_tenant_id(db)
+        photos = db.execute(
+            select(SiteInspection.photos).where(SiteInspection.tenant_id == tenant_id)
+        ).scalars().all()
+        url = f"/api/site-photos/{safe}"
+        owned = any(
+            isinstance(p, dict) and p.get("url", "").endswith(f"/{safe}")
+            for photos_list in photos
+            for p in (photos_list or [])
+        )
+        if not owned:
+            raise HTTPException(status_code=403, detail="Not allowed to access this photo")
         return FileResponse(file_path)
 
     # Authenticated file serving for scanned document uploads
@@ -147,12 +175,29 @@ def create_app() -> FastAPI:
     scans_dir.mkdir(parents=True, exist_ok=True)
 
     @app.get("/api/doc-uploads/{filename:path}")
-    async def serve_doc_upload(filename: str, user: User = Depends(get_current_user)):
-        """Serve scanned documents — requires authentication."""
+    async def serve_doc_upload(
+        filename: str,
+        user: User = Depends(get_current_user),
+        db: Session = Depends(get_db),
+    ):
+        """Serve scanned documents — auth required, tenant-scoped."""
         safe = Path(filename).name  # prevent path traversal
         file_path = scans_dir / safe
         if not file_path.is_file():
             raise HTTPException(status_code=404, detail="Document not found")
+
+        # Tenant-ownership check: the file must be tied to a ScannedDocument
+        # record in this user's tenant.
+        tid = user.tenant_id
+        tenant_id = tid if tid else _primary_tenant_id(db)
+        owned = db.execute(
+            select(ScannedDocument.id).where(
+                ScannedDocument.tenant_id == tenant_id,
+                ScannedDocument.file_url == f"/api/doc-uploads/{safe}",
+            )
+        ).first()
+        if not owned:
+            raise HTTPException(status_code=403, detail="Not allowed to access this document")
         return FileResponse(file_path)
 
     @app.get("/api/health")

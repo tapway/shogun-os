@@ -332,9 +332,22 @@ async def login(body: LoginRequest, db: Session = Depends(get_db)) -> JSONRespon
         # Global lookup — user may belong to any tenant. The session token
         # encodes user.id, and get_current_user() resolves the tenant from
         # user.tenant_id, so the primary-tenant scope does NOT leak here.
-        user = db.execute(
+        matches = db.execute(
             select(User).where(User.email == email)
-        ).scalar_one_or_none()
+        ).scalars().all()
+        if not matches:
+            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
+
+        # Emails are unique per-tenant (uq_users_tenant_email), so the same
+        # email can legitimately exist across tenants. Prefer the primary
+        # tenant's user for backward compat; otherwise take the only match.
+        if len(matches) > 1:
+            primary = get_primary_tenant(db)
+            user = next(
+                (u for u in matches if u.tenant_id == primary.id), matches[0]
+            )
+        else:
+            user = matches[0]
 
         if user is None or not user.password_hash:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid credentials")
@@ -605,17 +618,20 @@ async def _upsert_oauth_user(
 ) -> User:
     tenant = get_primary_tenant(db)
     email_n = email.lower().strip()
+    # Resolve existing users globally first (OAuth carries no tenant context,
+    # and a user may belong to a non-primary tenant). New-user provisioning
+    # still lands on the primary tenant — the only sane default without a
+    # tenant claim in the OAuth payload.
     user = db.execute(
         select(User).where(
-            User.tenant_id == tenant.id,
             User.oauth_provider == provider,
             User.oauth_id == oauth_id,
         )
-    ).scalar_one_or_none()
+    ).scalars().first()
     if user is None:
         user = db.execute(
-            select(User).where(User.tenant_id == tenant.id, User.email == email_n)
-        ).scalar_one_or_none()
+            select(User).where(User.email == email_n)
+        ).scalars().first()
     if user is None:
         # First OAuth login becomes admin if no users exist yet
         existing_count = len(

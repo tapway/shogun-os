@@ -20,7 +20,7 @@ from sqlalchemy.orm import Session
 from auth import require_admin
 from config import SHOGUN_HOME, get_config, load_config, save_config
 from database import get_db, get_primary_tenant
-from models import Department, User
+from models import Department, Tenant, User
 
 logger = logging.getLogger(__name__)
 
@@ -153,10 +153,11 @@ def build_registration_payload(
     install_token: Optional[str] = None,
     create_tunnel: bool = True,
     metadata: Optional[Dict[str, Any]] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Dict[str, Any]:
     """Assemble RegisterRequest for central registry (product schema)."""
     cfg = get_config()
-    tenant = get_primary_tenant(db)
+    tenant = tenant or get_primary_tenant(db)
     active_depts = list(
         db.execute(
             select(Department).where(
@@ -218,10 +219,15 @@ def build_registration_payload(
     return payload
 
 
-def apply_registry_identity(db: Session, body: Dict[str, Any]) -> Dict[str, Any]:
+def apply_registry_identity(
+    db: Session,
+    body: Dict[str, Any],
+    *,
+    tenant: Optional[Tenant] = None,
+) -> Dict[str, Any]:
     """Persist assigned subdomain / public_url / tenant_id into DB + web.json."""
     cfg = load_config(force_reload=True)
-    tenant = get_primary_tenant(db)
+    tenant = tenant or get_primary_tenant(db)
 
     subdomain = body.get("subdomain") or body.get("slug")
     public_url = body.get("public_url")
@@ -282,6 +288,7 @@ async def register_with_central(
     metadata: Optional[Dict[str, Any]] = None,
     create_tunnel: bool = True,
     install_token: Optional[str] = None,
+    tenant: Optional[Tenant] = None,
 ) -> Dict[str, Any]:
     """
     Bootstrap (if needed) + register with central registry.
@@ -290,6 +297,7 @@ async def register_with_central(
     """
     cfg = get_config()
     base = _registry_base()
+    tenant = tenant or get_primary_tenant(db)
 
     # Skip if already live and not forcing
     if (
@@ -310,7 +318,6 @@ async def register_with_central(
     token = install_token or cfg.registry_api_key or os.environ.get("SHOGUN_REGISTRY_TOKEN")
     boot_meta: Dict[str, Any] = {}
     if not token:
-        tenant = get_primary_tenant(db)
         admin_email = None
         admin = db.execute(
             select(User)
@@ -339,6 +346,7 @@ async def register_with_central(
         install_token=token,
         create_tunnel=create_tunnel,
         metadata=metadata,
+        tenant=tenant,
     )
     if force:
         payload["force"] = True
@@ -365,7 +373,7 @@ async def register_with_central(
                     "bootstrap": {k: boot_meta.get(k) for k in ("domain", "expires_in_seconds") if k in boot_meta},
                 }
 
-            identity = apply_registry_identity(db, body if isinstance(body, dict) else {})
+            identity = apply_registry_identity(db, body if isinstance(body, dict) else {}, tenant=tenant)
             tunnel_token = _extract_tunnel_token(body)
             tunnel_info: Dict[str, Any] = {"token_saved": False}
             if tunnel_token:
@@ -396,9 +404,17 @@ async def register_with_central(
         }
 
 
-async def go_live(db: Session, *, create_tunnel: bool = True, force: bool = False) -> Dict[str, Any]:
+async def go_live(
+    db: Session,
+    *,
+    create_tunnel: bool = True,
+    force: bool = False,
+    tenant: Optional[Tenant] = None,
+) -> Dict[str, Any]:
     """Onboarding entrypoint — claim public URL + start tunnel."""
-    result = await register_with_central(db, force=force, create_tunnel=create_tunnel)
+    result = await register_with_central(
+        db, force=force, create_tunnel=create_tunnel, tenant=tenant
+    )
     return result
 
 

@@ -4,6 +4,7 @@ Stubs DB + config to test endpoint functions directly without HTTP.
 """
 
 import asyncio
+import json
 import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
@@ -60,7 +61,12 @@ class _Result:
         return self
 
     def all(self):
-        return self._value if isinstance(self._value, list) else []
+        # reflect the new global-lookup contract (list of matches)
+        if isinstance(self._value, list):
+            return self._value
+        if self._value is None:
+            return []
+        return [self._value]
 
 
 class _LoginDBStub:
@@ -135,6 +141,20 @@ def test_login_nonexistent_user_returns_401():
                 )
             )
     assert exc_info.value.status_code == 401
+
+
+def test_login_duplicate_email_across_tenants_prefers_primary():
+    """Same email in 2 tenants must not 500 (MultipleResultsFound) — prefer primary."""
+    primary_user = _make_user(uid=1, email="dupe@example.com", password="Pass1234")
+    other_user = _make_user(uid=2, email="dupe@example.com", password="Pass1234")
+    other_user.tenant_id = 2
+    db = _LoginDBStub(user=[primary_user, other_user])
+    with _patch_get_primary_tenant(db):
+        response = asyncio.run(
+            auth.login(LoginRequest(email="dupe@example.com", password="Pass1234"), db=db)
+        )
+    data = json.loads(response.body)
+    assert data["user"]["id"] == 1  # prefers the primary-tenant user, no 500
 
 
 def test_login_user_without_password_hash_returns_401():

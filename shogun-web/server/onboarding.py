@@ -212,7 +212,9 @@ async def onboarding_go_live(
     if user.tenant_id != tenant.id:
         raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Tenant mismatch")
 
-    result = await registry_go_live(db, create_tunnel=body.create_tunnel, force=body.force)
+    result = await registry_go_live(
+        db, create_tunnel=body.create_tunnel, force=body.force, tenant=tenant
+    )
     state = _get_onboarding(db, tenant.id)
     merged = dict(state.data or {})
     go_live_snap = {
