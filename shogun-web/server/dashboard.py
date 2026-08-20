@@ -636,11 +636,17 @@ async def get_crm_ceo_stats(
     return _run_ceo_aggregation(pages)
 
 
-# ─── CRM list/search endpoints (live gbrain data, no mock) ───
+# ─── CRM list/search endpoints (live data from Tapway CRM public API) ───
+
+# The CRM data (1,044 deals, 5,374 companies, 309 tasks) lives on the
+# Tapway CRM server (crm.gotapway.com). These endpoints proxy to its
+# public JSON API and apply filtering/sorting on top.
+
+TAPWAY_CRM_API = os.environ.get("TAPWAY_CRM_API_URL", "https://crm.gotapway.com/api")
 
 
 def _extract_deal_list_item(page: dict) -> dict:
-    """Map a raw gbrain page to a CrmDealListItem."""
+    """Map a raw Tapway CRM deal page to a CrmDealListItem."""
     fm = _parse_frontmatter(page.get("frontmatter"))
     return {
         "slug": page.get("slug", ""),
@@ -665,10 +671,20 @@ async def list_crm_deals(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM deals from gbrain (live)."""
-    pages = await gbrain_fetch_pages("crm", limit=500)
-    deals = [p for p in pages if p.get("slug", "").startswith("deals/")]
-    deals = [p for p in deals if not any(
+    """List CRM deals from Tapway CRM API (live)."""
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{TAPWAY_CRM_API}/deals")
+            if resp.status_code >= 400:
+                logger.warning("Tapway CRM /deals returned %s", resp.status_code)
+                return {"deals": [], "total": 0}
+            payload = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("Tapway CRM deals fetch error: %s", exc)
+        return {"deals": [], "total": 0}
+
+    raw_deals = payload.get("deals", [])
+    deals = [p for p in raw_deals if not any(
         x in str(p.get("slug", "")) for x in ["templates/", "/readme", "_schema", "activity-log", "risk-register"]
     )]
 
@@ -697,10 +713,20 @@ async def list_crm_companies(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list:
-    """List CRM companies from gbrain (live)."""
-    pages = await gbrain_fetch_pages("crm", limit=5000)
-    companies = [p for p in pages if p.get("slug", "").startswith("companies/")]
+    """List CRM companies from Tapway CRM API (live)."""
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{TAPWAY_CRM_API}/companies")
+            if resp.status_code >= 400:
+                logger.warning("Tapway CRM /companies returned %s", resp.status_code)
+                return []
+            companies = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("Tapway CRM companies fetch error: %s", exc)
+        return []
 
+    # The API returns [{slug, title}, ...] — frontmatter is not included.
+    # We map directly; industry/website come from frontmatter when present.
     items = []
     for p in companies:
         fm = _parse_frontmatter(p.get("frontmatter"))
@@ -732,51 +758,20 @@ async def list_crm_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list:
-    """List CRM tasks parsed from deal markdown in gbrain (live)."""
-    pages = await gbrain_fetch_pages("crm", limit=500)
-    deals = [p for p in pages if p.get("slug", "").startswith("deals/")]
-    deals = [p for p in deals if not any(
-        x in str(p.get("slug", "")) for x in ["templates/", "/readme", "_schema", "activity-log", "risk-register"]
-    )]
-
-    tasks: List[dict] = []
-    for deal in deals:
-        title = deal.get("title", "")
-        slug = deal.get("slug", "")
-        truth = deal.get("compiled_truth", "") or ""
-        fm = _parse_frontmatter(deal.get("frontmatter"))
-
-        # Parse task patterns from compiled_truth markdown:
-        # Pattern 1: **Task Description** @assignee
-        # Pattern 2: - [ ] Task @assignee  /  - [x] Task @assignee
-        # Pattern 3: ## Next Step / ## Tasks section bullets
-        for m in _re.finditer(r"\*\*(.+?)\*\*(?:\s*@(\w[\w\s.-]+?))?(?:\s*$|\n)", truth):
-            desc = m.group(1).strip()
-            asgn = (m.group(2) or "").strip()
-            if desc.lower() in ("next step", "summary", "notes", "timeline"):
-                continue
-            tasks.append({
-                "description": f"**{desc}**",
-                "assignee": asgn or fm.get("owner", ""),
-                "completed": False,
-                "deal_slug": slug,
-                "deal_title": title,
-            })
-
-        for m in _re.finditer(r"^\s*[-*]\s*\[([ x])\]\s+(.+?)(?:\s*@(\w[\w\s.-]+?))?(?:\s*$|\n)", truth, _re.MULTILINE):
-            done = m.group(1).lower() == "x"
-            desc = m.group(2).strip()
-            asgn = (m.group(3) or "").strip()
-            tasks.append({
-                "description": desc,
-                "assignee": asgn or fm.get("owner", ""),
-                "completed": done,
-                "deal_slug": slug,
-                "deal_title": title,
-            })
+    """List CRM tasks from Tapway CRM API (live)."""
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{TAPWAY_CRM_API}/tasks")
+            if resp.status_code >= 400:
+                logger.warning("Tapway CRM /tasks returned %s", resp.status_code)
+                return []
+            tasks = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("Tapway CRM tasks fetch error: %s", exc)
+        return []
 
     if completed is not None:
-        tasks = [t for t in tasks if t["completed"] == completed]
+        tasks = [t for t in tasks if t.get("completed") == completed]
     if assignee:
         ca = _canonical_owner(assignee)
         tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
@@ -795,31 +790,30 @@ async def crm_search(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Global search across CRM gbrain pages (live)."""
+    """Global search across Tapway CRM pages (live)."""
     query = body.query.strip()
     if not query:
         return {"results": []}
 
-    results = await gbrain_search("crm", query, limit=50)
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{TAPWAY_CRM_API}/search",
+                json={"query": query},
+            )
+            if resp.status_code >= 400:
+                logger.warning("Tapway CRM /search returned %s", resp.status_code)
+                return {"results": []}
+            payload = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("Tapway CRM search error: %s", exc)
+        return {"results": []}
 
-    def _category(slug: str) -> str:
-        if slug.startswith("companies/"):
-            return "companies"
-        if slug.startswith("deals/"):
-            return "deals"
-        return "unknown"
-
-    mapped = []
+    results = payload.get("results", [])
     for r in results:
-        slug = r.get("slug", "")
-        mapped.append({
-            "slug": slug,
-            "title": r.get("title", ""),
-            "frontmatter": _parse_frontmatter(r.get("frontmatter")),
-            "category": _category(slug),
-        })
+        r["frontmatter"] = _parse_frontmatter(r.get("frontmatter"))
 
-    return {"results": mapped}
+    return {"results": results}
 
 
 # ─── BEV Zones proxy (→ separate microservice) ───
