@@ -625,17 +625,6 @@ async def get_dashboard_config(
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
 
 
-@router.get("/ceo-stats")
-async def get_crm_ceo_stats(
-    name: str = Path(...),
-    user: User = Depends(get_current_user),
-    db: Session = Depends(get_db),
-) -> dict:
-    """Aggregated CEO dashboard stats for CRM."""
-    pages = await gbrain_fetch_pages("crm", limit=200)
-    return _run_ceo_aggregation(pages)
-
-
 # ─── CRM list/search endpoints (live data from Tapway CRM public API) ───
 
 # The CRM data (1,044 deals, 5,374 companies, 309 tasks) lives on the
@@ -643,6 +632,40 @@ async def get_crm_ceo_stats(
 # public JSON API and apply filtering/sorting on top.
 
 TAPWAY_CRM_API = os.environ.get("TAPWAY_CRM_API_URL", "https://crm.gotapway.com/api")
+
+
+@router.get("/ceo-stats")
+async def get_crm_ceo_stats(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated CEO dashboard stats for CRM.
+
+    Tries gbrain first; falls back to Tapway CRM public API when gbrain
+    has no CRM data (e.g. local PGLite with empty crm source).
+    """
+    pages = await gbrain_fetch_pages("crm", limit=200)
+    if pages:
+        return _run_ceo_aggregation(pages)
+
+    # Fallback: aggregate from Tapway CRM API
+    logger.info("gbrain has no CRM pages — aggregating from Tapway CRM API")
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{TAPWAY_CRM_API}/deals")
+            if resp.status_code == 200:
+                api_deals = resp.json().get("deals", [])
+                if api_deals:
+                    return _run_ceo_aggregation(api_deals)
+    except httpx.HTTPError as exc:
+        logger.warning("Tapway CRM fallback for ceo-stats failed: %s", exc)
+
+    # No data at all — return empty state
+    return _run_ceo_aggregation([])
+
+
+# ─── CRM list/search endpoints (live data from Tapway CRM public API) ───
 
 
 def _extract_deal_list_item(page: dict) -> dict:
