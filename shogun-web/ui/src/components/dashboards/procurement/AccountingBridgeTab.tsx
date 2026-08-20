@@ -162,7 +162,7 @@ export function AccountingBridgeTab({ stats, onAction }: Props) {
                       {row.variance >= 0 ? '+' : ''}{fmtMyr(row.variance)}
                     </td>
                     <td className="px-3 py-2 text-right" style={{ fontWeight: 600, color: Math.abs(row.variance_pct) > 1 ? 'var(--samurai-danger)' : 'var(--samurai-ok)' }}>
-                      {row.variance_pct >= 0 ? '+' : ''}{row.variance_pct.toFixed(2)}%
+                      {row.variance_pct >= 0 ? '+' : ''}{(row.variance_pct || 0).toFixed(2)}%
                     </td>
                     <td className="px-3 py-2 text-center">
                       <span className={`sd-chip ${RECON_STYLE[row.reconciliation_status] ?? 'muted'}`}>

@@ -66,8 +66,8 @@ export function StockMovementAuditTab({ stats, color }: Props) {
                         {m.movement_type}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? 'var(--samurai-ok)' : m.movement_type.startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
-                      {m.movement_type.startsWith('-') ? '-' : m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? '+' : ''}{m.quantity.toLocaleString()}
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? 'var(--samurai-ok)' : (m.movement_type || '').startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
+                      {(m.movement_type || '').startsWith('-') ? '-' : (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? '+' : ''}{(m.quantity || 0).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.reference_id}</td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.location_id}</td>

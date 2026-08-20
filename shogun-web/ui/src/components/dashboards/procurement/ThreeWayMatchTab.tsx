@@ -175,7 +175,7 @@ export function ThreeWayMatchTab({ stats, onAction }: Props) {
               <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem" }}>
                 <span style={{ color: MUTED }}>Agreed Amount:</span>
                 <span style={{ fontWeight: 700, color: TEXT }}>
-                  RM {activeMatch.po_amount.toLocaleString()}
+                  RM {(activeMatch.po_amount || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -194,7 +194,7 @@ export function ThreeWayMatchTab({ stats, onAction }: Props) {
               <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem" }}>
                 <span style={{ color: MUTED }}>Received Value:</span>
                 <span style={{ fontWeight: 700, color: TEXT }}>
-                  RM {activeMatch.grn_received_amount.toLocaleString()}
+                  RM {(activeMatch.grn_received_amount || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -214,7 +214,7 @@ export function ThreeWayMatchTab({ stats, onAction }: Props) {
               <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: "0.5rem", display: "flex", justifyContent: "space-between", alignItems: "center", fontSize: "0.72rem" }}>
                 <span style={{ color: MUTED }}>Invoiced Amount:</span>
                 <span style={{ fontWeight: 700, color: activeMatch.variance_amount > 0 ? "var(--samurai-warning)" : TEXT }}>
-                  RM {activeMatch.invoice_amount.toLocaleString()}
+                  RM {(activeMatch.invoice_amount || 0).toLocaleString()}
                 </span>
               </div>
             </div>
@@ -238,17 +238,17 @@ export function ThreeWayMatchTab({ stats, onAction }: Props) {
                     Total Billed vs Received Valuation
                   </td>
                   <td className="px-3 py-2.5 text-right" style={{ fontFamily: "var(--font-display)", color: TEXT }}>
-                    RM {activeMatch.po_amount.toLocaleString()}
+                    RM {(activeMatch.po_amount || 0).toLocaleString()}
                   </td>
                   <td className="px-3 py-2.5 text-right" style={{ fontFamily: "var(--font-display)", color: TEXT }}>
-                    RM {activeMatch.grn_received_amount.toLocaleString()}
+                    RM {(activeMatch.grn_received_amount || 0).toLocaleString()}
                   </td>
                   <td className="px-3 py-2.5 text-right" style={{ fontFamily: "var(--font-display)", fontWeight: 700, color: TEXT }}>
-                    RM {activeMatch.invoice_amount.toLocaleString()}
+                    RM {(activeMatch.invoice_amount || 0).toLocaleString()}
                   </td>
                   <td className="px-3 py-2.5 text-right" style={{ fontFamily: "var(--font-display)", fontWeight: 700, color: activeMatch.variance_amount > 0 ? "var(--samurai-danger)" : "var(--samurai-ok)" }}>
                     {activeMatch.variance_amount > 0
-                      ? `+RM ${activeMatch.variance_amount.toLocaleString()}`
+                      ? `+RM ${(activeMatch.variance_amount || 0).toLocaleString()}`
                       : "RM 0.00"}
                   </td>
                 </tr>

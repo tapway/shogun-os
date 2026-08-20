@@ -106,7 +106,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: 500, color: TEXT }}>{bin.location}</span>
                     <span style={{ color: MUTED }}>
-                      {bin.used.toLocaleString()} / {bin.capacity.toLocaleString()} units · {bin.utilisation_pct.toFixed(0)}%
+                      {(bin.used || 0).toLocaleString()} / {(bin.capacity || 0).toLocaleString()} units · {(bin.utilisation_pct || 0).toFixed(0)}%
                     </span>
                   </div>
                   <div style={{ height: '0.5rem', borderRadius: 999, overflow: 'hidden', background: SURFACE_2 }}>
@@ -271,8 +271,8 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                         {m.movement_type}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? 'var(--samurai-ok)' : m.movement_type.startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
-                      {m.movement_type.startsWith('-') ? '-' : m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? '+' : ''}{m.quantity.toLocaleString()}
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? 'var(--samurai-ok)' : (m.movement_type || '').startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
+                      {(m.movement_type || '').startsWith('-') ? '-' : (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? '+' : ''}{(m.quantity || 0).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.reference_id}</td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.location_id}</td>

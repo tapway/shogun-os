@@ -53,7 +53,7 @@ export function ExecutiveProcurementPulseTab({
     },
     {
       label: "Total Active SKUs",
-      value: stats.totalActiveSkus.toLocaleString(),
+      value: (stats.totalActiveSkus || 0).toLocaleString(),
       targetTab: "inventory",
     },
     {

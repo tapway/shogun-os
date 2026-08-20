@@ -386,7 +386,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                       className="px-3 py-2.5 text-right"
                       style={{ color: MUTED }}
                     >
-                      RM {po.threshold_myr.toLocaleString()}
+                      RM {(po.threshold_myr || 0).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5 text-center">
                       <span
@@ -1121,7 +1121,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                                 : "var(--samurai-danger)",
                         }}
                       >
-                        {v.on_time_delivery_rate.toFixed(0)}%
+                        {(v.on_time_delivery_rate || 0).toFixed(0)}%
                       </td>
                       <td
                         className="py-2 text-right"
@@ -1135,7 +1135,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                                 : "var(--samurai-danger)",
                         }}
                       >
-                        {v.quality_acceptance_rate.toFixed(0)}%
+                        {(v.quality_acceptance_rate || 0).toFixed(0)}%
                       </td>
                       <td className="py-2 text-center">
                         <span
@@ -1163,7 +1163,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
               <AlertTriangle className="h-4 w-4 shrink-0" />
               <span>
                 {concentrationAlert.vendor} represents{" "}
-                {concentrationAlert.spend_pct.toFixed(1)}% of spend — supplier
+                {(concentrationAlert.spend_pct || 0).toFixed(1)}% of spend — supplier
                 dependency risk (&gt;25%)
               </span>
             </div>
@@ -1253,7 +1253,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                           }}
                         >
                           <span style={{ fontWeight: 600, color: TEXT }}>
-                            RM {v.spend.toLocaleString()}
+                            RM {(v.spend || 0).toLocaleString()}
                           </span>
                           <span
                             style={{
@@ -1264,7 +1264,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                               color: MUTED,
                             }}
                           >
-                            {v.spend_pct.toFixed(1)}%
+                            {(v.spend_pct || 0).toFixed(1)}%
                           </span>
                         </div>
                       </div>

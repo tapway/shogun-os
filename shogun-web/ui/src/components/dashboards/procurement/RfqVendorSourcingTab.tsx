@@ -140,7 +140,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
             </div>
             <div className="mt-2 sm:mt-0 text-right">
               <div style={{ fontSize: '0.72rem', color: MUTED }}>Target Budget</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: TEXT }}>RM {activeRfq.budget_myr.toLocaleString()}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: TEXT }}>RM {(activeRfq.budget_myr || 0).toLocaleString()}</div>
             </div>
           </div>
 
@@ -185,7 +185,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                       const isLowest = q.unit_price === minPrice;
                       return (
                         <td key={q.vendor} className="px-4 py-3 text-center" style={{ fontWeight: 600, color: TEXT }}>
-                          RM {q.unit_price.toLocaleString()}
+                          RM {(q.unit_price || 0).toLocaleString()}
                           {isLowest && (
                             <span className="sd-chip ok" style={{ marginLeft: '0.4rem' }}>
                               <Award className="h-3 w-3" /> Best Price
@@ -201,7 +201,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                     <td className="px-4 py-3" style={{ fontWeight: 600, color: TEXT }}>Total Quote Amount</td>
                     {activeRfq.quotes.map((q) => (
                       <td key={q.vendor} className="px-4 py-3 text-center" style={{ fontWeight: 700, color: TEXT }}>
-                        RM {q.total_amount.toLocaleString()}
+                        RM {(q.total_amount || 0).toLocaleString()}
                       </td>
                     ))}
                   </tr>

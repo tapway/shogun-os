@@ -147,7 +147,7 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
                       <div style={{ fontWeight: 500, color: TEXT }}>{pr.item_description}</div>
                       {pr.justification && <div style={{ fontSize: '0.72rem', color: MUTED, fontStyle: 'italic' }}>&ldquo;{pr.justification}&rdquo;</div>}
                     </td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>RM {pr.estimated_amount.toLocaleString()}</td>
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>RM {(pr.estimated_amount || 0).toLocaleString()}</td>
                     <td className="px-3 py-2.5 text-center">
                       <span className={`sd-chip ${PRIORITY_STYLE[pr.priority] ?? 'muted'}`}>{pr.priority}</span>
                     </td>
