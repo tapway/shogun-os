@@ -8,46 +8,6 @@ interface Props {
   color?: string;
 }
 
-const DEFAULT_BATCHES: BarcodeBatchLog[] = [
-  {
-    batch_id: 'BATCH-2026-0803-01',
-    action_type: 'GRN Receipt Tagging',
-    reference_id: 'GRN-2026-0091 (PO-2026-0218)',
-    actor: 'Warehouse / Logistics',
-    timestamp: '2026-08-03 10:15',
-    total_items: 4,
-    units: [
-      { barcode_id: 'BC-984201-001', sku: 'IT-LP-15', item_name: 'Dell Latitude 5540 i7', serial_no: 'SN-5540-001', location_bin: 'LOC-MAIN-A1', status: 'In Store', last_scan_timestamp: '2026-08-03 10:15' },
-      { barcode_id: 'BC-984201-002', sku: 'IT-LP-15', item_name: 'Dell Latitude 5540 i7', serial_no: 'SN-5540-002', location_bin: 'LOC-MAIN-A1', status: 'Issued', assigned_to: 'Admin Dept (REQ-2026-0845)', last_scan_timestamp: '2026-08-03 14:20' },
-      { barcode_id: 'BC-984201-003', sku: 'IT-LP-15', item_name: 'Dell Latitude 5540 i7', serial_no: 'SN-5540-003', location_bin: 'LOC-MAIN-A1', status: 'In Store', last_scan_timestamp: '2026-08-03 10:15' },
-      { barcode_id: 'BC-984201-004', sku: 'IT-LP-15', item_name: 'Dell Latitude 5540 i7', serial_no: 'SN-5540-004', location_bin: 'LOC-MAIN-A1', status: 'In Store', last_scan_timestamp: '2026-08-03 10:15' },
-    ],
-  },
-  {
-    batch_id: 'BATCH-2026-0802-04',
-    action_type: 'Stock Issuance (Scan OUT)',
-    reference_id: 'REQ-2026-0845',
-    actor: 'IT Infrastructure',
-    timestamp: '2026-08-02 14:40',
-    total_items: 2,
-    units: [
-      { barcode_id: 'BC-884102-011', sku: 'OF-PR-03', item_name: 'A4 80gsm Ream', serial_no: 'BATCH-PAP-881', location_bin: 'LOC-OFF-B2', status: 'Issued', assigned_to: 'IT Dept Staff', last_scan_timestamp: '2026-08-02 14:40' },
-      { barcode_id: 'BC-884102-012', sku: 'OF-PR-03', item_name: 'A4 80gsm Ream', serial_no: 'BATCH-PAP-882', location_bin: 'LOC-OFF-B2', status: 'Issued', assigned_to: 'IT Dept Staff', last_scan_timestamp: '2026-08-02 14:40' },
-    ],
-  },
-  {
-    batch_id: 'BATCH-2026-0801-02',
-    action_type: 'Stock Return (Scan IN)',
-    reference_id: 'RTV-2026-0008',
-    actor: 'Store & Facilities',
-    timestamp: '2026-08-01 11:20',
-    total_items: 1,
-    units: [
-      { barcode_id: 'BC-984201-088', sku: 'IT-LP-15', item_name: 'Dell Latitude 5540 i7', serial_no: 'SN-5540-088', location_bin: 'LOC-MAIN-A1', status: 'Returned', assigned_to: 'RMA Store Return', last_scan_timestamp: '2026-08-01 11:20' },
-    ],
-  },
-];
-
 const MOVEMENT_BADGE: Record<string, string> = {
   '+ Receive':    'ok',
   '- Issue':      'muted',
@@ -68,7 +28,7 @@ function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'r
 
 export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
   // Batch Logs State
-  const batches = stats.barcodeBatches && stats.barcodeBatches.length > 0 ? stats.barcodeBatches : DEFAULT_BATCHES;
+  const batches = stats.barcodeBatches ?? [];
   const [expandedBatchIds, setExpandedBatchIds] = useState<Record<string, boolean>>({
     'BATCH-2026-0803-01': true, // default expand 1st batch
   });
@@ -106,7 +66,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
                     <span style={{ fontWeight: 500, color: TEXT }}>{bin.location}</span>
                     <span style={{ color: MUTED }}>
-                      {bin.used.toLocaleString()} / {bin.capacity.toLocaleString()} units · {bin.utilisation_pct.toFixed(0)}%
+                      {(bin.used || 0).toLocaleString()} / {(bin.capacity || 0).toLocaleString()} units · {(bin.utilisation_pct || 0).toFixed(0)}%
                     </span>
                   </div>
                   <div style={{ height: '0.5rem', borderRadius: 999, overflow: 'hidden', background: SURFACE_2 }}>
@@ -156,7 +116,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                       </td>
                       <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: TEXT }}>{batch.batch_id}</td>
                       <td className="px-3 py-2.5">
-                        <span className={`sd-chip ${batch.action_type.includes('GRN') ? 'muted' : batch.action_type.includes('OUT') ? 'bad' : 'ok'}`}>
+                        <span className={`sd-chip ${(batch.action_type || '').includes('GRN') ? 'muted' : (batch.action_type || '').includes('OUT') ? 'bad' : 'ok'}`}>
                           {batch.action_type}
                         </span>
                       </td>
@@ -271,8 +231,8 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                         {m.movement_type}
                       </span>
                     </td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? 'var(--samurai-ok)' : m.movement_type.startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
-                      {m.movement_type.startsWith('-') ? '-' : m.movement_type.startsWith('+') || m.movement_type.startsWith('↺') ? '+' : ''}{m.quantity.toLocaleString()}
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? 'var(--samurai-ok)' : (m.movement_type || '').startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
+                      {(m.movement_type || '').startsWith('-') ? '-' : (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? '+' : ''}{(m.quantity || 0).toLocaleString()}
                     </td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.reference_id}</td>
                     <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.location_id}</td>

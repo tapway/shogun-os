@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # scripts/run-tests.sh — single entry point for the full test suite.
-# Runs all Python tests (excluding @slow) across both test directories.
+# Runs all Python tests (excluding @slow) using paths from pytest.ini.
 # CI runs this exact command. Local dev can add -m slow to include everything.
 set -euo pipefail
 
@@ -9,10 +9,10 @@ REPO_DIR="$(dirname "$SCRIPT_DIR")"
 cd "$REPO_DIR"
 
 # Detect python (prefer venv if present)
-if [ -f "./venv/Scripts/python.exe" ]; then
-  PY="./venv/Scripts/python.exe"
-elif [ -f "./venv/bin/python" ]; then
+if [ -f "./venv/bin/python" ]; then
   PY="./venv/bin/python"
+elif [ -f "./venv/Scripts/python.exe" ]; then
+  PY="./venv/Scripts/python.exe"
 else
   PY="python3"
 fi
@@ -21,7 +21,7 @@ echo "=== Running test suite (excluding @slow) ==="
 echo "Python: $($PY --version 2>&1)"
 echo ""
 
-$PY -m pytest tests/ shogun-web/server/tests/ -m "not slow" -v --tb=short
+$PY -m pytest -m "not slow" -v --tb=short
 
 echo ""
 echo "=== Test suite complete ==="

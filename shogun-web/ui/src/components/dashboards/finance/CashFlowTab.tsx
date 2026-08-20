@@ -350,7 +350,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'receivables' && (
         <FinanceDetailModal
           title="Outstanding Receivables"
-          subtitle={`Total AR: ${fmt(totalAR)} · DSO: ${stats.dso.toFixed(0)} days`}
+          subtitle={`Total AR: ${fmt(totalAR)} · DSO: ${(stats.dso || 0).toFixed(0)} days`}
           onClose={() => setActiveModal(null)}
           maxWidth="40rem"
         >
@@ -390,7 +390,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'burn' && (
         <FinanceDetailModal
           title="Average Monthly Burn"
-          subtitle={`YTD avg: ${fmt(avgMonthlyBurn)} · Runway: ${stats.cashRunwayMonths.toFixed(1)} months`}
+          subtitle={`YTD avg: ${fmt(avgMonthlyBurn)} · Runway: ${(stats.cashRunwayMonths || 0).toFixed(1)} months`}
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >
@@ -398,8 +398,8 @@ export function CashFlowTab({ stats, color }: Props) {
             <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 600, color: TEXT }}>{fmt(avgMonthlyBurn)}</div>
             <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.2rem' }}>
               {stats.cashRunwayMonths > 6
-                ? `Healthy runway — ${stats.cashRunwayMonths.toFixed(1)} months`
-                : `Monitor burn — ${stats.cashRunwayMonths.toFixed(1)} months runway`}
+                ? `Healthy runway — ${(stats.cashRunwayMonths || 0).toFixed(1)} months`
+                : `Monitor burn — ${(stats.cashRunwayMonths || 0).toFixed(1)} months runway`}
             </div>
           </div>
           {burnTrend.length > 0 && (
@@ -519,7 +519,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'apAging' && (
         <FinanceDetailModal
           title="Accounts Payable Aging"
-          subtitle={`Total AP: ${fmt(stats.totalAP)} · DPO: ${stats.dpo.toFixed(0)} days`}
+          subtitle={`Total AP: ${fmt(stats.totalAP)} · DPO: ${(stats.dpo || 0).toFixed(0)} days`}
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >
@@ -556,7 +556,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'arAging' && (
         <FinanceDetailModal
           title="Accounts Receivable Aging"
-          subtitle={`Total AR: ${fmt(totalAR)} · DSO: ${stats.dso.toFixed(0)} days`}
+          subtitle={`Total AR: ${fmt(totalAR)} · DSO: ${(stats.dso || 0).toFixed(0)} days`}
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >

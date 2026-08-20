@@ -88,6 +88,10 @@ class User(Base):
     slack_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     telegram_user_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     employee_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # Generic per-platform user IDs for channels without a dedicated column
+    # (discord, whatsapp, signal, teams, etc.). Keyed by CommsChannelConfig.key.
+    # Telegram and Slack still use their dedicated columns above for backward compat.
+    platform_user_ids: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
     manager_id: Mapped[Optional[int]] = mapped_column(Integer, ForeignKey("users.id"), nullable=True)
     manager: Mapped[Optional["User"]] = relationship(
         remote_side="User.id", foreign_keys=[manager_id], back_populates="direct_reports"
@@ -126,6 +130,7 @@ class User(Base):
             "phone": self.phone,
             "slack_user_id": self.slack_user_id,
             "telegram_user_id": self.telegram_user_id,
+            "platform_user_ids": self.platform_user_ids or {},
             "employee_id": self.employee_id,
             "source": self.source,
             "last_synced_at": self.last_synced_at.isoformat() if self.last_synced_at else None,

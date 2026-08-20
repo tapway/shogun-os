@@ -1,13 +1,137 @@
-"""Shared HTTP client for gbrain MCP. Used by brain, docs, and dashboard endpoints."""
+"""Shared HTTP client for gbrain MCP. Used by brain, docs, and dashboard endpoints.
+
+gbrain v0.42+ uses MCP JSON-RPC protocol over HTTP (not REST).
+This client calls the /mcp endpoint with tools/call methods.
+
+Falls back to reading brain markdown files directly from the filesystem when
+the gbrain HTTP server is unreachable.
+"""
 from __future__ import annotations
 
+import json
 import logging
-from typing import Any, List, Optional
+import os
+import pathlib
+import re
+from typing import Any, Dict, List, Optional
 
 import httpx
 from config import get_config
 
 logger = logging.getLogger(__name__)
+
+
+def _parse_frontmatter_from_markdown(text: str) -> Dict[str, Any]:
+    """Parse YAML frontmatter from a markdown file. Returns {} if none."""
+    if not text.startswith("---"):
+        return {}
+    parts = text.split("---", 2)
+    if len(parts) < 3:
+        return {}
+    yaml_block = parts[1].strip()
+    result: Dict[str, Any] = {}
+    for line in yaml_block.split("\n"):
+        line = line.strip()
+        if not line or line.startswith("#"):
+            continue
+        m = re.match(r"^(\w[\w\s-]*):\s*(.*)$", line)
+        if m:
+            key = m.group(1).strip()
+            val = m.group(2).strip().strip("\"'")
+            if val:
+                result[key] = val
+    return result
+
+
+def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List[dict[str, Any]]:
+    """Read brain markdown files directly from the filesystem.
+
+    Scans ~/brain/{source}/ for .md files and returns them in the same
+    shape as gbrain's API: {slug, frontmatter, content, body}.
+    """
+    # Sanitize source: reject path traversal and non-identifier values.
+    if not source or ".." in source or "/" in source or "\\" in source or not source.replace("-", "").replace("_", "").isalnum():
+        return []
+    brain_dir = pathlib.Path.home() / "brain" / source
+    if not brain_dir.is_dir():
+        return []
+
+    pages: List[dict[str, Any]] = []
+    for md_path in brain_dir.rglob("*.md"):
+        if md_path.is_symlink():
+            continue  # skip symlinks — avoids traversal outside brain_dir
+        if md_path.name == "README.md":
+            continue
+        # Compute slug relative to the brain/{source}/ directory
+        slug = str(md_path.relative_to(brain_dir)).replace("\\", "/").replace(".md", "")
+        if slug_prefix and not slug.startswith(slug_prefix):
+            continue
+        try:
+            text = md_path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        fm = _parse_frontmatter_from_markdown(text)
+        pages.append({
+            "slug": slug,
+            "frontmatter": fm,
+            "content": text,
+            "body": text,
+            "compiled_truth": text,
+            "source_id": source,
+        })
+    return pages
+
+
+async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
+    """Call a gbrain MCP tool over HTTP JSON-RPC. Returns the parsed result content."""
+    cfg = get_config()
+    base = cfg.gbrain_base_url.rstrip("/")
+    headers = {
+        "Content-Type": "application/json",
+        "Accept": "application/json, text/event-stream",
+    }
+    if cfg.gbrain_api_key:
+        headers["Authorization"] = f"Bearer {cfg.gbrain_api_key}"
+
+    if source_id:
+        arguments.setdefault("source_id", source_id)
+
+    payload = {
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "tools/call",
+        "params": {"name": tool, "arguments": arguments},
+    }
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(f"{base}/mcp", json=payload, headers=headers)
+            if resp.status_code >= 400:
+                logger.warning("gbrain MCP /mcp returned %s: %s", resp.status_code, resp.text[:300])
+                return None
+            # Response is SSE format: "event: message\ndata: {json}"
+            # A single JSON-RPC call returns one event; use the LAST data: line
+            # (the final response), robust to preceding ping/comment events.
+            text = resp.text
+            data_lines = [line[6:] for line in text.split("\n") if line.startswith("data: ")]
+            if not data_lines:
+                logger.warning("gbrain MCP returned no data: lines: %s", resp.text[:200])
+                return None
+            text = data_lines[-1]
+            data = json.loads(text)
+            result = data.get("result", {})
+            content = result.get("content", [])
+            if content and isinstance(content, list) and len(content) > 0:
+                text_val = content[0].get("text", "")
+                if text_val:
+                    try:
+                        return json.loads(text_val)
+                    except (json.JSONDecodeError, TypeError):
+                        return text_val
+            return None
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as exc:
+        logger.info("gbrain MCP unavailable for %s: %s", source_id or tool, exc)
+        return None
 
 
 async def gbrain_fetch_pages(
@@ -16,50 +140,72 @@ async def gbrain_fetch_pages(
     limit: int = 200,
     slug_prefix: Optional[str] = None,
 ) -> List[dict[str, Any]]:
-    """Fetch pages from gbrain for a given source, optionally filtered by slug prefix."""
-    cfg = get_config()
-    base = cfg.gbrain_base_url.rstrip("/")
-    params = {"source_id": source, "limit": str(min(limit, 500))}
+    """Fetch pages from gbrain for a given source, optionally filtered by slug prefix.
 
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{base}/api/pages", params=params)
-            if resp.status_code >= 400:
-                logger.warning("gbrain /api/pages returned %s: %s", resp.status_code, resp.text[:300])
-                return []
-            payload = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("gbrain fetch pages error for %s: %s", source, exc)
-        return []
+    Uses MCP list_pages tool. Falls back to reading markdown files from
+    ~/brain/{source}/ when gbrain HTTP server is unreachable.
+    """
+    # Try MCP first
+    result = await _mcp_call("list_pages", {
+        "limit": min(limit, 500),
+        "sort": "created_desc",
+    }, source_id=source)
 
-    raw_pages: List[dict] = []
-    if isinstance(payload, list):
-        raw_pages = payload
-    elif isinstance(payload, dict):
-        raw_pages = payload.get("pages") or payload.get("data") or payload.get("results") or []
+    pages: List[dict] = []
+    if isinstance(result, list):
+        pages = result
+    elif isinstance(result, dict):
+        pages = result.get("pages") or result.get("data") or result.get("results") or []
+
+    # Enrich: for each page, fetch full content via get_page
+    if pages and slug_prefix:
+        pages = [p for p in pages if str(p.get("slug", "")).startswith(slug_prefix)]
+
+    # If we got pages but they lack compiled_truth, fetch full content.
+    # Cap enrichment to first 50 pages to avoid N+1 request explosion.
+    if pages and not any(p.get("compiled_truth") for p in pages):
+        enriched = []
+        for p in pages[:min(limit, 50)]:
+            slug = p.get("slug", "")
+            if not slug:
+                enriched.append(p)
+                continue
+            full = await gbrain_fetch_page(source, slug)
+            if full:
+                enriched.append(full)
+            else:
+                enriched.append(p)
+        pages = enriched
+
+    # Filesystem fallback when gbrain returns nothing or is unreachable
+    if not pages:
+        pages = _filesystem_fallback(source, slug_prefix)
 
     if slug_prefix:
-        raw_pages = [p for p in raw_pages if str(p.get("slug", "")).startswith(slug_prefix)]
+        pages = [p for p in pages if str(p.get("slug", "")).startswith(slug_prefix)]
 
-    return raw_pages
+    return pages
 
 
 async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
-    """Fetch a single page from gbrain."""
-    cfg = get_config()
-    base = cfg.gbrain_base_url.rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=10.0) as client:
-            resp = await client.get(f"{base}/api/pages/{slug}", params={"source_id": source})
-            if resp.status_code == 200:
-                return resp.json()
-            if resp.status_code == 404:
-                return None
-            logger.warning("gbrain /api/pages/%s returned %s", slug, resp.status_code)
-            return None
-    except httpx.HTTPError as exc:
-        logger.warning("gbrain fetch page error %s/%s: %s", source, slug, exc)
-        return None
+    """Fetch a single page from gbrain via MCP get_page tool."""
+    result = await _mcp_call("get_page", {"slug": slug}, source_id=source)
+
+    if isinstance(result, dict):
+        # Ensure compiled_truth is populated
+        if not result.get("compiled_truth"):
+            result["compiled_truth"] = result.get("content") or result.get("body") or ""
+        return result
+    if isinstance(result, str):
+        # Fallback: got raw text
+        return {
+            "slug": slug,
+            "compiled_truth": result,
+            "content": result,
+            "frontmatter": _parse_frontmatter_from_markdown(result),
+            "source_id": source,
+        }
+    return None
 
 
 async def gbrain_search(
@@ -67,21 +213,14 @@ async def gbrain_search(
     query: str,
     limit: int = 20,
 ) -> List[dict[str, Any]]:
-    """Search gbrain pages for a source."""
-    cfg = get_config()
-    base = cfg.gbrain_base_url.rstrip("/")
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{base}/api/search",
-                json={"query": query, "source_id": source, "limit": limit},
-            )
-            if resp.status_code >= 400:
-                return []
-            payload = resp.json()
-            if isinstance(payload, list):
-                return payload
-            return payload.get("results") or payload.get("pages") or []
-    except httpx.HTTPError as exc:
-        logger.warning("gbrain search error for %s: %s", source, exc)
-        return []
+    """Search gbrain pages for a source via MCP search tool."""
+    result = await _mcp_call("search", {
+        "query": query,
+        "limit": limit,
+    }, source_id=source)
+
+    if isinstance(result, list):
+        return result
+    if isinstance(result, dict):
+        return result.get("results") or result.get("pages") or []
+    return []

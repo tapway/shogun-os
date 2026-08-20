@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -12,55 +13,30 @@ import sys
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote as _url_quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_pages
+from gbrain_client import gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
 # ─── Canonicalization ───
+# Add per-installation owner aliases and product patterns here.
+# These maps normalise raw frontmatter values to canonical labels.
 
-OWNER_ALIASES = {
-    "cheehow": "Chee How",
-    "chee how": "Chee How",
-    "ch lim": "Chee How",
-    "cheehow lim": "Chee How",
-    "cheehow.lim": "Chee How",
-    "shamini": "Shamini",
-    "shamini thilagam": "Shamini",
-    "shamini.t": "Shamini",
-    "syarif": "Syarif",
-    "syarif hidayat": "Syarif",
-    "syarif.hidayat": "Syarif",
-    "shahrul": "Shahrul",
-    "shahrul nizam": "Shahrul",
-    "nazrul": "Nazrul",
-    "nazrul shah": "Nazrul",
-    "nazrul.shah": "Nazrul",
-    "izzat": "Izzat",
-    "izzat danial": "Izzat",
-    "izzat.danial": "Izzat",
-    "muhammad izzat": "Izzat",
-    "farhad": "Farhad",
-    "farhad faisal": "Farhad",
-    "nurul": "Nurul",
-    "nurul ain": "Nurul",
-    "shahirah": "Shahirah",
-    "shahirah hanim": "Shahirah",
-    "zulkifli": "Zulkifli",
-    "zul": "Zulkifli",
-    "zulkifli yusof": "Zulkifli",
-}
+OWNER_ALIASES: dict[str, str] = {}
 
 STAGE_ORDER = ["Lead", "On Hold", "Prospecting", "Qualified", "Quote", "Tender", "Unqualified", "Confirmed", "Won"]
 STAGE_WEIGHTS = {
@@ -70,12 +46,7 @@ STAGE_WEIGHTS = {
 WON_STAGES = {"Won"}
 LOST_STAGES = {"Lost", "Unqualified"}
 ACTIVE_STAGES = {"Lead", "Prospecting", "Qualified", "Quote", "Tender", "Confirmed", "On Hold"}
-PRODUCT_PATTERNS = [
-    (r"samurai|samur-?ai|copilot", "SamurAI"),
-    (r"people.?track|peopletrack|peopltrack", "PeopleTrack"),
-    (r"vehicle.?track|vehicletrack|avlc|vehicle.?inspection|camera", "VehicleTrack"),
-    (r"special|bespoke|custom", "Special"),
-]
+PRODUCT_PATTERNS: list[tuple[str, str]] = []
 
 
 def _canonical_owner(raw: str) -> str:
@@ -568,12 +539,12 @@ async def get_dashboard_config(
         "crm": {
             "enabled": True,
             "tabs": [
-                {"id": "revenue", "label": "Sales Booking", "icon": "LayoutDashboard"},
-                {"id": "pipeline", "label": "Pipeline & Forecast", "icon": "TrendingUp"},
-                {"id": "omnichannel", "label": "Omnichannel Chat", "icon": "MessageCircle"},
-                {"id": "partner", "label": "Partner Performance", "icon": "Handshake"},
-                {"id": "managers", "label": "Manager Performance", "icon": "Users"},
-                {"id": "deals", "label": "Deals Deep-Dive", "icon": "Target"},
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "deals", "label": "Deals", "icon": "Briefcase"},
+                {"id": "companies", "label": "Companies", "icon": "Building2"},
+                {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
+                {"id": "search", "label": "Search", "icon": "Search"},
+                {"id": "bev", "label": "BEV Zones", "icon": "Map"},
             ],
         },
         "finance": {
@@ -623,15 +594,449 @@ async def get_dashboard_config(
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
 
 
+# ─── CRM list/search endpoints (live data from external CRM API) ───
+
+# The CRM data lives on an external CRM server.
+# Set CRM_API_URL in .env to point to your CRM's JSON API.
+# When unset, the CRM list/search endpoints return empty lists (no data leakage).
+CRM_API_URL = os.environ.get("CRM_API_URL", "")
+CRM_API_TOKEN = os.environ.get("CRM_API_TOKEN", "")
+
+
+def _crm_headers() -> dict[str, str]:
+    """Build headers for external CRM API calls, with optional auth token."""
+    h: dict[str, str] = {"Accept": "application/json"}
+    if CRM_API_TOKEN:
+        h["Authorization"] = f"Bearer {CRM_API_TOKEN}"
+    return h
+
+
+from auth import require_admin  # noqa: E402 — admin guard for BEV zone CRUD
+
+
 @router.get("/ceo-stats")
 async def get_crm_ceo_stats(
     name: str = Path(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Aggregated CEO dashboard stats for CRM."""
+    """Aggregated CEO dashboard stats for CRM.
+
+    Tries gbrain first; falls back to external CRM API when gbrain
+    has no CRM data (e.g. local PGLite with empty crm source).
+    """
     pages = await gbrain_fetch_pages("crm", limit=200)
-    return _run_ceo_aggregation(pages)
+    if pages:
+        return _run_ceo_aggregation(pages)
+
+    # Fallback: aggregate from external CRM API (if configured).
+    # External API deals have frontmatter as a dict but lack compiled_truth;
+    # wrap each deal into a page-like shape so _run_ceo_aggregation can read
+    # them the same way it reads gbrain pages.
+    if CRM_API_URL:
+        logger.info("gbrain has no CRM pages — aggregating from external CRM API")
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
+                if resp.status_code == 200:
+                    api_deals = resp.json().get("deals", [])
+                    if api_deals:
+                        # Normalise into the page-like shape _run_ceo_aggregation expects:
+                        # {slug, title, frontmatter (dict), compiled_truth (str)}
+                        wrapped = [
+                            {
+                                "slug": d.get("slug", ""),
+                                "title": d.get("title", ""),
+                                "frontmatter": _parse_frontmatter(d.get("frontmatter", {})),
+                                "compiled_truth": "",
+                            }
+                            for d in api_deals
+                            if isinstance(d, dict)
+                        ]
+                        try:
+                            return _run_ceo_aggregation(wrapped)
+                        except Exception as agg_exc:
+                            logger.warning(
+                                "CEO aggregation from external API failed: %s", agg_exc
+                            )
+        except httpx.HTTPError as exc:
+            logger.warning("External CRM API fallback for ceo-stats failed: %s", exc)
+
+    # No data at all — return empty state
+    return _run_ceo_aggregation([])
+
+
+
+
+def _extract_deal_list_item(page: dict) -> dict:
+    """Map a raw CRM deal page to a CrmDealListItem."""
+    fm = _parse_frontmatter(page.get("frontmatter"))
+    created_raw = fm.get("created") or (page.get("effective_date") or "")
+    return {
+        "slug": page.get("slug", ""),
+        "title": page.get("title", ""),
+        "customer": fm.get("customer", ""),
+        "owner": _canonical_owner(fm.get("owner", "")),
+        "stage": _canonical_stage(fm.get("stage", "")),
+        # None when absent — lets the frontend distinguish "no date" from an empty string
+        "created": created_raw[:10] if created_raw else None,
+        "source": fm.get("source", ""),
+        "amount": _safe_float(fm.get("amount", 0)),
+        "priority": fm.get("priority", ""),
+        "compiled_truth": (page.get("compiled_truth", "") or "")[:500],
+    }
+
+
+@router.get("/deals")
+async def list_crm_deals(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title/customer"),
+    stage: str = Query("", description="Filter by stage"),
+    owner: str = Query("", description="Filter by owner"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM deals from external CRM API (live)."""
+    if not CRM_API_URL:
+        return {"deals": [], "total": 0}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
+            if resp.status_code >= 400:
+                logger.warning("CRM API /deals returned %s", resp.status_code)
+                return {"deals": [], "total": 0}
+            payload = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("CRM deals fetch error: %s", exc)
+        return {"deals": [], "total": 0}
+
+    raw_deals = payload.get("deals", [])
+
+    # Filter out scaffolding/meta slugs.
+    # Use path-segment checks so "readme" only excludes a slug whose *last segment*
+    # is exactly "readme" (e.g. deals/readme), not legitimate deals like
+    # deals/readme-followup.  Other markers (templates/, _schema, etc.) are
+    # unambiguous directory prefixes so a substring check is fine there.
+    _SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
+    _SLUG_PREFIX_EXCLUDES = ("templates/",)
+
+    def _is_meta_slug(slug: str) -> bool:
+        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+        if last_segment in _SLUG_SEGMENT_EXCLUDES:
+            return True
+        return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
+
+    deals = [p for p in raw_deals if not _is_meta_slug(str(p.get("slug", "")))]
+
+    items = [_extract_deal_list_item(p) for p in deals]
+
+    if search:
+        s = search.lower()
+        items = [d for d in items if s in d["title"].lower() or s in (d.get("customer") or "").lower()]
+    if stage:
+        items = [d for d in items if d.get("stage", "") == _canonical_stage(stage)]
+    if owner:
+        co = _canonical_owner(owner)
+        items = [d for d in items if d.get("owner", "") == co]
+
+    # Sort by created date descending (most recent first)
+    items.sort(key=lambda d: d.get("created", ""), reverse=True)
+
+    return {"deals": items, "total": len(items)}
+
+
+@router.get("/companies")
+async def list_crm_companies(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title"),
+    industry: str = Query("", description="Filter by industry"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM companies from external CRM API (live)."""
+    if not CRM_API_URL:
+        return {"companies": [], "total": 0}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{CRM_API_URL}/companies", headers=_crm_headers())
+            if resp.status_code >= 400:
+                logger.warning("CRM API /companies returned %s", resp.status_code)
+                return {"companies": [], "total": 0}
+            companies = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("CRM companies fetch error: %s", exc)
+        return {"companies": [], "total": 0}
+
+    if not isinstance(companies, list):
+        logger.warning("CRM API /companies returned non-list: %s", type(companies).__name__)
+        return {"companies": [], "total": 0}
+
+    # The API returns [{slug, title}, ...] — frontmatter may be absent.
+    # industry/website/first_seen populate from frontmatter when present.
+    # Exclude scaffolding/meta slugs (same logic as list_crm_deals).
+    _COMPANY_SEGMENT_EXCLUDES = {"readme", "_schema"}
+    _COMPANY_PREFIX_EXCLUDES = ("templates/",)
+
+    def _is_meta_company_slug(slug: str) -> bool:
+        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+        if last_segment in _COMPANY_SEGMENT_EXCLUDES:
+            return True
+        return any(slug.startswith(pfx) for pfx in _COMPANY_PREFIX_EXCLUDES)
+
+    items = []
+    for p in companies:
+        if not isinstance(p, dict):
+            continue
+        if _is_meta_company_slug(str(p.get("slug", ""))):
+            continue
+        fm = _parse_frontmatter(p.get("frontmatter") or {})
+        items.append({
+            "slug": p.get("slug", ""),
+            "title": p.get("title", ""),
+            "industry": fm.get("industry", ""),
+            "website": fm.get("website", ""),
+            "source": fm.get("source", ""),
+            "first_seen": fm.get("first_seen", ""),
+        })
+
+    if search:
+        s = search.lower()
+        items = [c for c in items if s in c["title"].lower()]
+    if industry:
+        items = [c for c in items if c.get("industry", "").lower() == industry.lower()]
+
+    items.sort(key=lambda c: c["title"].lower())
+
+    return {"companies": items, "total": len(items)}
+
+
+@router.get("/tasks")
+async def list_crm_tasks(
+    name: str = Path(...),
+    completed: Optional[bool] = Query(None, description="Filter by completion status"),
+    assignee: str = Query("", description="Filter by assignee"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM tasks from external CRM API (live)."""
+    if not CRM_API_URL:
+        return {"tasks": [], "total": 0}
+    try:
+        async with httpx.AsyncClient(timeout=20.0) as client:
+            resp = await client.get(f"{CRM_API_URL}/tasks", headers=_crm_headers())
+            if resp.status_code >= 400:
+                logger.warning("CRM API /tasks returned %s", resp.status_code)
+                return {"tasks": [], "total": 0}
+            tasks_raw = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("CRM tasks fetch error: %s", exc)
+        return {"tasks": [], "total": 0}
+
+    # Normalize to CrmTaskItem contract
+    tasks: List[dict] = []
+    for t in tasks_raw:
+        if not isinstance(t, dict):
+            continue
+        tasks.append({
+            "description": str(t.get("description", "")),
+            "assignee": str(t.get("assignee", "")),
+            "completed": bool(t.get("completed", False)),
+            "deal_slug": str(t.get("deal_slug", "")),
+            "deal_title": str(t.get("deal_title", "")),
+        })
+
+    if completed is not None:
+        tasks = [t for t in tasks if t["completed"] == completed]
+    if assignee:
+        ca = _canonical_owner(assignee)
+        tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
+
+    return {"tasks": tasks, "total": len(tasks)}
+
+
+class SearchBody(BaseModel):
+    query: str = ""
+
+
+@router.post("/search")
+async def crm_search(
+    body: SearchBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Global search across external CRM pages (live)."""
+    query = body.query.strip()
+    if not query or not CRM_API_URL:
+        return {"results": []}
+
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(
+                f"{CRM_API_URL}/search",
+                json={"query": query},
+                headers=_crm_headers(),
+            )
+            if resp.status_code >= 400:
+                logger.warning("CRM API /search returned %s", resp.status_code)
+                return {"results": []}
+            payload = resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("CRM search error: %s", exc)
+        return {"results": []}
+
+    results = payload.get("results", [])
+    if not isinstance(results, list):
+        return {"results": []}
+
+    # Copy each result dict before mutating so we don't modify the payload in place.
+    # Also infer `category` from the slug prefix when the API doesn't supply it,
+    # so the frontend SearchTab category chips always have a value to filter on.
+    normalised: list[dict] = []
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        row = copy.deepcopy(r)  # deep copy — frontmatter is a nested dict; shallow copy still shares it
+        row["frontmatter"] = _parse_frontmatter(row.get("frontmatter"))
+        if not row.get("category"):
+            slug = str(row.get("slug", ""))
+            if slug.startswith("deals/"):
+                row["category"] = "deals"
+            elif slug.startswith("companies/"):
+                row["category"] = "companies"
+            else:
+                row["category"] = "unknown"
+        normalised.append(row)
+
+    return {"results": normalised}
+
+
+# ─── BEV Zones proxy (→ separate microservice) ───
+
+BEV_API_TOKEN = os.environ.get("BEV_API_TOKEN", "")
+
+
+def _bev_base_url() -> str:
+    return os.environ.get("BEV_API_URL", "http://localhost:8001/api/v1").rstrip("/")
+
+
+def _bev_headers() -> dict[str, str]:
+    """Build headers for BEV microservice calls, with optional auth token."""
+    h: dict[str, str] = {"Accept": "application/json"}
+    if BEV_API_TOKEN:
+        h["Authorization"] = f"Bearer {BEV_API_TOKEN}"
+    return h
+
+
+@router.get("/bev/zones")
+async def list_bev_zones(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """List BEV zones via the BEV microservice."""
+    base = _bev_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(f"{base}/zones", headers=_bev_headers())
+            if resp.status_code >= 400:
+                return {"zones": []}
+            data = resp.json()
+            # Normalize: ensure we return {zones: [...]}
+            if isinstance(data, list):
+                return {"zones": data}
+            if isinstance(data, dict) and "zones" in data:
+                return data
+            return {"zones": []}
+    except httpx.HTTPError as exc:
+        logger.warning("BEV zones list error: %s", exc)
+        return {"zones": []}
+
+
+
+class BevZoneBounds(BaseModel):
+    """Validated bounding box for a BEV zone (Cartesian coordinates, metres)."""
+
+    xMin: float = Field(default=0.0, description="Left edge (metres)")
+    yMin: float = Field(default=0.0, description="Bottom edge (metres)")
+    xMax: float = Field(description="Right edge — must be > xMin")
+    yMax: float = Field(description="Top edge — must be > yMin")
+
+    from pydantic import model_validator  # local import avoids top-level v1/v2 ambiguity
+
+    @model_validator(mode="after")
+    def _validate_bounds(self) -> "BevZoneBounds":
+        if self.xMax <= self.xMin:
+            raise ValueError("xMax must be greater than xMin")
+        if self.yMax <= self.yMin:
+            raise ValueError("yMax must be greater than yMin")
+        return self
+
+
+class BevZoneBody(BaseModel):
+    name: str = Field(..., min_length=1, description="Zone name")
+    calibrationType: str = "cartesian"
+    cameraIds: list[str] = []
+    bounds: Optional[BevZoneBounds] = None
+    origin: Optional[dict] = None
+    rois: list[dict] = []
+    tripwires: list[dict] = []
+
+
+@router.post("/bev/zones")
+async def create_bev_zone(
+    body: BevZoneBody,
+    name: str = Path(...),
+    user: User = Depends(require_admin),
+) -> dict:
+    """Create a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(f"{base}/zones", json=payload, headers=_bev_headers())
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return resp.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
+
+
+@router.put("/bev/zones/{zone_id}")
+async def update_bev_zone(
+    body: BevZoneBody,
+    name: str = Path(...),
+    zone_id: str = Path(...),
+    user: User = Depends(require_admin),
+) -> dict:
+    """Update a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.put(f"{base}/zones/{_url_quote(zone_id, safe='')}", json=payload, headers=_bev_headers())
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return resp.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
+
+
+@router.delete("/bev/zones/{zone_id}")
+async def delete_bev_zone(
+    name: str = Path(...),
+    zone_id: str = Path(...),
+    user: User = Depends(require_admin),
+) -> dict:
+    """Delete a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.delete(f"{base}/zones/{_url_quote(zone_id, safe='')}", headers=_bev_headers())
+            if resp.status_code >= 400 and resp.status_code != 204:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return {"ok": True}
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
 
 
 # ─── Finance aggregation helpers ───
@@ -2090,9 +2495,11 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     vendor_snap = snapshot_map.get("snapshots/vendors", snapshot_map.get("procurement/snapshots/vendors", {}))
     movement_snap = snapshot_map.get("snapshots/stock-movements", snapshot_map.get("procurement/snapshots/stock-movements", {}))
     bridge_snap = snapshot_map.get("snapshots/accounting-bridge", snapshot_map.get("procurement/snapshots/accounting-bridge", {}))
+
     has_real_data = bool(inventory_snap or po_snap)
 
     if has_real_data:
+        # Pull from the live gbrain snapshots written by dashboard-snapshot-writer
         total_inventory_valuation = _safe_float(inventory_snap.get("total_inventory_valuation"))
         total_active_skus = _safe_float(inventory_snap.get("total_active_skus"))
         low_stock_alerts = _safe_float(inventory_snap.get("low_stock_alerts"))
@@ -2124,42 +2531,69 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         risk_alerts: List[dict] = inventory_snap.get("risk_alerts", [])
     else:
-        # No snapshot data available — return empty-state, not fabricated mock data.
-        # The UI shows "no data yet / connect gbrain" rather than fake MYR figures.
-        # Same policy as the finance dashboard (PR #12 review: no fabricated figures).
-        logger.info("Procurement dashboard: no gbrain snapshots — returning empty state")
-        total_inventory_valuation = 0.0
-        total_active_skus = 0.0
-        low_stock_alerts = 0.0
-        dead_slow_stock_capital = 0.0
-        open_po_count = 0.0
-        open_po_value = 0.0
-        procurement_spend_mtd = 0.0
-        procurement_spend_budget_mtd = 0.0
+        # No gbrain snapshots — fall back to examples/procurement-mock.json so
+        # the dashboard shows realistic demo data instead of empty zeros. Same
+        # pattern as the finance dashboard (PR #12 review allows mock as
+        # graceful-degradation fallback, just no fabricated figures as live).
+        # `mock: true` flags the UI that this is demo data, not live.
+        mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "procurement-mock.json"
+        mock_data: Dict[str, Any] = {}
+        if mock_json_path.exists():
+            try:
+                with open(mock_json_path, "r", encoding="utf-8") as f:
+                    mock_data = json.load(f).get("dashboard_mock", {})
+                logger.info("Procurement dashboard: no gbrain snapshots — loaded mock from %s", mock_json_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("Failed to load procurement mock from %s: %s", mock_json_path, exc)
 
-        risk_alerts: List[dict] = []
-        valuation_by_category: List[dict] = []
-        spend_vs_budget_trend: List[dict] = []
+        total_inventory_valuation = _safe_float(mock_data.get("totalInventoryValuation"))
+        total_active_skus = _safe_float(mock_data.get("totalActiveSkus"))
+        low_stock_alerts = _safe_float(mock_data.get("lowStockAlerts"))
+        dead_slow_stock_capital = _safe_float(mock_data.get("deadSlowStockCapital"))
+        open_po_count = _safe_float(mock_data.get("openPoCount"))
+        open_po_value = _safe_float(mock_data.get("openPoValue"))
+        procurement_spend_mtd = _safe_float(mock_data.get("procurementSpendMtd"))
+        procurement_spend_budget_mtd = _safe_float(mock_data.get("procurementSpendBudgetMtd"))
 
-        sku_catalog: List[dict] = []
-        dead_slow_stock: List[dict] = []
-        warehouse_bin_capacity: List[dict] = []
+        risk_alerts = mock_data.get("riskAlerts", [])
+        valuation_by_category = mock_data.get("valuationByCategory", [])
+        spend_vs_budget_trend = mock_data.get("spendVsBudgetTrend", [])
 
-        stock_movements: List[dict] = []
-        movement_type_distribution: List[dict] = []
-        shrinkage_flag_items: List[dict] = []
+        sku_catalog = mock_data.get("skuCatalog", [])
+        dead_slow_stock = mock_data.get("deadSlowStock", [])
+        warehouse_bin_capacity = mock_data.get("warehouseBinCapacity", [])
 
-        po_pipeline: List[dict] = []
-        active_purchase_orders: List[dict] = []
-        executive_approval_queue: List[dict] = []
-        vendor_scorecard: List[dict] = []
-        vendor_spend_concentration: List[dict] = []
+        stock_movements = mock_data.get("stockMovements", [])
+        movement_type_distribution = mock_data.get("movementTypeDistribution", [])
+        shrinkage_flag_items = mock_data.get("shrinkageFlagItems", [])
 
-        bridge_status = {"enabled": False, "provider": "None", "connected": False}
-        po_bill_conversion_queue: List[dict] = []
-        gl_valuation_reconciliation: List[dict] = []
+        po_pipeline = mock_data.get("poPipeline", [])
+        active_purchase_orders = mock_data.get("activePurchaseOrders", [])
+        executive_approval_queue = mock_data.get("executiveApprovalQueue", [])
+        vendor_scorecard = mock_data.get("vendorScorecard", [])
+        vendor_spend_concentration = mock_data.get("vendorSpendConcentration", [])
+
+        bridge_status = mock_data.get("accountingBridge", {"enabled": False, "provider": "None", "connected": False})
+        po_bill_conversion_queue = mock_data.get("poBillConversionQueue", [])
+        gl_valuation_reconciliation = mock_data.get("glValuationReconciliation", [])
+
+        # Phase A–E mock data (PR / RFQ / Barcode / 3-way match)
+        purchase_requisitions = mock_data.get("purchaseRequisitions", [])
+        rfq_comparisons = mock_data.get("rfqComparisons", [])
+        barcode_batches = mock_data.get("barcodeBatches", [])
+        three_way_matches = mock_data.get("threeWayMatches", [])
+
+    # Pull PR/RFQ/barcode/match from snapshots when live data exists (snapshot
+    # writer will populate these once the full procurement cycle endpoints are built).
+    if has_real_data:
+        purchase_requisitions = inventory_snap.get("purchase_requisitions", [])
+        rfq_comparisons = inventory_snap.get("rfq_comparisons", [])
+        barcode_batches = inventory_snap.get("barcode_batches", [])
+        three_way_matches = inventory_snap.get("three_way_matches", [])
 
     return {
+        # Mock flag — true when data loaded from examples/procurement-mock.json
+        "mock": not has_real_data,
         # Tab 1 — Executive Procurement & Reorder Pulse
         "totalInventoryValuation": total_inventory_valuation,
         "totalActiveSkus": total_active_skus,
@@ -2190,6 +2624,14 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         "accountingBridge": bridge_status,
         "poBillConversionQueue": po_bill_conversion_queue,
         "glValuationReconciliation": gl_valuation_reconciliation,
+        # Tab 6 — Purchase Requisitions (PR)
+        "purchaseRequisitions": purchase_requisitions,
+        # Tab 7 — RFQ & Vendor Sourcing
+        "rfqComparisons": rfq_comparisons,
+        # Tab 8 — Barcode Tagging & Scan Counter
+        "barcodeBatches": barcode_batches,
+        # Tab 9 — 3-Way Match Verification
+        "threeWayMatches": three_way_matches,
     }
 
 

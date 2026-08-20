@@ -80,6 +80,9 @@ export interface User {
   must_change_password: boolean;
   company_id?: string | null;
   role?: string;
+  telegram_user_id?: string | null;
+  slack_user_id?: string | null;
+  platform_user_ids?: Record<string, string>;
 }
 
 export interface Company {
@@ -728,6 +731,56 @@ export interface CeoDashboardStats {
   chatInbox: ChatInboxRow[];
 }
 
+// ─── CRM list/search types (gbrain live data) ───
+
+export interface CrmDealListItem {
+  slug: string;
+  title: string;
+  customer?: string;
+  owner?: string;
+  stage?: string;
+  created?: string;
+  source?: string;
+  amount?: number;
+  priority?: string;
+  compiled_truth?: string;
+}
+
+export interface CrmCompanyItem {
+  slug: string;
+  title: string;
+  industry?: string;
+  website?: string;
+  source?: string;
+  first_seen?: string;
+}
+
+export interface CrmTaskItem {
+  description: string;
+  assignee: string;
+  completed: boolean;
+  deal_slug: string;
+  deal_title: string;
+}
+
+export interface CrmSearchResult {
+  slug: string;
+  title: string;
+  frontmatter: Record<string, unknown>;
+  category: 'companies' | 'deals' | 'unknown';
+}
+
+export interface BevZone {
+  zoneId: string;
+  name: string;
+  cameraIds: string[];
+  calibrationType: 'cartesian' | 'geo';
+  bounds?: { xMin: number; yMin: number; xMax: number; yMax: number };
+  origin?: { x: string; y: string };
+  rois?: unknown[];
+  tripwires?: unknown[];
+}
+
 export const TIMEZONES = [
   'Asia/Kuala_Lumpur',
   'Asia/Singapore',
@@ -1204,6 +1257,8 @@ export interface ThreeWayMatchItem {
 }
 
 export interface ProcurementDashboardStats {
+  // Mock flag — true when data loaded from examples/procurement-mock.json (demo mode)
+  mock?: boolean;
   // Tab 1 — Executive Procurement & Reorder Pulse
   totalInventoryValuation: number;
   totalActiveSkus: number;

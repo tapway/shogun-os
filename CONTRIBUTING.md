@@ -89,11 +89,11 @@ that adds code without a test will be blocked in review.
 
 ### Test structure
 
-- `tests/` — root-level Python tests (provisioning scripts, schema validation)
+- `tests/` — root-level Python tests (schema validation, provisioning scripts)
 - `shogun-web/server/tests/` — web portal API tests (auth, staff, onboarding,
   dashboard, registry, crons)
-- `scripts/verify-install/` — post-install environment checks (NOT in CI; run
-  manually after a fresh install)
+- `scripts/verify-install/` — post-install environment checks (Ollama/PG presence,
+  script content validation; NOT in CI; run manually after a fresh install)
 - `@slow` marker — tests that need external services (Ollama, PG, QBO).
   Skipped in CI, run locally with `pytest -m slow`.
 

@@ -9,6 +9,7 @@ import {
 import type {
   AccessInfo,
   AuthResponse,
+  BevZone,
   BrainLink,
   BrainPage,
   CeoDashboardStats,
@@ -20,6 +21,10 @@ import type {
   ConnectionTestResult,
   Connector,
   CreateStaffPayload,
+  CrmCompanyItem,
+  CrmDealListItem,
+  CrmSearchResult,
+  CrmTaskItem,
   DashboardConfig,
   Department,
   DepartmentKey,
@@ -148,6 +153,11 @@ export const authApi = {
   oauthCallback: (params: URLSearchParams) =>
     apiFetch<AuthResponse>(`/api/auth/callback?${params.toString()}`),
   myAccess: () => apiFetch<AccessInfo>('/api/auth/me/access'),
+  updateMyPlatformId: (platform: string, userId: string) =>
+    apiFetch<{ ok: boolean; user: User }>('/api/auth/me/platform-id', {
+      method: 'PATCH',
+      body: JSON.stringify({ platform, user_id: userId }),
+    }),
   // Cross-domain SSO (Shogun = Website 2)
   ssoInfo: () =>
     apiFetch<{
@@ -327,6 +337,60 @@ export const departmentsApi = {
     apiFetch<FinanceDashboardStats>(`/api/departments/${dept}/dashboard/finance-stats`),
   dashboardProcurementStats: (dept: string) =>
     apiFetch<ProcurementDashboardStats>(`/api/departments/${dept}/dashboard/procurement-stats`),
+
+  // CRM list endpoints (live gbrain data)
+  crmDealsList: (dept: string, search = '', stage = '', owner = '') => {
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    if (stage) qs.set('stage', stage);
+    if (owner) qs.set('owner', owner);
+    const q = qs.toString();
+    return apiFetch<{ deals: CrmDealListItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/deals${q ? `?${q}` : ''}`,
+    );
+  },
+
+  crmCompaniesList: (dept: string, search = '', industry = '') => {
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    if (industry) qs.set('industry', industry);
+    const q = qs.toString();
+    return apiFetch<{ companies: CrmCompanyItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/companies${q ? `?${q}` : ''}`,
+    );
+  },
+
+  crmTasksList: (dept: string, completed?: boolean, assignee = '') => {
+    const qs = new URLSearchParams();
+    if (completed !== undefined) qs.set('completed', String(completed));
+    if (assignee) qs.set('assignee', assignee);
+    const q = qs.toString();
+    return apiFetch<{ tasks: CrmTaskItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/tasks${q ? `?${q}` : ''}`,
+    );
+  },
+
+  crmSearch: (dept: string, query: string) =>
+    apiFetch<{ results: CrmSearchResult[] }>(
+      `/api/departments/${dept}/dashboard/search`,
+      { method: 'POST', body: JSON.stringify({ query }) },
+    ),
+
+  // BEV Zones (proxied through Shogun backend → BEV microservice)
+  bevZonesList: (dept: string) =>
+    apiFetch<{ zones: BevZone[] }>(`/api/departments/${dept}/dashboard/bev/zones`),
+  bevZoneCreate: (dept: string, data: Partial<BevZone>) =>
+    apiFetch<BevZone>(`/api/departments/${dept}/dashboard/bev/zones`, {
+      method: 'POST',
+      body: JSON.stringify(data),
+    }),
+  bevZoneUpdate: (dept: string, id: string, data: Partial<BevZone>) =>
+    apiFetch<BevZone>(`/api/departments/${dept}/dashboard/bev/zones/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(data),
+    }),
+  bevZoneDelete: (dept: string, id: string) =>
+    apiFetch(`/api/departments/${dept}/dashboard/bev/zones/${id}`, { method: 'DELETE' }),
   getCrons: (dept: string) =>
     apiFetch<{ crons: CronJob[] }>(`/api/departments/${dept}/crons`),
   createCron: (dept: string, payload: Partial<CronJob>) =>
@@ -564,6 +628,7 @@ export function useChatSocket(
 
     let isMounted = true;
     let timer: number | undefined;
+    let retryCount = 0;
 
     const connect = () => {
       if (!isMounted) return;
@@ -580,6 +645,7 @@ export function useChatSocket(
         if (!isMounted) return;
         setConnected(true);
         setError(null);
+        retryCount = 0;
       };
 
       ws.onmessage = (ev) => {
@@ -624,7 +690,11 @@ export function useChatSocket(
         if (!isMounted) return;
         setConnected(false);
         wsRef.current = null;
-        timer = window.setTimeout(connect, 3000);
+        // Only retry up to 3 times, then give up silently (gateway not running)
+        retryCount += 1;
+        if (retryCount <= 3) {
+          timer = window.setTimeout(connect, 3000);
+        }
       };
     };
 

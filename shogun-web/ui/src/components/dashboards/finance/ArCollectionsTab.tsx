@@ -42,7 +42,7 @@ export function ArCollectionsTab({ stats, department }: Props) {
   const kpis = [
     { label: 'Total AR', value: fmtMyr(stats.totalAR), warn: false },
     { label: 'Overdue >30d', value: fmtMyr(stats.arOverdue30), warn: stats.arOverdue30 > 0 },
-    { label: 'DSO', value: stats.dso > 0 ? `${stats.dso.toFixed(0)} days` : '—', warn: false },
+    { label: 'DSO', value: stats.dso > 0 ? `${(stats.dso || 0).toFixed(0)} days` : '—', warn: false },
   ];
 
   // Filter all outstanding invoices by bucket for popout

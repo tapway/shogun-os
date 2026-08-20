@@ -103,10 +103,10 @@
       { "timestamp": "2026-08-05 09:20", "sku": "ELE-HUB-V2", "item_name": "Shogun Smart Home Hub Gateway v2", "movement_type": "! Damage", "quantity": 2, "reference_id": "DMG-2026-011", "location_id": "Shah Alam Hub", "actor": "Store Mgr" }
     ],
     "accountingBridge": {
-      "enabled": true,
-      "provider": "Bukku",
-      "connected": true,
-      "last_sync": "2026-08-06 15:00"
+      "enabled": false,
+      "provider": "None",
+      "connected": false,
+      "last_sync": null
     },
     "poBillConversionQueue": [
       { "po_number": "PO-2026-0812", "vendor": "Master Textile & Apparel Ltd", "date_received": "2026-08-04", "total_amount": 120000.0, "sync_status": "Ready to Sync" },
@@ -117,6 +117,215 @@
       { "account_code": "1300-APP", "physical_stock_value": 850000.0, "gl_book_value": 850000.0, "variance": 0.0, "variance_pct": 0.0, "reconciliation_status": "Reconciled" },
       { "account_code": "1300-ELE", "physical_stock_value": 520000.0, "gl_book_value": 520000.0, "variance": 0.0, "variance_pct": 0.0, "reconciliation_status": "Reconciled" },
       { "account_code": "1300-LIF", "physical_stock_value": 310000.0, "gl_book_value": 314500.0, "variance": -4500.0, "variance_pct": -1.43, "reconciliation_status": "Variance Flagged" }
+    ],
+    "purchaseRequisitions": [
+      {
+        "pr_number": "PR-2026-0042",
+        "requester": "Johnathan Tan",
+        "department": "Engineering / Operations",
+        "item_description": "Dell Latitude 5540 Laptops (x 10 units)",
+        "category": "IT Hardware",
+        "estimated_amount": 48000.0,
+        "priority": "High",
+        "status": "Pending Approval",
+        "created_at": "2026-08-04 09:30",
+        "justification": "Replacement for onboarding new engineering cohort."
+      },
+      {
+        "pr_number": "PR-2026-0041",
+        "requester": "Siti Sarah",
+        "department": "Administration / Facilities",
+        "item_description": "Ergonomic Mesh Chairs Elite (x 15 units)",
+        "category": "Furniture",
+        "estimated_amount": 13350.0,
+        "priority": "Medium",
+        "status": "Approved",
+        "created_at": "2026-08-03 14:15",
+        "justification": "Office expansion to 4th floor workstation area."
+      },
+      {
+        "pr_number": "PR-2026-0040",
+        "requester": "Kevin Wong",
+        "department": "Warehouse / Logistics",
+        "item_description": "Industrial Barcode Label Printer & Adhesive Stock",
+        "category": "Hardware & Tools",
+        "estimated_amount": 6800.0,
+        "priority": "Urgent",
+        "status": "Converted to RFQ/PO",
+        "created_at": "2026-08-02 11:00",
+        "justification": "Required for Code 128 inventory tagging roll-out."
+      },
+      {
+        "pr_number": "PR-2026-0039",
+        "requester": "Ahmad Faiz",
+        "department": "IT Infrastructure",
+        "item_description": "UPS Battery 12V 7Ah (x 50 units)",
+        "category": "Spare Parts",
+        "estimated_amount": 4750.0,
+        "priority": "Low",
+        "status": "Approved",
+        "created_at": "2026-08-01 16:45",
+        "justification": "Preventative maintenance for main server room UPS units."
+      }
+    ],
+    "rfqComparisons": [
+      {
+        "rfq_id": "RFQ-2026-0090",
+        "pr_number": "PR-2026-0043",
+        "item_description": "High-Speed Office Printers (x 3 units)",
+        "category": "IT Hardware",
+        "target_qty": 3,
+        "budget_myr": 18000.0,
+        "status": "Open Sourcing",
+        "quotes": []
+      },
+      {
+        "rfq_id": "RFQ-2026-0089",
+        "pr_number": "PR-2026-0042",
+        "item_description": "Dell Latitude 5540 Laptops (x 10 units)",
+        "category": "IT Hardware",
+        "target_qty": 10,
+        "budget_myr": 50000.0,
+        "status": "Open Sourcing",
+        "quotes": [
+          {
+            "vendor": "NexTech Distribution Sdn Bhd",
+            "unit_price": 4800.0,
+            "total_amount": 48000.0,
+            "lead_time_days": 5,
+            "payment_terms": "Net 30",
+            "sla_status": "Top Tier (98%)",
+            "selected": true
+          },
+          {
+            "vendor": "Vortex Supplies Sdn Bhd",
+            "unit_price": 5100.0,
+            "total_amount": 51000.0,
+            "lead_time_days": 3,
+            "payment_terms": "Net 14",
+            "sla_status": "Under Review (78%)"
+          },
+          {
+            "vendor": "Pacific Hardware Co",
+            "unit_price": 4950.0,
+            "total_amount": 49500.0,
+            "lead_time_days": 7,
+            "payment_terms": "Net 30",
+            "sla_status": "Satisfactory (85%)"
+          }
+        ]
+      },
+      {
+        "rfq_id": "RFQ-2026-0088",
+        "pr_number": "PR-2026-0041",
+        "item_description": "Ergonomic Mesh Chairs Elite (x 15 units)",
+        "category": "Furniture",
+        "target_qty": 15,
+        "budget_myr": 12000.0,
+        "status": "Open Sourcing",
+        "quotes": [
+          {
+            "vendor": "Office Comfort Ltd",
+            "unit_price": 750.0,
+            "total_amount": 11250.0,
+            "lead_time_days": 10,
+            "payment_terms": "Net 30",
+            "sla_status": "Top Tier (95%)",
+            "selected": true
+          },
+          {
+            "vendor": "ErgoDesign Solutions",
+            "unit_price": 790.0,
+            "total_amount": 11850.0,
+            "lead_time_days": 4,
+            "payment_terms": "Net 14",
+            "sla_status": "Satisfactory (88%)"
+          }
+        ]
+      }
+    ],
+    "barcodeBatches": [
+      {
+        "batch_id": "BATCH-2026-0803-01",
+        "action_type": "GRN Receipt Tagging",
+        "reference_id": "GRN-2026-0091 (PO-2026-0218)",
+        "actor": "Warehouse / Logistics",
+        "timestamp": "2026-08-03 10:15",
+        "total_items": 4,
+        "units": [
+          { "barcode_id": "BC-984201-001", "sku": "IT-LP-15", "item_name": "Dell Latitude 5540 i7", "serial_no": "SN-5540-001", "location_bin": "LOC-MAIN-A1", "status": "In Store", "last_scan_timestamp": "2026-08-03 10:15" },
+          { "barcode_id": "BC-984201-002", "sku": "IT-LP-15", "item_name": "Dell Latitude 5540 i7", "serial_no": "SN-5540-002", "location_bin": "LOC-MAIN-A1", "status": "Issued", "assigned_to": "Admin Dept (REQ-2026-0845)", "last_scan_timestamp": "2026-08-03 14:20" },
+          { "barcode_id": "BC-984201-003", "sku": "IT-LP-15", "item_name": "Dell Latitude 5540 i7", "serial_no": "SN-5540-003", "location_bin": "LOC-MAIN-A1", "status": "In Store", "last_scan_timestamp": "2026-08-03 10:15" },
+          { "barcode_id": "BC-984201-004", "sku": "IT-LP-15", "item_name": "Dell Latitude 5540 i7", "serial_no": "SN-5540-004", "location_bin": "LOC-MAIN-A1", "status": "In Store", "last_scan_timestamp": "2026-08-03 10:15" }
+        ]
+      },
+      {
+        "batch_id": "BATCH-2026-0802-04",
+        "action_type": "Stock Issuance (Scan OUT)",
+        "reference_id": "REQ-2026-0845",
+        "actor": "IT Infrastructure",
+        "timestamp": "2026-08-02 14:40",
+        "total_items": 2,
+        "units": [
+          { "barcode_id": "BC-884102-011", "sku": "OF-PR-03", "item_name": "A4 80gsm Ream", "serial_no": "BATCH-PAP-881", "location_bin": "LOC-OFF-B2", "status": "Issued", "assigned_to": "IT Dept Staff", "last_scan_timestamp": "2026-08-02 14:40" },
+          { "barcode_id": "BC-884102-012", "sku": "OF-PR-03", "item_name": "A4 80gsm Ream", "serial_no": "BATCH-PAP-882", "location_bin": "LOC-OFF-B2", "status": "Issued", "assigned_to": "IT Dept Staff", "last_scan_timestamp": "2026-08-02 14:40" }
+        ]
+      },
+      {
+        "batch_id": "BATCH-2026-0801-02",
+        "action_type": "Stock Return (Scan IN)",
+        "reference_id": "RTV-2026-0008",
+        "actor": "Store & Facilities",
+        "timestamp": "2026-08-01 11:20",
+        "total_items": 1,
+        "units": [
+          { "barcode_id": "BC-984201-088", "sku": "IT-LP-15", "item_name": "Dell Latitude 5540 i7", "serial_no": "SN-5540-088", "location_bin": "LOC-MAIN-A1", "status": "Returned", "assigned_to": "RMA Store Return", "last_scan_timestamp": "2026-08-01 11:20" }
+        ]
+      }
+    ],
+    "threeWayMatches": [
+      {
+        "match_id": "MATCH-2026-0101",
+        "po_number": "PO-2026-0218",
+        "grn_number": "GRN-2026-0091",
+        "invoice_number": "INV-NT-9842",
+        "vendor": "NexTech Distribution Sdn Bhd",
+        "po_amount": 52400.0,
+        "grn_received_amount": 52400.0,
+        "invoice_amount": 52400.0,
+        "variance_amount": 0.0,
+        "variance_pct": 0.0,
+        "match_status": "100% Match",
+        "ap_approval_status": "Pending AP Review"
+      },
+      {
+        "match_id": "MATCH-2026-0102",
+        "po_number": "PO-2026-0217",
+        "grn_number": "GRN-2026-0089",
+        "invoice_number": "INV-VT-4412",
+        "vendor": "Vortex Supplies Sdn Bhd",
+        "po_amount": 18750.0,
+        "grn_received_amount": 18750.0,
+        "invoice_amount": 18900.0,
+        "variance_amount": 150.0,
+        "variance_pct": 0.8,
+        "match_status": "Within Tolerance",
+        "ap_approval_status": "Pending AP Review"
+      },
+      {
+        "match_id": "MATCH-2026-0103",
+        "po_number": "PO-2026-0215",
+        "grn_number": "GRN-2026-0085",
+        "invoice_number": "INV-NT-9799",
+        "vendor": "NexTech Distribution Sdn Bhd",
+        "po_amount": 142000.0,
+        "grn_received_amount": 142000.0,
+        "invoice_amount": 148500.0,
+        "variance_amount": 6500.0,
+        "variance_pct": 4.5,
+        "match_status": "Variance Exceeded",
+        "ap_approval_status": "Flagged to Procurement"
+      }
     ]
   }
 }

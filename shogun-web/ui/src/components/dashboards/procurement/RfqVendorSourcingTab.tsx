@@ -7,83 +7,6 @@ interface Props {
   onAction?: (actionType: string, entity: any) => void;
 }
 
-const DEFAULT_RFQS: RfqComparison[] = [
-  {
-    rfq_id: 'RFQ-2026-0090',
-    pr_number: 'PR-2026-0043',
-    item_description: 'High-Speed Office Printers (x 3 units)',
-    category: 'IT Hardware',
-    target_qty: 3,
-    budget_myr: 18000.0,
-    status: 'Open Sourcing',
-    quotes: [],
-  },
-  {
-    rfq_id: 'RFQ-2026-0089',
-    pr_number: 'PR-2026-0042',
-    item_description: 'Dell Latitude 5540 Laptops (x 10 units)',
-    category: 'IT Hardware',
-    target_qty: 10,
-    budget_myr: 50000.0,
-    status: 'Open Sourcing',
-    quotes: [
-      {
-        vendor: 'NexTech Distribution Sdn Bhd',
-        unit_price: 4800.0,
-        total_amount: 48000.0,
-        lead_time_days: 5,
-        payment_terms: 'Net 30',
-        sla_status: 'Top Tier (98%)',
-        selected: true,
-      },
-      {
-        vendor: 'Vortex Supplies Sdn Bhd',
-        unit_price: 5100.0,
-        total_amount: 51000.0,
-        lead_time_days: 3,
-        payment_terms: 'Net 14',
-        sla_status: 'Under Review (78%)',
-      },
-      {
-        vendor: 'Pacific Hardware Co',
-        unit_price: 4950.0,
-        total_amount: 49500.0,
-        lead_time_days: 7,
-        payment_terms: 'Net 30',
-        sla_status: 'Satisfactory (85%)',
-      },
-    ],
-  },
-  {
-    rfq_id: 'RFQ-2026-0088',
-    pr_number: 'PR-2026-0041',
-    item_description: 'Ergonomic Mesh Chairs Elite (x 15 units)',
-    category: 'Furniture',
-    target_qty: 15,
-    budget_myr: 12000.0,
-    status: 'Open Sourcing',
-    quotes: [
-      {
-        vendor: 'Office Comfort Ltd',
-        unit_price: 750.0,
-        total_amount: 11250.0,
-        lead_time_days: 10,
-        payment_terms: 'Net 30',
-        sla_status: 'Top Tier (95%)',
-        selected: true,
-      },
-      {
-        vendor: 'ErgoDesign Solutions',
-        unit_price: 790.0,
-        total_amount: 11850.0,
-        lead_time_days: 4,
-        payment_terms: 'Net 14',
-        sla_status: 'Satisfactory (88%)',
-      },
-    ],
-  },
-];
-
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
@@ -95,7 +18,7 @@ function Th({ children, align, selected }: { children: React.ReactNode; align: '
 }
 
 export function RfqVendorSourcingTab({ stats, onAction }: Props) {
-  const rfqList = stats.rfqComparisons && stats.rfqComparisons.length > 0 ? stats.rfqComparisons : DEFAULT_RFQS;
+  const rfqList = stats.rfqComparisons ?? [];
   const [selectedRfqId, setSelectedRfqId] = useState<string>(rfqList[0]?.rfq_id ?? '');
 
   const activeRfq = rfqList.find((r) => r.rfq_id === selectedRfqId) || rfqList[0];
@@ -140,7 +63,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
             </div>
             <div className="mt-2 sm:mt-0 text-right">
               <div style={{ fontSize: '0.72rem', color: MUTED }}>Target Budget</div>
-              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: TEXT }}>RM {activeRfq.budget_myr.toLocaleString()}</div>
+              <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 700, color: TEXT }}>RM {(activeRfq.budget_myr || 0).toLocaleString()}</div>
             </div>
           </div>
 
@@ -185,7 +108,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                       const isLowest = q.unit_price === minPrice;
                       return (
                         <td key={q.vendor} className="px-4 py-3 text-center" style={{ fontWeight: 600, color: TEXT }}>
-                          RM {q.unit_price.toLocaleString()}
+                          RM {(q.unit_price || 0).toLocaleString()}
                           {isLowest && (
                             <span className="sd-chip ok" style={{ marginLeft: '0.4rem' }}>
                               <Award className="h-3 w-3" /> Best Price
@@ -201,7 +124,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                     <td className="px-4 py-3" style={{ fontWeight: 600, color: TEXT }}>Total Quote Amount</td>
                     {activeRfq.quotes.map((q) => (
                       <td key={q.vendor} className="px-4 py-3 text-center" style={{ fontWeight: 700, color: TEXT }}>
-                        RM {q.total_amount.toLocaleString()}
+                        RM {(q.total_amount || 0).toLocaleString()}
                       </td>
                     ))}
                   </tr>
@@ -240,7 +163,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                     <td className="px-4 py-3" style={{ fontWeight: 600, color: TEXT }}>Vendor SLA Rating</td>
                     {activeRfq.quotes.map((q) => (
                       <td key={q.vendor} className="px-4 py-3 text-center">
-                        <span className={`sd-chip ${q.sla_status.includes('Top Tier') ? 'ok' : 'muted'}`}>
+                        <span className={`sd-chip ${(q.sla_status || '').includes('Top Tier') ? 'ok' : 'muted'}`}>
                           <ShieldCheck className="h-3 w-3" /> {q.sla_status}
                         </span>
                       </td>

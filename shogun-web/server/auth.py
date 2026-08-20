@@ -512,6 +512,104 @@ async def me(user: User = Depends(get_current_user)) -> Dict[str, Any]:
     return {"user": _user_response(user)}
 
 
+class UpdatePlatformIdRequest(BaseModel):
+    platform: str = Field(min_length=1, max_length=32)
+    user_id: str = Field(default="", max_length=128)
+
+
+class UpdateTelegramIdRequest(BaseModel):
+    telegram_user_id: str = Field(default="", max_length=128)
+
+
+# Simple in-process rate limiter: max 10 writes per user per 60-second window.
+_PLATFORM_ID_RATE_LIMIT = 10
+_PLATFORM_ID_WINDOW = 60  # seconds
+_platform_id_calls: Dict[int, list] = {}  # user_id → list of call timestamps
+_platform_id_lock = __import__("threading").Lock()  # protects _platform_id_calls across threads
+
+
+def _check_platform_id_rate_limit(user_id: int) -> None:
+    """Raise 429 if the user has exceeded the platform-id write rate limit.
+
+    Thread-safe via ``_platform_id_lock``.  Stale entries for inactive users are
+    pruned on each call so the dict doesn't grow without bound.
+    """
+    now = time.time()
+    window_start = now - _PLATFORM_ID_WINDOW
+
+    with _platform_id_lock:
+        # Prune expired entries for this user
+        calls = [t for t in _platform_id_calls.get(user_id, []) if t > window_start]
+        if len(calls) >= _PLATFORM_ID_RATE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many platform-id updates — max {_PLATFORM_ID_RATE_LIMIT} per minute.",
+            )
+        calls.append(now)
+        _platform_id_calls[user_id] = calls
+
+        # Evict users whose entire window has expired to bound memory usage.
+        # Only scan when the dict grows large to keep the hot path O(1).
+        if len(_platform_id_calls) > 1000:
+            stale = [uid for uid, ts_list in _platform_id_calls.items() if not any(t > window_start for t in ts_list)]
+            for uid in stale:
+                del _platform_id_calls[uid]
+
+
+@router.patch("/me/platform-id")
+async def update_my_platform_id(
+    body: UpdatePlatformIdRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Let any logged-in user set their own user ID for a messaging platform.
+
+    Called from the Department → Settings → My Communication sub-tab. The
+    frontend sends one request per channel the admin configured (Telegram,
+    Slack, Discord, etc.). Telegram and Slack are stored in their dedicated
+    columns for backward compat; all others go in the ``platform_user_ids``
+    JSON field keyed by the platform key.
+
+    Rate-limited to 10 writes per user per minute to prevent abuse.
+    """
+    _check_platform_id_rate_limit(user.id)
+
+    platform = body.platform.strip().lower()
+    value = body.user_id.strip() or None
+
+    if platform == "telegram":
+        user.telegram_user_id = value
+    elif platform == "slack":
+        user.slack_user_id = value
+    else:
+        ids = dict(user.platform_user_ids or {})
+        if value:
+            ids[platform] = value
+        else:
+            ids.pop(platform, None)
+        user.platform_user_ids = ids
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"ok": True, "user": _user_response(user)}
+
+
+# Keep old endpoint as alias for backward compat
+@router.patch("/me/telegram-id")
+async def update_my_telegram_id(
+    body: UpdateTelegramIdRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Legacy alias — redirects to the generic platform-id endpoint."""
+    return await update_my_platform_id(
+        UpdatePlatformIdRequest(platform="telegram", user_id=body.telegram_user_id),
+        user,
+        db,
+    )
+
+
 @router.get("/me/access")
 async def my_access(
     user: User = Depends(get_current_user),

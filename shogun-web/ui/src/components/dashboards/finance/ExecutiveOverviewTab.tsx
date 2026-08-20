@@ -46,9 +46,9 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
     { label: 'Accounts Payable', value: fmt(stats.totalAP), modal: 'apAging' as ModalType },
     { label: 'Revenue (YTD)', value: fmt(stats.revenueYTD), modal: 'revenue' as ModalType },
     { label: 'Gross Profit Margin', value: fmtPct(stats.grossProfitMargin), modal: 'margin' as ModalType },
-    { label: 'Debt-to-Equity Ratio', value: stats.debtToEquity.toFixed(2), modal: 'debtEquity' as ModalType },
+    { label: 'Debt-to-Equity Ratio', value: (stats.debtToEquity || 0).toFixed(2), modal: 'debtEquity' as ModalType },
     { label: 'Equity Ratio', value: fmtPct(stats.equityRatio * 100), modal: 'equityRatio' as ModalType },
-    { label: 'AR to AP Coverage', value: `${stats.arToApCoverage.toFixed(1)}x`, sub: `AR ${fmt(stats.totalAR)} / AP ${fmt(stats.totalAP)}`, modal: 'arApCoverage' as ModalType },
+    { label: 'AR to AP Coverage', value: `${(stats.arToApCoverage || 0).toFixed(1)}x`, sub: `AR ${fmt(stats.totalAR)} / AP ${fmt(stats.totalAP)}`, modal: 'arApCoverage' as ModalType },
     { label: 'Net Working Capital', value: fmt(stats.netWorkingCapital), sub: `CA − CL`, modal: 'workingCapital' as ModalType },
     { label: 'Liquid Cash', value: fmt(stats.totalLiquidCash), sub: chip.label !== '—' ? chip.label : undefined, chip, modal: 'cash' as ModalType },
     { label: 'Total Equity', value: fmt(stats.totalEquity), modal: 'equityRatio' as ModalType },
@@ -172,7 +172,7 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
 
       {/* Popout: AR → AR aging breakdown */}
       {activeModal === 'ar' && (
-        <FinanceDetailModal title="Accounts Receivable Breakdown" subtitle={`Total AR: ${fmt(stats.totalAR)} · DSO: ${stats.dso.toFixed(0)} days`} onClose={() => setActiveModal(null)} maxWidth="40rem">
+        <FinanceDetailModal title="Accounts Receivable Breakdown" subtitle={`Total AR: ${fmt(stats.totalAR)} · DSO: ${(stats.dso || 0).toFixed(0)} days`} onClose={() => setActiveModal(null)} maxWidth="40rem">
           <div className="sd-stack" style={{ gap: '0.5rem' }}>
             <ArAgingBar aging={stats.arAging} />
             {stats.dunningQueue.length > 0 && (
@@ -209,12 +209,12 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
       {activeModal === 'margin' && (
         <FinanceDetailModal title="Gross Margin Detail" subtitle="Margin and unit economics" onClose={() => setActiveModal(null)} maxWidth="32rem">
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem' }}>
-            <DetailBox label="Gross Margin" value={`${stats.grossMargin.toFixed(1)}%`} />
-            <DetailBox label="EBITDA Margin" value={`${stats.ebitdaMargin.toFixed(1)}%`} />
-            <DetailBox label="Contribution Margin" value={`${stats.unitEconomics.contribution_margin_pct.toFixed(1)}%`} />
+            <DetailBox label="Gross Margin" value={`${(stats.grossMargin || 0).toFixed(1)}%`} />
+            <DetailBox label="EBITDA Margin" value={`${(stats.ebitdaMargin || 0).toFixed(1)}%`} />
+            <DetailBox label="Contribution Margin" value={`${(stats.unitEconomics.contribution_margin_pct || 0).toFixed(1)}%`} />
             <DetailBox label="CAC" value={stats.unitEconomics.cac > 0 ? fmt(stats.unitEconomics.cac) : '—'} />
             <DetailBox label="LTV" value={stats.unitEconomics.ltv > 0 ? fmt(stats.unitEconomics.ltv) : '—'} />
-            <DetailBox label="LTV/CAC Ratio" value={stats.unitEconomics.ltv_cac_ratio > 0 ? `${stats.unitEconomics.ltv_cac_ratio.toFixed(1)}x` : '—'} />
+            <DetailBox label="LTV/CAC Ratio" value={stats.unitEconomics.ltv_cac_ratio > 0 ? `${(stats.unitEconomics.ltv_cac_ratio || 0).toFixed(1)}x` : '—'} />
           </div>
         </FinanceDetailModal>
       )}
@@ -223,7 +223,7 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
       {activeModal === 'debtEquity' && (
         <FinanceDetailModal title="Debt-to-Equity Ratio" subtitle={`Total Liabilities ${fmt(stats.totalLiabilities)} / Total Equity ${fmt(stats.totalEquity)}`} onClose={() => setActiveModal(null)} maxWidth="40rem">
           <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.6rem', borderRadius: '0.5rem', background: SURFACE_2 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 600, color: TEXT }}>{stats.debtToEquity.toFixed(2)}</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '2rem', fontWeight: 600, color: TEXT }}>{(stats.debtToEquity || 0).toFixed(2)}</div>
             <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.2rem' }}>
               {stats.debtToEquity < 0.5 ? 'Conservative leverage' : stats.debtToEquity < 1.5 ? 'Healthy leverage' : 'High leverage — monitor closely'}
             </div>
@@ -239,7 +239,7 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
       {activeModal === 'arApCoverage' && (
         <FinanceDetailModal title="AR to AP Coverage Ratio" subtitle={`AR ${fmt(stats.totalAR)} / AP ${fmt(stats.totalAP)}`} onClose={() => setActiveModal(null)} maxWidth="36rem">
           <div style={{ textAlign: 'center', marginBottom: '0.75rem', padding: '0.6rem', borderRadius: '0.5rem', background: SURFACE_2 }}>
-            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 600, color: TEXT }}>{stats.arToApCoverage.toFixed(2)}x</div>
+            <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.8rem', fontWeight: 600, color: TEXT }}>{(stats.arToApCoverage || 0).toFixed(2)}x</div>
             <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.2rem' }}>
               {stats.arToApCoverage >= 1 ? 'AR covers AP — healthy liquidity' : 'AR does not cover AP — monitor cash flow'}
             </div>
@@ -313,7 +313,7 @@ export function ExecutiveOverviewTab({ stats, color }: Props) {
 
       {/* Popout: AP Aging → bill detail */}
       {activeModal === 'apAging' && (
-        <FinanceDetailModal title="Accounts Payable by Payment Target" subtitle={`Total AP: ${fmt(stats.totalAP)} · DPO: ${stats.dpo.toFixed(0)} days`} onClose={() => setActiveModal(null)} maxWidth="44rem">
+        <FinanceDetailModal title="Accounts Payable by Payment Target" subtitle={`Total AP: ${fmt(stats.totalAP)} · DPO: ${(stats.dpo || 0).toFixed(0)} days`} onClose={() => setActiveModal(null)} maxWidth="44rem">
           <BarChart data={apAgingData} xKey="label" yKey="amount" name="Accounts Payable" color="#fbbf24" unit="RM " height={250} />
           {stats.apBills.length > 0 && (
             <div style={{ marginTop: '0.75rem' }}>

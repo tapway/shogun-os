@@ -41,6 +41,7 @@ import DepartmentConnectors from "../components/DepartmentConnectors";
 import DepartmentCrons from "../components/DepartmentCrons";
 import DepartmentSkills from "../components/DepartmentSkills";
 import { EmailTemplatesManager } from "../components/EmailTemplatesManager";
+import { MyCommunicationTab } from "../components/MyCommunicationTab";
 import RightChatDock from "../components/RightChatDock";
 import { DashboardViewer } from "../components/dashboards/DashboardViewer";
 import StatusBadge from "../components/StatusBadge";
@@ -609,9 +610,9 @@ export default function Department() {
   const color = department?.color || meta?.color || "#6366f1";
 
   // Sub-tab state inside Settings tab
-  const [settingsSubTab, setSettingsSubTab] = useState<"comms" | "provider" | "email-templates">(
-    "comms",
-  );
+    const [settingsSubTab, setSettingsSubTab] = useState<"my-comm" | "comms" | "provider" | "email-templates">(
+      "my-comm",
+    );
 
   const [config, setConfig] = useState<ProviderConfig>({});
   const [commsChannels, setCommsChannels] = useState<CommsChannelConfig[]>([]);
@@ -764,11 +765,11 @@ export default function Department() {
   };
 
   // --- Cron + skills data for bot activity panel (gap #5) ---
-  const { data: cronData } = useQuery({
-    queryKey: ["department-crons", key],
-    queryFn: () => departmentsApi.getCrons(key),
-    enabled: commsChannels.length > 0,
-  });
+    const { data: cronData } = useQuery({
+      queryKey: ["department-crons", key],
+      queryFn: () => departmentsApi.getCrons(key),
+      enabled: !!isAdmin && commsChannels.length > 0,
+    });
   const { data: skillsData } = useQuery({
     queryKey: ["department-skills", key],
     queryFn: () => skillsApi.listDepartment(key),
@@ -923,43 +924,71 @@ export default function Department() {
           <div className="max-w-4xl space-y-6 text-slate-900 dark:text-white p-2">
             {/* Sub-Tab Navigation Bar */}
             <div className="flex flex-wrap items-center gap-2 border-b border-slate-200 dark:border-slate-700/60 pb-3">
+              {/* My Communication — visible to ALL users (staff + manager + admin) */}
               <button
                 type="button"
-                onClick={() => setSettingsSubTab("comms")}
+                onClick={() => setSettingsSubTab("my-comm")}
                 className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
-                  settingsSubTab === "comms"
+                  settingsSubTab === "my-comm"
                     ? "bg-brand text-white shadow-md shadow-brand/20"
                     : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
                 }`}
               >
-                <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-                Department Communication Channels ({commsChannels.length})
+                <Send className="h-4 w-4 text-sky-600 dark:text-sky-400" />
+                My Communication
               </button>
-              <button
-                type="button"
-                onClick={() => setSettingsSubTab("email-templates")}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
-                  settingsSubTab === "email-templates"
-                    ? "bg-brand text-white shadow-md shadow-brand/20"
-                    : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                <Mail className="h-4 w-4 text-amber-600 dark:text-amber-400" />
-                Email Templates
-              </button>
-              <button
-                type="button"
-                onClick={() => setSettingsSubTab("provider")}
-                className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
-                  settingsSubTab === "provider"
-                    ? "bg-brand text-white shadow-md shadow-brand/20"
-                    : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
-                }`}
-              >
-                <Settings className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
-                {displayName} Provider Configuration
-              </button>
+              {/* Admin-only sub-tabs */}
+              {isAdmin && (
+                <>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab("comms")}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      settingsSubTab === "comms"
+                        ? "bg-brand text-white shadow-md shadow-brand/20"
+                        : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Radio className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
+                    Department Channels ({commsChannels.length})
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab("email-templates")}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      settingsSubTab === "email-templates"
+                        ? "bg-brand text-white shadow-md shadow-brand/20"
+                        : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Mail className="h-4 w-4 text-amber-600 dark:text-amber-400" />
+                    Email Templates
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab("provider")}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      settingsSubTab === "provider"
+                        ? "bg-brand text-white shadow-md shadow-brand/20"
+                        : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <Settings className="h-4 w-4 text-indigo-600 dark:text-indigo-400" />
+                    {displayName} Provider Configuration
+                  </button>
+                </>
+              )}
             </div>
+
+            {/* SUB-TAB 0: My Communication — visible to ALL users */}
+            {settingsSubTab === "my-comm" && (
+              <MyCommunicationTab
+                department={key}
+                displayName={displayName}
+                commsChannels={commsChannels}
+                isAdmin={!!isAdmin}
+              />
+            )}
 
             {/* SUB-TAB 1: Department Communication Channels */}
             {settingsSubTab === "comms" && (

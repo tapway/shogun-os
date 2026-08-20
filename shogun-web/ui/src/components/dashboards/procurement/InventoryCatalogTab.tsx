@@ -94,7 +94,7 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return stats.skuCatalog.filter((s: SkuItem) => {
-      if (q && !s.sku.toLowerCase().includes(q) && !s.item_name.toLowerCase().includes(q)) return false;
+      if (q && !(s.sku || '').toLowerCase().includes(q) && !(s.item_name || '').toLowerCase().includes(q)) return false;
       if (category !== 'all' && s.category !== category) return false;
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
       return true;
@@ -167,8 +167,8 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
                     <td className="px-3 py-2" style={{ fontWeight: 600, color: TEXT }}>{s.item_name}</td>
                     <td className="px-3 py-2" style={{ color: MUTED }}>{s.category}</td>
                     <td className="px-3 py-2 text-right" style={{ color: TEXT }}>{fmtMyr(s.unit_cost)}</td>
-                    <td className="px-3 py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{s.current_qty.toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: MUTED }}>{s.safety_reorder_point.toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{(s.current_qty || 0).toLocaleString()}</td>
+                    <td className="px-3 py-2 text-right" style={{ color: MUTED }}>{(s.safety_reorder_point || 0).toLocaleString()}</td>
                     <td className="px-3 py-2" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{s.location_bin}</td>
                     <td className="px-3 py-2 text-center">
                       <span className={`sd-chip ${STATUS_STYLE[s.status] ?? 'muted'}`}>
@@ -216,11 +216,11 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
                 <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.72rem', color: MUTED }}>Current Qty</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--samurai-danger)' }}>{skuActionTarget.current_qty.toLocaleString()} units</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--samurai-danger)' }}>{(skuActionTarget.current_qty || 0).toLocaleString()} units</div>
                 </div>
                 <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
                   <div style={{ fontSize: '0.72rem', color: MUTED }}>Safety Reorder Point</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT }}>{skuActionTarget.safety_reorder_point.toLocaleString()} units</div>
+                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT }}>{(skuActionTarget.safety_reorder_point || 0).toLocaleString()} units</div>
                 </div>
               </div>
 
@@ -300,7 +300,7 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
                 <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
                   <span className={`sd-chip ${ABC_STYLE[c.class_label] ?? 'muted'}`}>Class {c.class_label}</span>
                   <span style={{ fontSize: '0.72rem', color: MUTED }}>
-                    {c.sku_count.toLocaleString()} SKU{c.sku_count === 1 ? '' : 's'} · {c.sku_pct.toFixed(1)}% of items
+                    {(c.sku_count || 0).toLocaleString()} SKU{c.sku_count === 1 ? '' : 's'} · {(c.sku_pct || 0).toFixed(1)}% of items
                   </span>
                   <span style={{ marginLeft: 'auto', fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{fmtMyr(c.capital_value)}</span>
                 </div>
@@ -310,7 +310,7 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
                       style={{ height: '100%', borderRadius: 999, background: c.class_label === 'A' ? 'var(--samurai-ok)' : c.class_label === 'B' ? 'var(--samurai-blue)' : 'var(--samurai-muted)', width: `${Math.min(c.value_pct, 100)}%` }}
                     />
                   </div>
-                  <span style={{ width: '3rem', textAlign: 'right', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>{c.value_pct.toFixed(1)}%</span>
+                  <span style={{ width: '3rem', textAlign: 'right', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>{(c.value_pct || 0).toFixed(1)}%</span>
                 </div>
               </div>
             ))}
@@ -352,16 +352,16 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
                       <div style={{ fontSize: '0.72rem', color: MUTED }}>{d.item_name}</div>
                     </td>
                     <td className="py-2" style={{ color: MUTED }}>{d.category}</td>
-                    <td className="py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{d.current_qty.toLocaleString()}</td>
+                    <td className="py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{(d.current_qty || 0).toLocaleString()}</td>
                     <td className="py-2 text-right" style={{ color: TEXT }}>{d.days_since_last_movement}d</td>
-                    <td className="py-2 text-right" style={{ color: TEXT }}>{d.months_of_cover.toFixed(1)}</td>
+                    <td className="py-2 text-right" style={{ color: TEXT }}>{(d.months_of_cover || 0).toFixed(1)}</td>
                     <td className="py-2 text-right" style={{ color: 'var(--samurai-danger)', fontWeight: 700 }}>
                       <div style={{ fontSize: '0.65rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>RM</div>
                       {d.total_tied_value >= 1_000_000
                         ? `${(d.total_tied_value / 1_000_000).toFixed(2)}M`
                         : d.total_tied_value >= 1_000
                           ? `${(d.total_tied_value / 1_000).toFixed(0)}K`
-                          : d.total_tied_value.toLocaleString()}
+                          : (d.total_tied_value || 0).toLocaleString()}
                     </td>
                     <td className="py-2 text-center">
                       {d.action_recommendation === 'Bundle Promo with Top SKU' ? (
