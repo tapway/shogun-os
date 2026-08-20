@@ -21,8 +21,10 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_pages
+from gbrain_client import gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
+
+import httpx
 
 logger = logging.getLogger(__name__)
 
@@ -568,12 +570,12 @@ async def get_dashboard_config(
         "crm": {
             "enabled": True,
             "tabs": [
-                {"id": "revenue", "label": "Sales Booking", "icon": "LayoutDashboard"},
-                {"id": "pipeline", "label": "Pipeline & Forecast", "icon": "TrendingUp"},
-                {"id": "omnichannel", "label": "Omnichannel Chat", "icon": "MessageCircle"},
-                {"id": "partner", "label": "Partner Performance", "icon": "Handshake"},
-                {"id": "managers", "label": "Manager Performance", "icon": "Users"},
-                {"id": "deals", "label": "Deals Deep-Dive", "icon": "Target"},
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "deals", "label": "Deals", "icon": "Briefcase"},
+                {"id": "companies", "label": "Companies", "icon": "Building2"},
+                {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
+                {"id": "search", "label": "Search", "icon": "Search"},
+                {"id": "bev", "label": "BEV Zones", "icon": "Map"},
             ],
         },
         "finance": {
@@ -632,6 +634,283 @@ async def get_crm_ceo_stats(
     """Aggregated CEO dashboard stats for CRM."""
     pages = await gbrain_fetch_pages("crm", limit=200)
     return _run_ceo_aggregation(pages)
+
+
+# ─── CRM list/search endpoints (live gbrain data, no mock) ───
+
+
+def _extract_deal_list_item(page: dict) -> dict:
+    """Map a raw gbrain page to a CrmDealListItem."""
+    fm = _parse_frontmatter(page.get("frontmatter"))
+    return {
+        "slug": page.get("slug", ""),
+        "title": page.get("title", ""),
+        "customer": fm.get("customer", ""),
+        "owner": _canonical_owner(fm.get("owner", "")),
+        "stage": _canonical_stage(fm.get("stage", "")),
+        "created": fm.get("created", "") or (page.get("effective_date", "") or "")[:10],
+        "source": fm.get("source", ""),
+        "amount": _safe_float(fm.get("amount", 0)),
+        "priority": fm.get("priority", ""),
+        "compiled_truth": (page.get("compiled_truth", "") or "")[:500],
+    }
+
+
+@router.get("/deals")
+async def list_crm_deals(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title/customer"),
+    stage: str = Query("", description="Filter by stage"),
+    owner: str = Query("", description="Filter by owner"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM deals from gbrain (live)."""
+    pages = await gbrain_fetch_pages("crm", limit=500)
+    deals = [p for p in pages if p.get("slug", "").startswith("deals/")]
+    deals = [p for p in deals if not any(
+        x in str(p.get("slug", "")) for x in ["templates/", "/readme", "_schema", "activity-log", "risk-register"]
+    )]
+
+    items = [_extract_deal_list_item(p) for p in deals]
+
+    if search:
+        s = search.lower()
+        items = [d for d in items if s in d["title"].lower() or s in (d.get("customer") or "").lower()]
+    if stage:
+        items = [d for d in items if d.get("stage", "") == _canonical_stage(stage)]
+    if owner:
+        co = _canonical_owner(owner)
+        items = [d for d in items if d.get("owner", "") == co]
+
+    # Sort by created date descending (most recent first)
+    items.sort(key=lambda d: d.get("created", ""), reverse=True)
+
+    return {"deals": items, "total": len(items)}
+
+
+@router.get("/companies")
+async def list_crm_companies(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title"),
+    industry: str = Query("", description="Filter by industry"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list:
+    """List CRM companies from gbrain (live)."""
+    pages = await gbrain_fetch_pages("crm", limit=5000)
+    companies = [p for p in pages if p.get("slug", "").startswith("companies/")]
+
+    items = []
+    for p in companies:
+        fm = _parse_frontmatter(p.get("frontmatter"))
+        items.append({
+            "slug": p.get("slug", ""),
+            "title": p.get("title", ""),
+            "industry": fm.get("industry", ""),
+            "website": fm.get("website", ""),
+            "source": fm.get("source", ""),
+            "first_seen": fm.get("first_seen", ""),
+        })
+
+    if search:
+        s = search.lower()
+        items = [c for c in items if s in c["title"].lower()]
+    if industry:
+        items = [c for c in items if c.get("industry", "").lower() == industry.lower()]
+
+    items.sort(key=lambda c: c["title"].lower())
+
+    return items
+
+
+@router.get("/tasks")
+async def list_crm_tasks(
+    name: str = Path(...),
+    completed: Optional[bool] = Query(None, description="Filter by completion status"),
+    assignee: str = Query("", description="Filter by assignee"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> list:
+    """List CRM tasks parsed from deal markdown in gbrain (live)."""
+    pages = await gbrain_fetch_pages("crm", limit=500)
+    deals = [p for p in pages if p.get("slug", "").startswith("deals/")]
+    deals = [p for p in deals if not any(
+        x in str(p.get("slug", "")) for x in ["templates/", "/readme", "_schema", "activity-log", "risk-register"]
+    )]
+
+    tasks: List[dict] = []
+    for deal in deals:
+        title = deal.get("title", "")
+        slug = deal.get("slug", "")
+        truth = deal.get("compiled_truth", "") or ""
+        fm = _parse_frontmatter(deal.get("frontmatter"))
+
+        # Parse task patterns from compiled_truth markdown:
+        # Pattern 1: **Task Description** @assignee
+        # Pattern 2: - [ ] Task @assignee  /  - [x] Task @assignee
+        # Pattern 3: ## Next Step / ## Tasks section bullets
+        for m in _re.finditer(r"\*\*(.+?)\*\*(?:\s*@(\w[\w\s.-]+?))?(?:\s*$|\n)", truth):
+            desc = m.group(1).strip()
+            asgn = (m.group(2) or "").strip()
+            if desc.lower() in ("next step", "summary", "notes", "timeline"):
+                continue
+            tasks.append({
+                "description": f"**{desc}**",
+                "assignee": asgn or fm.get("owner", ""),
+                "completed": False,
+                "deal_slug": slug,
+                "deal_title": title,
+            })
+
+        for m in _re.finditer(r"^\s*[-*]\s*\[([ x])\]\s+(.+?)(?:\s*@(\w[\w\s.-]+?))?(?:\s*$|\n)", truth, _re.MULTILINE):
+            done = m.group(1).lower() == "x"
+            desc = m.group(2).strip()
+            asgn = (m.group(3) or "").strip()
+            tasks.append({
+                "description": desc,
+                "assignee": asgn or fm.get("owner", ""),
+                "completed": done,
+                "deal_slug": slug,
+                "deal_title": title,
+            })
+
+    if completed is not None:
+        tasks = [t for t in tasks if t["completed"] == completed]
+    if assignee:
+        ca = _canonical_owner(assignee)
+        tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
+
+    return tasks
+
+
+class SearchBody(BaseModel):
+    query: str = ""
+
+
+@router.post("/search")
+async def crm_search(
+    body: SearchBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Global search across CRM gbrain pages (live)."""
+    query = body.query.strip()
+    if not query:
+        return {"results": []}
+
+    results = await gbrain_search("crm", query, limit=50)
+
+    def _category(slug: str) -> str:
+        if slug.startswith("companies/"):
+            return "companies"
+        if slug.startswith("deals/"):
+            return "deals"
+        return "unknown"
+
+    mapped = []
+    for r in results:
+        slug = r.get("slug", "")
+        mapped.append({
+            "slug": slug,
+            "title": r.get("title", ""),
+            "frontmatter": _parse_frontmatter(r.get("frontmatter")),
+            "category": _category(slug),
+        })
+
+    return {"results": mapped}
+
+
+# ─── BEV Zones proxy (→ separate microservice) ───
+
+def _bev_base_url() -> str:
+    return os.environ.get("BEV_API_URL", "http://localhost:8001/api/v1").rstrip("/")
+
+
+@router.get("/bev/zones")
+async def list_bev_zones(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """List BEV zones via the BEV microservice."""
+    base = _bev_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.get(f"{base}/zones")
+            if resp.status_code >= 400:
+                return {"zones": []}
+            return resp.json()
+    except httpx.HTTPError as exc:
+        logger.warning("BEV zones list error: %s", exc)
+        return {"zones": []}
+
+
+class BevZoneBody(BaseModel):
+    name: str = ""
+    calibrationType: str = "cartesian"
+    cameraIds: list = []
+    bounds: Optional[dict] = None
+    origin: Optional[dict] = None
+    rois: list = []
+    tripwires: list = []
+
+
+@router.post("/bev/zones")
+async def create_bev_zone(
+    name: str = Path(...),
+    body: BevZoneBody = BevZoneBody(),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Create a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.post(f"{base}/zones", json=payload)
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return resp.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
+
+
+@router.put("/bev/zones/{zone_id}")
+async def update_bev_zone(
+    name: str = Path(...),
+    zone_id: str = Path(...),
+    body: BevZoneBody = BevZoneBody(),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Update a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.put(f"{base}/zones/{zone_id}", json=payload)
+            if resp.status_code >= 400:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return resp.json()
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
+
+
+@router.delete("/bev/zones/{zone_id}")
+async def delete_bev_zone(
+    name: str = Path(...),
+    zone_id: str = Path(...),
+    user: User = Depends(get_current_user),
+) -> dict:
+    """Delete a BEV zone via the BEV microservice."""
+    base = _bev_base_url()
+    try:
+        async with httpx.AsyncClient(timeout=15.0) as client:
+            resp = await client.delete(f"{base}/zones/{zone_id}")
+            if resp.status_code >= 400 and resp.status_code != 204:
+                raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
+            return {"ok": True}
+    except httpx.HTTPError as exc:
+        raise HTTPException(status_code=502, detail=f"BEV service unavailable: {exc}")
 
 
 # ─── Finance aggregation helpers ───
@@ -2090,7 +2369,57 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     vendor_snap = snapshot_map.get("snapshots/vendors", snapshot_map.get("procurement/snapshots/vendors", {}))
     movement_snap = snapshot_map.get("snapshots/stock-movements", snapshot_map.get("procurement/snapshots/stock-movements", {}))
     bridge_snap = snapshot_map.get("snapshots/accounting-bridge", snapshot_map.get("procurement/snapshots/accounting-bridge", {}))
+
+    # ── Parse brain markdown pages into structured data ──
+    # When the procurement agent hasn't written JSON snapshots yet, we extract
+    # structured data from the brain's policy/contract markdown pages.
+    brain_suppliers: List[dict] = []
+    brain_approval_matrix: List[dict] = []
+    brain_safety_stock: List[dict] = []
+
+    for p in pages:
+        slug = str(p.get("slug", ""))
+        body = p.get("content") or p.get("body") or ""
+        if "suppliers/" in slug or "suppliers" in slug:
+            # Parse vendor info from supplier contract markdown
+            vendor_name = ""
+            vendor_id = ""
+            for line in body.split("\n"):
+                if "Vendor Name" in line and "**" in line:
+                    # Line format: "- **Vendor Name**: Actual Name"
+                    parts = line.split("**")
+                    if len(parts) >= 3:
+                        vendor_name = parts[2].lstrip(": ").strip()
+                if "Vendor ID" in line and "**" in line:
+                    parts = line.split("**")
+                    if len(parts) >= 3:
+                        vendor_id = parts[2].lstrip(": ").strip()
+            if vendor_name:
+                brain_suppliers.append({
+                    "vendor": vendor_name.strip(),
+                    "vendor_id": vendor_id.strip(),
+                    "category": "Electronics" if "electronics" in slug.lower() else "Apparel" if "textile" in slug.lower() else "General",
+                    "sla_status": "Active",
+                })
+        if "po-approval-matrix" in slug or "approval" in slug.lower():
+            # Parse approval matrix table
+            for line in body.split("\n"):
+                if "RM" in line and "|" in line and ("Manager" in line or "Head" in line or "CFO" in line or "CEO" in line):
+                    cols = [c.strip() for c in line.split("|") if c.strip()]
+                    if len(cols) >= 3:
+                        brain_approval_matrix.append({
+                            "threshold": cols[0] if cols[0] else "",
+                            "approver": cols[1] if len(cols) > 1 else "",
+                            "sla": cols[2] if len(cols) > 2 else "",
+                        })
+        if "safety-stock" in slug.lower():
+            # Parse safety stock buffer levels
+            for line in body.split("\n"):
+                if "Days Safety Stock" in line or "Days" in line and "Safety" in line:
+                    brain_safety_stock.append({"policy": line.strip()})
+
     has_real_data = bool(inventory_snap or po_snap)
+    has_brain_data = bool(brain_suppliers or brain_approval_matrix)
 
     if has_real_data:
         total_inventory_valuation = _safe_float(inventory_snap.get("total_inventory_valuation"))
@@ -2124,10 +2453,10 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         risk_alerts: List[dict] = inventory_snap.get("risk_alerts", [])
     else:
-        # No snapshot data available — return empty-state, not fabricated mock data.
-        # The UI shows "no data yet / connect gbrain" rather than fake MYR figures.
-        # Same policy as the finance dashboard (PR #12 review: no fabricated figures).
-        logger.info("Procurement dashboard: no gbrain snapshots — returning empty state")
+        # No JSON snapshot data available — but we may have brain markdown pages.
+        # Parse structured data from the brain's policy/contract pages.
+        logger.info("Procurement dashboard: no JSON snapshots, using brain markdown data (pages=%d)", len(pages))
+
         total_inventory_valuation = 0.0
         total_active_skus = 0.0
         low_stock_alerts = 0.0
@@ -2151,13 +2480,17 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         po_pipeline: List[dict] = []
         active_purchase_orders: List[dict] = []
-        executive_approval_queue: List[dict] = []
-        vendor_scorecard: List[dict] = []
+        executive_approval_queue: List[dict] = brain_approval_matrix
+        vendor_scorecard: List[dict] = brain_suppliers
         vendor_spend_concentration: List[dict] = []
 
         bridge_status = {"enabled": False, "provider": "None", "connected": False}
         po_bill_conversion_queue: List[dict] = []
         gl_valuation_reconciliation: List[dict] = []
+
+        # Populate risk_alerts from safety stock policies
+        if brain_safety_stock:
+            risk_alerts = brain_safety_stock
 
     return {
         # Tab 1 — Executive Procurement & Reorder Pulse
@@ -2190,6 +2523,9 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         "accountingBridge": bridge_status,
         "poBillConversionQueue": po_bill_conversion_queue,
         "glValuationReconciliation": gl_valuation_reconciliation,
+        # Brain data source info
+        "brainPagesCount": len(pages),
+        "hasBrainData": has_brain_data,
     }
 
 

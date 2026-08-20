@@ -71,12 +71,10 @@ def test_get_dashboard_config_crm_returns_6_tabs():
     result = asyncio.run(_call_dashboard_config_inner("crm"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
-    assert "revenue" in tab_ids
-    assert "pipeline" in tab_ids
-    assert "omnichannel" in tab_ids
-    assert "partner" in tab_ids
-    assert "managers" in tab_ids
+    assert "overview" in tab_ids
     assert "deals" in tab_ids
+    assert "companies" in tab_ids
+    assert "search" in tab_ids
     assert len(result["tabs"]) == 6
 
 
