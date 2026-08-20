@@ -68,6 +68,37 @@ Known issues and workarounds...
 
 ## Testing
 
+### Before you commit
+
+```bash
+bash scripts/run-tests.sh
+```
+
+This runs the full Python test suite (excluding `@slow` tests that need external
+services). All tests must pass before you open a PR.
+
+### CI gate
+
+Every pull request triggers GitHub Actions CI (`.github/workflows/test.yml`)
+which runs the same `scripts/run-tests.sh`. A red CI status blocks merge.
+
+### Rule: no test, no merge
+
+Every feature PR must include a test that exercises the new feature. A PR
+that adds code without a test will be blocked in review.
+
+### Test structure
+
+- `tests/` — root-level Python tests (provisioning scripts, schema validation)
+- `shogun-web/server/tests/` — web portal API tests (auth, staff, onboarding,
+  dashboard, registry, crons)
+- `scripts/verify-install/` — post-install environment checks (NOT in CI; run
+  manually after a fresh install)
+- `@slow` marker — tests that need external services (Ollama, PG, QBO).
+  Skipped in CI, run locally with `pytest -m slow`.
+
+### Other checks
+
 ```bash
 # Verify install scripts
 ./scripts/verify-install.sh --quick

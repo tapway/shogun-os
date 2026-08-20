@@ -67,8 +67,17 @@ def test_safe_int_passes_valid_integer():
 
 
 def test_finance_aggregation_empty_pages_returns_safe_defaults():
-    """Finance aggregation with no snapshots must not crash and return zeros."""
-    result = asyncio.run(dashboard._run_finance_aggregation([]))
+    """Finance aggregation with no snapshots must not crash and return zeros.
+
+    Mocks QBO fetches so no subprocess/network call runs. Tests the aggregation
+    logic, not the live QBO integration.
+    """
+    from unittest.mock import patch
+
+    fake_qbo = {"error": "no data"}
+    with patch("dashboard._fetch_qbo_balance_sheet", return_value=fake_qbo), \
+         patch("dashboard._fetch_qbo_profit_loss", return_value=fake_qbo):
+        result = asyncio.run(dashboard._run_finance_aggregation([]))
     assert isinstance(result, dict)
     # Must have keys, even if all zero/empty
     assert len(result) > 0
