@@ -10,51 +10,6 @@ interface Props {
   onAction?: (actionType: string, entity: any) => void;
 }
 
-const DEFAULT_MATCHES: ThreeWayMatchItem[] = [
-  {
-    match_id: "MATCH-2026-0101",
-    po_number: "PO-2026-0218",
-    grn_number: "GRN-2026-0091",
-    invoice_number: "INV-NT-9842",
-    vendor: "NexTech Distribution Sdn Bhd",
-    po_amount: 52400.0,
-    grn_received_amount: 52400.0,
-    invoice_amount: 52400.0,
-    variance_amount: 0.0,
-    variance_pct: 0.0,
-    match_status: "100% Match",
-    ap_approval_status: "Pending AP Review",
-  },
-  {
-    match_id: "MATCH-2026-0102",
-    po_number: "PO-2026-0217",
-    grn_number: "GRN-2026-0089",
-    invoice_number: "INV-VT-4412",
-    vendor: "Vortex Supplies Sdn Bhd",
-    po_amount: 18750.0,
-    grn_received_amount: 18750.0,
-    invoice_amount: 18900.0,
-    variance_amount: 150.0,
-    variance_pct: 0.8,
-    match_status: "Within Tolerance",
-    ap_approval_status: "Pending AP Review",
-  },
-  {
-    match_id: "MATCH-2026-0103",
-    po_number: "PO-2026-0215",
-    grn_number: "GRN-2026-0085",
-    invoice_number: "INV-NT-9799",
-    vendor: "NexTech Distribution Sdn Bhd",
-    po_amount: 142000.0,
-    grn_received_amount: 142000.0,
-    invoice_amount: 148500.0,
-    variance_amount: 6500.0,
-    variance_pct: 4.5,
-    match_status: "Variance Exceeded",
-    ap_approval_status: "Flagged to Procurement",
-  },
-];
-
 const MATCH_BADGE: Record<string, string> = {
   "100% Match": "ok",
   "Within Tolerance": "warn",
@@ -79,10 +34,7 @@ function Th({ children, align }: { children: React.ReactNode; align: "left" | "r
 }
 
 export function ThreeWayMatchTab({ stats, onAction }: Props) {
-  const matchList =
-    stats.threeWayMatches && stats.threeWayMatches.length > 0
-      ? stats.threeWayMatches
-      : DEFAULT_MATCHES;
+  const matchList = stats.threeWayMatches ?? [];
   const [selectedMatchId, setSelectedMatchId] = useState<string>(
     matchList[0]?.match_id ?? "",
   );

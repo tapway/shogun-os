@@ -153,6 +153,11 @@ export const authApi = {
   oauthCallback: (params: URLSearchParams) =>
     apiFetch<AuthResponse>(`/api/auth/callback?${params.toString()}`),
   myAccess: () => apiFetch<AccessInfo>('/api/auth/me/access'),
+  updateMyPlatformId: (platform: string, userId: string) =>
+    apiFetch<{ ok: boolean; user: User }>('/api/auth/me/platform-id', {
+      method: 'PATCH',
+      body: JSON.stringify({ platform, user_id: userId }),
+    }),
   // Cross-domain SSO (Shogun = Website 2)
   ssoInfo: () =>
     apiFetch<{

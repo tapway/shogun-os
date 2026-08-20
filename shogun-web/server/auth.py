@@ -512,6 +512,65 @@ async def me(user: User = Depends(get_current_user)) -> Dict[str, Any]:
     return {"user": _user_response(user)}
 
 
+class UpdatePlatformIdRequest(BaseModel):
+    platform: str = Field(min_length=1, max_length=32)
+    user_id: str = Field(default="", max_length=128)
+
+
+class UpdateTelegramIdRequest(BaseModel):
+    telegram_user_id: str = Field(default="", max_length=128)
+
+
+@router.patch("/me/platform-id")
+async def update_my_platform_id(
+    body: UpdatePlatformIdRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Let any logged-in user set their own user ID for a messaging platform.
+
+    Called from the Department → Settings → My Communication sub-tab. The
+    frontend sends one request per channel the admin configured (Telegram,
+    Slack, Discord, etc.). Telegram and Slack are stored in their dedicated
+    columns for backward compat; all others go in the ``platform_user_ids``
+    JSON field keyed by the platform key.
+    """
+    platform = body.platform.strip()
+    value = body.user_id.strip() or None
+
+    if platform == "telegram":
+        user.telegram_user_id = value
+    elif platform == "slack":
+        user.slack_user_id = value
+    else:
+        ids = dict(user.platform_user_ids or {})
+        if value:
+            ids[platform] = value
+        else:
+            ids.pop(platform, None)
+        user.platform_user_ids = ids
+
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return {"ok": True, "user": _user_response(user)}
+
+
+# Keep old endpoint as alias for backward compat
+@router.patch("/me/telegram-id")
+async def update_my_telegram_id(
+    body: UpdateTelegramIdRequest,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Legacy alias — redirects to the generic platform-id endpoint."""
+    return await update_my_platform_id(
+        UpdatePlatformIdRequest(platform="telegram", user_id=body.telegram_user_id),
+        user,
+        db,
+    )
+
+
 @router.get("/me/access")
 async def my_access(
     user: User = Depends(get_current_user),

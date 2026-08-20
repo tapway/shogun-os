@@ -6,57 +6,6 @@ interface Props {
   onAction?: (actionType: string, entity: any) => void;
 }
 
-const DEFAULT_PRS: PurchaseRequisition[] = [
-  {
-    pr_number: 'PR-2026-0042',
-    requester: 'Johnathan Tan',
-    department: 'Engineering / Operations',
-    item_description: 'Dell Latitude 5540 Laptops (x 10 units)',
-    category: 'IT Hardware',
-    estimated_amount: 48000.0,
-    priority: 'High',
-    status: 'Pending Approval',
-    created_at: '2026-08-04 09:30',
-    justification: 'Replacement for onboarding new engineering cohort.',
-  },
-  {
-    pr_number: 'PR-2026-0041',
-    requester: 'Siti Sarah',
-    department: 'Administration / Facilities',
-    item_description: 'Ergonomic Mesh Chairs Elite (x 15 units)',
-    category: 'Furniture',
-    estimated_amount: 13350.0,
-    priority: 'Medium',
-    status: 'Approved',
-    created_at: '2026-08-03 14:15',
-    justification: 'Office expansion to 4th floor workstation area.',
-  },
-  {
-    pr_number: 'PR-2026-0040',
-    requester: 'Kevin Wong',
-    department: 'Warehouse / Logistics',
-    item_description: 'Industrial Barcode Label Printer & Adhesive Stock',
-    category: 'Hardware & Tools',
-    estimated_amount: 6800.0,
-    priority: 'Urgent',
-    status: 'Converted to RFQ/PO',
-    created_at: '2026-08-02 11:00',
-    justification: 'Required for Code 128 inventory tagging roll-out.',
-  },
-  {
-    pr_number: 'PR-2026-0039',
-    requester: 'Ahmad Faiz',
-    department: 'IT Infrastructure',
-    item_description: 'UPS Battery 12V 7Ah (x 50 units)',
-    category: 'Spare Parts',
-    estimated_amount: 4750.0,
-    priority: 'Low',
-    status: 'Approved',
-    created_at: '2026-08-01 16:45',
-    justification: 'Preventative maintenance for main server room UPS units.',
-  },
-];
-
 const PRIORITY_STYLE: Record<string, string> = {
   Low: 'muted',
   Medium: 'muted',
@@ -85,7 +34,7 @@ function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'r
 const FILTERS = ['All', 'Pending Approval', 'Approved', 'Converted to RFQ/PO'] as const;
 
 export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
-  const prList = stats.purchaseRequisitions && stats.purchaseRequisitions.length > 0 ? stats.purchaseRequisitions : DEFAULT_PRS;
+  const prList = stats.purchaseRequisitions ?? [];
   const [filter, setFilter] = useState<'All' | 'Pending Approval' | 'Approved' | 'Converted to RFQ/PO'>('All');
 
   const filteredPrs = prList.filter((pr) => (filter === 'All' ? true : pr.status === filter));

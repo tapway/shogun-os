@@ -80,6 +80,9 @@ export interface User {
   must_change_password: boolean;
   company_id?: string | null;
   role?: string;
+  telegram_user_id?: string | null;
+  slack_user_id?: string | null;
+  platform_user_ids?: Record<string, string>;
 }
 
 export interface Company {
@@ -1253,6 +1256,8 @@ export interface ThreeWayMatchItem {
 }
 
 export interface ProcurementDashboardStats {
+  // Mock flag — true when data loaded from examples/procurement-mock.json (demo mode)
+  mock?: boolean;
   // Tab 1 — Executive Procurement & Reorder Pulse
   totalInventoryValuation: number;
   totalActiveSkus: number;

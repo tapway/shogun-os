@@ -7,83 +7,6 @@ interface Props {
   onAction?: (actionType: string, entity: any) => void;
 }
 
-const DEFAULT_RFQS: RfqComparison[] = [
-  {
-    rfq_id: 'RFQ-2026-0090',
-    pr_number: 'PR-2026-0043',
-    item_description: 'High-Speed Office Printers (x 3 units)',
-    category: 'IT Hardware',
-    target_qty: 3,
-    budget_myr: 18000.0,
-    status: 'Open Sourcing',
-    quotes: [],
-  },
-  {
-    rfq_id: 'RFQ-2026-0089',
-    pr_number: 'PR-2026-0042',
-    item_description: 'Dell Latitude 5540 Laptops (x 10 units)',
-    category: 'IT Hardware',
-    target_qty: 10,
-    budget_myr: 50000.0,
-    status: 'Open Sourcing',
-    quotes: [
-      {
-        vendor: 'NexTech Distribution Sdn Bhd',
-        unit_price: 4800.0,
-        total_amount: 48000.0,
-        lead_time_days: 5,
-        payment_terms: 'Net 30',
-        sla_status: 'Top Tier (98%)',
-        selected: true,
-      },
-      {
-        vendor: 'Vortex Supplies Sdn Bhd',
-        unit_price: 5100.0,
-        total_amount: 51000.0,
-        lead_time_days: 3,
-        payment_terms: 'Net 14',
-        sla_status: 'Under Review (78%)',
-      },
-      {
-        vendor: 'Pacific Hardware Co',
-        unit_price: 4950.0,
-        total_amount: 49500.0,
-        lead_time_days: 7,
-        payment_terms: 'Net 30',
-        sla_status: 'Satisfactory (85%)',
-      },
-    ],
-  },
-  {
-    rfq_id: 'RFQ-2026-0088',
-    pr_number: 'PR-2026-0041',
-    item_description: 'Ergonomic Mesh Chairs Elite (x 15 units)',
-    category: 'Furniture',
-    target_qty: 15,
-    budget_myr: 12000.0,
-    status: 'Open Sourcing',
-    quotes: [
-      {
-        vendor: 'Office Comfort Ltd',
-        unit_price: 750.0,
-        total_amount: 11250.0,
-        lead_time_days: 10,
-        payment_terms: 'Net 30',
-        sla_status: 'Top Tier (95%)',
-        selected: true,
-      },
-      {
-        vendor: 'ErgoDesign Solutions',
-        unit_price: 790.0,
-        total_amount: 11850.0,
-        lead_time_days: 4,
-        payment_terms: 'Net 14',
-        sla_status: 'Satisfactory (88%)',
-      },
-    ],
-  },
-];
-
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
@@ -95,7 +18,7 @@ function Th({ children, align, selected }: { children: React.ReactNode; align: '
 }
 
 export function RfqVendorSourcingTab({ stats, onAction }: Props) {
-  const rfqList = stats.rfqComparisons && stats.rfqComparisons.length > 0 ? stats.rfqComparisons : DEFAULT_RFQS;
+  const rfqList = stats.rfqComparisons ?? [];
   const [selectedRfqId, setSelectedRfqId] = useState<string>(rfqList[0]?.rfq_id ?? '');
 
   const activeRfq = rfqList.find((r) => r.rfq_id === selectedRfqId) || rfqList[0];

@@ -31,38 +31,10 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
 # ─── Canonicalization ───
+# Add per-installation owner aliases and product patterns here.
+# These maps normalise raw frontmatter values to canonical labels.
 
-OWNER_ALIASES = {
-    "cheehow": "Chee How",
-    "chee how": "Chee How",
-    "ch lim": "Chee How",
-    "cheehow lim": "Chee How",
-    "cheehow.lim": "Chee How",
-    "shamini": "Shamini",
-    "shamini thilagam": "Shamini",
-    "shamini.t": "Shamini",
-    "syarif": "Syarif",
-    "syarif hidayat": "Syarif",
-    "syarif.hidayat": "Syarif",
-    "shahrul": "Shahrul",
-    "shahrul nizam": "Shahrul",
-    "nazrul": "Nazrul",
-    "nazrul shah": "Nazrul",
-    "nazrul.shah": "Nazrul",
-    "izzat": "Izzat",
-    "izzat danial": "Izzat",
-    "izzat.danial": "Izzat",
-    "muhammad izzat": "Izzat",
-    "farhad": "Farhad",
-    "farhad faisal": "Farhad",
-    "nurul": "Nurul",
-    "nurul ain": "Nurul",
-    "shahirah": "Shahirah",
-    "shahirah hanim": "Shahirah",
-    "zulkifli": "Zulkifli",
-    "zul": "Zulkifli",
-    "zulkifli yusof": "Zulkifli",
-}
+OWNER_ALIASES: dict[str, str] = {}
 
 STAGE_ORDER = ["Lead", "On Hold", "Prospecting", "Qualified", "Quote", "Tender", "Unqualified", "Confirmed", "Won"]
 STAGE_WEIGHTS = {
@@ -72,12 +44,7 @@ STAGE_WEIGHTS = {
 WON_STAGES = {"Won"}
 LOST_STAGES = {"Lost", "Unqualified"}
 ACTIVE_STAGES = {"Lead", "Prospecting", "Qualified", "Quote", "Tender", "Confirmed", "On Hold"}
-PRODUCT_PATTERNS = [
-    (r"samurai|samur-?ai|copilot", "SamurAI"),
-    (r"people.?track|peopletrack|peopltrack", "PeopleTrack"),
-    (r"vehicle.?track|vehicletrack|avlc|vehicle.?inspection|camera", "VehicleTrack"),
-    (r"special|bespoke|custom", "Special"),
-]
+PRODUCT_PATTERNS: list[tuple[str, str]] = []
 
 
 def _canonical_owner(raw: str) -> str:
@@ -625,13 +592,12 @@ async def get_dashboard_config(
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
 
 
-# ─── CRM list/search endpoints (live data from Tapway CRM public API) ───
+# ─── CRM list/search endpoints (live data from external CRM API) ───
 
-# The CRM data (1,044 deals, 5,374 companies, 309 tasks) lives on the
-# Tapway CRM server (crm.gotapway.com). These endpoints proxy to its
-# public JSON API and apply filtering/sorting on top.
-
-TAPWAY_CRM_API = os.environ.get("TAPWAY_CRM_API_URL", "https://crm.gotapway.com/api")
+# The CRM data lives on an external CRM server.
+# Set CRM_API_URL in .env to point to your CRM's JSON API.
+# When unset, the CRM list/search endpoints return empty lists (no data leakage).
+CRM_API_URL = os.environ.get("CRM_API_URL", "")
 
 
 @router.get("/ceo-stats")
@@ -642,34 +608,35 @@ async def get_crm_ceo_stats(
 ) -> dict:
     """Aggregated CEO dashboard stats for CRM.
 
-    Tries gbrain first; falls back to Tapway CRM public API when gbrain
+    Tries gbrain first; falls back to external CRM API when gbrain
     has no CRM data (e.g. local PGLite with empty crm source).
     """
     pages = await gbrain_fetch_pages("crm", limit=200)
     if pages:
         return _run_ceo_aggregation(pages)
 
-    # Fallback: aggregate from Tapway CRM API
-    logger.info("gbrain has no CRM pages — aggregating from Tapway CRM API")
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{TAPWAY_CRM_API}/deals")
-            if resp.status_code == 200:
-                api_deals = resp.json().get("deals", [])
-                if api_deals:
-                    return _run_ceo_aggregation(api_deals)
-    except httpx.HTTPError as exc:
-        logger.warning("Tapway CRM fallback for ceo-stats failed: %s", exc)
+    # Fallback: aggregate from external CRM API (if configured)
+    if CRM_API_URL:
+        logger.info("gbrain has no CRM pages — aggregating from external CRM API")
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                resp = await client.get(f"{CRM_API_URL}/deals")
+                if resp.status_code == 200:
+                    api_deals = resp.json().get("deals", [])
+                    if api_deals:
+                        return _run_ceo_aggregation(api_deals)
+        except httpx.HTTPError as exc:
+            logger.warning("External CRM API fallback for ceo-stats failed: %s", exc)
 
     # No data at all — return empty state
     return _run_ceo_aggregation([])
 
 
-# ─── CRM list/search endpoints (live data from Tapway CRM public API) ───
+# ─── CRM list/search endpoints (live data from external CRM API) ───
 
 
 def _extract_deal_list_item(page: dict) -> dict:
-    """Map a raw Tapway CRM deal page to a CrmDealListItem."""
+    """Map a raw CRM deal page to a CrmDealListItem."""
     fm = _parse_frontmatter(page.get("frontmatter"))
     return {
         "slug": page.get("slug", ""),
@@ -694,16 +661,18 @@ async def list_crm_deals(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM deals from Tapway CRM API (live)."""
+    """List CRM deals from external CRM API (live)."""
+    if not CRM_API_URL:
+        return {"deals": [], "total": 0}
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{TAPWAY_CRM_API}/deals")
+            resp = await client.get(f"{CRM_API_URL}/deals")
             if resp.status_code >= 400:
-                logger.warning("Tapway CRM /deals returned %s", resp.status_code)
+                logger.warning("CRM API /deals returned %s", resp.status_code)
                 return {"deals": [], "total": 0}
             payload = resp.json()
     except httpx.HTTPError as exc:
-        logger.warning("Tapway CRM deals fetch error: %s", exc)
+        logger.warning("CRM deals fetch error: %s", exc)
         return {"deals": [], "total": 0}
 
     raw_deals = payload.get("deals", [])
@@ -736,16 +705,18 @@ async def list_crm_companies(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list:
-    """List CRM companies from Tapway CRM API (live)."""
+    """List CRM companies from external CRM API (live)."""
+    if not CRM_API_URL:
+        return []
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{TAPWAY_CRM_API}/companies")
+            resp = await client.get(f"{CRM_API_URL}/companies")
             if resp.status_code >= 400:
-                logger.warning("Tapway CRM /companies returned %s", resp.status_code)
+                logger.warning("CRM API /companies returned %s", resp.status_code)
                 return []
             companies = resp.json()
     except httpx.HTTPError as exc:
-        logger.warning("Tapway CRM companies fetch error: %s", exc)
+        logger.warning("CRM companies fetch error: %s", exc)
         return []
 
     # The API returns [{slug, title}, ...] — frontmatter is not included.
@@ -781,16 +752,18 @@ async def list_crm_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> list:
-    """List CRM tasks from Tapway CRM API (live)."""
+    """List CRM tasks from external CRM API (live)."""
+    if not CRM_API_URL:
+        return []
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{TAPWAY_CRM_API}/tasks")
+            resp = await client.get(f"{CRM_API_URL}/tasks")
             if resp.status_code >= 400:
-                logger.warning("Tapway CRM /tasks returned %s", resp.status_code)
+                logger.warning("CRM API /tasks returned %s", resp.status_code)
                 return []
             tasks = resp.json()
     except httpx.HTTPError as exc:
-        logger.warning("Tapway CRM tasks fetch error: %s", exc)
+        logger.warning("CRM tasks fetch error: %s", exc)
         return []
 
     if completed is not None:
@@ -813,23 +786,23 @@ async def crm_search(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Global search across Tapway CRM pages (live)."""
+    """Global search across external CRM pages (live)."""
     query = body.query.strip()
-    if not query:
+    if not query or not CRM_API_URL:
         return {"results": []}
 
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.post(
-                f"{TAPWAY_CRM_API}/search",
+                f"{CRM_API_URL}/search",
                 json={"query": query},
             )
             if resp.status_code >= 400:
-                logger.warning("Tapway CRM /search returned %s", resp.status_code)
+                logger.warning("CRM API /search returned %s", resp.status_code)
                 return {"results": []}
             payload = resp.json()
     except httpx.HTTPError as exc:
-        logger.warning("Tapway CRM search error: %s", exc)
+        logger.warning("CRM search error: %s", exc)
         return {"results": []}
 
     results = payload.get("results", [])
@@ -2439,6 +2412,7 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     has_brain_data = bool(brain_suppliers or brain_approval_matrix)
 
     if has_real_data:
+        # Pull from the live gbrain snapshots written by dashboard-snapshot-writer
         total_inventory_valuation = _safe_float(inventory_snap.get("total_inventory_valuation"))
         total_active_skus = _safe_float(inventory_snap.get("total_active_skus"))
         low_stock_alerts = _safe_float(inventory_snap.get("low_stock_alerts"))
@@ -2470,51 +2444,69 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         risk_alerts: List[dict] = inventory_snap.get("risk_alerts", [])
     else:
-        # No JSON snapshot data available — load mock fallback for display tabs
-        # that don't have their own DB endpoints. Brain markdown data is merged
-        # on top for vendor scorecard, approval queue, and risk alerts.
-        logger.info("Procurement dashboard: no JSON snapshots, using mock fallback + brain data (pages=%d)", len(pages))
+        # No gbrain snapshots — fall back to examples/procurement-mock.json so
+        # the dashboard shows realistic demo data instead of empty zeros. Same
+        # pattern as the finance dashboard (PR #12 review allows mock as
+        # graceful-degradation fallback, just no fabricated figures as live).
+        # `mock: true` flags the UI that this is demo data, not live.
+        mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "procurement-mock.json"
+        mock_data: Dict[str, Any] = {}
+        if mock_json_path.exists():
+            try:
+                with open(mock_json_path, "r", encoding="utf-8") as f:
+                    mock_data = json.load(f).get("dashboard_mock", {})
+                logger.info("Procurement dashboard: no gbrain snapshots — loaded mock from %s", mock_json_path)
+            except (OSError, json.JSONDecodeError) as exc:
+                logger.warning("Failed to load procurement mock from %s: %s", mock_json_path, exc)
 
-        mock_data: dict = {}
-        try:
-            mock_path = pathlib.Path(__file__).parent.parent.parent / "examples" / "procurement-mock.json"
-            if mock_path.exists():
-                mock_data = json.loads(mock_path.read_text(encoding="utf-8")).get("dashboard_mock", {})
-        except (json.JSONDecodeError, OSError) as e:
-            logger.warning("Failed to load procurement mock: %s", e)
+        total_inventory_valuation = _safe_float(mock_data.get("totalInventoryValuation"))
+        total_active_skus = _safe_float(mock_data.get("totalActiveSkus"))
+        low_stock_alerts = _safe_float(mock_data.get("lowStockAlerts"))
+        dead_slow_stock_capital = _safe_float(mock_data.get("deadSlowStockCapital"))
+        open_po_count = _safe_float(mock_data.get("openPoCount"))
+        open_po_value = _safe_float(mock_data.get("openPoValue"))
+        procurement_spend_mtd = _safe_float(mock_data.get("procurementSpendMtd"))
+        procurement_spend_budget_mtd = _safe_float(mock_data.get("procurementSpendBudgetMtd"))
 
-        total_inventory_valuation = _safe_float(mock_data.get("totalInventoryValuation", 0))
-        total_active_skus = _safe_float(mock_data.get("totalActiveSkus", 0))
-        low_stock_alerts = _safe_float(mock_data.get("lowStockAlerts", 0))
-        dead_slow_stock_capital = _safe_float(mock_data.get("deadSlowStockCapital", 0))
-        open_po_count = _safe_float(mock_data.get("openPoCount", 0))
-        open_po_value = _safe_float(mock_data.get("openPoValue", 0))
-        procurement_spend_mtd = _safe_float(mock_data.get("procurementSpendMtd", 0))
-        procurement_spend_budget_mtd = _safe_float(mock_data.get("procurementSpendBudgetMtd", 0))
+        risk_alerts = mock_data.get("riskAlerts", [])
+        valuation_by_category = mock_data.get("valuationByCategory", [])
+        spend_vs_budget_trend = mock_data.get("spendVsBudgetTrend", [])
 
-        risk_alerts: List[dict] = brain_safety_stock if brain_safety_stock else mock_data.get("riskAlerts", [])
-        valuation_by_category: List[dict] = mock_data.get("valuationByCategory", [])
-        spend_vs_budget_trend: List[dict] = mock_data.get("spendVsBudgetTrend", [])
+        sku_catalog = mock_data.get("skuCatalog", [])
+        dead_slow_stock = mock_data.get("deadSlowStock", [])
+        warehouse_bin_capacity = mock_data.get("warehouseBinCapacity", [])
 
-        sku_catalog: List[dict] = mock_data.get("skuCatalog", [])
-        dead_slow_stock: List[dict] = mock_data.get("deadSlowStock", [])
-        warehouse_bin_capacity: List[dict] = mock_data.get("warehouseBinCapacity", [])
+        stock_movements = mock_data.get("stockMovements", [])
+        movement_type_distribution = mock_data.get("movementTypeDistribution", [])
+        shrinkage_flag_items = mock_data.get("shrinkageFlagItems", [])
 
-        stock_movements: List[dict] = mock_data.get("stockMovements", [])
-        movement_type_distribution: List[dict] = mock_data.get("movementTypeDistribution", [])
-        shrinkage_flag_items: List[dict] = mock_data.get("shrinkageFlagItems", [])
+        po_pipeline = mock_data.get("poPipeline", [])
+        active_purchase_orders = mock_data.get("activePurchaseOrders", [])
+        executive_approval_queue = mock_data.get("executiveApprovalQueue", [])
+        vendor_scorecard = mock_data.get("vendorScorecard", [])
+        vendor_spend_concentration = mock_data.get("vendorSpendConcentration", [])
 
-        po_pipeline: List[dict] = mock_data.get("poPipeline", [])
-        active_purchase_orders: List[dict] = mock_data.get("activePurchaseOrders", [])
-        executive_approval_queue: List[dict] = brain_approval_matrix if brain_approval_matrix else mock_data.get("executiveApprovalQueue", [])
-        vendor_scorecard: List[dict] = brain_suppliers if brain_suppliers else mock_data.get("vendorScorecard", [])
-        vendor_spend_concentration: List[dict] = mock_data.get("vendorSpendConcentration", [])
+        bridge_status = mock_data.get("accountingBridge", {"enabled": False, "provider": "None", "connected": False})
+        po_bill_conversion_queue = mock_data.get("poBillConversionQueue", [])
+        gl_valuation_reconciliation = mock_data.get("glValuationReconciliation", [])
 
-        bridge_status: dict = mock_data.get("accountingBridge", {"enabled": False, "provider": "None", "connected": False})
-        po_bill_conversion_queue: List[dict] = mock_data.get("poBillConversionQueue", [])
-        gl_valuation_reconciliation: List[dict] = mock_data.get("glValuationReconciliation", [])
+        # Phase A–E mock data (PR / RFQ / Barcode / 3-way match)
+        purchase_requisitions = mock_data.get("purchaseRequisitions", [])
+        rfq_comparisons = mock_data.get("rfqComparisons", [])
+        barcode_batches = mock_data.get("barcodeBatches", [])
+        three_way_matches = mock_data.get("threeWayMatches", [])
+
+    # Pull PR/RFQ/barcode/match from snapshots when live data exists (snapshot
+    # writer will populate these once the full procurement cycle endpoints are built).
+    if has_real_data:
+        purchase_requisitions = inventory_snap.get("purchase_requisitions", [])
+        rfq_comparisons = inventory_snap.get("rfq_comparisons", [])
+        barcode_batches = inventory_snap.get("barcode_batches", [])
+        three_way_matches = inventory_snap.get("three_way_matches", [])
 
     return {
+        # Mock flag — true when data loaded from examples/procurement-mock.json
+        "mock": not has_real_data,
         # Tab 1 — Executive Procurement & Reorder Pulse
         "totalInventoryValuation": total_inventory_valuation,
         "totalActiveSkus": total_active_skus,
@@ -2545,19 +2537,14 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         "accountingBridge": bridge_status,
         "poBillConversionQueue": po_bill_conversion_queue,
         "glValuationReconciliation": gl_valuation_reconciliation,
-        # Tab 6 — Purchase Requisitions (mock fallback for display)
-        "purchaseRequisitions": mock_data.get("purchaseRequisitions", []) if not has_real_data else [],
-        # Tab 7 — RFQ & Vendor Sourcing (mock fallback for display)
-        "rfqComparisons": mock_data.get("rfqComparisons", []) if not has_real_data else [],
-        # Tab 8 — Barcode Tagging & Scan Counter (mock fallback for display)
-        "barcodeBatches": mock_data.get("barcodeBatches", []) if not has_real_data else [],
-        # Tab 9 — 3-Way Match Verification (mock fallback for display)
-        "threeWayMatches": mock_data.get("threeWayMatches", []) if not has_real_data else [],
-        # Mock flag — true when data loaded from examples/*.json (demo mode)
-        "mock": not has_real_data,
-        # Brain data source info
-        "brainPagesCount": len(pages),
-        "hasBrainData": has_brain_data,
+        # Tab 6 — Purchase Requisitions (PR)
+        "purchaseRequisitions": purchase_requisitions,
+        # Tab 7 — RFQ & Vendor Sourcing
+        "rfqComparisons": rfq_comparisons,
+        # Tab 8 — Barcode Tagging & Scan Counter
+        "barcodeBatches": barcode_batches,
+        # Tab 9 — 3-Way Match Verification
+        "threeWayMatches": three_way_matches,
     }
 
 
