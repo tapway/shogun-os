@@ -3,21 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { departmentsApi } from '../../../lib/api';
 import { DashboardSubNav } from '../DashboardSubNav';
 import type { CeoDashboardStats, DashboardTab } from '../../../lib/types';
-import { SalesPulseTab } from './SalesPulseTab';
-import { PipelineForecastTab } from './PipelineForecastTab';
-import { OmnichannelChatTab } from './OmnichannelChatTab';
-import { PartnerPerformanceTab } from './PartnerPerformanceTab';
-import { ManagerPerformanceTab } from './ManagerPerformanceTab';
-import { DealsDeepDiveTab } from './DealsDeepDiveTab';
-import { ManagerDrillDownModal } from './ManagerDrillDownModal';
+import { OverviewTab } from './OverviewTab';
+import { DealsTab } from './DealsTab';
+import { CompaniesTab } from './CompaniesTab';
+import { TasksTab } from './TasksTab';
+import { SearchTab } from './SearchTab';
+import { BevZonesTab } from './BevZonesTab';
 
 const TABS: DashboardTab[] = [
-  { id: 'revenue', label: 'Sales Booking', icon: 'LayoutDashboard' },
-  { id: 'pipeline', label: 'Pipeline & Forecast', icon: 'TrendingUp' },
-  { id: 'omnichannel', label: 'Omnichannel Chat', icon: 'MessageCircle' },
-  { id: 'partner', label: 'Partner Performance', icon: 'Handshake' },
-  { id: 'managers', label: 'Manager Performance', icon: 'Users' },
-  { id: 'deals', label: 'Deals Deep-Dive', icon: 'Target' },
+  { id: 'overview', label: 'Overview', icon: 'LayoutDashboard' },
+  { id: 'deals', label: 'Deals', icon: 'Briefcase' },
+  { id: 'companies', label: 'Companies', icon: 'Building2' },
+  { id: 'tasks', label: 'Tasks', icon: 'SquareCheckBig' },
+  { id: 'search', label: 'Search', icon: 'Search' },
+  { id: 'bev', label: 'BEV Zones', icon: 'Map' },
 ];
 
 interface CrmDashboardProps {
@@ -26,16 +25,18 @@ interface CrmDashboardProps {
 }
 
 export function CrmDashboard({ department, color }: CrmDashboardProps) {
-  const [activeTab, setActiveTab] = useState('revenue');
-  const [drillDownOwner, setDrillDownOwner] = useState<string | null>(null);
+  const [activeTab, setActiveTab] = useState('overview');
 
+  // Only the Overview tab needs the aggregated CEO stats.
+  // All other tabs fetch their own data independently from gbrain.
   const statsQuery = useQuery({
     queryKey: ['dashboard-ceo-stats', department],
     queryFn: () => departmentsApi.dashboardCeoStats(department),
     refetchInterval: 120_000,
+    enabled: activeTab === 'overview',
   });
 
-  if (statsQuery.isLoading) {
+  if (activeTab === 'overview' && statsQuery.isLoading) {
     return (
       <div className="sd-empty">
         <div className="h-7 w-7 animate-spin rounded-full" style={{ border: `2px solid var(--samurai-lime)`, borderTopColor: 'transparent' }} />
@@ -46,7 +47,7 @@ export function CrmDashboard({ department, color }: CrmDashboardProps) {
 
   const stats: CeoDashboardStats | undefined = statsQuery.data;
 
-  if (!stats) {
+  if (activeTab === 'overview' && !stats) {
     return (
       <div className="sd-empty">
         <h2>Unable to load CRM dashboard data</h2>
@@ -59,23 +60,12 @@ export function CrmDashboard({ department, color }: CrmDashboardProps) {
     <div className="sd-stack">
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {drillDownOwner && (
-        <ManagerDrillDownModal
-          owner={drillDownOwner}
-          stats={stats}
-          color={color}
-          onClose={() => setDrillDownOwner(null)}
-        />
-      )}
-
-      {activeTab === 'revenue' && <SalesPulseTab stats={stats} color={color} />}
-      {activeTab === 'pipeline' && <PipelineForecastTab stats={stats} color={color} />}
-      {activeTab === 'omnichannel' && <OmnichannelChatTab stats={stats} color={color} />}
-      {activeTab === 'partner' && <PartnerPerformanceTab stats={stats} color={color} />}
-      {activeTab === 'managers' && (
-        <ManagerPerformanceTab stats={stats} color={color} onDrillDown={setDrillDownOwner} />
-      )}
-      {activeTab === 'deals' && <DealsDeepDiveTab stats={stats} color={color} />}
+      {activeTab === 'overview' && stats && <OverviewTab dept={department} color={color} stats={stats} />}
+      {activeTab === 'deals' && <DealsTab dept={department} color={color} />}
+      {activeTab === 'companies' && <CompaniesTab dept={department} color={color} />}
+      {activeTab === 'tasks' && <TasksTab dept={department} color={color} />}
+      {activeTab === 'search' && <SearchTab dept={department} color={color} />}
+      {activeTab === 'bev' && <BevZonesTab dept={department} color={color} />}
     </div>
   );
 }

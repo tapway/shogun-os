@@ -728,6 +728,55 @@ export interface CeoDashboardStats {
   chatInbox: ChatInboxRow[];
 }
 
+// ─── CRM list/search types (gbrain live data) ───
+
+export interface CrmDealListItem {
+  slug: string;
+  title: string;
+  customer?: string;
+  owner?: string;
+  stage?: string;
+  created?: string;
+  source?: string;
+  amount?: number;
+  priority?: string;
+  compiled_truth?: string;
+}
+
+export interface CrmCompanyItem {
+  slug: string;
+  title: string;
+  industry?: string;
+  website?: string;
+  source?: string;
+  first_seen?: string;
+}
+
+export interface CrmTaskItem {
+  description: string;
+  assignee: string;
+  completed: boolean;
+  deal_slug: string;
+  deal_title: string;
+}
+
+export interface CrmSearchResult {
+  slug: string;
+  title: string;
+  frontmatter: Record<string, unknown>;
+  category: 'companies' | 'deals' | 'unknown';
+}
+
+export interface BevZone {
+  zoneId: string;
+  name: string;
+  cameraIds: string[];
+  calibrationType: 'cartesian' | 'geo';
+  bounds?: { xMin: number; yMin: number; xMax: number; yMax: number };
+  rois?: unknown[];
+  tripwires?: unknown[];
+}
+
 export const TIMEZONES = [
   'Asia/Kuala_Lumpur',
   'Asia/Singapore',
