@@ -32,14 +32,14 @@ export function OverviewTab({ dept, color, stats }: Props) {
   const recentDeals = (dealsQuery.data?.deals ?? []).slice(0, 8);
 
   const KPIs = [
-    { label: 'Sales MTD', value: `RM ${(stats.salesMTD / 1000).toFixed(0)}K` },
-    { label: 'Sales QTD', value: `RM ${(stats.salesQTD / 1000).toFixed(0)}K` },
-    { label: 'Sales YTD', value: `RM ${(stats.salesYTD / 1000).toFixed(0)}K` },
-    { label: 'Win Rate', value: `${stats.winRate}%` },
-    { label: 'Avg Deal', value: `RM ${(stats.avgDealSize / 1000).toFixed(0)}K` },
-    { label: 'Active Deals', value: stats.totalActiveDeals.toString() },
-    { label: 'Pipeline', value: `RM ${(stats.totalPipelineValue / 1000).toFixed(0)}K` },
-    { label: 'Hot Deals', value: stats.hotDeals.toString() },
+    { label: 'Sales MTD', value: `RM ${((stats.salesMTD || 0) / 1000).toFixed(0)}K` },
+    { label: 'Sales QTD', value: `RM ${((stats.salesQTD || 0) / 1000).toFixed(0)}K` },
+    { label: 'Sales YTD', value: `RM ${((stats.salesYTD || 0) / 1000).toFixed(0)}K` },
+    { label: 'Win Rate', value: `${stats.winRate || 0}%` },
+    { label: 'Avg Deal', value: `RM ${((stats.avgDealSize || 0) / 1000).toFixed(0)}K` },
+    { label: 'Active Deals', value: (stats.totalActiveDeals || 0).toString() },
+    { label: 'Pipeline', value: `RM ${((stats.totalPipelineValue || 0) / 1000).toFixed(0)}K` },
+    { label: 'Hot Deals', value: (stats.hotDeals || 0).toString() },
   ];
 
   return (

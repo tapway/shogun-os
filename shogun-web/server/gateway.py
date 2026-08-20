@@ -171,6 +171,8 @@ async def _fetch_department_context_data(dept_name: str, prompt: str) -> dict:
         brain_dir = Path.home() / "brain" / f"{key}-manager"
     if brain_dir.is_dir():
         for path in brain_dir.rglob("*.md"):
+            if path.is_symlink():
+                continue  # skip symlinks — avoids traversal outside brain_dir
             if len(data["brain_docs"]) >= 5:
                 break
             try:

@@ -32,7 +32,7 @@ export function CompaniesTab({ dept, color }: Props) {
     refetchInterval: 120_000,
   });
 
-  const companies = query.data ?? [];
+  const companies = query.data?.companies ?? [];
   const pageCount = Math.ceil(companies.length / perPage);
   const pageItems = companies.slice(page * perPage, (page + 1) * perPage);
 

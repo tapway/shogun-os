@@ -30,7 +30,7 @@ export function TasksTab({ dept, color }: Props) {
     refetchInterval: 120_000,
   });
 
-  const tasks = query.data ?? [];
+  const tasks = query.data?.tasks ?? [];
 
   // Group by deal
   const grouped = useMemo(() => {
@@ -142,7 +142,7 @@ export function TasksTab({ dept, color }: Props) {
                   <div style={{ marginTop: 8, marginLeft: 24 }}>
                     {items.map((t, i) => (
                       <div
-                        key={i}
+                        key={`${t.deal_slug}::${t.description}::${i}`}
                         style={{
                           display: 'flex', alignItems: 'center', gap: 10, padding: '6px 0',
                           borderBottom: i < items.length - 1 ? `1px solid ${BORDER}` : 'none',
@@ -164,8 +164,9 @@ export function TasksTab({ dept, color }: Props) {
                         <span
                           style={{ flex: 1, color: TEXT, fontSize: '0.85rem',
                             textDecoration: t.completed ? 'line-through' : 'none', opacity: t.completed ? 0.6 : 1 }}
-                          dangerouslySetInnerHTML={{ __html: t.description.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
-                        />
+                        >
+                          {t.description.replace(/\*\*(.+?)\*\*/g, '$1')}
+                        </span>
                         <span style={{ fontSize: '0.75rem', color: MUTED, whiteSpace: 'nowrap' }}>
                           {t.assignee || '—'}
                         </span>

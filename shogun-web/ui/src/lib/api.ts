@@ -355,7 +355,7 @@ export const departmentsApi = {
     if (search) qs.set('search', search);
     if (industry) qs.set('industry', industry);
     const q = qs.toString();
-    return apiFetch<CrmCompanyItem[]>(
+    return apiFetch<{ companies: CrmCompanyItem[]; total: number }>(
       `/api/departments/${dept}/dashboard/companies${q ? `?${q}` : ''}`,
     );
   },
@@ -365,7 +365,7 @@ export const departmentsApi = {
     if (completed !== undefined) qs.set('completed', String(completed));
     if (assignee) qs.set('assignee', assignee);
     const q = qs.toString();
-    return apiFetch<CrmTaskItem[]>(
+    return apiFetch<{ tasks: CrmTaskItem[]; total: number }>(
       `/api/departments/${dept}/dashboard/tasks${q ? `?${q}` : ''}`,
     );
   },
@@ -645,6 +645,7 @@ export function useChatSocket(
         if (!isMounted) return;
         setConnected(true);
         setError(null);
+        retryCount = 0;
       };
 
       ws.onmessage = (ev) => {

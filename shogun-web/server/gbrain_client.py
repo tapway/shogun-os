@@ -49,12 +49,17 @@ def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List
     Scans ~/brain/{source}/ for .md files and returns them in the same
     shape as gbrain's API: {slug, frontmatter, content, body}.
     """
+    # Sanitize source: reject path traversal and non-identifier values.
+    if not source or ".." in source or "/" in source or "\\" in source or not source.replace("-", "").replace("_", "").isalnum():
+        return []
     brain_dir = pathlib.Path.home() / "brain" / source
     if not brain_dir.is_dir():
         return []
 
     pages: List[dict[str, Any]] = []
     for md_path in brain_dir.rglob("*.md"):
+        if md_path.is_symlink():
+            continue  # skip symlinks — avoids traversal outside brain_dir
         if md_path.name == "README.md":
             continue
         # Compute slug relative to the brain/{source}/ directory
@@ -105,12 +110,14 @@ async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
                 logger.warning("gbrain MCP /mcp returned %s: %s", resp.status_code, resp.text[:300])
                 return None
             # Response is SSE format: "event: message\ndata: {json}"
+            # A single JSON-RPC call returns one event; use the LAST data: line
+            # (the final response), robust to preceding ping/comment events.
             text = resp.text
-            # Extract the JSON from SSE data: line
-            for line in text.split("\n"):
-                if line.startswith("data: "):
-                    text = line[6:]
-                    break
+            data_lines = [line[6:] for line in text.split("\n") if line.startswith("data: ")]
+            if not data_lines:
+                logger.warning("gbrain MCP returned no data: lines: %s", resp.text[:200])
+                return None
+            text = data_lines[-1]
             data = json.loads(text)
             result = data.get("result", {})
             content = result.get("content", [])
@@ -122,7 +129,7 @@ async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
                     except (json.JSONDecodeError, TypeError):
                         return text_val
             return None
-    except (httpx.HTTPError, Exception) as exc:
+    except (httpx.HTTPError, json.JSONDecodeError, KeyError, TypeError) as exc:
         logger.info("gbrain MCP unavailable for %s: %s", source_id or tool, exc)
         return None
 
@@ -154,10 +161,11 @@ async def gbrain_fetch_pages(
     if pages and slug_prefix:
         pages = [p for p in pages if str(p.get("slug", "")).startswith(slug_prefix)]
 
-    # If we got pages but they lack compiled_truth, fetch full content
+    # If we got pages but they lack compiled_truth, fetch full content.
+    # Cap enrichment to first 50 pages to avoid N+1 request explosion.
     if pages and not any(p.get("compiled_truth") for p in pages):
         enriched = []
-        for p in pages[:limit]:
+        for p in pages[:min(limit, 50)]:
             slug = p.get("slug", "")
             if not slug:
                 enriched.append(p)

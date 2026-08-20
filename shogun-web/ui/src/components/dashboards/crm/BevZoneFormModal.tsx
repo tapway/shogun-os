@@ -16,6 +16,17 @@ const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 
+/**
+ * Return a CSS color value at the requested opacity.
+ * When `color` is a CSS custom-property reference (e.g. `var(--samurai-lime)`),
+ * appending a hex suffix like `${color}1a` produces invalid CSS.
+ * `color-mix()` handles both hex values and CSS variables correctly in all
+ * modern browsers (Chromium 111+, Firefox 113+, Safari 16.2+).
+ */
+function colorWithAlpha(color: string, alpha: number): string {
+  return `color-mix(in srgb, ${color} ${Math.round(alpha * 100)}%, transparent)`;
+}
+
 const inputStyle: React.CSSProperties = {
   width: '100%', padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8,
   border: `1px solid ${BORDER}`, outline: 'none', color: TEXT, background: 'var(--samurai-surface)',
@@ -44,10 +55,14 @@ export function BevZoneFormModal({ dept, color, initial, onClose, onSaved }: Pro
       }
       const payload = {
         name: name.trim(), calibrationType: calType, cameraIds: cameras, bounds,
-        origin: { x: 'east', y: 'north' },
+        origin: initial?.origin || { x: 'east', y: 'north' },
       };
       if (isUpdate && initial?.zoneId) {
-        return departmentsApi.bevZoneUpdate(dept, initial.zoneId, payload);
+        return departmentsApi.bevZoneUpdate(dept, initial.zoneId, {
+          ...payload,
+          rois: initial.rois || [],
+          tripwires: initial.tripwires || [],
+        });
       }
       return departmentsApi.bevZoneCreate(dept, { ...payload, rois: initial?.rois || [], tripwires: initial?.tripwires || [] });
     },
@@ -147,7 +162,7 @@ export function BevZoneFormModal({ dept, color, initial, onClose, onSaved }: Pro
                   <span key={cam} style={{
                     display: 'inline-flex', alignItems: 'center', gap: 4, fontSize: '0.75rem',
                     fontFamily: 'monospace', padding: '3px 8px', borderRadius: 6, color,
-                    background: `${color}1a`, border: `1px solid ${color}33`,
+                    background: colorWithAlpha(color, 0.1), border: `1px solid ${colorWithAlpha(color, 0.2)}`,
                   }}>
                     {cam}
                     <button type="button" onClick={() => setCameras(cameras.filter((c) => c !== cam))} style={{

@@ -776,6 +776,7 @@ export interface BevZone {
   cameraIds: string[];
   calibrationType: 'cartesian' | 'geo';
   bounds?: { xMin: number; yMin: number; xMax: number; yMax: number };
+  origin?: { x: string; y: string };
   rois?: unknown[];
   tripwires?: unknown[];
 }

@@ -521,6 +521,41 @@ class UpdateTelegramIdRequest(BaseModel):
     telegram_user_id: str = Field(default="", max_length=128)
 
 
+# Simple in-process rate limiter: max 10 writes per user per 60-second window.
+_PLATFORM_ID_RATE_LIMIT = 10
+_PLATFORM_ID_WINDOW = 60  # seconds
+_platform_id_calls: Dict[int, list] = {}  # user_id → list of call timestamps
+_platform_id_lock = __import__("threading").Lock()  # protects _platform_id_calls across threads
+
+
+def _check_platform_id_rate_limit(user_id: int) -> None:
+    """Raise 429 if the user has exceeded the platform-id write rate limit.
+
+    Thread-safe via ``_platform_id_lock``.  Stale entries for inactive users are
+    pruned on each call so the dict doesn't grow without bound.
+    """
+    now = time.time()
+    window_start = now - _PLATFORM_ID_WINDOW
+
+    with _platform_id_lock:
+        # Prune expired entries for this user
+        calls = [t for t in _platform_id_calls.get(user_id, []) if t > window_start]
+        if len(calls) >= _PLATFORM_ID_RATE_LIMIT:
+            raise HTTPException(
+                status_code=429,
+                detail=f"Too many platform-id updates — max {_PLATFORM_ID_RATE_LIMIT} per minute.",
+            )
+        calls.append(now)
+        _platform_id_calls[user_id] = calls
+
+        # Evict users whose entire window has expired to bound memory usage.
+        # Only scan when the dict grows large to keep the hot path O(1).
+        if len(_platform_id_calls) > 1000:
+            stale = [uid for uid, ts_list in _platform_id_calls.items() if not any(t > window_start for t in ts_list)]
+            for uid in stale:
+                del _platform_id_calls[uid]
+
+
 @router.patch("/me/platform-id")
 async def update_my_platform_id(
     body: UpdatePlatformIdRequest,
@@ -534,8 +569,12 @@ async def update_my_platform_id(
     Slack, Discord, etc.). Telegram and Slack are stored in their dedicated
     columns for backward compat; all others go in the ``platform_user_ids``
     JSON field keyed by the platform key.
+
+    Rate-limited to 10 writes per user per minute to prevent abuse.
     """
-    platform = body.platform.strip()
+    _check_platform_id_rate_limit(user.id)
+
+    platform = body.platform.strip().lower()
     value = body.user_id.strip() or None
 
     if platform == "telegram":

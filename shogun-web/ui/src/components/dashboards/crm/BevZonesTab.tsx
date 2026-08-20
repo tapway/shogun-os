@@ -27,9 +27,18 @@ export function BevZonesTab({ dept, color }: Props) {
     refetchInterval: 60_000,
   });
 
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+
   const deleteMut = useMutation({
     mutationFn: (zone: BevZone) => departmentsApi.bevZoneDelete(dept, zone.zoneId),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['bev-zones', dept] }),
+    onSuccess: () => {
+      setDeleteError(null);
+      qc.invalidateQueries({ queryKey: ['bev-zones', dept] });
+    },
+    onError: (err: unknown) => {
+      const msg = err instanceof Error ? err.message : 'Delete failed. Please try again.';
+      setDeleteError(msg);
+    },
   });
 
   const zones = query.data?.zones ?? [];
@@ -80,6 +89,25 @@ export function BevZonesTab({ dept, color }: Props) {
           New Zone
         </button>
       </div>
+
+      {/* Delete error banner */}
+      {deleteError && (
+        <div style={{
+          padding: '10px 14px', borderRadius: 8, fontSize: '0.85rem',
+          background: 'var(--samurai-danger-bg, #fee2e2)', color: DANGER,
+          border: `1px solid ${DANGER}`, display: 'flex', alignItems: 'center', gap: 8,
+        }}>
+          <X className="h-4 w-4" style={{ flexShrink: 0 }} />
+          {deleteError}
+          <button
+            type="button"
+            onClick={() => setDeleteError(null)}
+            style={{ marginLeft: 'auto', background: 'none', border: 'none', cursor: 'pointer', color: DANGER, display: 'flex' }}
+          >
+            <X className="h-3 w-3" />
+          </button>
+        </div>
+      )}
 
       {/* Zone cards */}
       {zones.length === 0 ? (

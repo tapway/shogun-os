@@ -122,7 +122,7 @@ export function OmnichannelChatTab({ stats, color }: Props) {
                 {stats.chatInbox.map((row, i) => {
                   const overSla = row.responseMinutes > 15;
                   return (
-                    <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <tr key={`${row.customer}::${row.platform}`} style={{ borderBottom: `1px solid ${BORDER}` }}>
                       <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{row.customer}</td>
                       <td className="px-3 py-2.5">
                         <span className={`sd-chip ${PLATFORM_CHIP[row.platform]}`}>{row.platform}</span>

@@ -28,6 +28,36 @@ logger = logging.getLogger(__name__)
 router = APIRouter(prefix="/departments", tags=["departments"])
 
 
+def _safe_rglob(root: Path, pattern: str):
+    """Yield files matching *pattern* under *root*, skipping all symlinks.
+
+    Plain ``Path.rglob`` follows symlinks by default, which can cause:
+    - Traversal outside the intended directory (security risk).
+    - Infinite loops when a symlink points to an ancestor directory.
+
+    This implementation uses ``os.walk`` with ``followlinks=False`` so that
+    symlinked *directories* are never descended into, and then matches the
+    requested pattern against each non-symlink file entry.
+    """
+    import fnmatch
+    import os as _os
+
+    for dirpath, dirnames, filenames in _os.walk(str(root), followlinks=False):
+        # os.walk gives us dirnames in-place; filter out any that are symlinks
+        # (belt-and-suspenders: followlinks=False already prevents descent, but
+        # some platforms may still surface them).
+        dirnames[:] = [
+            d for d in dirnames
+            if not (Path(dirpath) / d).is_symlink()
+        ]
+        for fname in filenames:
+            fpath = Path(dirpath) / fname
+            if fpath.is_symlink():
+                continue
+            if fnmatch.fnmatch(fname, pattern):
+                yield fpath
+
+
 def _get_dept(db: Session, tenant_id: int, name: str) -> Department:
     dept = db.execute(
         select(Department).where(Department.tenant_id == tenant_id, Department.name == name)
@@ -320,7 +350,7 @@ def _list_brain_files(dept_name: str, profile_name: str = "", *, limit: int = 50
     for root_dir, category in sources:
         if not root_dir.is_dir():
             continue
-        for path in sorted(root_dir.rglob("*")):
+        for path in sorted(_safe_rglob(root_dir, "*")):
             if not path.is_file() or path.name.startswith("."):
                 continue
             rel = str(path.relative_to(root_dir)).replace("\\", "/")
@@ -450,7 +480,7 @@ async def list_department_docs(
     for pdir in profile_dirs:
         if not pdir.is_dir():
             continue
-        for path in sorted(pdir.rglob("*")):
+        for path in sorted(_safe_rglob(pdir, "*")):
             if not path.is_file():
                 continue
             if path.name in interesting or path.suffix.lower() in {".md", ".yaml", ".yml", ".json"}:
@@ -1722,7 +1752,7 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
     skills: List[Dict[str, Any]] = []
     seen_ids: set = set()
 
-    for skill_path in sorted(repo_root.rglob("SKILL.md")):
+    for skill_path in sorted(_safe_rglob(repo_root, "SKILL.md")):
         entry = _scan_one_skill(skill_path, repo_root)
         if entry is None:
             continue
@@ -1739,7 +1769,7 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
     installed_dir = _installed_skills_root()
     if installed_dir.is_dir():
         repo_ids = {s["id"] for s in skills}
-        for skill_path in sorted(installed_dir.rglob("SKILL.md")):
+        for skill_path in sorted(_safe_rglob(installed_dir, "SKILL.md")):
             entry = _scan_one_skill(skill_path, installed_dir.parent)
             if entry is None:
                 continue
@@ -2032,7 +2062,7 @@ async def get_skill_detail(
         if not root.is_dir():
             continue
         # Try by directory name match
-        for candidate in root.rglob("SKILL.md"):
+        for candidate in _safe_rglob(root, "SKILL.md"):
             if candidate.parent.name.lower() == skill_id or \
                candidate.parent.parent.name.lower() == skill_id:
                 skill_path = candidate

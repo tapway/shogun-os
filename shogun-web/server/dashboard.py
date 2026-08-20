@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -12,9 +13,10 @@ import sys
 import time
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
+from urllib.parse import quote as _url_quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
@@ -598,6 +600,18 @@ async def get_dashboard_config(
 # Set CRM_API_URL in .env to point to your CRM's JSON API.
 # When unset, the CRM list/search endpoints return empty lists (no data leakage).
 CRM_API_URL = os.environ.get("CRM_API_URL", "")
+CRM_API_TOKEN = os.environ.get("CRM_API_TOKEN", "")
+
+
+def _crm_headers() -> dict[str, str]:
+    """Build headers for external CRM API calls, with optional auth token."""
+    h: dict[str, str] = {"Accept": "application/json"}
+    if CRM_API_TOKEN:
+        h["Authorization"] = f"Bearer {CRM_API_TOKEN}"
+    return h
+
+
+from auth import require_admin  # noqa: E402 — admin guard for BEV zone CRUD
 
 
 @router.get("/ceo-stats")
@@ -615,16 +629,36 @@ async def get_crm_ceo_stats(
     if pages:
         return _run_ceo_aggregation(pages)
 
-    # Fallback: aggregate from external CRM API (if configured)
+    # Fallback: aggregate from external CRM API (if configured).
+    # External API deals have frontmatter as a dict but lack compiled_truth;
+    # wrap each deal into a page-like shape so _run_ceo_aggregation can read
+    # them the same way it reads gbrain pages.
     if CRM_API_URL:
         logger.info("gbrain has no CRM pages — aggregating from external CRM API")
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
-                resp = await client.get(f"{CRM_API_URL}/deals")
+                resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
                 if resp.status_code == 200:
                     api_deals = resp.json().get("deals", [])
                     if api_deals:
-                        return _run_ceo_aggregation(api_deals)
+                        # Normalise into the page-like shape _run_ceo_aggregation expects:
+                        # {slug, title, frontmatter (dict), compiled_truth (str)}
+                        wrapped = [
+                            {
+                                "slug": d.get("slug", ""),
+                                "title": d.get("title", ""),
+                                "frontmatter": _parse_frontmatter(d.get("frontmatter", {})),
+                                "compiled_truth": "",
+                            }
+                            for d in api_deals
+                            if isinstance(d, dict)
+                        ]
+                        try:
+                            return _run_ceo_aggregation(wrapped)
+                        except Exception as agg_exc:
+                            logger.warning(
+                                "CEO aggregation from external API failed: %s", agg_exc
+                            )
         except httpx.HTTPError as exc:
             logger.warning("External CRM API fallback for ceo-stats failed: %s", exc)
 
@@ -632,19 +666,20 @@ async def get_crm_ceo_stats(
     return _run_ceo_aggregation([])
 
 
-# ─── CRM list/search endpoints (live data from external CRM API) ───
 
 
 def _extract_deal_list_item(page: dict) -> dict:
     """Map a raw CRM deal page to a CrmDealListItem."""
     fm = _parse_frontmatter(page.get("frontmatter"))
+    created_raw = fm.get("created") or (page.get("effective_date") or "")
     return {
         "slug": page.get("slug", ""),
         "title": page.get("title", ""),
         "customer": fm.get("customer", ""),
         "owner": _canonical_owner(fm.get("owner", "")),
         "stage": _canonical_stage(fm.get("stage", "")),
-        "created": fm.get("created", "") or (page.get("effective_date", "") or "")[:10],
+        # None when absent — lets the frontend distinguish "no date" from an empty string
+        "created": created_raw[:10] if created_raw else None,
         "source": fm.get("source", ""),
         "amount": _safe_float(fm.get("amount", 0)),
         "priority": fm.get("priority", ""),
@@ -666,7 +701,7 @@ async def list_crm_deals(
         return {"deals": [], "total": 0}
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/deals")
+            resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
             if resp.status_code >= 400:
                 logger.warning("CRM API /deals returned %s", resp.status_code)
                 return {"deals": [], "total": 0}
@@ -676,9 +711,22 @@ async def list_crm_deals(
         return {"deals": [], "total": 0}
 
     raw_deals = payload.get("deals", [])
-    deals = [p for p in raw_deals if not any(
-        x in str(p.get("slug", "")) for x in ["templates/", "/readme", "_schema", "activity-log", "risk-register"]
-    )]
+
+    # Filter out scaffolding/meta slugs.
+    # Use path-segment checks so "readme" only excludes a slug whose *last segment*
+    # is exactly "readme" (e.g. deals/readme), not legitimate deals like
+    # deals/readme-followup.  Other markers (templates/, _schema, etc.) are
+    # unambiguous directory prefixes so a substring check is fine there.
+    _SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
+    _SLUG_PREFIX_EXCLUDES = ("templates/",)
+
+    def _is_meta_slug(slug: str) -> bool:
+        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+        if last_segment in _SLUG_SEGMENT_EXCLUDES:
+            return True
+        return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
+
+    deals = [p for p in raw_deals if not _is_meta_slug(str(p.get("slug", "")))]
 
     items = [_extract_deal_list_item(p) for p in deals]
 
@@ -704,26 +752,44 @@ async def list_crm_companies(
     industry: str = Query("", description="Filter by industry"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list:
+) -> dict:
     """List CRM companies from external CRM API (live)."""
     if not CRM_API_URL:
-        return []
+        return {"companies": [], "total": 0}
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/companies")
+            resp = await client.get(f"{CRM_API_URL}/companies", headers=_crm_headers())
             if resp.status_code >= 400:
                 logger.warning("CRM API /companies returned %s", resp.status_code)
-                return []
+                return {"companies": [], "total": 0}
             companies = resp.json()
     except httpx.HTTPError as exc:
         logger.warning("CRM companies fetch error: %s", exc)
-        return []
+        return {"companies": [], "total": 0}
 
-    # The API returns [{slug, title}, ...] — frontmatter is not included.
-    # We map directly; industry/website come from frontmatter when present.
+    if not isinstance(companies, list):
+        logger.warning("CRM API /companies returned non-list: %s", type(companies).__name__)
+        return {"companies": [], "total": 0}
+
+    # The API returns [{slug, title}, ...] — frontmatter may be absent.
+    # industry/website/first_seen populate from frontmatter when present.
+    # Exclude scaffolding/meta slugs (same logic as list_crm_deals).
+    _COMPANY_SEGMENT_EXCLUDES = {"readme", "_schema"}
+    _COMPANY_PREFIX_EXCLUDES = ("templates/",)
+
+    def _is_meta_company_slug(slug: str) -> bool:
+        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+        if last_segment in _COMPANY_SEGMENT_EXCLUDES:
+            return True
+        return any(slug.startswith(pfx) for pfx in _COMPANY_PREFIX_EXCLUDES)
+
     items = []
     for p in companies:
-        fm = _parse_frontmatter(p.get("frontmatter"))
+        if not isinstance(p, dict):
+            continue
+        if _is_meta_company_slug(str(p.get("slug", ""))):
+            continue
+        fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
             "slug": p.get("slug", ""),
             "title": p.get("title", ""),
@@ -741,7 +807,7 @@ async def list_crm_companies(
 
     items.sort(key=lambda c: c["title"].lower())
 
-    return items
+    return {"companies": items, "total": len(items)}
 
 
 @router.get("/tasks")
@@ -751,28 +817,41 @@ async def list_crm_tasks(
     assignee: str = Query("", description="Filter by assignee"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-) -> list:
+) -> dict:
     """List CRM tasks from external CRM API (live)."""
     if not CRM_API_URL:
-        return []
+        return {"tasks": [], "total": 0}
     try:
         async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/tasks")
+            resp = await client.get(f"{CRM_API_URL}/tasks", headers=_crm_headers())
             if resp.status_code >= 400:
                 logger.warning("CRM API /tasks returned %s", resp.status_code)
-                return []
-            tasks = resp.json()
+                return {"tasks": [], "total": 0}
+            tasks_raw = resp.json()
     except httpx.HTTPError as exc:
         logger.warning("CRM tasks fetch error: %s", exc)
-        return []
+        return {"tasks": [], "total": 0}
+
+    # Normalize to CrmTaskItem contract
+    tasks: List[dict] = []
+    for t in tasks_raw:
+        if not isinstance(t, dict):
+            continue
+        tasks.append({
+            "description": str(t.get("description", "")),
+            "assignee": str(t.get("assignee", "")),
+            "completed": bool(t.get("completed", False)),
+            "deal_slug": str(t.get("deal_slug", "")),
+            "deal_title": str(t.get("deal_title", "")),
+        })
 
     if completed is not None:
-        tasks = [t for t in tasks if t.get("completed") == completed]
+        tasks = [t for t in tasks if t["completed"] == completed]
     if assignee:
         ca = _canonical_owner(assignee)
         tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
 
-    return tasks
+    return {"tasks": tasks, "total": len(tasks)}
 
 
 class SearchBody(BaseModel):
@@ -796,6 +875,7 @@ async def crm_search(
             resp = await client.post(
                 f"{CRM_API_URL}/search",
                 json={"query": query},
+                headers=_crm_headers(),
             )
             if resp.status_code >= 400:
                 logger.warning("CRM API /search returned %s", resp.status_code)
@@ -806,16 +886,46 @@ async def crm_search(
         return {"results": []}
 
     results = payload.get("results", [])
-    for r in results:
-        r["frontmatter"] = _parse_frontmatter(r.get("frontmatter"))
+    if not isinstance(results, list):
+        return {"results": []}
 
-    return {"results": results}
+    # Copy each result dict before mutating so we don't modify the payload in place.
+    # Also infer `category` from the slug prefix when the API doesn't supply it,
+    # so the frontend SearchTab category chips always have a value to filter on.
+    normalised: list[dict] = []
+    for r in results:
+        if not isinstance(r, dict):
+            continue
+        row = copy.deepcopy(r)  # deep copy — frontmatter is a nested dict; shallow copy still shares it
+        row["frontmatter"] = _parse_frontmatter(row.get("frontmatter"))
+        if not row.get("category"):
+            slug = str(row.get("slug", ""))
+            if slug.startswith("deals/"):
+                row["category"] = "deals"
+            elif slug.startswith("companies/"):
+                row["category"] = "companies"
+            else:
+                row["category"] = "unknown"
+        normalised.append(row)
+
+    return {"results": normalised}
 
 
 # ─── BEV Zones proxy (→ separate microservice) ───
 
+BEV_API_TOKEN = os.environ.get("BEV_API_TOKEN", "")
+
+
 def _bev_base_url() -> str:
     return os.environ.get("BEV_API_URL", "http://localhost:8001/api/v1").rstrip("/")
+
+
+def _bev_headers() -> dict[str, str]:
+    """Build headers for BEV microservice calls, with optional auth token."""
+    h: dict[str, str] = {"Accept": "application/json"}
+    if BEV_API_TOKEN:
+        h["Authorization"] = f"Bearer {BEV_API_TOKEN}"
+    return h
 
 
 @router.get("/bev/zones")
@@ -827,37 +937,63 @@ async def list_bev_zones(
     base = _bev_base_url()
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.get(f"{base}/zones")
+            resp = await client.get(f"{base}/zones", headers=_bev_headers())
             if resp.status_code >= 400:
                 return {"zones": []}
-            return resp.json()
+            data = resp.json()
+            # Normalize: ensure we return {zones: [...]}
+            if isinstance(data, list):
+                return {"zones": data}
+            if isinstance(data, dict) and "zones" in data:
+                return data
+            return {"zones": []}
     except httpx.HTTPError as exc:
         logger.warning("BEV zones list error: %s", exc)
         return {"zones": []}
 
 
+
+class BevZoneBounds(BaseModel):
+    """Validated bounding box for a BEV zone (Cartesian coordinates, metres)."""
+
+    xMin: float = Field(default=0.0, description="Left edge (metres)")
+    yMin: float = Field(default=0.0, description="Bottom edge (metres)")
+    xMax: float = Field(description="Right edge — must be > xMin")
+    yMax: float = Field(description="Top edge — must be > yMin")
+
+    from pydantic import model_validator  # local import avoids top-level v1/v2 ambiguity
+
+    @model_validator(mode="after")
+    def _validate_bounds(self) -> "BevZoneBounds":
+        if self.xMax <= self.xMin:
+            raise ValueError("xMax must be greater than xMin")
+        if self.yMax <= self.yMin:
+            raise ValueError("yMax must be greater than yMin")
+        return self
+
+
 class BevZoneBody(BaseModel):
-    name: str = ""
+    name: str = Field(..., min_length=1, description="Zone name")
     calibrationType: str = "cartesian"
-    cameraIds: list = []
-    bounds: Optional[dict] = None
+    cameraIds: list[str] = []
+    bounds: Optional[BevZoneBounds] = None
     origin: Optional[dict] = None
-    rois: list = []
-    tripwires: list = []
+    rois: list[dict] = []
+    tripwires: list[dict] = []
 
 
 @router.post("/bev/zones")
 async def create_bev_zone(
+    body: BevZoneBody,
     name: str = Path(...),
-    body: BevZoneBody = BevZoneBody(),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> dict:
     """Create a BEV zone via the BEV microservice."""
     base = _bev_base_url()
     payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(f"{base}/zones", json=payload)
+            resp = await client.post(f"{base}/zones", json=payload, headers=_bev_headers())
             if resp.status_code >= 400:
                 raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
             return resp.json()
@@ -867,17 +1003,17 @@ async def create_bev_zone(
 
 @router.put("/bev/zones/{zone_id}")
 async def update_bev_zone(
+    body: BevZoneBody,
     name: str = Path(...),
     zone_id: str = Path(...),
-    body: BevZoneBody = BevZoneBody(),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> dict:
     """Update a BEV zone via the BEV microservice."""
     base = _bev_base_url()
     payload = body.model_dump() if hasattr(body, "model_dump") else body.dict()
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.put(f"{base}/zones/{zone_id}", json=payload)
+            resp = await client.put(f"{base}/zones/{_url_quote(zone_id, safe='')}", json=payload, headers=_bev_headers())
             if resp.status_code >= 400:
                 raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
             return resp.json()
@@ -889,13 +1025,13 @@ async def update_bev_zone(
 async def delete_bev_zone(
     name: str = Path(...),
     zone_id: str = Path(...),
-    user: User = Depends(get_current_user),
+    user: User = Depends(require_admin),
 ) -> dict:
     """Delete a BEV zone via the BEV microservice."""
     base = _bev_base_url()
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.delete(f"{base}/zones/{zone_id}")
+            resp = await client.delete(f"{base}/zones/{_url_quote(zone_id, safe='')}", headers=_bev_headers())
             if resp.status_code >= 400 and resp.status_code != 204:
                 raise HTTPException(status_code=resp.status_code, detail=resp.text[:300])
             return {"ok": True}
@@ -2360,56 +2496,7 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     movement_snap = snapshot_map.get("snapshots/stock-movements", snapshot_map.get("procurement/snapshots/stock-movements", {}))
     bridge_snap = snapshot_map.get("snapshots/accounting-bridge", snapshot_map.get("procurement/snapshots/accounting-bridge", {}))
 
-    # ── Parse brain markdown pages into structured data ──
-    # When the procurement agent hasn't written JSON snapshots yet, we extract
-    # structured data from the brain's policy/contract markdown pages.
-    brain_suppliers: List[dict] = []
-    brain_approval_matrix: List[dict] = []
-    brain_safety_stock: List[dict] = []
-
-    for p in pages:
-        slug = str(p.get("slug", ""))
-        body = p.get("content") or p.get("body") or ""
-        if "suppliers/" in slug or "suppliers" in slug:
-            # Parse vendor info from supplier contract markdown
-            vendor_name = ""
-            vendor_id = ""
-            for line in body.split("\n"):
-                if "Vendor Name" in line and "**" in line:
-                    # Line format: "- **Vendor Name**: Actual Name"
-                    parts = line.split("**")
-                    if len(parts) >= 3:
-                        vendor_name = parts[2].lstrip(": ").strip()
-                if "Vendor ID" in line and "**" in line:
-                    parts = line.split("**")
-                    if len(parts) >= 3:
-                        vendor_id = parts[2].lstrip(": ").strip()
-            if vendor_name:
-                brain_suppliers.append({
-                    "vendor": vendor_name.strip(),
-                    "vendor_id": vendor_id.strip(),
-                    "category": "Electronics" if "electronics" in slug.lower() else "Apparel" if "textile" in slug.lower() else "General",
-                    "sla_status": "Active",
-                })
-        if "po-approval-matrix" in slug or "approval" in slug.lower():
-            # Parse approval matrix table
-            for line in body.split("\n"):
-                if "RM" in line and "|" in line and ("Manager" in line or "Head" in line or "CFO" in line or "CEO" in line):
-                    cols = [c.strip() for c in line.split("|") if c.strip()]
-                    if len(cols) >= 3:
-                        brain_approval_matrix.append({
-                            "threshold": cols[0] if cols[0] else "",
-                            "approver": cols[1] if len(cols) > 1 else "",
-                            "sla": cols[2] if len(cols) > 2 else "",
-                        })
-        if "safety-stock" in slug.lower():
-            # Parse safety stock buffer levels
-            for line in body.split("\n"):
-                if "Days Safety Stock" in line or "Days" in line and "Safety" in line:
-                    brain_safety_stock.append({"policy": line.strip()})
-
     has_real_data = bool(inventory_snap or po_snap)
-    has_brain_data = bool(brain_suppliers or brain_approval_matrix)
 
     if has_real_data:
         # Pull from the live gbrain snapshots written by dashboard-snapshot-writer
