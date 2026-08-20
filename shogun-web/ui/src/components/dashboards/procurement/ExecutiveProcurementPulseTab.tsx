@@ -92,13 +92,14 @@ export function ExecutiveProcurementPulseTab({
   };
 
   const getAlertTargetTab = (type: string, message: string): string => {
-    if (type === "safety_breach" || message.includes("safety stock"))
+    const msg = message || "";
+    if (type === "safety_breach" || msg.includes("safety stock"))
       return "inventory";
-    if (type === "dead_stock" || message.includes("slow-moving stock"))
+    if (type === "dead_stock" || msg.includes("slow-moving stock"))
       return "inventory";
     if (
       type === "lead_time_delay" ||
-      message.includes("past expected delivery")
+      msg.includes("past expected delivery")
     )
       return "po";
     return "inventory";

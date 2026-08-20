@@ -94,7 +94,7 @@ export function InventoryCatalogTab({ stats, onAction }: Props) {
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
     return stats.skuCatalog.filter((s: SkuItem) => {
-      if (q && !s.sku.toLowerCase().includes(q) && !s.item_name.toLowerCase().includes(q)) return false;
+      if (q && !(s.sku || '').toLowerCase().includes(q) && !(s.item_name || '').toLowerCase().includes(q)) return false;
       if (category !== 'all' && s.category !== category) return false;
       if (statusFilter !== 'all' && s.status !== statusFilter) return false;
       return true;

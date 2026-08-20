@@ -764,11 +764,11 @@ export default function Department() {
   };
 
   // --- Cron + skills data for bot activity panel (gap #5) ---
-  const { data: cronData } = useQuery({
-    queryKey: ["department-crons", key],
-    queryFn: () => departmentsApi.getCrons(key),
-    enabled: commsChannels.length > 0,
-  });
+    const { data: cronData } = useQuery({
+      queryKey: ["department-crons", key],
+      queryFn: () => departmentsApi.getCrons(key),
+      enabled: !!isAdmin && commsChannels.length > 0,
+    });
   const { data: skillsData } = useQuery({
     queryKey: ["department-skills", key],
     queryFn: () => skillsApi.listDepartment(key),

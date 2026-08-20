@@ -61,9 +61,9 @@ export default function DocsViewer({ department }: DocsViewerProps) {
   const isImage = selected?.mime_type?.startsWith('image/');
   const isText =
     !!selected?.mime_type &&
-    (selected.mime_type.includes('text') ||
-      selected.mime_type.includes('json') ||
-      selected.mime_type.includes('markdown'));
+    ((selected.mime_type || '').includes('text') ||
+      (selected.mime_type || '').includes('json') ||
+      (selected.mime_type || '').includes('markdown'));
 
   const previewQuery = useQuery({
     queryKey: ['doc-preview', department, selected?.id],

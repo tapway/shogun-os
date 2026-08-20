@@ -156,7 +156,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                       </td>
                       <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: TEXT }}>{batch.batch_id}</td>
                       <td className="px-3 py-2.5">
-                        <span className={`sd-chip ${batch.action_type.includes('GRN') ? 'muted' : batch.action_type.includes('OUT') ? 'bad' : 'ok'}`}>
+                        <span className={`sd-chip ${(batch.action_type || '').includes('GRN') ? 'muted' : (batch.action_type || '').includes('OUT') ? 'bad' : 'ok'}`}>
                           {batch.action_type}
                         </span>
                       </td>

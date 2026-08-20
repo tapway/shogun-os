@@ -240,7 +240,7 @@ export function RfqVendorSourcingTab({ stats, onAction }: Props) {
                     <td className="px-4 py-3" style={{ fontWeight: 600, color: TEXT }}>Vendor SLA Rating</td>
                     {activeRfq.quotes.map((q) => (
                       <td key={q.vendor} className="px-4 py-3 text-center">
-                        <span className={`sd-chip ${q.sla_status.includes('Top Tier') ? 'ok' : 'muted'}`}>
+                        <span className={`sd-chip ${(q.sla_status || '').includes('Top Tier') ? 'ok' : 'muted'}`}>
                           <ShieldCheck className="h-3 w-3" /> {q.sla_status}
                         </span>
                       </td>
