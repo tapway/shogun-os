@@ -135,31 +135,6 @@ export function ExecutiveProcurementPulseTab({
         })}
       </div>
 
-      {/* Executive Reorder Watchdog Alert Banner */}
-      {stats.riskAlerts.length > 0 && (
-        <div className="sd-stack" style={{ gap: "0.5rem" }}>
-          {stats.riskAlerts.map((alert, i) => {
-            const Icon = ALERT_ICON[alert.type] ?? AlertTriangle;
-            const level = alert.level === "critical" ? "critical" : "warning";
-            const targetTab = getAlertTargetTab(alert.type, alert.message);
-            return (
-              <div
-                key={i}
-                onClick={() => onNavigateTab?.(targetTab)}
-                className={`sd-alert-row ${level}`}
-                style={{ cursor: "pointer" }}
-              >
-                <Icon className="h-4 w-4 shrink-0" />
-                <span className="flex-1">{alert.message}</span>
-                <span style={{ fontSize: "0.72rem", fontWeight: 700, opacity: 0.8 }}>
-                  View Tab →
-                </span>
-              </div>
-            );
-          })}
-        </div>
-      )}
-
       {/* Charts */}
       <div className="sd-row">
         <div className="sd-chart-card">
