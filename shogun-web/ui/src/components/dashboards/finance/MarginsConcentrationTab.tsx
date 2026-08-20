@@ -31,12 +31,12 @@ export function MarginsConcentrationTab({ stats, color }: Props) {
   }));
 
   const ueCards = [
-    { label: 'Gross Margin', value: `${ue.gross_margin_pct.toFixed(1)}%`, popout: 'Gross Margin = (Revenue − COGS) / Revenue × 100' },
-    { label: 'Contribution Margin', value: `${ue.contribution_margin_pct.toFixed(1)}%`, popout: 'Contribution Margin = (Revenue − Variable Costs) / Revenue × 100' },
+    { label: 'Gross Margin', value: `${(ue.gross_margin_pct || 0).toFixed(1)}%`, popout: 'Gross Margin = (Revenue − COGS) / Revenue × 100' },
+    { label: 'Contribution Margin', value: `${(ue.contribution_margin_pct || 0).toFixed(1)}%`, popout: 'Contribution Margin = (Revenue − Variable Costs) / Revenue × 100' },
     { label: 'CAC', value: ue.cac > 0 ? fmtMyr(ue.cac) : '—', popout: 'Customer Acquisition Cost — total sales & marketing spend / new customers' },
     { label: 'LTV', value: ue.ltv > 0 ? fmtMyr(ue.ltv) : '—', popout: 'Customer Lifetime Value — average revenue per customer × gross margin × retention period' },
-    { label: 'LTV/CAC', value: ue.ltv_cac_ratio > 0 ? `${ue.ltv_cac_ratio.toFixed(1)}x` : '—', popout: 'LTV/CAC ratio — healthy > 3x means sustainable growth' },
-    { label: 'EBITDA Margin', value: `${stats.ebitdaMargin.toFixed(1)}%`, popout: 'EBITDA Margin = EBITDA / Revenue × 100' },
+    { label: 'LTV/CAC', value: ue.ltv_cac_ratio > 0 ? `${(ue.ltv_cac_ratio || 0).toFixed(1)}x` : '—', popout: 'LTV/CAC ratio — healthy > 3x means sustainable growth' },
+    { label: 'EBITDA Margin', value: `${(stats.ebitdaMargin || 0).toFixed(1)}%`, popout: 'EBITDA Margin = EBITDA / Revenue × 100' },
   ];
 
   return (
@@ -105,7 +105,7 @@ export function MarginsConcentrationTab({ stats, color }: Props) {
                     <div style={{ height: '100%', borderRadius: 999, background: client.revenue_pct > 20 ? 'var(--samurai-danger)' : 'var(--samurai-ok)', width: `${Math.min(client.revenue_pct, 100)}%` }} />
                   </div>
                   <div style={{ width: '3rem', textAlign: 'right', fontSize: '0.75rem', fontWeight: 600, color: client.revenue_pct > 20 ? 'var(--samurai-danger)' : TEXT }}>
-                    {client.revenue_pct.toFixed(1)}%
+                    {(client.revenue_pct || 0).toFixed(1)}%
                   </div>
                 </button>
               ))}
@@ -130,7 +130,7 @@ export function MarginsConcentrationTab({ stats, color }: Props) {
             <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: MUTED }}>Revenue Share</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: activeClient.revenue_pct > 20 ? 'var(--samurai-danger)' : TEXT, fontSize: '1.1rem' }}>
-                {activeClient.revenue_pct.toFixed(1)}%
+                {(activeClient.revenue_pct || 0).toFixed(1)}%
               </div>
             </div>
           </div>

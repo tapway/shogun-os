@@ -43,12 +43,12 @@ export function OmnichannelChatTab({ stats, color }: Props) {
   const slaCards = [
     {
       label: 'Avg Response Time',
-      value: `${stats.avgResponseMinutes.toFixed(1)} min`,
+      value: `${(stats.avgResponseMinutes || 0).toFixed(1)} min`,
       badge: stats.avgResponseMinutes >= 15 ? { label: 'Over SLA', cls: 'bad' } : { label: 'Within SLA', cls: 'ok' },
     },
-    { label: 'SLA Compliance', value: `${stats.slaCompliancePct.toFixed(1)}%`, badge: { label: 'Target < 15m', cls: 'muted' } },
-    { label: 'AI Resolution Rate', value: `${stats.aiResolutionPct.toFixed(1)}%`, badge: { label: 'Auto-resolved', cls: 'muted' } },
-    { label: 'Chat-to-Order Conversion', value: `${stats.chatToOrderPct.toFixed(1)}%`, badge: { label: 'Weekly trend', cls: 'muted' } },
+    { label: 'SLA Compliance', value: `${(stats.slaCompliancePct || 0).toFixed(1)}%`, badge: { label: 'Target < 15m', cls: 'muted' } },
+    { label: 'AI Resolution Rate', value: `${(stats.aiResolutionPct || 0).toFixed(1)}%`, badge: { label: 'Auto-resolved', cls: 'muted' } },
+    { label: 'Chat-to-Order Conversion', value: `${(stats.chatToOrderPct || 0).toFixed(1)}%`, badge: { label: 'Weekly trend', cls: 'muted' } },
   ];
 
   const trendKeys = ['shopee', 'lazada', 'fbMessenger', 'whatsapp'];
@@ -62,7 +62,7 @@ export function OmnichannelChatTab({ stats, color }: Props) {
         {volumeCards.map((c) => (
           <div key={c.label} className="sd-kpi-card">
             <div className="sd-kpi-label">{c.label}</div>
-            <div className="sd-kpi-value">{c.value.toLocaleString()}</div>
+            <div className="sd-kpi-value">{(c.value || 0).toLocaleString()}</div>
             <div className="sd-kpi-sub" style={{ fontSize: '0.72rem', color: MUTED }}>
               {totalMessages > 0 ? ((c.value / totalMessages) * 100).toFixed(0) : 0}% of volume
             </div>

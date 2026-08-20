@@ -375,7 +375,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                       style={{ fontWeight: 600, color: TEXT }}
                     >
                       RM{" "}
-                      {po.total_amount.toLocaleString("en-MY", {
+                      {(po.total_amount || 0).toLocaleString("en-MY", {
                         minimumFractionDigits: 2,
                       })}
                     </td>
@@ -519,7 +519,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                     }}
                   >
                     RM{" "}
-                    {execActionTarget.total_amount.toLocaleString("en-MY", {
+                    {(execActionTarget.total_amount || 0).toLocaleString("en-MY", {
                       minimumFractionDigits: 2,
                     })}
                   </div>
@@ -820,7 +820,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                         style={{ fontWeight: 600, color: TEXT }}
                       >
                         RM{" "}
-                        {po.total_amount.toLocaleString("en-MY", {
+                        {(po.total_amount || 0).toLocaleString("en-MY", {
                           minimumFractionDigits: 2,
                         })}
                       </td>
@@ -963,7 +963,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                     }}
                   >
                     RM{" "}
-                    {poActionTarget.total_amount.toLocaleString("en-MY", {
+                    {(poActionTarget.total_amount || 0).toLocaleString("en-MY", {
                       minimumFractionDigits: 2,
                     })}
                   </div>
@@ -1105,7 +1105,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                         style={{ fontWeight: 600, color: TEXT }}
                       >
                         RM{" "}
-                        {v.ytd_spend.toLocaleString("en-MY", {
+                        {(v.ytd_spend || 0).toLocaleString("en-MY", {
                           minimumFractionDigits: 2,
                         })}
                       </td>

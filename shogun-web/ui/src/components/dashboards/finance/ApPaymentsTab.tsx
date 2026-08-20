@@ -25,7 +25,7 @@ export function ApPaymentsTab({ stats }: Props) {
   const kpis = [
     { label: 'Total AP', value: fmtMyr(stats.totalAP), warn: false },
     { label: 'AP Overdue', value: fmtMyr(stats.apOverdue), warn: stats.apOverdue > 0 },
-    { label: 'DPO', value: stats.dpo > 0 ? `${stats.dpo.toFixed(0)} days` : '—', warn: false },
+    { label: 'DPO', value: stats.dpo > 0 ? `${(stats.dpo || 0).toFixed(0)} days` : '—', warn: false },
   ];
 
   // Summary stats for visual bar

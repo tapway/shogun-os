@@ -623,6 +623,7 @@ export function useChatSocket(
 
     let isMounted = true;
     let timer: number | undefined;
+    let retryCount = 0;
 
     const connect = () => {
       if (!isMounted) return;
@@ -683,7 +684,11 @@ export function useChatSocket(
         if (!isMounted) return;
         setConnected(false);
         wsRef.current = null;
-        timer = window.setTimeout(connect, 3000);
+        // Only retry up to 3 times, then give up silently (gateway not running)
+        retryCount += 1;
+        if (retryCount <= 3) {
+          timer = window.setTimeout(connect, 3000);
+        }
       };
     };
 
