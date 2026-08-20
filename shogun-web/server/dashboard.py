@@ -2453,44 +2453,49 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
 
         risk_alerts: List[dict] = inventory_snap.get("risk_alerts", [])
     else:
-        # No JSON snapshot data available — but we may have brain markdown pages.
-        # Parse structured data from the brain's policy/contract pages.
-        logger.info("Procurement dashboard: no JSON snapshots, using brain markdown data (pages=%d)", len(pages))
+        # No JSON snapshot data available — load mock fallback for display tabs
+        # that don't have their own DB endpoints. Brain markdown data is merged
+        # on top for vendor scorecard, approval queue, and risk alerts.
+        logger.info("Procurement dashboard: no JSON snapshots, using mock fallback + brain data (pages=%d)", len(pages))
 
-        total_inventory_valuation = 0.0
-        total_active_skus = 0.0
-        low_stock_alerts = 0.0
-        dead_slow_stock_capital = 0.0
-        open_po_count = 0.0
-        open_po_value = 0.0
-        procurement_spend_mtd = 0.0
-        procurement_spend_budget_mtd = 0.0
+        mock_data: dict = {}
+        try:
+            mock_path = pathlib.Path(__file__).parent.parent.parent / "examples" / "procurement-mock.json"
+            if mock_path.exists():
+                mock_data = json.loads(mock_path.read_text(encoding="utf-8")).get("dashboard_mock", {})
+        except (json.JSONDecodeError, OSError) as e:
+            logger.warning("Failed to load procurement mock: %s", e)
 
-        risk_alerts: List[dict] = []
-        valuation_by_category: List[dict] = []
-        spend_vs_budget_trend: List[dict] = []
+        total_inventory_valuation = _safe_float(mock_data.get("totalInventoryValuation", 0))
+        total_active_skus = _safe_float(mock_data.get("totalActiveSkus", 0))
+        low_stock_alerts = _safe_float(mock_data.get("lowStockAlerts", 0))
+        dead_slow_stock_capital = _safe_float(mock_data.get("deadSlowStockCapital", 0))
+        open_po_count = _safe_float(mock_data.get("openPoCount", 0))
+        open_po_value = _safe_float(mock_data.get("openPoValue", 0))
+        procurement_spend_mtd = _safe_float(mock_data.get("procurementSpendMtd", 0))
+        procurement_spend_budget_mtd = _safe_float(mock_data.get("procurementSpendBudgetMtd", 0))
 
-        sku_catalog: List[dict] = []
-        dead_slow_stock: List[dict] = []
-        warehouse_bin_capacity: List[dict] = []
+        risk_alerts: List[dict] = brain_safety_stock if brain_safety_stock else mock_data.get("riskAlerts", [])
+        valuation_by_category: List[dict] = mock_data.get("valuationByCategory", [])
+        spend_vs_budget_trend: List[dict] = mock_data.get("spendVsBudgetTrend", [])
 
-        stock_movements: List[dict] = []
-        movement_type_distribution: List[dict] = []
-        shrinkage_flag_items: List[dict] = []
+        sku_catalog: List[dict] = mock_data.get("skuCatalog", [])
+        dead_slow_stock: List[dict] = mock_data.get("deadSlowStock", [])
+        warehouse_bin_capacity: List[dict] = mock_data.get("warehouseBinCapacity", [])
 
-        po_pipeline: List[dict] = []
-        active_purchase_orders: List[dict] = []
-        executive_approval_queue: List[dict] = brain_approval_matrix
-        vendor_scorecard: List[dict] = brain_suppliers
-        vendor_spend_concentration: List[dict] = []
+        stock_movements: List[dict] = mock_data.get("stockMovements", [])
+        movement_type_distribution: List[dict] = mock_data.get("movementTypeDistribution", [])
+        shrinkage_flag_items: List[dict] = mock_data.get("shrinkageFlagItems", [])
 
-        bridge_status = {"enabled": False, "provider": "None", "connected": False}
-        po_bill_conversion_queue: List[dict] = []
-        gl_valuation_reconciliation: List[dict] = []
+        po_pipeline: List[dict] = mock_data.get("poPipeline", [])
+        active_purchase_orders: List[dict] = mock_data.get("activePurchaseOrders", [])
+        executive_approval_queue: List[dict] = brain_approval_matrix if brain_approval_matrix else mock_data.get("executiveApprovalQueue", [])
+        vendor_scorecard: List[dict] = brain_suppliers if brain_suppliers else mock_data.get("vendorScorecard", [])
+        vendor_spend_concentration: List[dict] = mock_data.get("vendorSpendConcentration", [])
 
-        # Populate risk_alerts from safety stock policies
-        if brain_safety_stock:
-            risk_alerts = brain_safety_stock
+        bridge_status: dict = mock_data.get("accountingBridge", {"enabled": False, "provider": "None", "connected": False})
+        po_bill_conversion_queue: List[dict] = mock_data.get("poBillConversionQueue", [])
+        gl_valuation_reconciliation: List[dict] = mock_data.get("glValuationReconciliation", [])
 
     return {
         # Tab 1 — Executive Procurement & Reorder Pulse
@@ -2523,6 +2528,16 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         "accountingBridge": bridge_status,
         "poBillConversionQueue": po_bill_conversion_queue,
         "glValuationReconciliation": gl_valuation_reconciliation,
+        # Tab 6 — Purchase Requisitions (mock fallback for display)
+        "purchaseRequisitions": mock_data.get("purchaseRequisitions", []) if not has_real_data else [],
+        # Tab 7 — RFQ & Vendor Sourcing (mock fallback for display)
+        "rfqComparisons": mock_data.get("rfqComparisons", []) if not has_real_data else [],
+        # Tab 8 — Barcode Tagging & Scan Counter (mock fallback for display)
+        "barcodeBatches": mock_data.get("barcodeBatches", []) if not has_real_data else [],
+        # Tab 9 — 3-Way Match Verification (mock fallback for display)
+        "threeWayMatches": mock_data.get("threeWayMatches", []) if not has_real_data else [],
+        # Mock flag — true when data loaded from examples/*.json (demo mode)
+        "mock": not has_real_data,
         # Brain data source info
         "brainPagesCount": len(pages),
         "hasBrainData": has_brain_data,
