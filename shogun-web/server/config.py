@@ -60,6 +60,7 @@ class WebConfig:
     db_path: str = str(DB_PATH)
     static_dir: str = ""
     gbrain_base_url: str = "http://127.0.0.1:7432"
+    gbrain_api_key: str = os.environ.get("GBRAIN_API_KEY", "")
     brain_root: str = str(Path.home() / "brain")
     seed_demo_brain: bool = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
 
@@ -156,6 +157,8 @@ def _apply_env(cfg: WebConfig) -> WebConfig:
         cfg.static_dir = env["SHOGUN_WEB_STATIC_DIR"]
     if env.get("SHOGUN_GBRAIN_URL"):
         cfg.gbrain_base_url = env["SHOGUN_GBRAIN_URL"]
+    if env.get("GBRAIN_API_KEY"):
+        cfg.gbrain_api_key = env["GBRAIN_API_KEY"]
     if env.get("SHOGUN_BRAIN_ROOT"):
         cfg.brain_root = env["SHOGUN_BRAIN_ROOT"]
     if env.get("SHOGUN_REGISTRY_URL"):
