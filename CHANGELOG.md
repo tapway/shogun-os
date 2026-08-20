@@ -1,5 +1,46 @@
 # Changelog
 
+## [3.16.0] — 2026-08-19
+
+### CI & Test Infrastructure
+
+Wires the full test suite into GitHub Actions. Every PR and push to `main` now runs the complete
+suite; a red CI blocks merge.
+
+- **`.github/workflows/test.yml`** — runs on `pull_request` → `main` + `push` → `main` + manual dispatch.
+  Installs pytest, pyyaml, and server deps from `requirements.txt`, then runs `scripts/run-tests.sh`.
+- **`pytest.ini`** — declares `testpaths` (root `tests/` + `shogun-web/server/tests/`) and a `slow`
+  marker for tests needing external services (Ollama, PG, QBO).
+- **`scripts/run-tests.sh`** — single entry point for the full suite (181 tests, ~4s), excluding
+  `@slow`. CI and local dev run the same command.
+- **QBO test fix** — `test_finance_aggregation_empty_pages_returns_safe_defaults` now mocks
+  `_fetch_qbo_balance_sheet`/`_fetch_qbo_profit_loss` so no live QBO call runs (30s → 0.01s).
+- **Moved 8 shell checks** from `tests/` → `scripts/verify-install/` (post-install checks, not CI).
+- **Docs** — `CONTRIBUTING.md` + `AGENTS.md` updated with the test discipline ("no test, no merge").
+
+### Multi-Tenant Security Hardening
+
+- **Login duplicate-email fix** — global email lookup no longer 500s (`MultipleResultsFound`); prefers
+  the primary-tenant user.
+- **OAuth/SSO resolution** — existing users resolve globally instead of hard-binding to the primary tenant.
+- **Cross-tenant file-access fix (IDOR)** — `/api/site-photos/*` and `/api/doc-uploads/*` now enforce
+  tenant ownership (403 otherwise).
+- **Registry identity isolation** — go-live / register / build_registration_payload /
+  apply_registry_identity now thread the user's tenant, so a non-primary tenant no longer overwrites
+  the primary tenant's subdomain/public URL.
+
+### Test Coverage & Portal Fixes
+
+- **E2E test suite** (95 tests) — auth login/register/me/logout, staff CRUD, onboarding, dashboard
+  config/aggregation, cron endpoints, email templates, registry.
+- **Dashboard empty-state fix** — finance aggregation no longer throws `UnboundLocalError` when no
+  snapshots exist.
+- **Skill-gap implementations** — retail (13), manufacturing (8), CRM (1) scripts + `departments:`
+  metadata on 118 SKILL.md files.
+- **Quarters-inspection** subsystem (55 tests) + schema/pack/report JSON.
+- **Multi-tenant portal refactor** — tenant-scoped dashboard/staff/departments/onboarding, global
+  login, per-tenant subdomain registration.
+
 ## [3.13.0] — 2026-07-26
 
 ### Profile Dashboards — CRM CEO dashboard in Shogun web portal
