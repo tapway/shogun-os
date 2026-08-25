@@ -6,12 +6,14 @@ import { CrmDashboard } from './crm/CrmDashboard';
 import { FinanceDashboard } from './finance/FinanceDashboard';
 import { PlantationDashboard } from './plantation/PlantationDashboard';
 import { ProcurementDashboard } from './procurement/ProcurementDashboard';
+import { ProjectsDashboard } from './projects/ProjectsDashboard';
 
 const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: string; color: string }>> = {
   crm: CrmDashboard,
   finance: FinanceDashboard,
   procurement: ProcurementDashboard,
   'facility': PlantationDashboard,
+  projects: ProjectsDashboard,
 };
 
 interface DashboardViewerProps {

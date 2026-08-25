@@ -589,6 +589,14 @@ async def get_dashboard_config(
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
+        "projects": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "projects", "label": "Projects", "icon": "Kanban"},
+                {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
+            ],
+        },
     }
 
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
@@ -3258,3 +3266,138 @@ async def list_all_inspections(
     query = query.order_by(SiteInspection.inspection_date.desc())
     inspections = db.execute(query).scalars().all()
     return {"inspections": [i.to_dict() for i in inspections]}
+
+
+# =============================================================================
+# Project Dashboard Endpoints
+# =============================================================================
+# All routes are namespaced under /projects/ to avoid collisions with the
+# CRM endpoints above (/tasks, /deals, /companies). Static routes (/stats,
+# /tasks) are registered BEFORE the dynamic /projects/{project_id} route so
+# FastAPI matches them first.
+
+@router.get("/projects", tags=["projects"])
+async def list_projects(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    pm: Optional[str] = Query(None, description="Filter by project manager"),
+    gate: Optional[int] = Query(None, description="Filter by gate number"),
+) -> dict:
+    """List all projects with optional filters."""
+    from models import Project
+
+    query = select(Project)
+
+    if status:
+        query = query.where(Project.status == status)
+    if pm:
+        query = query.where(Project.pm == pm)
+    if gate is not None:
+        query = query.where(Project.gate == gate)
+
+    projects = db.execute(query).scalars().all()
+    return {"projects": [p.to_dict() for p in projects]}
+
+
+@router.get("/projects/stats", tags=["projects"])
+async def get_project_stats(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get project dashboard statistics."""
+    from models import Project, Task
+    from sqlalchemy import func
+
+    total_projects = db.execute(select(func.count(Project.id))).scalar()
+    active_projects = db.execute(
+        select(func.count(Project.id)).where(Project.status.in_(["active", "in-progress"]))
+    ).scalar()
+
+    total_tasks = db.execute(select(func.count(Task.id))).scalar()
+    completed_tasks = db.execute(
+        select(func.count(Task.id)).where(Task.status == "done")
+    ).scalar()
+
+    overdue_tasks = db.execute(
+        select(func.count(Task.id))
+        .where(Task.deadline < datetime.now())
+        .where(Task.status != "done")
+    ).scalar()
+
+    return {
+        "projects": {
+            "total": total_projects or 0,
+            "active": active_projects or 0,
+        },
+        "tasks": {
+            "total": total_tasks or 0,
+            "completed": completed_tasks or 0,
+            "overdue": overdue_tasks or 0,
+        },
+    }
+
+
+@router.get("/projects/tasks", tags=["projects"])
+async def list_project_dashboard_tasks(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    project_id: Optional[str] = Query(None, description="Filter by project ID"),
+    owner: Optional[str] = Query(None, description="Filter by task owner"),
+    status: Optional[str] = Query(None, description="Filter by status"),
+    priority: Optional[str] = Query(None, description="Filter by priority"),
+    overdue: Optional[bool] = Query(None, description="Filter overdue tasks only"),
+) -> dict:
+    """List all project-tracker tasks with optional filters.
+
+    Namespaced under /projects/tasks so it does not shadow the CRM /tasks
+    endpoint above.
+    """
+    from models import Task
+
+    query = select(Task)
+
+    if project_id:
+        query = query.where(Task.project_id == project_id)
+    if owner:
+        query = query.where(Task.owner == owner)
+    if status:
+        query = query.where(Task.status == status)
+    if priority:
+        query = query.where(Task.priority == priority)
+    if overdue is True:
+        # Tasks with deadline in past and not done
+        query = query.where(Task.deadline < datetime.now()).where(Task.status != "done")
+
+    tasks = db.execute(query).scalars().all()
+    return {"tasks": [t.to_dict() for t in tasks]}
+
+
+@router.get("/projects/{project_id}", tags=["projects"])
+async def get_project(
+    project_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get a single project with all nested data."""
+    from models import Project
+
+    project = db.get(Project, project_id)
+    if not project:
+        raise HTTPException(status_code=404, detail="Project not found")
+
+    return project.to_dict()
+
+
+@router.get("/projects/{project_id}/tasks", tags=["projects"])
+async def list_project_tasks(
+    project_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get all tasks for a specific project."""
+    from models import Task
+
+    query = select(Task).where(Task.project_id == project_id)
+    tasks = db.execute(query).scalars().all()
+    return {"tasks": [t.to_dict() for t in tasks]}

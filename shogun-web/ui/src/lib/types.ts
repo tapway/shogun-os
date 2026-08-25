@@ -1298,3 +1298,89 @@ export interface ProcurementDashboardStats {
   // Tab 9 — 3-Way Match Verification
   threeWayMatches?: ThreeWayMatchItem[];
 }
+
+
+// ─── Project Dashboard Types (external project tracker sync) ───
+
+export interface ProjectGoalItem {
+  id: string;
+  goalRef?: string;
+  projectId: string;
+  description?: string;
+  kpi?: string;
+  measure?: string;
+  deadline?: string | null;
+  status?: string;
+}
+
+export interface ProjectTaskItem {
+  id: string;
+  notionPageId?: string;
+  projectId: string;
+  projectName?: string;
+  title?: string;
+  owner?: string;
+  created?: string | null;
+  deadline?: string | null;
+  priority?: string;
+  status?: string;
+  notes?: string;
+  completed?: string | null;
+  dependsOn?: string[];
+  daysLeft?: number | null;
+  isOverdue?: boolean;
+}
+
+export interface ProjectRiskItem {
+  id: number;
+  projectId: string;
+  description?: string;
+  impact?: string;
+  mitigation?: string;
+}
+
+export interface ProjectTeamMemberItem {
+  id: number;
+  projectId: string;
+  name?: string;
+  role?: string;
+}
+
+export interface ProjectDodItem {
+  id: number;
+  projectId: string;
+  criteria?: string;
+  acceptance?: string;
+  uatTestCaseId?: string;
+  passed?: boolean;
+}
+
+export interface ProjectItem {
+  id: string;
+  notionPageId?: string;
+  name: string;
+  client?: string;
+  pm?: string;
+  status?: string;
+  product?: string;
+  valueRm?: number | null;
+  gate?: number | null;
+  gateStatus?: string;
+  startDate?: string | null;
+  targetEnd?: string | null;
+  actualEnd?: string | null;
+  charterLink?: string;
+  sowLink?: string;
+  raclLink?: string;
+  handoverStatus?: string;
+  goals: ProjectGoalItem[];
+  tasks: ProjectTaskItem[];
+  risks: ProjectRiskItem[];
+  teamMembers: ProjectTeamMemberItem[];
+  dodItems: ProjectDodItem[];
+}
+
+export interface ProjectStats {
+  projects: { total: number; active: number };
+  tasks: { total: number; completed: number; overdue: number };
+}

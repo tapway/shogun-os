@@ -438,3 +438,221 @@ class ScannedDocument(Base):
             "scan_date": self.scan_date.isoformat() if self.scan_date else None,
             "created_at": self.created_at.isoformat() if self.created_at else None,
         }
+
+
+# =============================================================================
+# Project Dashboard Models
+# =============================================================================
+
+class Project(Base):
+    """Project from the external project dashboard."""
+    
+    __tablename__ = "projects"
+    
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # PRJ-001
+    notion_page_id: Mapped[Optional[str]] = mapped_column(String(256), unique=True, nullable=True)
+    name: Mapped[str] = mapped_column(String(512), nullable=False)
+    client: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    pm: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    product: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    value_rm: Mapped[Optional[float]] = mapped_column(nullable=True)
+    gate: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    gate_status: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    start_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    target_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    actual_end: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    
+    # Gate documents
+    charter_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    sow_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    racl_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    handover_status: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+    
+    # Relationships
+    goals: Mapped[List["Goal"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    tasks: Mapped[List["Task"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    risks: Mapped[List["Risk"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    team_members: Mapped[List["TeamMember"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    dod_items: Mapped[List["DefinitionOfDone"]] = relationship(back_populates="project", cascade="all, delete-orphan")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "notionPageId": self.notion_page_id,
+            "name": self.name,
+            "client": self.client,
+            "pm": self.pm,
+            "status": self.status,
+            "product": self.product,
+            "valueRm": self.value_rm,
+            "gate": self.gate,
+            "gateStatus": self.gate_status,
+            "startDate": self.start_date.isoformat() if self.start_date else None,
+            "targetEnd": self.target_end.isoformat() if self.target_end else None,
+            "actualEnd": self.actual_end.isoformat() if self.actual_end else None,
+            "charterLink": self.charter_link,
+            "sowLink": self.sow_link,
+            "raclLink": self.racl_link,
+            "handoverStatus": self.handover_status,
+            "goals": [g.to_dict() for g in self.goals],
+            "tasks": [t.to_dict() for t in self.tasks],
+            "risks": [r.to_dict() for r in self.risks],
+            "teamMembers": [tm.to_dict() for tm in self.team_members],
+            "dodItems": [d.to_dict() for d in self.dod_items],
+        }
+
+
+class Goal(Base):
+    """Project goal."""
+    
+    __tablename__ = "goals"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    goal_ref: Mapped[str] = mapped_column(String(64), nullable=False)  # G1, G2, etc. (original ID)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    kpi: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    measure: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    
+    project: Mapped["Project"] = relationship(back_populates="goals")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": f"{self.project_id}-{self.goal_ref}",  # Return original composite ID
+            "goalRef": self.goal_ref,
+            "projectId": self.project_id,
+            "description": self.description,
+            "kpi": self.kpi,
+            "measure": self.measure,
+            "deadline": self.deadline.isoformat() if self.deadline else None,
+            "status": self.status,
+        }
+
+
+class Task(Base):
+    """Project task."""
+    
+    __tablename__ = "tasks"
+    
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # T-001, TASK-001
+    notion_page_id: Mapped[Optional[str]] = mapped_column(String(256), unique=True, nullable=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
+    project_name: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    owner: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    created: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    deadline: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    priority: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    completed: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    depends_on: Mapped[Optional[List[str]]] = mapped_column(JSON, nullable=True)
+    
+    project: Mapped["Project"] = relationship(back_populates="tasks")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        # Computed fields
+        days_left = None
+        is_overdue = False
+        if self.deadline:
+            days_left = (self.deadline.replace(tzinfo=None) - datetime.now()).days
+            is_overdue = days_left < 0 and self.status != "done"
+        
+        return {
+            "id": self.id,
+            "notionPageId": self.notion_page_id,
+            "projectId": self.project_id,
+            "projectName": self.project_name,
+            "title": self.title,
+            "owner": self.owner,
+            "created": self.created.isoformat() if self.created else None,
+            "deadline": self.deadline.isoformat() if self.deadline else None,
+            "priority": self.priority,
+            "status": self.status,
+            "notes": self.notes,
+            "completed": self.completed.isoformat() if self.completed else None,
+            "dependsOn": self.depends_on or [],
+            # Computed
+            "daysLeft": days_left,
+            "isOverdue": is_overdue,
+        }
+
+
+class Risk(Base):
+    """Project risk."""
+    
+    __tablename__ = "risks"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    impact: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    mitigation: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    
+    project: Mapped["Project"] = relationship(back_populates="risks")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "description": self.description,
+            "impact": self.impact,
+            "mitigation": self.mitigation,
+        }
+
+
+class TeamMember(Base):
+    """Project team member."""
+    
+    __tablename__ = "team_members"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
+    name: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    role: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    
+    project: Mapped["Project"] = relationship(back_populates="team_members")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "name": self.name,
+            "role": self.role,
+        }
+
+
+class DefinitionOfDone(Base):
+    """Project definition of done item."""
+    
+    __tablename__ = "definition_of_done"
+    
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
+    criteria: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    acceptance: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    uat_test_case_id: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    passed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    
+    project: Mapped["Project"] = relationship(back_populates="dod_items")
+    
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "projectId": self.project_id,
+            "criteria": self.criteria,
+            "acceptance": self.acceptance,
+            "uatTestCaseId": self.uat_test_case_id,
+            "passed": self.passed,
+        }
