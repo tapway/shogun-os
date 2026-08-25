@@ -755,6 +755,15 @@ export interface CrmCompanyItem {
   first_seen?: string;
 }
 
+export interface CrmPartnerItem {
+  slug: string;
+  title: string;
+  type?: string;
+  website?: string;
+  country?: string;
+  source?: string;
+}
+
 export interface CrmTaskItem {
   description: string;
   assignee: string;
@@ -767,7 +776,7 @@ export interface CrmSearchResult {
   slug: string;
   title: string;
   frontmatter: Record<string, unknown>;
-  category: 'companies' | 'deals' | 'unknown';
+  category: 'companies' | 'deals' | 'partners' | 'persons' | 'unknown';
 }
 
 export interface BevZone {

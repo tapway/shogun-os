@@ -9,6 +9,7 @@ import { CompaniesTab } from './CompaniesTab';
 import { TasksTab } from './TasksTab';
 import { SearchTab } from './SearchTab';
 import { BevZonesTab } from './BevZonesTab';
+import { PartnersTab } from './PartnersTab';
 
 const TABS: DashboardTab[] = [
   { id: 'overview', label: 'Overview', icon: 'LayoutDashboard' },
@@ -17,6 +18,7 @@ const TABS: DashboardTab[] = [
   { id: 'tasks', label: 'Tasks', icon: 'SquareCheckBig' },
   { id: 'search', label: 'Search', icon: 'Search' },
   { id: 'bev', label: 'BEV Zones', icon: 'Map' },
+  { id: 'partners', label: 'Partners', icon: 'Users' },
 ];
 
 interface CrmDashboardProps {
@@ -66,6 +68,7 @@ export function CrmDashboard({ department, color }: CrmDashboardProps) {
       {activeTab === 'tasks' && <TasksTab dept={department} color={color} />}
       {activeTab === 'search' && <SearchTab dept={department} color={color} />}
       {activeTab === 'bev' && <BevZonesTab dept={department} color={color} />}
+      {activeTab === 'partners' && <PartnersTab dept={department} color={color} />}
     </div>
   );
 }

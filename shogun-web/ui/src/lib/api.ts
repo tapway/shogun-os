@@ -22,6 +22,7 @@ import type {
   Connector,
   CreateStaffPayload,
   CrmCompanyItem,
+  CrmPartnerItem,
   CrmDealListItem,
   CrmSearchResult,
   CrmTaskItem,
@@ -357,6 +358,15 @@ export const departmentsApi = {
     const q = qs.toString();
     return apiFetch<{ companies: CrmCompanyItem[]; total: number }>(
       `/api/departments/${dept}/dashboard/companies${q ? `?${q}` : ''}`,
+    );
+  },
+
+  crmPartnersList: (dept: string, search = '') => {
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    const q = qs.toString();
+    return apiFetch<{ partners: CrmPartnerItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/partners${q ? `?${q}` : ''}`,
     );
   },
 

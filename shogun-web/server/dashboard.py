@@ -545,6 +545,7 @@ async def get_dashboard_config(
                 {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
                 {"id": "search", "label": "Search", "icon": "Search"},
                 {"id": "bev", "label": "BEV Zones", "icon": "Map"},
+                {"id": "partners", "label": "Partners", "icon": "Users"},
             ],
         },
         "finance": {
@@ -720,6 +721,41 @@ async def list_crm_companies(
     return {"companies": items, "total": len(items)}
 
 
+@router.get("/partners")
+async def list_crm_partners(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
+    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=1000, slug_prefix="partners/")
+
+    items = []
+    for p in pages:
+        if not isinstance(p, dict):
+            continue
+        if _is_meta_slug(str(p.get("slug", ""))):
+            continue
+        fm = _parse_frontmatter(p.get("frontmatter") or {})
+        items.append({
+            "slug": p.get("slug", ""),
+            "title": p.get("title", ""),
+            "type": fm.get("type", ""),
+            "website": fm.get("website", ""),
+            "country": fm.get("country", ""),
+            "source": fm.get("source", ""),
+        })
+
+    if search:
+        s = search.lower()
+        items = [c for c in items if s in c["title"].lower()]
+
+    items.sort(key=lambda c: c["title"].lower())
+
+    return {"partners": items, "total": len(items)}
+
+
 @router.get("/tasks")
 async def list_crm_tasks(
     name: str = Path(...),
@@ -790,6 +826,10 @@ async def crm_search(
                 row["category"] = "deals"
             elif slug.startswith("companies/"):
                 row["category"] = "companies"
+            elif slug.startswith("partners/"):
+                row["category"] = "partners"
+            elif slug.startswith("persons/"):
+                row["category"] = "persons"
             else:
                 row["category"] = "unknown"
         normalised.append(row)
