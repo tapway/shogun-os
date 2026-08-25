@@ -580,6 +580,21 @@ async def get_dashboard_config(
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
+        "hr": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "directory", "label": "Employee Directory", "icon": "Users"},
+                {"id": "openings", "label": "Job Openings", "icon": "Briefcase"},
+                {"id": "pipeline", "label": "Recruitment Pipeline", "icon": "GitBranch"},
+                {"id": "onboarding", "label": "Onboarding", "icon": "UserPlus"},
+                {"id": "leave", "label": "Leave Tracker", "icon": "Calendar"},
+                {"id": "performance", "label": "Performance Reviews", "icon": "TrendingUp"},
+                {"id": "equipment", "label": "Equipment Tracker", "icon": "Monitor"},
+                {"id": "training", "label": "Training & Development", "icon": "GraduationCap"},
+                {"id": "meetings", "label": "Meetings", "icon": "CalendarClock"},
+            ],
+        },
         "facility": {
             "enabled": True,
             "tabs": [
@@ -3258,3 +3273,99 @@ async def list_all_inspections(
     query = query.order_by(SiteInspection.inspection_date.desc())
     inspections = db.execute(query).scalars().all()
     return {"inspections": [i.to_dict() for i in inspections]}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# HR Dashboard — synced from Notion via scripts/sync-notion-hr.py
+# ──────────────────────────────────────────────────────────────────────────
+
+
+@router.get("/hr-stats")
+async def get_hr_stats(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated HR dashboard stats — all tabs.
+
+    Data is synced from Notion into SQLite by scripts/sync-notion-hr.py.
+    Formula fields (Deadline, Days Left, Overdue, Task Status, No. of Years)
+    are computed on read so they stay current.
+    """
+    from models import (
+        HrCandidate,
+        HrEmployee,
+        HrEquipment,
+        HrJobOpening,
+        HrMeeting,
+        HrMeetingActionItem,
+        HrMeetingAttendee,
+        HrOnboardingTask,
+        HrPerformanceReview,
+        HrTraining,
+        HrTrainer,
+    )
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    employees = db.execute(select(HrEmployee).where(HrEmployee.tenant_id == tenant.id)).scalars().all()
+    job_openings = db.execute(select(HrJobOpening).where(HrJobOpening.tenant_id == tenant.id)).scalars().all()
+    candidates = db.execute(select(HrCandidate).where(HrCandidate.tenant_id == tenant.id)).scalars().all()
+    onboarding = db.execute(select(HrOnboardingTask).where(HrOnboardingTask.tenant_id == tenant.id)).scalars().all()
+    reviews = db.execute(select(HrPerformanceReview).where(HrPerformanceReview.tenant_id == tenant.id)).scalars().all()
+    equipment = db.execute(select(HrEquipment).where(HrEquipment.tenant_id == tenant.id)).scalars().all()
+    trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
+    trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
+    meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
+    action_items = db.execute(select(HrMeetingActionItem).where(HrMeetingActionItem.tenant_id == tenant.id)).scalars().all()
+    attendees = db.execute(select(HrMeetingAttendee).where(HrMeetingAttendee.tenant_id == tenant.id)).scalars().all()
+
+    dept_counts: dict[str, int] = {}
+    for emp in employees:
+        dept = emp.department or "Unknown"
+        dept_counts[dept] = dept_counts.get(dept, 0) + 1
+
+    pipeline_counts: dict[str, int] = {}
+    for cand in candidates:
+        status = cand.status or "Unknown"
+        pipeline_counts[status] = pipeline_counts.get(status, 0) + 1
+
+    onboarding_in_progress = sum(1 for t in onboarding if t.status == "In progress")
+    onboarding_done = sum(1 for t in onboarding if t.status == "Done")
+    overdue_openings = sum(1 for j in job_openings if j.to_dict().get("overdue") == "Overdue")
+    training_total_charges = sum(t.training_charges or 0 for t in trainings)
+
+    open_action_items = sum(1 for a in action_items if a.status in ("Open", "In progress", "Not Started"))
+
+    return {
+        "total_employees": len(employees),
+        "total_job_openings": len(job_openings),
+        "overdue_openings": overdue_openings,
+        "total_candidates": len(candidates),
+        "pipeline_counts": pipeline_counts,
+        "onboarding_in_progress": onboarding_in_progress,
+        "onboarding_done": onboarding_done,
+        "total_reviews": len(reviews),
+        "total_equipment": len(equipment),
+        "equipment_overdue": sum(1 for e in equipment if e.to_dict().get("is_overdue")),
+        "total_trainings": len(trainings),
+        "total_trainers": len(trainers),
+        "training_total_charges": training_total_charges,
+        "total_meetings": len(meetings),
+        "open_action_items": open_action_items,
+        "dept_counts": dept_counts,
+        "employees": [e.to_dict() for e in employees],
+        "job_openings": [j.to_dict() for j in job_openings],
+        "candidates": [c.to_dict() for c in candidates],
+        "onboarding_tasks": [t.to_dict() for t in onboarding],
+        "performance_reviews": [r.to_dict() for r in reviews],
+        "equipment": [e.to_dict() for e in equipment],
+        "trainings": [t.to_dict() for t in trainings],
+        "trainers": [t.to_dict() for t in trainers],
+        "meetings": [m.to_dict() for m in meetings],
+        "meeting_action_items": [a.to_dict() for a in action_items],
+        "meeting_attendees": [a.to_dict() for a in attendees],
+        "source": "notion_sync",
+    }
