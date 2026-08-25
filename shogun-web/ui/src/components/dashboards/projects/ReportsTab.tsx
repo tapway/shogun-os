@@ -43,7 +43,9 @@ function healthChipClass(health?: string): string {
 }
 
 function toChartData(record: Record<string, number>): { name: string; value: number }[] {
-  return Object.entries(record).map(([name, value]) => ({ name, value }));
+  return Object.entries(record)
+    .map(([name, value]) => ({ name, value }))
+    .sort((a, b) => b.value - a.value); // descending, top to bottom
 }
 
 export function ReportsTab({ dept, color, onOpenProject }: Props) {
