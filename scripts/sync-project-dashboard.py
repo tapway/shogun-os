@@ -118,18 +118,27 @@ def sync_goals(db, project: Project, goals_data: List[Dict[str, Any]]) -> None:
 
 
 def sync_tasks(db, project: Project, tasks_data: List[Dict[str, Any]]) -> None:
-    """Upsert project tasks (keyed by task id)."""
-    new_ids = {generate_task_id(t, i) for i, t in enumerate(tasks_data)}
+    """Upsert project tasks (keyed by project_id + task ref).
+
+    Source refs (TASK-001, T-001, …) are only unique within a project, so
+    lookups use the composite (project_id, task_ref) key — same as goals.
+    """
+    from sqlalchemy import select
+
+    new_refs = {generate_task_id(t, i) for i, t in enumerate(tasks_data)}
     for task in list(project.tasks):
-        if task.id not in new_ids:
+        if task.task_ref not in new_refs:
             db.delete(task)
 
     for idx, task_data in enumerate(tasks_data):
-        task_id = generate_task_id(task_data, idx)
-        task = db.get(Task, task_id)
+        task_ref = generate_task_id(task_data, idx)
+        task = db.execute(
+            select(Task).where(Task.project_id == project.id).where(Task.task_ref == task_ref)
+        ).scalar_one_or_none()
         if not task:
-            task = Task(id=task_id, project_id=project.id)
+            task = Task(task_ref=task_ref, project_id=project.id)
             db.add(task)
+        task.task_ref = task_ref
         task.notion_page_id = task_data.get("notionPageId")
         task.project_id = project.id
         task.project_name = project.name
@@ -249,15 +258,21 @@ def main() -> int:
 
     logger.info("Fetched %d projects, %d tasks", len(projects_data), len(tasks_data))
 
-    # Attach tasks to their projects
+    # Normalize tasks: the source returns either flat task dicts or
+    # {projectId, projectName, task: {...}} wrapper rows. Unwrap and attach
+    # them to their projects (nested tasks from /api/projects take precedence).
     tasks_by_project: Dict[str, List[Dict[str, Any]]] = {}
-    for task in tasks_data:
-        proj_id = task.get("projectId") or task.get("project")
+    for row in tasks_data:
+        inner = row.get("task")
+        task_obj = dict(inner) if isinstance(inner, dict) else dict(row)
+        proj_id = row.get("projectId") or row.get("project") or task_obj.get("projectId")
         if proj_id:
-            tasks_by_project.setdefault(proj_id, []).append(task)
+            task_obj.setdefault("projectId", proj_id)
+            task_obj.setdefault("projectName", row.get("projectName"))
+            tasks_by_project.setdefault(proj_id, []).append(task_obj)
     for proj in projects_data:
         proj_id = proj.get("id")
-        if proj_id and proj_id in tasks_by_project:
+        if proj_id and proj_id in tasks_by_project and not proj.get("tasks"):
             proj["tasks"] = tasks_by_project[proj_id]
 
     try:

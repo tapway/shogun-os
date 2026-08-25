@@ -46,8 +46,8 @@ def _make_project(pid="PRJ-001", name="Test Project", status="active", pm="syazw
     return Project(id=pid, name=name, status=status, pm=pm, gate=gate)
 
 
-def _make_task(tid="T-001", pid="PRJ-001", title="Ship feature", status="todo", priority="HIGH"):
-    return Task(id=tid, project_id=pid, title=title, status=status, priority=priority)
+def _make_task(ref="T-001", pid="PRJ-001", title="Ship feature", status="todo", priority="HIGH"):
+    return Task(task_ref=ref, project_id=pid, title=title, status=status, priority=priority)
 
 
 # ─── List projects ───────────────────────────────────────────────────────
@@ -98,7 +98,9 @@ def test_list_tasks_returns_tasks():
     db.execute.return_value = _Result([_make_task(), _make_task("T-002")])
     result = asyncio.run(dashboard.list_project_dashboard_tasks(user=_make_user(), db=db))
     assert len(result["tasks"]) == 2
-    assert result["tasks"][0]["id"] == "T-001"
+    # Composite id: <projectId>-<taskRef>
+    assert result["tasks"][0]["id"] == "PRJ-001-T-001"
+    assert result["tasks"][0]["taskRef"] == "T-001"
     assert result["tasks"][0]["projectId"] == "PRJ-001"
 
 

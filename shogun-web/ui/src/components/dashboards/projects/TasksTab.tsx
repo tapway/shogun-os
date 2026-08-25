@@ -190,7 +190,7 @@ export function TasksTab({ dept, color, onOpenProject }: Props) {
                   >
                     <td className="px-3 py-2.5 max-w-[280px]" style={{ color: TEXT }}>
                       <div className="truncate" title={task.title}>{task.title || '—'}</div>
-                      <div style={{ fontSize: '0.68rem', color: MUTED, fontFamily: 'var(--font-mono, monospace)' }}>{task.id}</div>
+                      <div style={{ fontSize: '0.68rem', color: MUTED, fontFamily: 'var(--font-mono, monospace)' }}>{task.taskRef || task.id}</div>
                     </td>
                     <td className="px-3 py-2.5 max-w-[180px] truncate" style={{ color: MUTED }}>{task.projectName || task.projectId}</td>
                     <td className="px-3 py-2.5" style={{ color: MUTED }}>{task.owner || '—'}</td>

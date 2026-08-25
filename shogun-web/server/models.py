@@ -541,11 +541,18 @@ class Goal(Base):
 
 
 class Task(Base):
-    """Project task."""
+    """Project task.
+
+    Source task refs (TASK-001, T-001, …) are only unique *within* a project,
+    so the primary key is synthetic and uniqueness is on (project_id, task_ref)
+    — same pattern as Goal.
+    """
     
     __tablename__ = "tasks"
+    __table_args__ = (UniqueConstraint("project_id", "task_ref", name="uq_tasks_project_ref"),)
     
-    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # T-001, TASK-001
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    task_ref: Mapped[str] = mapped_column(String(64), nullable=False)  # original ref: TASK-001 / T-001
     notion_page_id: Mapped[Optional[str]] = mapped_column(String(256), unique=True, nullable=True)
     project_id: Mapped[str] = mapped_column(String(64), ForeignKey("projects.id"), nullable=False)
     project_name: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
@@ -570,7 +577,8 @@ class Task(Base):
             is_overdue = days_left < 0 and self.status != "done"
         
         return {
-            "id": self.id,
+            "id": f"{self.project_id}-{self.task_ref}",  # globally unique composite id
+            "taskRef": self.task_ref,
             "notionPageId": self.notion_page_id,
             "projectId": self.project_id,
             "projectName": self.project_name,

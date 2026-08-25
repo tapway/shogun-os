@@ -1315,6 +1315,7 @@ export interface ProjectGoalItem {
 
 export interface ProjectTaskItem {
   id: string;
+  taskRef?: string;
   notionPageId?: string;
   projectId: string;
   projectName?: string;
