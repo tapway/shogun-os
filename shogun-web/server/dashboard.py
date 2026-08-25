@@ -703,7 +703,7 @@ async def list_crm_companies(
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
             "slug": p.get("slug", ""),
-            "title": p.get("title", ""),
+            "title": p.get("title") or "",
             "industry": fm.get("industry", ""),
             "website": fm.get("website", ""),
             "source": fm.get("source", ""),
@@ -740,7 +740,7 @@ async def list_crm_partners(
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
             "slug": p.get("slug", ""),
-            "title": p.get("title", ""),
+            "title": p.get("title") or "",
             "type": fm.get("type", ""),
             "website": fm.get("website", ""),
             "country": fm.get("country", ""),
@@ -772,7 +772,7 @@ async def list_crm_tasks(
     fm = _parse_frontmatter(index.get("frontmatter") or {})
     tasks_raw = fm.get("tasks")
     if not isinstance(tasks_raw, list):
-        # Fallback: parse from body if frontmatter holds no task list.
+        # No task list in frontmatter — nothing to list (empty state).
         tasks_raw = []
 
     tasks: List[dict] = []
