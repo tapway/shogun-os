@@ -1298,3 +1298,188 @@ export interface ProcurementDashboardStats {
   // Tab 9 — 3-Way Match Verification
   threeWayMatches?: ThreeWayMatchItem[];
 }
+
+// ─── HR Dashboard Types (synced from Notion via scripts/sync-notion-hr.py) ───
+
+export interface HrEmployee {
+  id: number;
+  notion_page_id: string;
+  employees_name: string;
+  department: string;
+  role: string;
+  manager_name: string;
+  date_of_hire: string;
+  phone_number: string;
+  linkedin_profile: string;
+  profile_picture_path: string;
+  employee_file_path: string;
+  q1: string;
+  q2: string;
+  q3: string;
+  q4: string;
+  leave_taken: string;
+  no_of_years?: number;
+}
+
+export interface HrJobOpening {
+  id: number;
+  notion_page_id: string;
+  job_title: string;
+  job_status: string;
+  department: string;
+  employment_type: string;
+  experience: string;
+  budget_max?: number;
+  hiring_manager: string;
+  application_start: string;
+  job_description: string;
+  deadline?: string;
+  days_left?: number;
+  overdue?: string;
+}
+
+export interface HrCandidate {
+  id: number;
+  notion_page_id: string;
+  name: string;
+  email: string;
+  phone_no: string;
+  role: string;
+  status: string;
+  source: string;
+  resume_url: string;
+  screening_answers_url: string;
+  candidate_type: string;
+  date_entry: string;
+  last_edited: string;
+}
+
+export interface HrOnboardingTask {
+  id: number;
+  notion_page_id: string;
+  staff_name: string;
+  department: string;
+  start_date: string;
+  end_date: string;
+  status: string;
+  task_status: string;
+  days?: number;
+  assigned_to: string;
+}
+
+export interface HrPerformanceReview {
+  id: number;
+  notion_page_id: string;
+  quarterly_performance: string;
+  employee_name: string;
+  department: string;
+  performance_rating: string;
+  performance_level: string;
+  manager_name: string;
+  review_date: string;
+  areas_of_improvement: string;
+  action_items: string;
+  attachments_path: string;
+}
+
+export interface HrEquipment {
+  id: number;
+  notion_page_id: string;
+  equipment_name: string;
+  category: string;
+  condition: string;
+  assigned_to: string;
+  purchase_date: string;
+  return_due_date: string;
+  loan_document_path: string;
+  is_overdue?: boolean;
+}
+
+export interface HrTraining {
+  id: number;
+  notion_page_id: string;
+  training_name: string;
+  staff_name: string;
+  trainer_name: string;
+  training_format: string;
+  start_date: string;
+  end_date: string;
+  training_charges?: number;
+  exam_included: boolean;
+  bond_agreement: boolean;
+  feedback_form_url: string;
+}
+
+export interface HrTrainer {
+  id: number;
+  notion_page_id: string;
+  name: string;
+  specialization: string;
+  contact_email: string;
+  phone_number: string;
+  trainer_pic: string;
+  trainer_quotation_path: string;
+}
+
+export interface HrMeeting {
+  id: number;
+  notion_page_id: string;
+  meeting_title: string;
+  meeting_organizer: string;
+  meeting_duration?: number;
+  meeting_date: string;
+  follow_up_date: string;
+  meeting_status: string;
+  meeting_type: string;
+}
+
+export interface HrMeetingActionItem {
+  id: number;
+  notion_page_id: string;
+  action_description: string;
+  action_id: string;
+  action_owner: string;
+  due_date: string;
+  status: string;
+  action_feedback: string;
+}
+
+export interface HrMeetingAttendee {
+  id: number;
+  notion_page_id: string;
+  name: string;
+  email: string;
+  department: string;
+  status: string;
+}
+
+export interface HrDashboardStats {
+  total_employees: number;
+  total_job_openings: number;
+  overdue_openings: number;
+  total_candidates: number;
+  pipeline_counts: Record<string, number>;
+  onboarding_in_progress: number;
+  onboarding_done: number;
+  total_reviews: number;
+  total_equipment: number;
+  equipment_overdue: number;
+  total_trainings: number;
+  total_trainers: number;
+  training_total_charges: number;
+  total_meetings: number;
+  open_action_items: number;
+  dept_counts: Record<string, number>;
+  employees: HrEmployee[];
+  job_openings: HrJobOpening[];
+  candidates: HrCandidate[];
+  onboarding_tasks: HrOnboardingTask[];
+  performance_reviews: HrPerformanceReview[];
+  equipment: HrEquipment[];
+  trainings: HrTraining[];
+  trainers: HrTrainer[];
+  meetings: HrMeeting[];
+  meeting_action_items: HrMeetingActionItem[];
+  meeting_attendees: HrMeetingAttendee[];
+  source?: string;
+}

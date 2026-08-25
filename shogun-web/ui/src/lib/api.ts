@@ -32,6 +32,7 @@ import type {
   EmailDraft,
   EmailTemplate,
   FinanceDashboardStats,
+  HrDashboardStats,
   GeneratedSkill,
   LoginPayload,
   OnboardingState,
@@ -804,4 +805,8 @@ export const emailTemplatesApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+};
+export const hrApi = {
+  stats: (dept: string) =>
+    apiFetch<HrDashboardStats>(`/api/departments/${dept}/dashboard/hr-stats`),
 };
