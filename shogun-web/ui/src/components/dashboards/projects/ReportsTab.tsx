@@ -1,5 +1,6 @@
 import { useQuery } from '@tanstack/react-query';
 import { departmentsApi } from '../../../lib/api';
+import { chartColors } from '../../../lib/palette';
 import { BarChart, PieChart } from '../charts';
 
 interface Props {
@@ -46,6 +47,38 @@ function toChartData(record: Record<string, number>): { name: string; value: num
   return Object.entries(record)
     .map(([name, value]) => ({ name, value }))
     .sort((a, b) => b.value - a.value); // descending, top to bottom
+}
+
+/** Shorten messy source labels (e.g. "closing — UAT & DO sent to client…") for display. */
+function shortLabel(name: string, max = 24): string {
+  const base = name.split('\u2014')[0].trim();
+  return base.length > max ? `${base.slice(0, max - 1)}\u2026` : base;
+}
+
+/** Donut + wrapping HTML legend (sorted descending). The built-in Recharts
+ *  legend overflows the fixed-height chart container, so labels render as a
+ *  normal flex-wrap block below the donut instead. */
+function DonutWithLegend({ data, color }: { data: { name: string; value: number }[]; color: string }) {
+  const palette = chartColors(color, data.length);
+  if (data.length === 0) {
+    return <div style={{ padding: '24px 0', textAlign: 'center', fontSize: '0.8rem', color: MUTED }}>No data.</div>;
+  }
+  return (
+    <div>
+      <PieChart data={data} color={color} height={190} innerRadius={42} outerRadius={66} showLegend={false} />
+      <div className="flex flex-wrap gap-x-4 gap-y-1.5" style={{ marginTop: '0.75rem' }}>
+        {data.map((d, i) => (
+          <div key={d.name} className="flex items-center gap-1.5" style={{ fontSize: '0.72rem' }} title={d.name}>
+            <span className="inline-block h-2.5 w-2.5 rounded-sm" style={{ background: palette[i % palette.length], flexShrink: 0 }} />
+            <span style={{ color: TEXT, maxWidth: '150px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+              {shortLabel(d.name)}
+            </span>
+            <span style={{ color: MUTED }}>{d.value}</span>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 export function ReportsTab({ dept, color, onOpenProject }: Props) {
@@ -100,11 +133,11 @@ export function ReportsTab({ dept, color, onOpenProject }: Props) {
       <div className="grid gap-4 lg:grid-cols-3">
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Portfolio Health</h3>
-          <PieChart data={toChartData(projectsByHealth)} color={color} height={240} />
+          <DonutWithLegend data={toChartData(projectsByHealth)} color={color} />
         </div>
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Projects by Status</h3>
-          <PieChart data={toChartData(projectsByStatus)} color={color} height={240} />
+          <DonutWithLegend data={toChartData(projectsByStatus)} color={color} />
         </div>
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Projects per PM</h3>
