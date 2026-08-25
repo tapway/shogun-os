@@ -594,21 +594,13 @@ async def get_dashboard_config(
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
 
 
-# ─── CRM list/search endpoints (live data from external CRM API) ───
+# ─── CRM list/search endpoints (live data direct from the brain) ───
 
-# The CRM data lives on an external CRM server.
-# Set CRM_API_URL in .env to point to your CRM's JSON API.
-# When unset, the CRM list/search endpoints return empty lists (no data leakage).
-CRM_API_URL = os.environ.get("CRM_API_URL", "")
-CRM_API_TOKEN = os.environ.get("CRM_API_TOKEN", "")
+# CRM data lives in the brain under source ``crm``. Deals are pages with
+# slug prefix ``deals/``, companies are ``companies/``, and tasks are held in
+# a single index page ``crm/tasks-index`` (tasks are not first-class pages).
 
-
-def _crm_headers() -> dict[str, str]:
-    """Build headers for external CRM API calls, with optional auth token."""
-    h: dict[str, str] = {"Accept": "application/json"}
-    if CRM_API_TOKEN:
-        h["Authorization"] = f"Bearer {CRM_API_TOKEN}"
-    return h
+CRM_SOURCE = "crm"
 
 
 from auth import require_admin  # noqa: E402 — admin guard for BEV zone CRUD
@@ -622,50 +614,11 @@ async def get_crm_ceo_stats(
 ) -> dict:
     """Aggregated CEO dashboard stats for CRM.
 
-    Tries gbrain first; falls back to external CRM API when gbrain
-    has no CRM data (e.g. local PGLite with empty crm source).
+    Reads CRM pages directly from the brain (source ``crm``) via gbrain.
+    Returns empty state when the brain has no CRM pages yet.
     """
-    pages = await gbrain_fetch_pages("crm", limit=200)
-    if pages:
-        return _run_ceo_aggregation(pages)
-
-    # Fallback: aggregate from external CRM API (if configured).
-    # External API deals have frontmatter as a dict but lack compiled_truth;
-    # wrap each deal into a page-like shape so _run_ceo_aggregation can read
-    # them the same way it reads gbrain pages.
-    if CRM_API_URL:
-        logger.info("gbrain has no CRM pages — aggregating from external CRM API")
-        try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
-                if resp.status_code == 200:
-                    api_deals = resp.json().get("deals", [])
-                    if api_deals:
-                        # Normalise into the page-like shape _run_ceo_aggregation expects:
-                        # {slug, title, frontmatter (dict), compiled_truth (str)}
-                        wrapped = [
-                            {
-                                "slug": d.get("slug", ""),
-                                "title": d.get("title", ""),
-                                "frontmatter": _parse_frontmatter(d.get("frontmatter", {})),
-                                "compiled_truth": "",
-                            }
-                            for d in api_deals
-                            if isinstance(d, dict)
-                        ]
-                        try:
-                            return _run_ceo_aggregation(wrapped)
-                        except Exception as agg_exc:
-                            logger.warning(
-                                "CEO aggregation from external API failed: %s", agg_exc
-                            )
-        except httpx.HTTPError as exc:
-            logger.warning("External CRM API fallback for ceo-stats failed: %s", exc)
-
-    # No data at all — return empty state
-    return _run_ceo_aggregation([])
-
-
+    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=2000)
+    return _run_ceo_aggregation(pages)
 
 
 def _extract_deal_list_item(page: dict) -> dict:
@@ -687,6 +640,18 @@ def _extract_deal_list_item(page: dict) -> dict:
     }
 
 
+# Slug metadata to exclude from listings (scaffolding / meta pages).
+_SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
+_SLUG_PREFIX_EXCLUDES = ("templates/",)
+
+
+def _is_meta_slug(slug: str) -> bool:
+    last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+    if last_segment in _SLUG_SEGMENT_EXCLUDES:
+        return True
+    return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
+
+
 @router.get("/deals")
 async def list_crm_deals(
     name: str = Path(...),
@@ -696,38 +661,10 @@ async def list_crm_deals(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM deals from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"deals": [], "total": 0}
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /deals returned %s", resp.status_code)
-                return {"deals": [], "total": 0}
-            payload = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM deals fetch error: %s", exc)
-        return {"deals": [], "total": 0}
+    """List CRM deals direct from the brain (source ``crm``, slug ``deals/*``)."""
+    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=2000, slug_prefix="deals/")
 
-    raw_deals = payload.get("deals", [])
-
-    # Filter out scaffolding/meta slugs.
-    # Use path-segment checks so "readme" only excludes a slug whose *last segment*
-    # is exactly "readme" (e.g. deals/readme), not legitimate deals like
-    # deals/readme-followup.  Other markers (templates/, _schema, etc.) are
-    # unambiguous directory prefixes so a substring check is fine there.
-    _SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
-    _SLUG_PREFIX_EXCLUDES = ("templates/",)
-
-    def _is_meta_slug(slug: str) -> bool:
-        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
-        if last_segment in _SLUG_SEGMENT_EXCLUDES:
-            return True
-        return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
-
-    deals = [p for p in raw_deals if not _is_meta_slug(str(p.get("slug", "")))]
-
+    deals = [p for p in pages if not _is_meta_slug(str(p.get("slug", "")))]
     items = [_extract_deal_list_item(p) for p in deals]
 
     if search:
@@ -740,7 +677,7 @@ async def list_crm_deals(
         items = [d for d in items if d.get("owner", "") == co]
 
     # Sort by created date descending (most recent first)
-    items.sort(key=lambda d: d.get("created", ""), reverse=True)
+    items.sort(key=lambda d: d.get("created") or "", reverse=True)
 
     return {"deals": items, "total": len(items)}
 
@@ -753,41 +690,14 @@ async def list_crm_companies(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM companies from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"companies": [], "total": 0}
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/companies", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /companies returned %s", resp.status_code)
-                return {"companies": [], "total": 0}
-            companies = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM companies fetch error: %s", exc)
-        return {"companies": [], "total": 0}
-
-    if not isinstance(companies, list):
-        logger.warning("CRM API /companies returned non-list: %s", type(companies).__name__)
-        return {"companies": [], "total": 0}
-
-    # The API returns [{slug, title}, ...] — frontmatter may be absent.
-    # industry/website/first_seen populate from frontmatter when present.
-    # Exclude scaffolding/meta slugs (same logic as list_crm_deals).
-    _COMPANY_SEGMENT_EXCLUDES = {"readme", "_schema"}
-    _COMPANY_PREFIX_EXCLUDES = ("templates/",)
-
-    def _is_meta_company_slug(slug: str) -> bool:
-        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
-        if last_segment in _COMPANY_SEGMENT_EXCLUDES:
-            return True
-        return any(slug.startswith(pfx) for pfx in _COMPANY_PREFIX_EXCLUDES)
+    """List CRM companies direct from the brain (source ``crm``, slug ``companies/*``)."""
+    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=10000, slug_prefix="companies/")
 
     items = []
-    for p in companies:
+    for p in pages:
         if not isinstance(p, dict):
             continue
-        if _is_meta_company_slug(str(p.get("slug", ""))):
+        if _is_meta_slug(str(p.get("slug", ""))):
             continue
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
@@ -818,21 +728,17 @@ async def list_crm_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM tasks from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"tasks": [], "total": 0}
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/tasks", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /tasks returned %s", resp.status_code)
-                return {"tasks": [], "total": 0}
-            tasks_raw = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM tasks fetch error: %s", exc)
+    """List CRM tasks direct from the brain (``crm/tasks-index`` page)."""
+    index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
+    if not index:
         return {"tasks": [], "total": 0}
 
-    # Normalize to CrmTaskItem contract
+    fm = _parse_frontmatter(index.get("frontmatter") or {})
+    tasks_raw = fm.get("tasks")
+    if not isinstance(tasks_raw, list):
+        # Fallback: parse from body if frontmatter holds no task list.
+        tasks_raw = []
+
     tasks: List[dict] = []
     for t in tasks_raw:
         if not isinstance(t, dict):
@@ -865,38 +771,18 @@ async def crm_search(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Global search across external CRM pages (live)."""
+    """Global search across CRM pages direct from the brain (source ``crm``)."""
     query = body.query.strip()
-    if not query or not CRM_API_URL:
+    if not query:
         return {"results": []}
 
-    try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{CRM_API_URL}/search",
-                json={"query": query},
-                headers=_crm_headers(),
-            )
-            if resp.status_code >= 400:
-                logger.warning("CRM API /search returned %s", resp.status_code)
-                return {"results": []}
-            payload = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM search error: %s", exc)
-        return {"results": []}
+    raw = await gbrain_search(CRM_SOURCE, query, limit=20)
 
-    results = payload.get("results", [])
-    if not isinstance(results, list):
-        return {"results": []}
-
-    # Copy each result dict before mutating so we don't modify the payload in place.
-    # Also infer `category` from the slug prefix when the API doesn't supply it,
-    # so the frontend SearchTab category chips always have a value to filter on.
     normalised: list[dict] = []
-    for r in results:
+    for r in raw:
         if not isinstance(r, dict):
             continue
-        row = copy.deepcopy(r)  # deep copy — frontmatter is a nested dict; shallow copy still shares it
+        row = copy.deepcopy(r)
         row["frontmatter"] = _parse_frontmatter(row.get("frontmatter"))
         if not row.get("category"):
             slug = str(row.get("slug", ""))

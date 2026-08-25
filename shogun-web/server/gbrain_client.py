@@ -16,6 +16,7 @@ import re
 from typing import Any, Dict, List, Optional
 
 import httpx
+import yaml
 from config import get_config
 
 logger = logging.getLogger(__name__)
@@ -142,12 +143,19 @@ async def gbrain_fetch_pages(
 ) -> List[dict[str, Any]]:
     """Fetch pages from gbrain for a given source, optionally filtered by slug prefix.
 
-    Uses MCP list_pages tool. Falls back to reading markdown files from
-    ~/brain/{source}/ when gbrain HTTP server is unreachable.
+    Prefers the filesystem (~/brain/{source}/*.md) first — it is unbounded and
+    carries full frontmatter + body, whereas the MCP ``list_pages`` op returns
+    at most 100 metadata-only rows (slug/type/title/updated_at). Falls back to
+    MCP when no markdown files exist locally.
     """
-    # Try MCP first
+    # Filesystem first: authoritative, unbounded, full content.
+    fs_pages = _filesystem_fallback(source, slug_prefix)
+    if fs_pages:
+        return fs_pages[:limit] if limit and limit > 0 else fs_pages
+
+    # Fallback: MCP list_pages (capped server-side at 100, metadata-only).
     result = await _mcp_call("list_pages", {
-        "limit": min(limit, 500),
+        "limit": min(limit, 100) if limit else 100,
         "sort": "created_desc",
     }, source_id=source)
 
@@ -157,34 +165,52 @@ async def gbrain_fetch_pages(
     elif isinstance(result, dict):
         pages = result.get("pages") or result.get("data") or result.get("results") or []
 
-    # Enrich: for each page, fetch full content via get_page
     if pages and slug_prefix:
         pages = [p for p in pages if str(p.get("slug", "")).startswith(slug_prefix)]
 
-    # If we got pages but they lack compiled_truth, fetch full content.
-    # Cap enrichment to first 50 pages to avoid N+1 request explosion.
-    if pages and not any(p.get("compiled_truth") for p in pages):
-        enriched = []
-        for p in pages[:min(limit, 50)]:
-            slug = p.get("slug", "")
-            if not slug:
-                enriched.append(p)
-                continue
-            full = await gbrain_fetch_page(source, slug)
-            if full:
-                enriched.append(full)
-            else:
-                enriched.append(p)
-        pages = enriched
-
-    # Filesystem fallback when gbrain returns nothing or is unreachable
-    if not pages:
-        pages = _filesystem_fallback(source, slug_prefix)
-
-    if slug_prefix:
-        pages = [p for p in pages if str(p.get("slug", "")).startswith(slug_prefix)]
+    # list_pages returns metadata only — enrich full content via get_page.
+    # Cap to 50 to avoid an N+1 request explosion.
+    enriched = []
+    for p in pages[:min(len(pages), 50)]:
+        slug = p.get("slug", "")
+        if not slug:
+            enriched.append(p)
+            continue
+        full = await gbrain_fetch_page(source, slug)
+        enriched.append(full if full else p)
+    pages = enriched
 
     return pages
+
+
+async def gbrain_put_page(
+    source: str,
+    slug: str,
+    *,
+    frontmatter: Optional[dict] = None,
+    body: str = "",
+    allow_empty: bool = False,
+) -> Optional[dict[str, Any]]:
+    """Write/update a single page in gbrain via MCP ``put_page``.
+
+    gbrain stores a page as full markdown ``content`` with a YAML frontmatter
+    block. We serialise the frontmatter dict to YAML and concatenate the body.
+
+    Note on source scoping: ``put_page`` has NO per-call ``source_id`` — the
+    write target source is server-side (bound to the OAuth client at
+    registration). We still accept ``source`` for caller symmetry and use it
+    only when the server accepts an explicit ``source_id`` override.
+    """
+    fm = frontmatter or {}
+    yaml_block = yaml.safe_dump(fm, allow_unicode=True, sort_keys=False).strip()
+    if yaml_block in ("{}", ""):
+        content = body
+    else:
+        content = f"---\n{yaml_block}\n---\n\n{body}"
+
+    arguments: dict = {"slug": slug, "content": content, "allow_empty": allow_empty}
+    # put_page has no source_id param in v0.42; source is server-scoped.
+    return await _mcp_call("put_page", arguments)
 
 
 async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
