@@ -1374,6 +1374,15 @@ export interface ProjectItem {
   sowLink?: string;
   raclLink?: string;
   handoverStatus?: string;
+  overallHealth?: string;
+  budgetStatus?: string;
+  scope?: string;
+  fde?: string;
+  dir?: string;
+  charterStatus?: string;
+  sourceLastUpdated?: string | null;
+  decisions?: Array<{ date?: string; decision?: string; rationale?: string; madeBy?: string }>;
+  orgChart?: Array<{ role?: string; name?: string; organization?: string; contact?: string; responsibilities?: string }>;
   goals: ProjectGoalItem[];
   tasks: ProjectTaskItem[];
   risks: ProjectRiskItem[];
@@ -1384,4 +1393,92 @@ export interface ProjectItem {
 export interface ProjectStats {
   projects: { total: number; active: number };
   tasks: { total: number; completed: number; overdue: number };
+}
+
+// ─── Support Tickets & Reports (external tracker sections) ───
+
+export interface SupportTimelineEntry {
+  dateTime?: string;
+  action?: string;
+  by?: string;
+}
+
+export interface SupportTicketTask {
+  num?: number;
+  task?: string;
+  assignedTo?: string;
+  due?: string;
+  status?: string;
+}
+
+export interface SupportTicketItem {
+  id: string;
+  title?: string;
+  customer?: string;
+  customerSlug?: string;
+  linkedProject?: string;
+  reporter?: string;
+  opened?: string | null;
+  targetResolve?: string | null;
+  priority?: string;
+  priorityLabel?: string;
+  category?: string;
+  tier?: string;
+  assignedTo?: string;
+  status?: string;
+  lastUpdated?: string | null;
+  source?: string;
+  description?: string;
+  context?: string;
+  timeline: SupportTimelineEntry[];
+  ticketTasks: SupportTicketTask[];
+  resolutionNotes?: string;
+  resolvedBy?: string;
+  resolvedDate?: string | null;
+  rootCause?: string;
+  preventive?: string;
+  newReply?: boolean;
+}
+
+export interface SupportStats {
+  totals: { tickets: number; open: number; closedOrResolved: number; newReplies: number };
+  byStatus: Record<string, number>;
+  byPriority: Record<string, number>;
+  topCustomers: Record<string, number>;
+}
+
+export interface ReportProjectRow {
+  id: string;
+  name: string;
+  client?: string;
+  pm?: string;
+  status?: string;
+  overallHealth?: string;
+  budgetStatus?: string;
+  gate?: number | null;
+  valueRm?: number | null;
+  targetEnd?: string | null;
+  sourceLastUpdated?: string | null;
+  totalTasks: number;
+  openTasks: number;
+  overdueTasks: number;
+  completionPct: number;
+}
+
+export interface ReportsSummary {
+  totals: {
+    projects: number;
+    activeProjects: number;
+    totalValueRm: number;
+    tasks: number;
+    openTasks: number;
+    overdueTasks: number;
+  };
+  projectsByStatus: Record<string, number>;
+  projectsByHealth: Record<string, number>;
+  projectsByGate: Record<string, number>;
+  projectsByBudgetStatus: Record<string, number>;
+  projectsByPm: Record<string, number>;
+  openTasksByPriority: Record<string, number>;
+  projects: ReportProjectRow[];
 }

@@ -594,7 +594,11 @@ async def get_dashboard_config(
             "tabs": [
                 {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
                 {"id": "projects", "label": "Projects", "icon": "Kanban"},
+                {"id": "active", "label": "Active", "icon": "Activity"},
                 {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
+                {"id": "plan", "label": "Plan", "icon": "CalendarClock"},
+                {"id": "reports", "label": "Reports", "icon": "BarChart3"},
+                {"id": "support", "label": "Support", "icon": "LifeBuoy"},
             ],
         },
     }
@@ -3371,6 +3375,173 @@ async def list_project_dashboard_tasks(
 
     tasks = db.execute(query).scalars().all()
     return {"tasks": [t.to_dict() for t in tasks]}
+
+
+@router.get("/projects/active", tags=["projects"])
+async def list_active_projects(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List active projects (status starts with 'active')."""
+    from models import Project
+
+    projects = db.execute(
+        select(Project).where(Project.status.like("active%"))
+    ).scalars().all()
+    return {"projects": [p.to_dict() for p in projects]}
+
+
+@router.get("/tasks/plan", tags=["projects"])
+async def list_planned_tasks(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Plan view: open tasks with deadlines, soonest first (source /tasks/plan)."""
+    from models import Task
+
+    tasks = db.execute(
+        select(Task)
+        .where(Task.status.in_(["todo", "in-progress"]))
+        .where(Task.deadline.is_not(None))
+        .order_by(Task.deadline.asc())
+    ).scalars().all()
+    return {"tasks": [t.to_dict() for t in tasks]}
+
+
+@router.get("/reports/summary", tags=["projects"])
+async def get_reports_summary(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Reports section: aggregated portfolio summary computed from synced data."""
+    from collections import Counter
+    from models import Project, Task
+
+    projects = db.execute(select(Project)).scalars().all()
+    tasks = db.execute(select(Task)).scalars().all()
+
+    now = datetime.now()
+
+    # Per-project aggregates
+    by_pm: Dict[str, int] = {}
+    by_status: Counter = Counter()
+    by_health: Counter = Counter()
+    by_gate: Counter = Counter()
+    by_budget: Counter = Counter()
+    total_value = 0.0
+    project_rows = []
+    for p in projects:
+        by_status[p.status or "unknown"] += 1
+        by_health[p.overall_health or "unknown"] += 1
+        by_budget[p.budget_status or "unknown"] += 1
+        if p.gate is not None:
+            by_gate[f"Gate {p.gate}"] += 1
+        if p.pm:
+            by_pm[p.pm] = by_pm.get(p.pm, 0) + 1
+        if p.value_rm:
+            total_value += p.value_rm
+        p_tasks = [t for t in tasks if t.project_id == p.id]
+        open_tasks = [t for t in p_tasks if t.status not in ("done", "cancelled")]
+        overdue = [
+            t for t in open_tasks
+            if t.deadline and t.deadline.replace(tzinfo=None) < now
+        ]
+        project_rows.append({
+            "id": p.id,
+            "name": p.name,
+            "client": p.client,
+            "pm": p.pm,
+            "status": p.status,
+            "overallHealth": p.overall_health,
+            "budgetStatus": p.budget_status,
+            "gate": p.gate,
+            "valueRm": p.value_rm,
+            "targetEnd": p.target_end.isoformat() if p.target_end else None,
+            "sourceLastUpdated": p.source_last_updated.isoformat() if p.source_last_updated else None,
+            "totalTasks": len(p_tasks),
+            "openTasks": len(open_tasks),
+            "overdueTasks": len(overdue),
+            "completionPct": round(len([t for t in p_tasks if t.status == "done"]) / len(p_tasks) * 100) if p_tasks else 0,
+        })
+
+    # Task aggregates
+    open_task_count = len([t for t in tasks if t.status not in ("done", "cancelled")])
+    overdue_count = len([
+        t for t in tasks
+        if t.status not in ("done", "cancelled")
+        and t.deadline and t.deadline.replace(tzinfo=None) < now
+    ])
+    by_priority: Counter = Counter(t.priority or "UNSET" for t in tasks if t.status not in ("done", "cancelled"))
+
+    return {
+        "totals": {
+            "projects": len(projects),
+            "activeProjects": len([p for p in projects if (p.status or "").startswith("active")]),
+            "totalValueRm": total_value,
+            "tasks": len(tasks),
+            "openTasks": open_task_count,
+            "overdueTasks": overdue_count,
+        },
+        "projectsByStatus": dict(by_status.most_common()),
+        "projectsByHealth": dict(by_health.most_common()),
+        "projectsByGate": dict(sorted(by_gate.items())),
+        "projectsByBudgetStatus": dict(by_budget.most_common()),
+        "projectsByPm": dict(sorted(by_pm.items(), key=lambda kv: -kv[1])),
+        "openTasksByPriority": dict(by_priority.most_common()),
+        "projects": project_rows,
+    }
+
+
+@router.get("/support/tickets", tags=["projects"])
+async def list_support_tickets(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    status: Optional[str] = Query(None, description="Filter by ticket status"),
+    priority: Optional[str] = Query(None, description="Filter by priority (P1-P4)"),
+    customer: Optional[str] = Query(None, description="Filter by customer"),
+) -> dict:
+    """List support tickets (source /support section)."""
+    from models import SupportTicket
+
+    query = select(SupportTicket)
+    if status:
+        query = query.where(SupportTicket.status == status)
+    if priority:
+        query = query.where(SupportTicket.priority == priority)
+    if customer:
+        query = query.where(SupportTicket.customer_slug == customer)
+    tickets = db.execute(query).scalars().all()
+    return {"tickets": [t.to_dict() for t in tickets], "total": len(tickets)}
+
+
+@router.get("/support/stats", tags=["projects"])
+async def get_support_stats(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Support section statistics."""
+    from collections import Counter
+    from models import SupportTicket
+
+    tickets = db.execute(select(SupportTicket)).scalars().all()
+    by_status: Counter = Counter(t.status or "unknown" for t in tickets)
+    by_priority: Counter = Counter(t.priority or "unknown" for t in tickets)
+    by_customer: Counter = Counter(t.customer or "unknown" for t in tickets)
+    open_statuses = ("Open", "In Progress", "Waiting for Customer")
+    open_tickets = [t for t in tickets if t.status in open_statuses]
+    new_replies = len([t for t in tickets if t.new_reply])
+
+    return {
+        "totals": {
+            "tickets": len(tickets),
+            "open": len(open_tickets),
+            "closedOrResolved": len(tickets) - len(open_tickets),
+            "newReplies": new_replies,
+        },
+        "byStatus": dict(by_status.most_common()),
+        "byPriority": dict(by_priority.most_common()),
+        "topCustomers": dict(by_customer.most_common(10)),
+    }
 
 
 @router.get("/projects/{project_id}", tags=["projects"])

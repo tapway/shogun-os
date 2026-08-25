@@ -31,7 +31,7 @@ SERVER_DIR = REPO_ROOT / "shogun-web" / "server"
 sys.path.insert(0, str(SERVER_DIR))
 
 from database import get_session_factory  # noqa: E402
-from models import Base, DefinitionOfDone, Goal, Project, Risk, Task, TeamMember  # noqa: E402
+from models import Base, DefinitionOfDone, Goal, Project, Risk, SupportTicket, Task, TeamMember  # noqa: E402
 
 logging.basicConfig(
     level=logging.INFO,
@@ -51,6 +51,8 @@ def parse_date(date_str: Optional[str]) -> Optional[datetime]:
     try:
         if "T" in date_str:
             return datetime.fromisoformat(date_str.replace("Z", "+00:00"))
+        if len(date_str) > 10:  # "2026-02-12 08:41" space-separated
+            return datetime.strptime(date_str, "%Y-%m-%d %H:%M").replace(tzinfo=timezone.utc)
         return datetime.strptime(date_str, "%Y-%m-%d").replace(tzinfo=timezone.utc)
     except (ValueError, AttributeError):
         return None
@@ -224,11 +226,67 @@ def sync_projects(db, projects_data: List[Dict[str, Any]]) -> int:
         project.racl_link = proj_data.get("raclLink")
         project.handover_status = proj_data.get("handoverStatus")
 
+        # Reports-relevant fields
+        project.overall_health = proj_data.get("overallHealth")
+        project.budget_status = proj_data.get("budgetStatus")
+        project.scope = proj_data.get("scope") if isinstance(proj_data.get("scope"), str) else None
+        project.fde = proj_data.get("fde")
+        project.dir = proj_data.get("dir")
+        project.charter_status = proj_data.get("charterStatus")
+        project.source_last_updated = parse_date(proj_data.get("lastUpdated"))
+        project.decisions = proj_data.get("decisions") if isinstance(proj_data.get("decisions"), list) else None
+        project.org_chart = proj_data.get("orgChart") if isinstance(proj_data.get("orgChart"), list) else None
+
         sync_goals(db, project, proj_data.get("goals", []))
         sync_tasks(db, project, proj_data.get("tasks", []))
         sync_risks(db, project, proj_data.get("risks", []))
         sync_team_members(db, project, proj_data.get("teamMembers", []))
         sync_dod_items(db, project, proj_data.get("dodItems", []))
+        synced += 1
+    return synced
+
+
+def sync_tickets(db, tickets_data: List[Dict[str, Any]]) -> int:
+    """Upsert support tickets (keyed by ticket id)."""
+    synced = 0
+    new_ids = {t.get("id") for t in tickets_data if t.get("id")}
+    for ticket in db.query(SupportTicket).all():
+        if ticket.id not in new_ids:
+            db.delete(ticket)
+
+    for ticket_data in tickets_data:
+        ticket_id = ticket_data.get("id")
+        if not ticket_id:
+            continue
+        ticket = db.get(SupportTicket, ticket_id)
+        if not ticket:
+            ticket = SupportTicket(id=ticket_id)
+            db.add(ticket)
+        ticket.title = ticket_data.get("title")
+        ticket.customer = ticket_data.get("customer")
+        ticket.customer_slug = ticket_data.get("customerSlug")
+        ticket.linked_project = ticket_data.get("linkedProject")
+        ticket.reporter = ticket_data.get("reporter")
+        ticket.opened = parse_date(ticket_data.get("opened"))
+        ticket.target_resolve = parse_date(ticket_data.get("targetResolve"))
+        ticket.priority = ticket_data.get("priority")
+        ticket.priority_label = ticket_data.get("priorityLabel")
+        ticket.category = ticket_data.get("category")
+        ticket.tier = ticket_data.get("tier")
+        ticket.assigned_to = ticket_data.get("assignedTo")
+        ticket.status = ticket_data.get("status")
+        ticket.last_updated = parse_date(ticket_data.get("lastUpdated"))
+        ticket.source = ticket_data.get("source")
+        ticket.description = ticket_data.get("description")
+        ticket.context = ticket_data.get("context")
+        ticket.timeline = ticket_data.get("timeline") if isinstance(ticket_data.get("timeline"), list) else None
+        ticket.ticket_tasks = ticket_data.get("ticketTasks") if isinstance(ticket_data.get("ticketTasks"), list) else None
+        ticket.resolution_notes = ticket_data.get("resolutionNotes")
+        ticket.resolved_by = ticket_data.get("resolvedBy")
+        ticket.resolved_date = parse_date(ticket_data.get("resolvedDate"))
+        ticket.root_cause = ticket_data.get("rootCause")
+        ticket.preventive = ticket_data.get("preventive")
+        ticket.new_reply = bool(ticket_data.get("newReply", False))
         synced += 1
     return synced
 
@@ -245,6 +303,12 @@ def main() -> int:
         return 2
 
     logger.info("API URL: %s", PROJECT_DASHBOARD_API_URL)
+
+    tickets_data = fetch_from_api("support/tickets")
+    # Tickets are optional — older tracker versions may not expose them
+    if tickets_data is None:
+        logger.warning("Could not fetch support tickets; continuing without them")
+        tickets_data = []
 
     projects_data = fetch_from_api("projects")
     if projects_data is None:
@@ -282,8 +346,9 @@ def main() -> int:
             # Ensure project-dashboard tables exist (no-op if already present)
             Base.metadata.create_all(bind=db.get_bind())
             synced_count = sync_projects(db, projects_data)
+            ticket_count = sync_tickets(db, tickets_data)
             db.commit()
-            logger.info("Successfully synced %d projects", synced_count)
+            logger.info("Successfully synced %d projects, %d tickets", synced_count, ticket_count)
             return 0
         except Exception:
             db.rollback()

@@ -468,6 +468,17 @@ class Project(Base):
     sow_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     racl_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     handover_status: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    # Reports-relevant fields (project health, budget, scope, decisions)
+    overall_health: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    budget_status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    scope: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    fde: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    dir: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    charter_status: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    source_last_updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    decisions: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
+    org_chart: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
     
     # Timestamps
     created_at: Mapped[datetime] = mapped_column(
@@ -503,6 +514,15 @@ class Project(Base):
             "sowLink": self.sow_link,
             "raclLink": self.racl_link,
             "handoverStatus": self.handover_status,
+            "overallHealth": self.overall_health,
+            "budgetStatus": self.budget_status,
+            "scope": self.scope,
+            "fde": self.fde,
+            "dir": self.dir,
+            "charterStatus": self.charter_status,
+            "sourceLastUpdated": self.source_last_updated.isoformat() if self.source_last_updated else None,
+            "decisions": self.decisions or [],
+            "orgChart": self.org_chart or [],
             "goals": [g.to_dict() for g in self.goals],
             "tasks": [t.to_dict() for t in self.tasks],
             "risks": [r.to_dict() for r in self.risks],
@@ -663,4 +683,73 @@ class DefinitionOfDone(Base):
             "acceptance": self.acceptance,
             "uatTestCaseId": self.uat_test_case_id,
             "passed": self.passed,
+        }
+
+class SupportTicket(Base):
+    """Support ticket from the external tracker (/api/support/tickets)."""
+
+    __tablename__ = "support_tickets"
+
+    id: Mapped[str] = mapped_column(String(64), primary_key=True)  # TS-2026-001
+    title: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    customer: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    customer_slug: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    linked_project: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    reporter: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    opened: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    target_resolve: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    priority: Mapped[Optional[str]] = mapped_column(String(16), nullable=True)
+    priority_label: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    category: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    tier: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    assigned_to: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    status: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    last_updated: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    source: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    context: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    timeline: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
+    ticket_tasks: Mapped[Optional[List[Dict[str, Any]]]] = mapped_column(JSON, nullable=True)
+    resolution_notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    resolved_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    root_cause: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    preventive: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    new_reply: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "customer": self.customer,
+            "customerSlug": self.customer_slug,
+            "linkedProject": self.linked_project,
+            "reporter": self.reporter,
+            "opened": self.opened.isoformat() if self.opened else None,
+            "targetResolve": self.target_resolve.isoformat() if self.target_resolve else None,
+            "priority": self.priority,
+            "priorityLabel": self.priority_label,
+            "category": self.category,
+            "tier": self.tier,
+            "assignedTo": self.assigned_to,
+            "status": self.status,
+            "lastUpdated": self.last_updated.isoformat() if self.last_updated else None,
+            "source": self.source,
+            "description": self.description,
+            "context": self.context,
+            "timeline": self.timeline or [],
+            "ticketTasks": self.ticket_tasks or [],
+            "resolutionNotes": self.resolution_notes,
+            "resolvedBy": self.resolved_by,
+            "resolvedDate": self.resolved_date.isoformat() if self.resolved_date else None,
+            "rootCause": self.root_cause,
+            "preventive": self.preventive,
+            "newReply": self.new_reply,
         }

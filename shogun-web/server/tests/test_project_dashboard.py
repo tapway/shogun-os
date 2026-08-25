@@ -153,3 +153,75 @@ def test_task_to_dict_no_deadline_not_overdue():
     assert d["daysLeft"] is None
     assert d["isOverdue"] is False
     assert d["dependsOn"] == []
+
+# ─── Active projects ─────────────────────────────────────────────────────
+
+
+def test_list_active_projects():
+    db = MagicMock()
+    db.execute.return_value = _Result([_make_project()])
+    result = asyncio.run(dashboard.list_active_projects(user=_make_user(), db=db))
+    assert len(result["projects"]) == 1
+    assert result["projects"][0]["status"] == "active"
+
+
+# ─── Plan view ───────────────────────────────────────────────────────────
+
+
+def test_list_planned_tasks():
+    db = MagicMock()
+    db.execute.return_value = _Result([_make_task(), _make_task("T-002")])
+    result = asyncio.run(dashboard.list_planned_tasks(user=_make_user(), db=db))
+    assert len(result["tasks"]) == 2
+
+
+# ─── Reports summary ─────────────────────────────────────────────────────
+
+
+def test_reports_summary_aggregates():
+    db = MagicMock()
+    proj = _make_project()
+    task_done = _make_task("T-001", status="done")
+    task_open = _make_task("T-002", status="todo")
+    # first call: projects, second call: tasks
+    db.execute.side_effect = [_Result([proj]), _Result([task_done, task_open])]
+    result = asyncio.run(dashboard.get_reports_summary(user=_make_user(), db=db))
+    assert result["totals"]["projects"] == 1
+    assert result["totals"]["tasks"] == 2
+    assert result["totals"]["openTasks"] == 1
+    assert result["totals"]["activeProjects"] == 1
+    assert result["projectsByPm"] == {"syazwan": 1}
+    assert result["projects"][0]["completionPct"] == 50
+
+
+# ─── Support tickets ─────────────────────────────────────────────────────
+
+
+def test_list_support_tickets():
+    from models import SupportTicket
+
+    db = MagicMock()
+    ticket = SupportTicket(id="TS-2026-001", title="Test ticket", status="Open", priority="P3")
+    db.execute.return_value = _Result([ticket])
+    result = asyncio.run(dashboard.list_support_tickets(user=_make_user(), db=db))
+    assert result["total"] == 1
+    assert result["tickets"][0]["id"] == "TS-2026-001"
+    assert result["tickets"][0]["status"] == "Open"
+
+
+def test_support_stats_counts():
+    from models import SupportTicket
+
+    db = MagicMock()
+    tickets = [
+        SupportTicket(id="TS-1", status="Open", priority="P2", customer="Acme"),
+        SupportTicket(id="TS-2", status="Closed", priority="P3", customer="Acme"),
+        SupportTicket(id="TS-3", status="Resolved", priority="P3", customer="Beta"),
+    ]
+    db.execute.return_value = _Result(tickets)
+    result = asyncio.run(dashboard.get_support_stats(user=_make_user(), db=db))
+    assert result["totals"]["tickets"] == 3
+    assert result["totals"]["open"] == 1
+    assert result["totals"]["closedOrResolved"] == 2
+    assert result["byPriority"]["P3"] == 2
+    assert result["topCustomers"]["Acme"] == 2

@@ -3,13 +3,21 @@ import { DashboardSubNav } from '../DashboardSubNav';
 import type { DashboardTab } from '../../../lib/types';
 import { OverviewTab } from './OverviewTab';
 import { ProjectsTab } from './ProjectsTab';
+import { ActiveProjectsTab } from './ActiveProjectsTab';
 import { TasksTab } from './TasksTab';
+import { PlanTab } from './PlanTab';
+import { ReportsTab } from './ReportsTab';
+import { SupportTab } from './SupportTab';
 import { ProjectDetailModal } from './ProjectDetailModal';
 
 const TABS: DashboardTab[] = [
   { id: 'overview', label: 'Overview', icon: 'LayoutDashboard' },
   { id: 'projects', label: 'Projects', icon: 'Kanban' },
+  { id: 'active', label: 'Active', icon: 'Activity' },
   { id: 'tasks', label: 'Tasks', icon: 'SquareCheckBig' },
+  { id: 'plan', label: 'Plan', icon: 'CalendarClock' },
+  { id: 'reports', label: 'Reports', icon: 'BarChart3' },
+  { id: 'support', label: 'Support', icon: 'LifeBuoy' },
 ];
 
 interface ProjectsDashboardProps {
@@ -34,9 +42,19 @@ export function ProjectsDashboard({ department, color }: ProjectsDashboardProps)
       {activeTab === 'projects' && (
         <ProjectsTab dept={department} color={color} onOpenProject={openProject} />
       )}
+      {activeTab === 'active' && (
+        <ActiveProjectsTab dept={department} color={color} onOpenProject={openProject} />
+      )}
       {activeTab === 'tasks' && (
         <TasksTab dept={department} color={color} onOpenProject={openProject} />
       )}
+      {activeTab === 'plan' && (
+        <PlanTab dept={department} color={color} onOpenProject={openProject} />
+      )}
+      {activeTab === 'reports' && (
+        <ReportsTab dept={department} color={color} onOpenProject={openProject} />
+      )}
+      {activeTab === 'support' && <SupportTab dept={department} color={color} />}
 
       {selectedProjectId && (
         <ProjectDetailModal
