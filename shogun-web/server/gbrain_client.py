@@ -153,6 +153,11 @@ def _brain_source_dir(source: str) -> Optional[pathlib.Path]:
     return brain_dir
 
 
+def _fs_max_age_minutes() -> int:
+    """Staleness window in minutes (on by default = 60), or 0 to disable."""
+    return getattr(get_config(), "gbrain_fs_max_age_minutes", 60) or 0
+
+
 def _scan_source_dir(
     brain_dir: pathlib.Path,
     slug_prefix: Optional[str],
@@ -215,6 +220,47 @@ def _scan_source_dir(
     return pages, stale
 
 
+
+
+def _read_page_file_sync(
+    brain_dir: pathlib.Path, slug: str
+) -> Tuple[Optional[Dict[str, Any]], bool]:
+    """Synchronous single-page read (worker thread).
+
+    Returns (page, stale). Stale mirrors the listing-path guard: compute the
+    newest mtime of files in the dir and compare to the staleness window, so
+    the single-page fetch cannot silently serve a broken-sync mirror.
+    """
+    slug_rel = slug.replace("\\", "/").strip("/")
+    newest = 0.0
+    for md in brain_dir.rglob("*.md"):
+        if md.is_symlink():
+            continue
+        try:
+            newest = max(newest, md.stat().st_mtime)
+        except OSError:
+            pass
+    stale = False
+    max_age_min = _fs_max_age_minutes()
+    if max_age_min > 0 and newest > 0:
+        stale = (time.time() - newest) > (max_age_min * 60.0)
+    for rel in (f"{slug_rel}.md", f"{slug_rel}/index.md"):
+        md_path = brain_dir / rel
+        if md_path.is_file() and not md_path.is_symlink():
+            try:
+                text = md_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            return {
+                "slug": slug,
+                "frontmatter": _parse_frontmatter_from_markdown(text),
+                "content": text,
+                "body": text,
+                "compiled_truth": text,
+                "source_id": brain_dir.name,
+            }, stale
+    return None, stale
+
 async def _filesystem_fallback(
     source: str,
     slug_prefix: Optional[str],
@@ -229,8 +275,9 @@ async def _filesystem_fallback(
     brain_dir = _brain_source_dir(source)
     if not brain_dir:
         return [], False
-    max_age_min = getattr(get_config(), "gbrain_fs_max_age_minutes", 60) or 0
-    return await asyncio.to_thread(_scan_source_dir, brain_dir, slug_prefix, limit, max_age_min)
+    return await asyncio.to_thread(
+        _scan_source_dir, brain_dir, slug_prefix, limit, _fs_max_age_minutes()
+    )
 
 
 async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
@@ -315,6 +362,7 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
     seen: set[str] = set()
     cursor: Optional[str] = None
     rescanned_boundary = False
+    prev_batch_full = False
 
     for _ in range(_MCP_LIST_MAX_PAGES):
         args: dict = {"limit": _MCP_LIST_PAGE_SIZE, "sort": "updated_asc"}
@@ -323,7 +371,15 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
         batch = await _mcp_call("list_pages", args, source_id=source)
         rows = _rows_from_batch(batch)
         if not rows:
+            if prev_batch_full and matches < limit:
+                logger.warning(
+                    "gbrain list_pages(%s): zero rows after a full page — "
+                    "possible equal-timestamp boundary truncation (strict > "
+                    "cursor cannot page across identical updated_at values)",
+                    source,
+                )
             break
+        prev_batch_full = len(rows) >= _MCP_LIST_PAGE_SIZE
         new_rows = 0
         batch_cursor = cursor
         for r in rows:
@@ -358,9 +414,14 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
 
 
 def _read_preference() -> str:
-    """Effective read preference: 'filesystem' or 'mcp'."""
-    cfg = get_config()
-    pref = (cfg.gbrain_read_preference or os.environ.get("GBRAIN_READ_PREFERENCE", "")).strip().lower()
+    """Effective read preference: 'filesystem' or 'mcp'.
+
+    WebConfig.gbrain_read_preference already captures the
+    GBRAIN_READ_PREFERENCE env var at class-definition time (boot), so no
+    call-time env re-read is needed — a runtime env change requires a
+    process restart, which matches how the rest of Config behaves.
+    """
+    pref = (get_config().gbrain_read_preference or "filesystem").strip().lower()
     return "mcp" if pref == "mcp" else "filesystem"
 
 
@@ -429,22 +490,19 @@ async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
     if _read_preference() == "filesystem":
         brain_dir = _brain_source_dir(source)
         if brain_dir:
-            slug_rel = slug.replace("\\", "/").strip("/")
-            for rel in (f"{slug_rel}.md", f"{slug_rel}/index.md"):
-                md_path = brain_dir / rel
-                if md_path.is_file() and not md_path.is_symlink():
-                    try:
-                        text = md_path.read_text(encoding="utf-8", errors="replace")
-                    except OSError:
-                        continue
-                    return {
-                        "slug": slug,
-                        "frontmatter": _parse_frontmatter_from_markdown(text),
-                        "content": text,
-                        "body": text,
-                        "compiled_truth": text,
-                        "source_id": source,
-                    }
+            page, stale = await asyncio.to_thread(
+                _read_page_file_sync, brain_dir, slug
+            )
+            if page and not stale:
+                return page
+            if page and stale:
+                logger.warning(
+                    "gbrain_fetch_page: file mirror for %r is stale — deferring to MCP", source
+                )
+            elif not page:
+                logger.debug(
+                    "gbrain_fetch_page: %r not in file mirror — trying MCP", slug
+                )
 
     result = await _mcp_call("get_page", {"slug": slug}, source_id=source)
 
@@ -470,7 +528,9 @@ def _fs_search(source: str, query: str, limit: int) -> List[dict[str, Any]]:
         return []
     q = query.lower()
     hits: List[dict[str, Any]] = []
-    pages, _stale = _scan_source_dir(brain_dir, None, limit)
+    # Scan the WHOLE mirror (limit=None): `limit` caps hits returned, not
+    # pages scanned — a match at file N>limit must still be found.
+    pages, _stale = _scan_source_dir(brain_dir, None, None)
     for page in pages:
         title = str(page.get("frontmatter", {}).get("title", "") or page["slug"])
         if q in title.lower() or q in page["compiled_truth"].lower():

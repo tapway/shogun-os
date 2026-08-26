@@ -652,7 +652,7 @@ def _filter_mock_tasks(
     leak an unfiltered list (the round-4 review's Critical regression).
     """
     if completed is not None:
-        mock = [t for t in mock if t["completed"] == completed]
+        mock = [t for t in mock if t.get("completed") == completed]
     if assignee:
         ca = _canonical_owner(assignee)
         mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
@@ -805,9 +805,13 @@ async def list_crm_deals(
     items.sort(key=lambda d: d.get("created") or "", reverse=True)
 
     if not pages and _crm_mock_enabled():
-        # live source empty/unavailable — serve the demo payload. Filters are
-        # reapplied so mock responses respect the same query params.
+        # Live source empty/unavailable — serve the demo payload. Filters are
+        # reapplied in the SAME ORDER as the live path (search, stage, owner,
+        # priority, source) so behaviour is indistinguishable from live data.
         mock = _load_crm_mock().get("deals", [])
+        if search:
+            s = search.lower()
+            mock = [d for d in mock if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
         if stage:
             mock = [d for d in mock if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
         if owner:
@@ -818,9 +822,7 @@ async def list_crm_deals(
         if source:
             ss = source.strip().lower()
             mock = [d for d in mock if ss in (d.get("source") or "").lower()]
-        if search:
-            s = search.lower()
-            mock = [d for d in mock if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
+        mock = sorted(mock, key=lambda d: str(d.get("created", "")), reverse=True)
         return {"deals": mock, "total": len(mock), "mock": True}
 
     return {"deals": items, "total": len(items)}
@@ -865,9 +867,10 @@ async def list_crm_companies(
         mock = _load_crm_mock().get("companies", [])
         if search:
             s = search.lower()
-            mock = [x for x in mock if s in x["title"].lower()]
+            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
         if industry:
             mock = [x for x in mock if x.get("industry", "").lower() == industry.lower()]
+        mock = sorted(mock, key=lambda x: str(x.get("title", "")).lower())
         return {"companies": mock, "total": len(mock), "mock": True}
 
     return {"companies": items, "total": len(items)}
@@ -943,11 +946,14 @@ async def get_partner_sphere(
 
     if _crm_mock_enabled():
         mock_sphere = _load_crm_mock().get("partner_sphere") or {}
+        filled = False
         for key in result:
             if key == "mock":
-                result[key] = True
-            elif not result[key] and mock_sphere.get(key):
+                continue
+            if not result[key] and mock_sphere.get(key):
                 result[key] = mock_sphere[key]
+                filled = True
+        result["mock"] = filled
     return result
 
 
