@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_pages, gbrain_search
+from gbrain_client import gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
 
 import httpx
@@ -602,6 +602,10 @@ async def get_dashboard_config(
 # a single index page ``crm/tasks-index`` (tasks are not first-class pages).
 
 CRM_SOURCE = "crm"
+# Standardised listing limit for CRM endpoints. Only matters on the
+# filesystem path (unbounded); the MCP fallback pages until exhaustion
+# regardless and enriches at most _MCP_ENRICH_CAP rows.
+CRM_LIST_LIMIT = 10000
 
 
 from auth import require_admin  # noqa: E402 — admin guard for BEV zone CRUD
@@ -616,9 +620,9 @@ async def get_crm_ceo_stats(
     """Aggregated CEO dashboard stats for CRM.
 
     Reads CRM pages directly from the brain (source ``crm``) via gbrain.
-    Returns empty state when the brain has no CRM pages yet.
+    Returns empty state when the brain has no CRM pages yet or is down.
     """
-    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=2000)
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
     return _run_ceo_aggregation(pages)
 
 
@@ -642,15 +646,33 @@ def _extract_deal_list_item(page: dict) -> dict:
 
 
 # Slug metadata to exclude from listings (scaffolding / meta pages).
-_SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
+#   broad set  — deal listings may contain gbrain-internal scaffolds
+#   narrow set — companies/partners only skip README/_schema (a company
+#                named "...activity-log" is legitimate)
+_SLUG_SEGMENT_EXCLUDES_BROAD = {"readme", "_schema", "activity-log", "risk-register"}
+_SLUG_SEGMENT_EXCLUDES_NARROW = {"readme", "_schema"}
 _SLUG_PREFIX_EXCLUDES = ("templates/",)
 
 
-def _is_meta_slug(slug: str) -> bool:
+def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
-    if last_segment in _SLUG_SEGMENT_EXCLUDES:
+    if last_segment in (_SLUG_SEGMENT_EXCLUDES_BROAD if broad else _SLUG_SEGMENT_EXCLUDES_NARROW):
         return True
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
+
+
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: str) -> list:
+    """Graceful fetching: never let a gbrain failure 500 a CRM listing.
+
+    Returns the raw pages list; an MCP failure (server down, timeout) or any
+    other exception degrades to [] — the endpoints return their empty-state
+    shapes, exactly like the pre-brain code.
+    """
+    try:
+        return await gbrain_fetch_pages(source, limit=limit, slug_prefix=slug_prefix)
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain fetch failed for %s/%s: %s", source, slug_prefix, exc)
+        return []
 
 
 @router.get("/deals")
@@ -663,7 +685,7 @@ async def list_crm_deals(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM deals direct from the brain (source ``crm``, slug ``deals/*``)."""
-    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=2000, slug_prefix="deals/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
 
     deals = [p for p in pages if not _is_meta_slug(str(p.get("slug", "")))]
     items = [_extract_deal_list_item(p) for p in deals]
@@ -692,13 +714,13 @@ async def list_crm_companies(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM companies direct from the brain (source ``crm``, slug ``companies/*``)."""
-    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=10000, slug_prefix="companies/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="companies/")
 
     items = []
     for p in pages:
         if not isinstance(p, dict):
             continue
-        if _is_meta_slug(str(p.get("slug", ""))):
+        if _is_meta_slug(str(p.get("slug", "")), broad=False):
             continue
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
@@ -729,13 +751,13 @@ async def list_crm_partners(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
-    pages = await gbrain_fetch_pages(CRM_SOURCE, limit=1000, slug_prefix="partners/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
 
     items = []
     for p in pages:
         if not isinstance(p, dict):
             continue
-        if _is_meta_slug(str(p.get("slug", ""))):
+        if _is_meta_slug(str(p.get("slug", "")), broad=False):
             continue
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
@@ -765,7 +787,11 @@ async def list_crm_tasks(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM tasks direct from the brain (``crm/tasks-index`` page)."""
-    index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
+    try:
+        index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain fetch failed for %s/tasks-index: %s", CRM_SOURCE, exc)
+        return {"tasks": [], "total": 0}
     if not index:
         return {"tasks": [], "total": 0}
 
@@ -812,7 +838,11 @@ async def crm_search(
     if not query:
         return {"results": []}
 
-    raw = await gbrain_search(CRM_SOURCE, query, limit=20)
+    try:
+        raw = await gbrain_search(CRM_SOURCE, query, limit=20)
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain search failed for %s: %s", CRM_SOURCE, exc)
+        return {"results": []}
 
     normalised: list[dict] = []
     for r in raw:
@@ -2391,7 +2421,7 @@ async def get_finance_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Finance dashboard stats — all 5 tabs."""
-    pages = await gbrain_fetch_pages("finance", limit=300)
+    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix="")
     return await _run_finance_aggregation(pages)
 
 
@@ -2568,7 +2598,7 @@ async def get_procurement_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Procurement dashboard stats — all 5 tabs."""
-    pages = await gbrain_fetch_pages("procurement", limit=300)
+    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
     return _run_procurement_aggregation(pages)
 
 

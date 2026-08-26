@@ -62,6 +62,7 @@ class WebConfig:
     gbrain_base_url: str = "http://127.0.0.1:7432"
     gbrain_api_key: str = os.environ.get("GBRAIN_API_KEY", "")
     brain_root: str = str(Path.home() / "brain")
+    gbrain_read_preference: str = os.environ.get("GBRAIN_READ_PREFERENCE", "filesystem")
     seed_demo_brain: bool = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
 
     # CORS

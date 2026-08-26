@@ -18,6 +18,14 @@ if str(_SERVER) not in sys.path:
 import gbrain_client  # noqa: E402
 
 
+class _StubConfig:
+    def __init__(self, brain_root, preference="filesystem"):
+        self.brain_root = str(brain_root)
+        self.gbrain_read_preference = preference
+        self.gbrain_base_url = "http://unused"
+        self.gbrain_api_key = ""
+
+
 def _run(coro):
     return asyncio.run(coro)
 
@@ -81,7 +89,7 @@ def test_fetch_pages_prefers_filesystem(monkeypatch, tmp_path) -> None:
         encoding="utf-8",
     )
 
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)
+    monkeypatch.setattr(gbrain_client, "get_config", lambda: _StubConfig(tmp_path / "brain"))
 
     mcp_called = []
 
@@ -102,7 +110,7 @@ def test_fetch_pages_prefers_filesystem(monkeypatch, tmp_path) -> None:
 
 def test_fetch_pages_falls_back_to_mcp_when_no_files(monkeypatch, tmp_path) -> None:
     """No markdown on disk -> fall back to MCP list_pages result."""
-    monkeypatch.setattr(Path, "home", lambda: tmp_path)  # empty brain dir
+    monkeypatch.setattr(gbrain_client, "get_config", lambda: _StubConfig(tmp_path / "brain"))
 
     async def fake_mcp_call(tool, arguments, source_id=""):
         assert tool == "list_pages"
@@ -119,3 +127,66 @@ def test_fetch_pages_falls_back_to_mcp_when_no_files(monkeypatch, tmp_path) -> N
 
     assert len(pages) == 1
     assert pages[0]["slug"] == "deals/x"
+
+
+def test_mcp_pagination_does_not_starve_a_prefix(monkeypatch, tmp_path) -> None:
+    """A prefix beyond the first 100-row page must still be found (paginated).
+
+    Regression test for the MoA critical: list_pages caps at 100 rows and a
+    slug_prefix inhabiting page 2+ used to silently return []. We page
+    via updated_after until the prefix quota is met.
+    """
+    monkeypatch.setattr(
+        gbrain_client, "get_config",
+        lambda: _StubConfig(tmp_path / "brain", preference="mcp"),
+    )
+    # Three pages of rows: companies (day 01), partners (day 02), deals (day 03)
+    def make_page(base, n, day):
+        return [
+            {"slug": f"{base}/{i:03d}", "updated_at": f"2026-08-{day}T00:00:00Z"}
+            for i in range(n)
+        ]
+
+    page_company = make_page("companies", 100, "01")
+    page_partner = make_page("partners", 100, "02")
+    page_deal = make_page("deals", 100, "03")
+
+    def page_for(cursor):
+        if not cursor:
+            return page_company, True
+        return (page_partner, True) if cursor <= "2026-08-01T00:00:00Z" else (
+            (page_deal, True) if cursor <= "2026-08-02T00:00:00Z" else (None, False)
+        )
+
+    calls = []
+
+    async def fake_mcp_call(tool, arguments, source_id=""):
+        if tool != "list_pages":
+            return []
+        calls.append(dict(arguments))
+        page, more = page_for(arguments.get("updated_after") or "")
+        return page if page else []
+
+    # The server reports fewer rows when it has no more pages.
+    async def fake_mcp_call_with_exhaustion(tool, arguments, source_id=""):
+        if tool != "list_pages":
+            return []
+        calls.append(dict(arguments))
+        return page_for(arguments.get("updated_after") or "")[0] or []
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call_with_exhaustion)
+    async def fake_fetch_page(source, slug):
+        return {"slug": slug, "compiled_truth": "# " + slug}
+
+    monkeypatch.setattr(gbrain_client, "gbrain_fetch_page", fake_fetch_page)
+
+    pages = _run(gbrain_client.gbrain_fetch_pages("crm", limit=10000, slug_prefix="deals/"))
+
+    # The prefix filter must reach the deals page — not silently empty.
+    slugs = [p["slug"] for p in pages]
+    assert slugs, "deals/ prefix must not be starved by earlier pages"
+    assert all(s.startswith("deals/") for s in slugs)
+    # All 100 deals returned (no truncation); first 50 enriched, rest kept
+    # as metadata rows — never dropped.
+    assert len(pages) == 100
+    assert len(calls) >= 3

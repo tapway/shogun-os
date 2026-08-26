@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
 import { departmentsApi } from '../../../lib/api';
@@ -20,20 +20,33 @@ function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'r
   return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
 }
 
+/** Debounce a string value so expensive queries don't fire per keystroke. */
+function useDebouncedValue<T>(value: T, delayMs = 300): T {
+  const [debounced, setDebounced] = useState<T>(value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebounced(value), delayMs);
+    return () => clearTimeout(timer);
+  }, [value, delayMs]);
+  return debounced;
+}
+
 export function PartnersTab({ dept, color }: Props) {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(0);
   const perPage = 50;
+  const debouncedSearch = useDebouncedValue(search, 300);
 
   const query = useQuery({
-    queryKey: ['crm-partners', dept, search],
-    queryFn: () => departmentsApi.crmPartnersList(dept, search),
+    queryKey: ['crm-partners', dept, debouncedSearch],
+    queryFn: () => departmentsApi.crmPartnersList(dept, debouncedSearch),
     refetchInterval: 120_000,
   });
 
   const partners = query.data?.partners ?? [];
-  const pageCount = Math.ceil(partners.length / perPage);
-  const pageItems = partners.slice(page * perPage, (page + 1) * perPage);
+  const pageCount = Math.max(1, Math.ceil(partners.length / perPage));
+  // Clamp page when a refetch shrinks the list (e.g. 3 / 1 with empty body).
+  const clampedPage = Math.min(page, pageCount - 1);
+  const pageItems = partners.slice(clampedPage * perPage, (clampedPage + 1) * perPage);
 
   if (query.isLoading) {
     return (
@@ -58,103 +71,110 @@ export function PartnersTab({ dept, color }: Props) {
     <div className="sd-stack">
       {/* Filter bar */}
       <div className="sd-chart-card" style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-        <div style={{ position: 'relative', flex: 1, minWidth: 200 }}>
-          <Search className="h-4 w-4" style={{ position: 'absolute', left: 10, top: 10, color: MUTED }} />
+        <div style={{ position: 'relative', flex: 1, minWidth: 220, maxWidth: 420 }}>
+          <Search className="h-4 w-4" style={{ position: 'absolute', left: 12, top: '50%', transform: 'translateY(-50%)', color: MUTED }} />
           <input
-            type="text"
             value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(0); }}
-            placeholder="Search partners…"
-            style={{
-              width: '100%', padding: '8px 12px 8px 32px', fontSize: '0.85rem', borderRadius: 8,
-              border: `1px solid ${BORDER}`, outline: 'none', color: TEXT,
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(0); // new filter → first page
             }}
+            placeholder="Search partners…"
+            className="sd-input"
+            style={{ paddingLeft: 34 }}
           />
         </div>
-        <span style={{ fontSize: '0.8rem', color: MUTED, whiteSpace: 'nowrap' }}>{partners.length} partners</span>
+        <span style={{ fontSize: '0.8rem', color: MUTED }}>
+          {partners.length} partner{partners.length === 1 ? '' : 's'}
+        </span>
       </div>
 
       {/* Table */}
-      {partners.length === 0 ? (
-        <div className="sd-empty">
-          <Users className="h-10 w-10" style={{ color: MUTED }} />
-          <p>No partners found. Try adjusting filters.</p>
-        </div>
-      ) : (
-        <div className="sd-chart-card">
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">Partner</Th>
-                  <Th align="left">Type</Th>
-                  <Th align="left">Country</Th>
-                  <Th align="left">Website</Th>
-                  <Th align="left">Source</Th>
+      <div className="sd-chart-card" style={{ padding: 0, overflow: 'hidden' }}>
+        <div style={{ overflowX: 'auto' }}>
+          <table className="w-full" style={{ borderCollapse: 'collapse', minWidth: 640 }}>
+            <thead style={{ borderBottom: `1px solid ${BORDER}` }}>
+              <tr>
+                <Th align="left">Partner</Th>
+                <Th align="left">Type</Th>
+                <Th align="left">Country</Th>
+                <Th align="left">Website</Th>
+                <Th align="left">Source</Th>
+              </tr>
+            </thead>
+            <tbody>
+              {pageItems.length === 0 && (
+                <tr>
+                  <td colSpan={5} style={{ padding: '2rem 1rem', textAlign: 'center', color: MUTED }}>
+                    No partners found.
+                  </td>
                 </tr>
-              </thead>
-              <tbody>
-                {pageItems.map((c: CrmPartnerItem, i: number) => (
-                  <tr key={c.slug} style={{ borderBottom: `1px solid ${BORDER}`, background: i % 2 === 1 ? SURFACE_2 : undefined }}>
-                    <td className="px-3 py-2.5 max-w-[200px] truncate" style={{ fontWeight: 600, color: TEXT }} title={c.title}>
-                      {c.title}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {c.type ? <span className="sd-chip muted">{c.type}</span> : <span style={{ color: MUTED }}>—</span>}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{c.country || '—'}</td>
-                    <td className="px-3 py-2.5 max-w-[180px] truncate">
-                      {c.website ? (
-                        <a href={c.website.startsWith('http') ? c.website : `https://${c.website}`} target="_blank" rel="noreferrer"
-                          style={{ color, fontSize: '0.8rem', textDecoration: 'none' }}
-                          onMouseOver={(e) => (e.currentTarget.style.textDecoration = 'underline')}
-                          onMouseOut={(e) => (e.currentTarget.style.textDecoration = 'none')}
-                        >
-                          {c.website}
-                        </a>
-                      ) : (
-                        <span style={{ color: MUTED }}>—</span>
-                      )}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      {c.source ? <span className="sd-chip muted">{c.source}</span> : <span style={{ color: MUTED }}>—</span>}
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+              )}
+              {pageItems.map((p) => (
+                <PartnerRow key={p.slug} partner={p} color={color} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
 
-          {/* Pagination */}
-          {pageCount > 1 && (
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 12 }}>
-              <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
-                disabled={page === 0}
-                style={{
-                  padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`,
-                  background: page === 0 ? 'transparent' : 'var(--samurai-surface)', color: page === 0 ? MUTED : TEXT,
-                  cursor: page === 0 ? 'default' : 'pointer',
-                }}
-              >
-                Prev
-              </button>
-              <span style={{ fontSize: '0.8rem', color: MUTED }}>{page + 1} / {pageCount}</span>
-              <button
-                onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
-                disabled={page >= pageCount - 1}
-                style={{
-                  padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`,
-                  background: page >= pageCount - 1 ? 'transparent' : 'var(--samurai-surface)',
-                  color: page >= pageCount - 1 ? MUTED : TEXT, cursor: page >= pageCount - 1 ? 'default' : 'pointer',
-                }}
-              >
-                Next
-              </button>
-            </div>
-          )}
+      {/* Pagination */}
+      {pageCount > 1 && (
+        <div style={{ display: 'flex', gap: 8, alignItems: 'center', justifyContent: 'flex-end', marginTop: 12 }}>
+          <button
+            onClick={() => setPage((p) => Math.max(0, p - 1))}
+            disabled={clampedPage === 0}
+            style={{
+              padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`,
+              background: clampedPage === 0 ? 'transparent' : 'var(--samurai-surface)', color: clampedPage === 0 ? MUTED : TEXT,
+              cursor: clampedPage === 0 ? 'default' : 'pointer',
+            }}
+          >
+            Prev
+          </button>
+          <span style={{ fontSize: '0.8rem', color: MUTED }}>{clampedPage + 1} / {pageCount}</span>
+          <button
+            onClick={() => setPage((p) => Math.min(pageCount - 1, p + 1))}
+            disabled={clampedPage >= pageCount - 1}
+            style={{
+              padding: '6px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`,
+              background: clampedPage >= pageCount - 1 ? 'transparent' : 'var(--samurai-surface)',
+              color: clampedPage >= pageCount - 1 ? MUTED : TEXT, cursor: clampedPage >= pageCount - 1 ? 'default' : 'pointer',
+            }}
+          >
+            Next
+          </button>
         </div>
       )}
     </div>
+  );
+}
+
+function PartnerRow({ partner, color }: { partner: CrmPartnerItem; color: string }) {
+  return (
+    <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+      <td className="px-3 py-2.5" style={{ color: TEXT }}>
+        <div style={{ fontSize: '0.86rem', fontWeight: 500 }}>{partner.title || partner.slug}</div>
+        <div style={{ fontSize: '0.72rem', color: MUTED }}>{partner.slug}</div>
+      </td>
+      <td className="px-3 py-2.5" style={{ color: TEXT, fontSize: '0.82rem' }}>
+        {partner.type || '—'}
+      </td>
+      <td className="px-3 py-2.5" style={{ color: TEXT, fontSize: '0.82rem' }}>
+        {partner.country || '—'}
+      </td>
+      <td className="px-3 py-2.5" style={{ color: TEXT, fontSize: '0.82rem' }}>
+        {partner.website ? (
+          <a href={partner.website} target="_blank" rel="noopener noreferrer" style={{ color }}>
+            {partner.website.replace(/^https?:\/\//, '')}
+          </a>
+        ) : (
+          <span style={{ color: MUTED }}>—</span>
+        )}
+      </td>
+      <td className="px-3 py-2.5" style={{ color: MUTED, fontSize: '0.82rem' }}>
+        {partner.source || '—'}
+      </td>
+    </tr>
   );
 }
