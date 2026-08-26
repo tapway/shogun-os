@@ -131,6 +131,33 @@ def test_fetch_pages_falls_back_to_mcp_when_no_files(monkeypatch, tmp_path) -> N
     assert pages[0]["slug"] == "deals/x"
 
 
+def test_mcp_pagination_logs_boundary_warning_after_full_page(monkeypatch, caplog) -> None:
+    """A full page followed by zero rows signals possible equal-timestamp truncation."""
+    import logging
+    caplog.set_level(logging.WARNING)
+
+    rows_same_ts = [
+        {"slug": f"deals/bulk-{i:03d}", "updated_at": "2026-08-01T10:00:00Z"}
+        for i in range(100)
+    ]
+    calls = {"n": 0}
+
+    async def fake(tool, *args, **kwargs):
+        if tool != "list_pages":
+            return []
+        calls["n"] += 1
+        if calls["n"] == 1:
+            return rows_same_ts
+        return []
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake)
+
+    got = _run(gbrain_client.gbrain_fetch_pages("crm", limit=10000, slug_prefix="deals/"))
+    assert len(got) == 100, len(got)
+    assert calls["n"] == 2
+    assert any("equal-timestamp boundary" in r.message for r in caplog.records)
+
+
 def test_mcp_pagination_does_not_starve_a_prefix(monkeypatch, tmp_path) -> None:
     """A prefix beyond the first 100-row page must still be found (paginated).
 
