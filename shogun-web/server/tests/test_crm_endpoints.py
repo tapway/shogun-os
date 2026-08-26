@@ -65,7 +65,7 @@ def test_deals_normal_mapping(monkeypatch) -> None:
 
     monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
 
-    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", user=USER, db=DB))
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", priority="", source="", user=USER, db=DB))
 
     assert result["total"] == 2  # risk-register excluded
     titles = {d["title"] for d in result["deals"]}
@@ -79,7 +79,7 @@ def test_deals_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
 
     monkeypatch.setattr(dashboard, "gbrain_fetch_pages", boom)
 
-    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", user=USER, db=DB))
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", priority="", source="", user=USER, db=DB))
 
     assert result == {"deals": [], "total": 0}
 
@@ -152,7 +152,7 @@ def test_tasks_normalize_index_page(monkeypatch) -> None:
 
     monkeypatch.setattr(dashboard, "gbrain_fetch_page", fake_fetch_page)
 
-    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", user=USER, db=DB))
+    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", deal="", user=USER, db=DB))
 
     assert result["total"] == 2
     assert result["tasks"][0] == {
@@ -163,7 +163,7 @@ def test_tasks_normalize_index_page(monkeypatch) -> None:
         "deal_title": "X",
     }
     # filtering
-    done = _run(dashboard.list_crm_tasks(name="crm", completed=True, assignee="", user=USER, db=DB))
+    done = _run(dashboard.list_crm_tasks(name="crm", completed=True, assignee="", deal="", user=USER, db=DB))
     assert done["total"] == 1 and done["tasks"][0]["deal_slug"] == "deals/y"
 
 
@@ -173,7 +173,7 @@ def test_tasks_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
 
     monkeypatch.setattr(dashboard, "gbrain_fetch_page", boom)
 
-    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", user=USER, db=DB))
+    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", deal="", user=USER, db=DB))
 
     assert result == {"tasks": [], "total": 0}
 
@@ -184,7 +184,7 @@ def test_tasks_empty_when_index_missing(monkeypatch) -> None:
 
     monkeypatch.setattr(dashboard, "gbrain_fetch_page", none)
 
-    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", user=USER, db=DB))
+    result = _run(dashboard.list_crm_tasks(name="crm", completed=None, assignee="", deal="", user=USER, db=DB))
 
     assert result == {"tasks": [], "total": 0}
 

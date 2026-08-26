@@ -7,6 +7,7 @@ import type { CrmDealListItem } from '../../../lib/types';
 interface Props {
   dept: string;
   color: string;
+  initialOwner?: string;
 }
 
 const MUTED = 'var(--samurai-muted)';
@@ -24,27 +25,43 @@ function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'r
   return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
 }
 
-export function DealsTab({ dept, color }: Props) {
+export function DealsTab({ dept, color, initialOwner = '' }: Props) {
   const [search, setSearch] = useState('');
   const [stage, setStage] = useState('');
+  const [owner, setOwner] = useState(initialOwner);
+  const [priority, setPriority] = useState('');
+  const [source, setSource] = useState('');
   const [page, setPage] = useState(0);
   const perPage = 50;
 
   const query = useQuery({
-    queryKey: ['crm-deals', dept, search, stage],
-    queryFn: () => departmentsApi.crmDealsList(dept, search, stage),
+    queryKey: ['crm-deals', dept, search, stage, owner, priority, source],
+    queryFn: () => departmentsApi.crmDealsList(dept, search, stage, owner, priority, source),
     refetchInterval: 120_000,
+  });
+
+  // Always-complete deal list so filter dropdowns stay fully populated.
+  const optionsQuery = useQuery({
+    queryKey: ['crm-deals-options', dept],
+    queryFn: () => departmentsApi.crmDealsList(dept),
+    refetchInterval: 300_000,
   });
 
   const deals = query.data?.deals ?? [];
   const total = query.data?.total ?? 0;
+  const allDeals = optionsQuery.data?.deals ?? [];
   const pageCount = Math.ceil(deals.length / perPage);
   const pageItems = deals.slice(page * perPage, (page + 1) * perPage);
 
   const owners = useMemo(() => {
-    const set = new Set(deals.map((d) => d.owner).filter(Boolean) as string[]);
+    const set = new Set(allDeals.map((d) => d.owner).filter(Boolean) as string[]);
     return [...set].sort();
-  }, [deals]);
+  }, [allDeals]);
+
+  const sources = useMemo(() => {
+    const set = new Set(allDeals.map((d) => d.source).filter(Boolean) as string[]);
+    return [...set].sort();
+  }, [allDeals]);
 
   if (query.isLoading) {
     return (
@@ -92,6 +109,39 @@ export function DealsTab({ dept, color }: Props) {
         >
           <option value="">All Stages</option>
           {STAGES.map((s) => <option key={s} value={s}>{s}</option>)}
+        </select>
+        <select
+          value={owner}
+          onChange={(e) => { setOwner(e.target.value); setPage(0); }}
+          style={{
+            padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8, border: `1px solid ${BORDER}`,
+            background: 'var(--samurai-surface)', color: TEXT, outline: 'none', cursor: 'pointer',
+          }}
+        >
+          <option value="">All Owners</option>
+          {owners.map((o) => <option key={o} value={o}>{o}</option>)}
+        </select>
+        <select
+          value={priority}
+          onChange={(e) => { setPriority(e.target.value); setPage(0); }}
+          style={{
+            padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8, border: `1px solid ${BORDER}`,
+            background: 'var(--samurai-surface)', color: TEXT, outline: 'none', cursor: 'pointer',
+          }}
+        >
+          <option value="">All Priorities</option>
+          {['High', 'Medium', 'Low'].map((p) => <option key={p} value={p}>{p}</option>)}
+        </select>
+        <select
+          value={source}
+          onChange={(e) => { setSource(e.target.value); setPage(0); }}
+          style={{
+            padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8, border: `1px solid ${BORDER}`,
+            background: 'var(--samurai-surface)', color: TEXT, outline: 'none', cursor: 'pointer',
+          }}
+        >
+          <option value="">All Sources</option>
+          {sources.map((s) => <option key={s} value={s}>{s}</option>)}
         </select>
         <span style={{ fontSize: '0.8rem', color: MUTED, whiteSpace: 'nowrap' }}>{total} deals</span>
       </div>

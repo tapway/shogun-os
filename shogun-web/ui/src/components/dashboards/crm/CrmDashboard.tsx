@@ -28,9 +28,9 @@ interface CrmDashboardProps {
 
 export function CrmDashboard({ department, color }: CrmDashboardProps) {
   const [activeTab, setActiveTab] = useState('overview');
+  const [dealOwnerFilter, setDealOwnerFilter] = useState('');
 
-  // Only the Overview tab needs the aggregated CEO stats.
-  // All other tabs fetch their own data independently from gbrain.
+  // Only the Overview tab (and its nested chart views) needs the aggregated CEO stats.
   const statsQuery = useQuery({
     queryKey: ['dashboard-ceo-stats', department],
     queryFn: () => departmentsApi.dashboardCeoStats(department),
@@ -62,8 +62,15 @@ export function CrmDashboard({ department, color }: CrmDashboardProps) {
     <div className="sd-stack">
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
-      {activeTab === 'overview' && stats && <OverviewTab dept={department} color={color} stats={stats} />}
-      {activeTab === 'deals' && <DealsTab dept={department} color={color} />}
+      {activeTab === 'overview' && stats && (
+        <OverviewTab
+          dept={department}
+          color={color}
+          stats={stats}
+          onDrillDown={(owner) => { setDealOwnerFilter(owner); setActiveTab('deals'); }}
+        />
+      )}
+      {activeTab === 'deals' && <DealsTab dept={department} color={color} initialOwner={dealOwnerFilter} />}
       {activeTab === 'companies' && <CompaniesTab dept={department} color={color} />}
       {activeTab === 'tasks' && <TasksTab dept={department} color={color} />}
       {activeTab === 'search' && <SearchTab dept={department} color={color} />}

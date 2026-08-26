@@ -65,6 +65,17 @@ def _canonical_stage(raw: str) -> str:
     return raw.strip()
 
 
+def _canonical_priority(raw: str) -> str:
+    p = (raw or "").strip().lower()
+    if p in ("high", "hot"):
+        return "High"
+    if p in ("medium", "warm", "normal"):
+        return "Medium"
+    if p in ("low", "cold"):
+        return "Low"
+    return (raw or "").strip()
+
+
 def _parse_frontmatter(fm: Any) -> dict:
     if isinstance(fm, dict):
         return fm
@@ -429,6 +440,14 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         except Exception as e:
             logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
+    if totalActiveDeals == 0 and not wonDeals and _crm_mock_enabled():
+        # Demo mode: serve the full mock payload so every Overview panel renders.
+        mock_payload = _load_crm_mock().get("dashboard_mock", {})
+        if not mock_payload:  # noqa: SIM102 - clarity
+            pass
+        else:
+            return {**mock_payload, "mock": True}
+
     if totalActiveDeals == 0 and not wonDeals:
         # No real deals at all — return an empty-state payload, not fabricated
         # mock figures. Same policy as finance/procurement (PR #12 review: no
@@ -601,6 +620,40 @@ async def get_dashboard_config(
 # slug prefix ``deals/``, companies are ``companies/``, and tasks are held in
 # a single index page ``crm/tasks-index`` (tasks are not first-class pages).
 
+_CRM_MOCK: Optional[dict] = None
+
+
+def _last_slug_segment(slug: str) -> str:
+    """Return the human-readable tail of a page slug (``partners/syspex`` → ``syspex``)."""
+    if not slug:
+        return ""
+    return slug.strip("/").split("/")[-1].replace("-", " ").replace("_", " ").title()
+
+
+def _crm_mock_enabled() -> bool:
+    """Opt-in demo mode: serve examples/crm-mock.json when the brain has no data.
+
+    Off by default — live brain data is always preferred. Set
+    SHOGUN_WEB_CRM_MOCK=1 to populate every tab with the mock payloads.
+    """
+    return os.environ.get("SHOGUN_WEB_CRM_MOCK", "").lower() in ("1", "true", "yes")
+
+
+def _load_crm_mock() -> dict:
+    """Load examples/crm-mock.json once (empty dict when absent/corrupt)."""
+    global _CRM_MOCK
+    if _CRM_MOCK is not None:
+        return _CRM_MOCK
+    _CRM_MOCK = {}
+    mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "crm-mock.json"
+    try:
+        with open(mock_json_path, "r", encoding="utf-8") as f:
+            _CRM_MOCK = json.load(f)
+    except Exception as exc:  # pragma: no cover - local dev file only
+        logger.warning("Failed to load CRM mock data from %s: %s", mock_json_path, exc)
+    return _CRM_MOCK
+
+
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
@@ -681,6 +734,8 @@ async def list_crm_deals(
     search: str = Query("", description="Filter by title/customer"),
     stage: str = Query("", description="Filter by stage"),
     owner: str = Query("", description="Filter by owner"),
+    priority: str = Query("", description="Filter by priority (High/Medium/Low)"),
+    source: str = Query("", description="Filter by lead source"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -698,9 +753,32 @@ async def list_crm_deals(
     if owner:
         co = _canonical_owner(owner)
         items = [d for d in items if d.get("owner", "") == co]
+    if priority:
+        cp = _canonical_priority(priority)
+        items = [d for d in items if _canonical_priority(d.get("priority", "")) == cp]
+    if source:
+        ss = source.strip().lower()
+        items = [d for d in items if ss in (d.get("source") or "").lower()]
 
     # Sort by created date descending (most recent first)
     items.sort(key=lambda d: d.get("created") or "", reverse=True)
+
+    if not items and _crm_mock_enabled():
+        mock = _load_crm_mock().get("deals", [])
+        if stage:
+            mock = [d for d in mock if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
+        if owner:
+            mock = [d for d in mock if _canonical_owner(d.get("owner", "")) == _canonical_owner(owner)]
+        if priority:
+            cp = _canonical_priority(priority)
+            mock = [d for d in mock if _canonical_priority(d.get("priority", "")) == cp]
+        if source:
+            ss = source.strip().lower()
+            mock = [d for d in mock if ss in (d.get("source") or "").lower()]
+        if search:
+            s = search.lower()
+            mock = [d for d in mock if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
+        return {"deals": mock, "total": len(mock), "mock": True}
 
     return {"deals": items, "total": len(items)}
 
@@ -740,7 +818,96 @@ async def list_crm_companies(
 
     items.sort(key=lambda c: c["title"].lower())
 
+    if not items and _crm_mock_enabled():
+        mock = _load_crm_mock().get("companies", [])
+        if search:
+            s = search.lower()
+            mock = [x for x in mock if s in x["title"].lower()]
+        if industry:
+            mock = [x for x in mock if x.get("industry", "").lower() == industry.lower()]
+        return {"companies": mock, "total": len(mock), "mock": True}
+
     return {"companies": items, "total": len(items)}
+
+
+@router.get("/partner-sphere")
+async def get_partner_sphere(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Partner Sphere — 9 sections (overview, roster, profile, command center,
+    protection, onboarding, QBR, CEO digest, pricing simulator).
+
+    Live mode derives the roster + overview KPIs from partner/deal pages in
+    the brain. When the brain has no data the sections come back empty unless
+    SHOGUN_WEB_CRM_MOCK=1, which serves the demo payload from
+    examples/crm-mock.json (marked ``mock: True``).
+    """
+    result: dict = {
+        "overview": None,
+        "masterList": [],
+        "profile": None,
+        "commandCenter": None,
+        "protection": None,
+        "onboarding": None,
+        "qbr": None,
+        "ceoDigest": None,
+        "pricing": None,
+        "mock": False,
+    }
+    try:
+        partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+        deals = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
+    except Exception as exc:  # pragma: no cover - defensive
+        logger.exception("partner-sphere: brain fetch failed: %s", exc)
+        partners, deals = [], []
+
+    if partners or deals:
+        # Live-derived sections: roster + minimal overview blocks.
+        result["masterList"] = [
+            {
+                "name": (p.get("title") or _last_slug_segment(p.get("slug", "")) or "Partner"),
+                "tier": str((p.get("frontmatter") or {}).get("tier", "")),
+                "am": str((p.get("frontmatter") or {}).get("am", "")),
+                "status": str((p.get("frontmatter") or {}).get("status", "Active")),
+                "regions": str((p.get("frontmatter") or {}).get("country", "")),
+                "tags": [],
+                "openDeals": 0,
+                "pipeline": "—",
+                "licences": "—",
+                "score": 0,
+                "lastActivity": "—",
+            }
+            for p in partners
+        ]
+        result["overview"] = {
+            "kpis": [
+                {"label": "Active Partners", "value": str(len(partners)), "note": "from brain"},
+                {"label": "Partner Pipeline", "value": "—", "note": ""},
+                {"label": "Partner Won (YTD)", "value": "—", "note": ""},
+                {"label": "POC → Commercial", "value": "—", "note": ""},
+                {"label": "Avg Ramp Velocity", "value": "—", "note": ""},
+            ],
+            "amCoverage": [],
+            "tierBoard": [],
+            "funnel": [],
+            "leakPoints": [],
+            "battleLog": [],
+            "cohortGrid": None,
+            "openPipeline": [],
+            "hygiene": None,
+            "aiBrief": None,
+        }
+
+    if _crm_mock_enabled():
+        mock_sphere = _load_crm_mock().get("partner_sphere") or {}
+        for key in result:
+            if key == "mock":
+                result[key] = True
+            elif mock_sphere.get(key):
+                result[key] = mock_sphere[key]
+    return result
 
 
 @router.get("/partners")
@@ -775,6 +942,13 @@ async def list_crm_partners(
 
     items.sort(key=lambda c: c["title"].lower())
 
+    if not items and _crm_mock_enabled():
+        mock = _load_crm_mock().get("partners", [])
+        if search:
+            s = search.lower()
+            mock = [x for x in mock if s in x["title"].lower()]
+        return {"partners": mock, "total": len(mock), "mock": True}
+
     return {"partners": items, "total": len(items)}
 
 
@@ -783,6 +957,7 @@ async def list_crm_tasks(
     name: str = Path(...),
     completed: Optional[bool] = Query(None, description="Filter by completion status"),
     assignee: str = Query("", description="Filter by assignee"),
+    deal: str = Query("", description="Filter by deal slug/title"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -791,8 +966,30 @@ async def list_crm_tasks(
         index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
     except Exception as exc:  # pragma: no cover - transport/protocol failures
         logger.warning("gbrain fetch failed for %s/tasks-index: %s", CRM_SOURCE, exc)
+        if _crm_mock_enabled():
+            mock = _load_crm_mock().get("tasks", [])
+            if completed is not None:
+                mock = [t for t in mock if t["completed"] == completed]
+            if assignee:
+                ca = _canonical_owner(assignee)
+                mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+            if deal:
+                dd = deal.strip().lower()
+                mock = [t for t in mock if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+            return {"tasks": mock, "total": len(mock), "mock": True}
         return {"tasks": [], "total": 0}
     if not index:
+        if _crm_mock_enabled():
+            mock = _load_crm_mock().get("tasks", [])
+            if completed is not None:
+                mock = [t for t in mock if t["completed"] == completed]
+            if assignee:
+                ca = _canonical_owner(assignee)
+                mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+            if deal:
+                dd = deal.strip().lower()
+                mock = [t for t in mock if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+            return {"tasks": mock, "total": len(mock), "mock": True}
         return {"tasks": [], "total": 0}
 
     fm = _parse_frontmatter(index.get("frontmatter") or {})
@@ -818,6 +1015,18 @@ async def list_crm_tasks(
     if assignee:
         ca = _canonical_owner(assignee)
         tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
+    if deal:
+        dd = deal.strip().lower()
+        tasks = [t for t in tasks if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+
+    if not tasks and _crm_mock_enabled():
+        mock = _load_crm_mock().get("tasks", [])
+        if completed is not None:
+            mock = [t for t in mock if t["completed"] == completed]
+        if assignee:
+            ca = _canonical_owner(assignee)
+            mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+        return {"tasks": mock, "total": len(mock), "mock": True}
 
     return {"tasks": tasks, "total": len(tasks)}
 
@@ -842,6 +1051,11 @@ async def crm_search(
         raw = await gbrain_search(CRM_SOURCE, query, limit=20)
     except Exception as exc:  # pragma: no cover - transport/protocol failures
         logger.warning("gbrain search failed for %s: %s", CRM_SOURCE, exc)
+        if _crm_mock_enabled():
+            q = query.lower()
+            mock = [r for r in _load_crm_mock().get("search_results", [])
+                    if q in str(r.get("title", "")).lower() or q in str(r.get("slug", "")).lower()]
+            return {"results": mock, "mock": True}
         return {"results": []}
 
     normalised: list[dict] = []
@@ -863,6 +1077,12 @@ async def crm_search(
             else:
                 row["category"] = "unknown"
         normalised.append(row)
+
+    if not normalised and _crm_mock_enabled():
+        q = query.lower()
+        mock = [r for r in _load_crm_mock().get("search_results", [])
+                if q in str(r.get("title", "")).lower() or q in str(r.get("slug", "")).lower()]
+        return {"results": mock, "mock": True}
 
     return {"results": normalised}
 
@@ -891,21 +1111,29 @@ async def list_bev_zones(
 ) -> dict:
     """List BEV zones via the BEV microservice."""
     base = _bev_base_url()
+    live_zones: list = []
+    live_ok = False
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(f"{base}/zones", headers=_bev_headers())
-            if resp.status_code >= 400:
-                return {"zones": []}
-            data = resp.json()
-            # Normalize: ensure we return {zones: [...]}
-            if isinstance(data, list):
-                return {"zones": data}
-            if isinstance(data, dict) and "zones" in data:
-                return data
-            return {"zones": []}
+            if resp.status_code < 400:
+                data = resp.json()
+                if isinstance(data, list):
+                    live_zones = data
+                    live_ok = True
+                elif isinstance(data, dict) and "zones" in data:
+                    live_zones = data["zones"]
+                    live_ok = True
     except httpx.HTTPError as exc:
         logger.warning("BEV zones list error: %s", exc)
-        return {"zones": []}
+
+    if live_ok:
+        return {"zones": live_zones}
+    if _crm_mock_enabled():
+        mock_zones = _load_crm_mock().get("bev_zones")
+        if mock_zones:
+            return {"zones": mock_zones, "mock": True}
+    return {"zones": []}
 
 
 
