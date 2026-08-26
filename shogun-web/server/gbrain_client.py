@@ -6,22 +6,38 @@ This client calls the /mcp endpoint with tools/call methods.
 Read strategy (configurable via ``gbrain_read_preference``):
 
 * ``"filesystem"`` (default) — read ``~/brain/{source}/`` markdown files first.
-  Full content, unbounded, no network. Falls back to MCP when the directory
-  has no files. This is the authoritative source when the backend and the
-  brain dir are co-located (the intended deployment).
+  Full content, unbounded, no network. All filesystem I/O runs through
+  ``asyncio.to_thread`` so a large brain dir never blocks the event loop.
+  Falls back to MCP when the directory has no files. Optional staleness
+  guard: if the newest markdown is older than ``gbrain_fs_max_age_minutes``
+  (0 = off), the mirror is considered stale and MCP is tried first.
 * ``"mcp"`` — always read via MCP. Use for remote (OAuth-scoped) brain
-  deployments where the markdown mirror is not mounted locally.
+  deployments where the markdown mirror is not mounted locally. Note:
+  ``list_pages`` rows past the enrichment cap (``gbrain_mcp_enrich_cap``,
+  default 50) are metadata-only, so MCP-only mode is not recommended for
+  large sources (>50 rows) that need frontmatter fields.
 
 Writes (``gbrain_put_page``) always go through MCP ``put_page``; gbrain's
-sync mirror propagates them to the filesystem on the co-located box.
+sync mirror propagates them to the filesystem on the co-located box. If that
+sync fails the filesystem-first reads can serve stale data — the staleness
+guard above is the mitigation.
+
+Error contract: ``_mcp_call`` RAISES on transport/protocol failure
+(``httpx.HTTPError``, ``json.JSONDecodeError``, ``KeyError``, ``TypeError``)
+and returns None only when gbrain answers but the tool produced no content.
+Every external call site must wrap these functions in try/except and degrade
+to its documented empty state (see ``_fetch_brain_pages_safe`` in
+dashboard.py and the guarded callers in gateway.py).
 """
 from __future__ import annotations
 
+import asyncio
 import json
 import logging
 import os
 import pathlib
 import re
+import time
 from typing import Any, Dict, List, Optional
 
 import httpx
@@ -32,18 +48,30 @@ logger = logging.getLogger(__name__)
 # list_pages hard cap on the gbrain side (v0.42) — used to page through a
 # source when the caller's limit exceeds one request.
 _MCP_LIST_PAGE_SIZE = 100
-# Enrichment cap: list_pages rows are metadata-only; enriching every row via
-# get_page would be an N+1 explosion. Cap per fetch.
-_MCP_ENRICH_CAP = 50
 # Safety bound on the list_pages pagination loop (never infinite).
 _MCP_LIST_MAX_PAGES = 200
+
+
+def _enrich_cap() -> int:
+    """Enrichment cap for metadata-only list_pages rows.
+
+    list_pages rows carry no frontmatter; enriching every row via get_page
+    would be an N+1 explosion. Cap per fetch — configurable via
+    ``gbrain_mcp_enrich_cap`` (raise for large MCP-only sources).
+    """
+    cap = getattr(get_config(), "gbrain_mcp_enrich_cap", 50)
+    try:
+        return max(1, int(cap))
+    except (TypeError, ValueError):
+        return 50
 
 
 def _parse_frontmatter_from_markdown(text: str) -> Dict[str, Any]:
     """Parse YAML frontmatter from a markdown file. Returns {} if none.
 
     Uses PyYAML when available (full nested lists/dicts); falls back to a
-    flat ``key: value`` line parser otherwise.
+    flat ``key: value`` line parser otherwise (logs a warning if the block
+    looks nested, since the flat parser cannot represent lists/dicts).
     """
     if not text.startswith("---"):
         return {}
@@ -63,6 +91,12 @@ def _parse_frontmatter_from_markdown(text: str) -> Dict[str, Any]:
         pass
     except yaml.YAMLError:  # noqa: F821 - pyyaml present, fall back on parse failure
         pass
+
+    if any(line.startswith(("  ", "- ", "\t")) for line in yaml_block.split("\n") if line.strip()):
+        logger.warning(
+            "frontmatter fallback parser hit nested/list YAML — install pyyaml "
+            "for correct parsing (flat key: value only): %.80s", yaml_block
+        )
 
     result: Dict[str, Any] = {}
     for line in yaml_block.split("\n"):
@@ -93,6 +127,19 @@ def _safe_source(source: str) -> Optional[str]:
     return source
 
 
+def _safe_slug(slug: str) -> Optional[str]:
+    """Validate a page slug against path traversal; return it or None.
+
+    Slugs may contain ``/`` (nested pages) but never ``..`` or absolute
+    path markers, so a slug can never resolve outside the source dir.
+    """
+    if not slug or slug.startswith(("/", "\\")):
+        return None
+    if ".." in slug:
+        return None
+    return slug
+
+
 def _brain_source_dir(source: str) -> Optional[pathlib.Path]:
     """Resolve the local markdown directory for a source, or None."""
     safe = _safe_source(source)
@@ -105,17 +152,10 @@ def _brain_source_dir(source: str) -> Optional[pathlib.Path]:
     return brain_dir
 
 
-def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List[dict[str, Any]]:
-    """Read brain markdown files directly from the filesystem.
-
-    Scans ~/brain/{source}/ for .md files and returns them in the same
-    shape as gbrain's API: {slug, frontmatter, content, body}.
-    """
-    brain_dir = _brain_source_dir(source)
-    if not brain_dir:
-        return []
-
+def _scan_source_dir(brain_dir: pathlib.Path, slug_prefix: Optional[str]) -> List[dict[str, Any]]:
+    """Synchronous markdown scan of one source dir (runs in a worker thread)."""
     pages: List[dict[str, Any]] = []
+    source = brain_dir.name
     for md_path in brain_dir.rglob("*.md"):
         if md_path.is_symlink():
             continue  # skip symlinks — avoids traversal outside brain_dir
@@ -140,12 +180,57 @@ def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List
     return pages
 
 
+def _fs_mirror_is_fresh(brain_dir: pathlib.Path) -> bool:
+    """Staleness guard: is the newest markdown within the configured max age?
+
+    ``gbrain_fs_max_age_minutes`` = 0 disables the guard (default). When a
+    put_page write's sync mirror fails the web server would otherwise serve
+    stale data indefinitely; with the guard on, stale mirrors defer to MCP.
+    """
+    max_age_min = getattr(get_config(), "gbrain_fs_max_age_minutes", 0) or 0
+    if max_age_min <= 0:
+        return True
+    newest = 0.0
+    for md_path in brain_dir.rglob("*.md"):
+        try:
+            newest = max(newest, md_path.stat().st_mtime)
+        except OSError:
+            continue
+    if newest <= 0:
+        return False
+    age_min = (time.time() - newest) / 60.0
+    if age_min > max_age_min:
+        logger.warning(
+            "brain mirror %s is stale (%.0f min > %d min) — trying MCP first",
+            brain_dir, age_min, max_age_min,
+        )
+        return False
+    return True
+
+
+async def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List[dict[str, Any]]:
+    """Read brain markdown files directly from the filesystem.
+
+    Scans ~/brain/{source}/ for .md files and returns them in the same
+    shape as gbrain's API: {slug, frontmatter, content, body}. The scan is
+    blocking I/O, so it runs in a worker thread — this is the default read
+    path (hot on every CRM list in co-located deployments) and must never
+    stall the asyncio event loop.
+    """
+    brain_dir = _brain_source_dir(source)
+    if not brain_dir:
+        return []
+    return await asyncio.to_thread(_scan_source_dir, brain_dir, slug_prefix)
+
+
 async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
     """Call a gbrain MCP tool over HTTP JSON-RPC via SSE.
 
-    Raises ``httpx.HTTPError`` / ``json.JSONDecodeError`` on transport or
-    protocol failure (callers decide whether to degrade to empty state).
-    Returns None when gbrain answers but the tool produced no content.
+    CONTRACT (shared utility — read before adding call sites):
+    * RAISES ``httpx.HTTPError`` / ``json.JSONDecodeError`` / ``KeyError`` /
+      ``TypeError`` on transport or protocol failure. Callers decide whether
+      to degrade to an empty state — wrap every call site accordingly.
+    * Returns None when gbrain answers but the tool produced no content.
     """
     cfg = get_config()
     base = cfg.gbrain_base_url.rstrip("/")
@@ -211,15 +296,15 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
     ``updated_after`` cursor (sort updated_asc, cursor = max seen updated_at)
     and dedupe by slug, stopping at the prefix quota or source exhaustion.
 
-    Known limit: rows sharing an identical updated_at beyond a 100-row page
-    boundary can be skipped (updated_after is strict '>'); when a page adds
-    zero new slugs we stop to avoid a loop. For CRM datasets updated_at
-    values are effectively distinct.
+    Equal-timestamp boundary guard: rows sharing an identical updated_at at a
+    page boundary are skipped by strict ``>``. When a page adds zero new
+    slugs we re-fetch the boundary once — dedupe by slug makes the re-scan
+    safe — before stopping, so bulk imports at one timestamp are recovered.
     """
-    target = max(limit, _MCP_LIST_PAGE_SIZE)
     collected: List[dict] = []
     seen: set[str] = set()
     cursor: Optional[str] = None
+    rescanned_boundary = False
 
     for _ in range(_MCP_LIST_MAX_PAGES):
         args: dict = {"limit": _MCP_LIST_PAGE_SIZE, "sort": "updated_asc"}
@@ -249,7 +334,14 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
         if len(rows) < _MCP_LIST_PAGE_SIZE:
             break  # server exhausted the source
         if new_rows == 0:
-            break  # equal-timestamp boundary — avoid re-reading the same page
+            if rescanned_boundary or cursor is None or batch_cursor is None or batch_cursor == cursor:
+                break  # genuinely stalled — avoid re-reading the same page
+            # Zero progress but a fresh cursor: equal-timestamp boundary.
+            # Re-fetch it once; slug-dedupe absorbs any repeated rows.
+            rescanned_boundary = True
+            cursor = batch_cursor
+            continue
+        rescanned_boundary = False
         cursor = batch_cursor
 
     return collected
@@ -270,15 +362,17 @@ async def gbrain_fetch_pages(
 ) -> List[dict[str, Any]]:
     """Fetch pages from gbrain for a given source, optionally filtered by slug prefix.
 
-    Filesystem first (unless ``gbrain_read_preference=mcp``): the local
-    markdown mirror is unbounded and carries full content, whereas MCP
-    ``list_pages`` only returns metadata-only rows. Falls back to an MCP
-    paginated scan (with enrichment) when no local files exist.
+    Filesystem first (unless ``gbrain_read_preference=mcp`` or the mirror is
+    stale): the local markdown mirror is unbounded and carries full content,
+    whereas MCP ``list_pages`` only returns metadata-only rows. Falls back to
+    an MCP paginated scan (with enrichment) when no local files exist.
     """
     if _read_preference() == "filesystem":
-        fs_pages = _filesystem_fallback(source, slug_prefix)
-        if fs_pages:
-            return fs_pages[:limit] if limit and limit > 0 else fs_pages
+        brain_dir = _brain_source_dir(source)
+        if brain_dir and _fs_mirror_is_fresh(brain_dir):
+            fs_pages = await _filesystem_fallback(source, slug_prefix)
+            if fs_pages:
+                return fs_pages[:limit] if limit and limit > 0 else fs_pages
 
     rows = await _mcp_list_paginated(source, slug_prefix, limit)
     pages: List[dict] = rows if not slug_prefix else [
@@ -288,9 +382,10 @@ async def gbrain_fetch_pages(
     # list_pages rows are metadata-only; enrich a bounded window via get_page.
     # Rows beyond the enrichment window are returned as-is (slug/title only)
     # instead of being dropped — truncation would silently lose data.
+    cap = _enrich_cap()
     out: List[dict] = []
     for idx, p in enumerate(pages):
-        if idx >= _MCP_ENRICH_CAP:
+        if idx >= cap:
             out.append(p)
             continue
         slug = str(p.get("slug", ""))
@@ -307,9 +402,12 @@ async def gbrain_fetch_pages(
 
 async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
     """Fetch a single page — filesystem mirror first (if allowed), else MCP get_page."""
+    if _read_preference() == "filesystem" and not _safe_slug(slug):
+        logger.warning("gbrain_fetch_page: rejected unsafe slug %r", slug)
+        return None
     if _read_preference() == "filesystem":
         brain_dir = _brain_source_dir(source)
-        if brain_dir:
+        if brain_dir and _fs_mirror_is_fresh(brain_dir):
             slug_rel = slug.replace("\\", "/").strip("/")
             if slug_rel and ".." not in slug_rel:
                 for rel in (f"{slug_rel}.md", f"{slug_rel}/index.md"):
@@ -345,15 +443,60 @@ async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
     return None
 
 
+def _fs_search(source: str, query: str, limit: int) -> List[dict[str, Any]]:
+    """Synchronous substring search over the filesystem mirror (worker thread)."""
+    brain_dir = _brain_source_dir(source)
+    if not brain_dir:
+        return []
+    q = query.lower()
+    hits: List[dict[str, Any]] = []
+    for page in _scan_source_dir(brain_dir, None):
+        title = str(page.get("frontmatter", {}).get("title", "") or page["slug"])
+        if q in title.lower() or q in page["compiled_truth"].lower():
+            hits.append({
+                "slug": page["slug"],
+                "title": title,
+                "snippet": page["compiled_truth"][:200],
+                "source_id": source,
+            })
+            if len(hits) >= limit:
+                break
+    return hits
+
+
 async def gbrain_search(
     source: str,
     query: str,
     limit: int = 20,
 ) -> List[dict[str, Any]]:
-    """Search gbrain pages for a source via MCP search tool."""
+    """Search gbrain pages for a source.
+
+    Filesystem-first (honouring ``gbrain_read_preference``): a substring
+    search over the local mirror means Search keeps working when MCP is down
+    — the same degradation contract as the listing endpoints. Falls back to
+    MCP semantic search when the filesystem yields nothing (semantic matching
+    is MCP-only by design; the fs pass is a coarse safety net).
+
+    Note: MCP search is capped at ``_MCP_LIST_PAGE_SIZE`` results; a
+    warning is logged when the requested limit exceeds the cap.
+    """
+    if limit > _MCP_LIST_PAGE_SIZE:
+        logger.warning(
+            "gbrain_search: requested limit %d exceeds MCP cap %d — capping",
+            limit, _MCP_LIST_PAGE_SIZE,
+        )
+    effective = min(limit, _MCP_LIST_PAGE_SIZE)
+
+    if _read_preference() == "filesystem":
+        brain_dir = _brain_source_dir(source)
+        if brain_dir and _fs_mirror_is_fresh(brain_dir):
+            fs_hits = await asyncio.to_thread(_fs_search, source, query, effective)
+            if fs_hits:
+                return fs_hits
+
     result = await _mcp_call("search", {
         "query": query,
-        "limit": min(limit, _MCP_LIST_PAGE_SIZE),
+        "limit": effective,
     }, source_id=source)
 
     if isinstance(result, list):
@@ -379,9 +522,14 @@ async def gbrain_put_page(
     Source scoping note: ``put_page`` has no per-call ``source_id`` — the
     write target source is bound server-side to the registered client.
     ``source`` is validated for path safety and kept for symmetry only.
+    Slugs are validated against traversal (``..``) before being sent, in
+    case the server maps them to filesystem paths.
     """
     if not _safe_source(source):
         logger.warning("gbrain_put_page: rejected unsafe source %r", source)
+        return None
+    if not _safe_slug(slug):
+        logger.warning("gbrain_put_page: rejected unsafe slug %r", slug)
         return None
 
     fm = frontmatter or {}

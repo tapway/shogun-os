@@ -19,11 +19,7 @@ const WARNING = 'var(--samurai-warning)';
 
 const STAGES = ['Lead', 'Prospecting', 'Qualified', 'Quote', 'Tender', 'Confirmed', 'Won'];
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
-}
+import { Th } from './table';
 
 export function DealsTab({ dept, color, initialOwner = '' }: Props) {
   const [search, setSearch] = useState('');

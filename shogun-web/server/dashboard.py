@@ -702,6 +702,11 @@ def _extract_deal_list_item(page: dict) -> dict:
 #   broad set  — deal listings may contain gbrain-internal scaffolds
 #   narrow set — companies/partners only skip README/_schema (a company
 #                named "...activity-log" is legitimate)
+# NOTE: the broad set (deal listings only) matches the pre-existing dashboard
+# exclusion convention (docs/plans/2026-07-26-profile-dashboards-implementation.md):
+# activity-log / risk-register are gbrain scaffolding pages, not real deals —
+# real deal slugs are customer/scoped names, so the over-exclude risk is low.
+# Companies/partners use the NARROW set; a business named "...activity-log" stays.
 _SLUG_SEGMENT_EXCLUDES_BROAD = {"readme", "_schema", "activity-log", "risk-register"}
 _SLUG_SEGMENT_EXCLUDES_NARROW = {"readme", "_schema"}
 _SLUG_PREFIX_EXCLUDES = ("templates/",)

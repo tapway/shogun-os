@@ -120,6 +120,30 @@ def test_companies_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
 
 # ─── Partners ────────────────────────────────────────────────────────────
 
+PARTNER_PAGES = [
+    {"slug": "partners/zeta-tech", "title": "Zeta Tech", "frontmatter": {"country": "MY", "tier": "Gold", "type": "Reseller"}},
+    {"slug": "partners/readme", "title": "README", "frontmatter": {}},
+    {"slug": "partners/alpha-dist", "title": "Alpha Dist", "frontmatter": {"country": "SG", "tier": "Platinum", "type": "Distributor"}},
+]
+
+
+def test_partners_normal_mapping_meta_excludes_and_sort(monkeypatch) -> None:
+    """Partners map from pages, skip readme/_schema (narrow set), sort by title."""
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return PARTNER_PAGES
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_partners(name="crm", search="", user=USER, db=DB))
+
+    titles = [p["title"] for p in result["partners"]]
+    assert titles == ["Alpha Dist", "Zeta Tech"], "sorted by title, meta pages excluded"
+    assert result["total"] == 2
+    first = result["partners"][0]
+    assert first["slug"] == "partners/alpha-dist"
+    assert first["country"] == "SG"
+
+
 def test_partners_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     async def boom(source, *, limit, slug_prefix):
         raise RuntimeError("MCP down")

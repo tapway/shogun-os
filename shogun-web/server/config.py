@@ -63,6 +63,13 @@ class WebConfig:
     gbrain_api_key: str = os.environ.get("GBRAIN_API_KEY", "")
     brain_root: str = str(Path.home() / "brain")
     gbrain_read_preference: str = os.environ.get("GBRAIN_READ_PREFERENCE", "filesystem")
+    # MCP-only sources: cap per-fetch enrichment of metadata-only list_pages rows.
+    # Raise above the source size for large remote brains (each enrich = 1 get_page).
+    gbrain_mcp_enrich_cap: int = int(os.environ.get("GBRAIN_MCP_ENRICH_CAP", "50") or 50)
+    # Filesystem mirror staleness guard (minutes). 0 = off. When the newest
+    # markdown is older than this the mirror defers to MCP (guards against a
+    # failed put_page sync mirror serving stale data indefinitely).
+    gbrain_fs_max_age_minutes: int = int(os.environ.get("GBRAIN_FS_MAX_AGE_MINUTES", "0") or 0)
     seed_demo_brain: bool = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
 
     # CORS

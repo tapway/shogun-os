@@ -19,11 +19,13 @@ import gbrain_client  # noqa: E402
 
 
 class _StubConfig:
-    def __init__(self, brain_root, preference="filesystem"):
+    def __init__(self, brain_root, preference="filesystem", enrich_cap=50, fs_max_age=0):
         self.brain_root = str(brain_root)
         self.gbrain_read_preference = preference
         self.gbrain_base_url = "http://unused"
         self.gbrain_api_key = ""
+        self.gbrain_mcp_enrich_cap = enrich_cap
+        self.gbrain_fs_max_age_minutes = fs_max_age
 
 
 def _run(coro):
@@ -160,13 +162,6 @@ def test_mcp_pagination_does_not_starve_a_prefix(monkeypatch, tmp_path) -> None:
 
     calls = []
 
-    async def fake_mcp_call(tool, arguments, source_id=""):
-        if tool != "list_pages":
-            return []
-        calls.append(dict(arguments))
-        page, more = page_for(arguments.get("updated_after") or "")
-        return page if page else []
-
     # The server reports fewer rows when it has no more pages.
     async def fake_mcp_call_with_exhaustion(tool, arguments, source_id=""):
         if tool != "list_pages":
@@ -190,3 +185,103 @@ def test_mcp_pagination_does_not_starve_a_prefix(monkeypatch, tmp_path) -> None:
     # as metadata rows — never dropped.
     assert len(pages) == 100
     assert len(calls) >= 3
+
+def test_stale_mirror_defers_to_mcp(monkeypatch, tmp_path) -> None:
+    """Staleness guard: a mirror older than fs_max_age defers to MCP."""
+    import os
+    import time
+
+    brain = tmp_path / "brain" / "crm" / "deals"
+    brain.mkdir(parents=True)
+    (brain / "old-deal.md").write_text("---\nowner: X\n---\n\n# Old\n", encoding="utf-8")
+    # Age the file beyond the 1-minute guard.
+    old = time.time() - 3600
+    os.utime(brain / "old-deal.md", (old, old))
+
+    monkeypatch.setattr(
+        gbrain_client, "get_config",
+        lambda: _StubConfig(tmp_path / "brain", preference="filesystem", fs_max_age=1),
+    )
+
+    mcp_called = []
+
+    async def fake_mcp_call(tool, arguments, source_id=""):
+        mcp_called.append(tool)
+        if tool == "list_pages":
+            return []
+        return None
+
+    async def fake_fetch_page(source, slug):
+        return None
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    monkeypatch.setattr(gbrain_client, "gbrain_fetch_page", fake_fetch_page)
+
+    pages = _run(gbrain_client.gbrain_fetch_pages("crm", slug_prefix="deals/"))
+    assert "list_pages" in mcp_called, "stale mirror must fall through to MCP"
+    assert pages == []
+
+
+def test_search_uses_filesystem_fallback(monkeypatch, tmp_path) -> None:
+    """Search degrades to a filesystem substring scan when MCP is down."""
+    brain = tmp_path / "brain" / "crm" / "deals"
+    brain.mkdir(parents=True)
+    (brain / "warehouse-fit.md").write_text(
+        "---\ntitle: Warehouse deal\n---\n\n# Warehouse fit\nLarge logistics site.\n",
+        encoding="utf-8",
+    )
+    monkeypatch.setattr(gbrain_client, "get_config", lambda: _StubConfig(tmp_path / "brain"))
+
+    mcp_called = []
+
+    async def fake_mcp_call(*a, **k):
+        mcp_called.append(True)
+        return None
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+
+    hits = _run(gbrain_client.gbrain_search("crm", "warehouse"))
+    assert not mcp_called, "fs search should short-circuit MCP"
+    assert len(hits) == 1
+    assert hits[0]["slug"] == "deals/warehouse-fit"
+
+
+def test_put_page_rejects_traversal_slug(monkeypatch) -> None:
+    """Slug path traversal must be rejected before reaching MCP."""
+    called = []
+
+    async def fake_mcp_call(*a, **k):
+        called.append(True)
+        return {}
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    result = _run(gbrain_client.gbrain_put_page("crm", "deals/../../etc/passwd", body="x"))
+    assert result is None
+    assert not called, "unsafe slug must never reach MCP"
+
+
+def test_enrich_cap_is_configurable(monkeypatch, tmp_path) -> None:
+    """gbrain_mcp_enrich_cap controls how many rows get get_page enrichment."""
+    monkeypatch.setattr(
+        gbrain_client, "get_config",
+        lambda: _StubConfig(tmp_path / "brain", preference="mcp", enrich_cap=2),
+    )
+
+    async def fake_mcp_call(tool, arguments, source_id=""):
+        if tool != "list_pages":
+            return None
+        # One short page (3 rows) => single call, no exhaustion.
+        return [{"slug": f"deals/{i}", "updated_at": f"2026-08-26T00:00:0{i}Z"} for i in range(3)]
+
+    enriched = []
+
+    async def fake_fetch_page(source, slug):
+        enriched.append(slug)
+        return {"slug": slug, "compiled_truth": "# " + slug}
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    monkeypatch.setattr(gbrain_client, "gbrain_fetch_page", fake_fetch_page)
+
+    pages = _run(gbrain_client.gbrain_fetch_pages("crm", limit=100, slug_prefix="deals/"))
+    assert len(pages) == 3
+    assert len(enriched) == 2, "only the first <cap> rows are enriched"
