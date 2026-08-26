@@ -9,8 +9,9 @@ Read strategy (configurable via ``gbrain_read_preference``):
   Full content, unbounded, no network. All filesystem I/O runs through
   ``asyncio.to_thread`` so a large brain dir never blocks the event loop.
   Falls back to MCP when the directory has no files. Optional staleness
-  guard: if the newest markdown is older than ``gbrain_fs_max_age_minutes``
-  (0 = off), the mirror is considered stale and MCP is tried first.
+  guard (on by default, ``gbrain_fs_max_age_minutes`` = 60): if the newest
+  markdown is older than the threshold the mirror is considered stale and
+  MCP is tried first (0 disables the guard).
 * ``"mcp"`` — always read via MCP. Use for remote (OAuth-scoped) brain
   deployments where the markdown mirror is not mounted locally. Note:
   ``list_pages`` rows past the enrichment cap (``gbrain_mcp_enrich_cap``,
@@ -20,7 +21,7 @@ Read strategy (configurable via ``gbrain_read_preference``):
 Writes (``gbrain_put_page``) always go through MCP ``put_page``; gbrain's
 sync mirror propagates them to the filesystem on the co-located box. If that
 sync fails the filesystem-first reads can serve stale data — the staleness
-guard above is the mitigation.
+guard above is the mitigation (on by default).
 
 Error contract: ``_mcp_call`` RAISES on transport/protocol failure
 (``httpx.HTTPError``, ``json.JSONDecodeError``, ``KeyError``, ``TypeError``)
@@ -38,7 +39,7 @@ import os
 import pathlib
 import re
 import time
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 
 import httpx
 from config import get_config
@@ -152,75 +153,84 @@ def _brain_source_dir(source: str) -> Optional[pathlib.Path]:
     return brain_dir
 
 
-def _scan_source_dir(brain_dir: pathlib.Path, slug_prefix: Optional[str]) -> List[dict[str, Any]]:
-    """Synchronous markdown scan of one source dir (runs in a worker thread)."""
-    pages: List[dict[str, Any]] = []
-    source = brain_dir.name
-    for md_path in brain_dir.rglob("*.md"):
-        if md_path.is_symlink():
-            continue  # skip symlinks — avoids traversal outside brain_dir
-        if md_path.name == "README.md":
-            continue
-        slug = str(md_path.relative_to(brain_dir)).replace("\\", "/").replace(".md", "")
-        if slug_prefix and not slug.startswith(slug_prefix):
-            continue
-        try:
-            text = md_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            continue
-        fm = _parse_frontmatter_from_markdown(text)
-        pages.append({
-            "slug": slug,
-            "frontmatter": fm,
-            "content": text,
-            "body": text,
-            "compiled_truth": text,
-            "source_id": source,
-        })
-    return pages
+def _scan_source_dir(
+    brain_dir: pathlib.Path,
+    slug_prefix: Optional[str],
+    limit: Optional[int] = None,
+    max_age_min: int = 0,
+) -> Tuple[List[Dict[str, Any]], bool]:
+    """Synchronous markdown scan of one source dir (runs in a worker thread).
 
-
-def _fs_mirror_is_fresh(brain_dir: pathlib.Path) -> bool:
-    """Staleness guard: is the newest markdown within the configured max age?
-
-    ``gbrain_fs_max_age_minutes`` = 0 disables the guard (default). When a
-    put_page write's sync mirror fails the web server would otherwise serve
-    stale data indefinitely; with the guard on, stale mirrors defer to MCP.
+    Uses ``os.walk(followlinks=False)`` — symlinked directories are skipped
+    entirely (rglob *does* follow them), so a symlink inside the brain root
+    cannot escape ``brain_dir``. Returns ``(pages, stale)``: ``stale`` is True
+    when max_age_min > 0 and the newest file exceeds the threshold. The
+    staleness timestamp comes from this same walk — no second blocking pass.
     """
-    max_age_min = getattr(get_config(), "gbrain_fs_max_age_minutes", 0) or 0
-    if max_age_min <= 0:
-        return True
+    pages: List[Dict[str, Any]] = []
+    source = brain_dir.name
+    max_age_sec = max_age_min * 60.0
     newest = 0.0
-    for md_path in brain_dir.rglob("*.md"):
-        try:
-            newest = max(newest, md_path.stat().st_mtime)
-        except OSError:
-            continue
-    if newest <= 0:
-        return False
-    age_min = (time.time() - newest) / 60.0
-    if age_min > max_age_min:
-        logger.warning(
-            "brain mirror %s is stale (%.0f min > %d min) — trying MCP first",
-            brain_dir, age_min, max_age_min,
-        )
-        return False
-    return True
+
+    for root, dirs, files in os.walk(str(brain_dir), followlinks=False):
+        dirs[:] = sorted(d for d in dirs if not os.path.islink(os.path.join(root, d)))
+        for name in sorted(files):
+            md_path = pathlib.Path(root) / name
+            if md_path.is_symlink():
+                continue  # skip symlinked files — avoids traversal outside brain_dir
+            if md_path.name == "README.md":
+                continue
+            try:
+                newest = max(newest, md_path.stat().st_mtime)
+            except OSError:
+                pass
+            rel = md_path.relative_to(brain_dir)
+            slug = str(rel).replace("\\", "/")
+            if not slug.endswith(".md"):
+                continue
+            slug = slug[:-3]
+            if slug_prefix and not slug.startswith(slug_prefix):
+                continue
+            try:
+                text = md_path.read_text(encoding="utf-8", errors="replace")
+            except OSError:
+                continue
+            fm = _parse_frontmatter_from_markdown(text)
+            pages.append({
+                "slug": slug,
+                "frontmatter": fm,
+                "content": text,
+                "body": text,
+                "compiled_truth": text,
+                "source_id": source,
+            })
+            if limit and len(pages) >= limit:
+                break  # bound memory on huge sources
+        if limit and len(pages) >= limit:
+            break
+
+    stale = False
+    if max_age_sec > 0 and newest > 0:
+        stale = (time.time() - newest) > max_age_sec
+    return pages, stale
 
 
-async def _filesystem_fallback(source: str, slug_prefix: Optional[str] = None) -> List[dict[str, Any]]:
-    """Read brain markdown files directly from the filesystem.
+async def _filesystem_fallback(
+    source: str,
+    slug_prefix: Optional[str],
+    limit: Optional[int] = None,
+) -> Tuple[List[Dict[str, Any]], bool]:
+    """Read brain markdown files directly from the filesystem (worker thread).
 
-    Scans ~/brain/{source}/ for .md files and returns them in the same
-    shape as gbrain's API: {slug, frontmatter, content, body}. The scan is
-    blocking I/O, so it runs in a worker thread — this is the default read
-    path (hot on every CRM list in co-located deployments) and must never
-    stall the asyncio event loop.
+    Returns ``(pages, stale)``. Scan and staleness run in ONE to_thread pass,
+    so enabling the staleness guard never adds a second blocking walk on
+    the event loop.
     """
     brain_dir = _brain_source_dir(source)
     if not brain_dir:
-        return []
-    return await asyncio.to_thread(_scan_source_dir, brain_dir, slug_prefix)
+        return [], False
+    max_age_min = getattr(get_config(), "gbrain_fs_max_age_minutes", 60) or 0
+    return await asyncio.to_thread(_scan_source_dir, brain_dir, slug_prefix, limit, max_age_min)
 
 
 async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
@@ -368,11 +378,11 @@ async def gbrain_fetch_pages(
     an MCP paginated scan (with enrichment) when no local files exist.
     """
     if _read_preference() == "filesystem":
-        brain_dir = _brain_source_dir(source)
-        if brain_dir and _fs_mirror_is_fresh(brain_dir):
-            fs_pages = await _filesystem_fallback(source, slug_prefix)
-            if fs_pages:
-                return fs_pages[:limit] if limit and limit > 0 else fs_pages
+        fs_pages, fs_stale = await _filesystem_fallback(source, slug_prefix, limit)
+        if fs_pages and not fs_stale:
+            return fs_pages
+        if fs_pages and fs_stale:
+            logger.warning("gerain fetch_pages: file mirror for %r is stale — deferring to MCP", source)
 
     rows = await _mcp_list_paginated(source, slug_prefix, limit)
     pages: List[dict] = rows if not slug_prefix else [
@@ -380,9 +390,17 @@ async def gbrain_fetch_pages(
     ]
 
     # list_pages rows are metadata-only; enrich a bounded window via get_page.
-    # Rows beyond the enrichment window are returned as-is (slug/title only)
-    # instead of being dropped — truncation would silently lose data.
+    # Rows beyond the enrichment window are returned as-is (slug/title only,
+    # blank frontmatter-derived fields downstream) — log the truncation so
+    # MCP-only deployments get a signal instead of silently blank columns.
     cap = _enrich_cap()
+    if len(pages) > cap:
+        logger.warning(
+            "gbrain_fetch_pages(%s): %d rows past enrichment cap %d are metadata-only "
+            "(frontmatter fields blank) — raise gbrain_mcp_enrich_cap or use "
+            "filesystem mode for large sources",
+            source, len(pages) - cap, cap,
+        )
     out: List[dict] = []
     for idx, p in enumerate(pages):
         if idx >= cap:
@@ -402,29 +420,31 @@ async def gbrain_fetch_pages(
 
 async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
     """Fetch a single page — filesystem mirror first (if allowed), else MCP get_page."""
-    if _read_preference() == "filesystem" and not _safe_slug(slug):
+    # Validate the slug unconditionally: MCP servers map slugs to filesystem
+    # paths too (see gbrain_put_page rationale), so get_page must never send
+    # a traversal slug regardless of read preference.
+    if not _safe_slug(slug):
         logger.warning("gbrain_fetch_page: rejected unsafe slug %r", slug)
         return None
     if _read_preference() == "filesystem":
         brain_dir = _brain_source_dir(source)
-        if brain_dir and _fs_mirror_is_fresh(brain_dir):
+        if brain_dir:
             slug_rel = slug.replace("\\", "/").strip("/")
-            if slug_rel and ".." not in slug_rel:
-                for rel in (f"{slug_rel}.md", f"{slug_rel}/index.md"):
-                    md_path = brain_dir / rel
-                    if md_path.is_file() and not md_path.is_symlink():
-                        try:
-                            text = md_path.read_text(encoding="utf-8", errors="replace")
-                        except OSError:
-                            continue
-                        return {
-                            "slug": slug,
-                            "frontmatter": _parse_frontmatter_from_markdown(text),
-                            "content": text,
-                            "body": text,
-                            "compiled_truth": text,
-                            "source_id": source,
-                        }
+            for rel in (f"{slug_rel}.md", f"{slug_rel}/index.md"):
+                md_path = brain_dir / rel
+                if md_path.is_file() and not md_path.is_symlink():
+                    try:
+                        text = md_path.read_text(encoding="utf-8", errors="replace")
+                    except OSError:
+                        continue
+                    return {
+                        "slug": slug,
+                        "frontmatter": _parse_frontmatter_from_markdown(text),
+                        "content": text,
+                        "body": text,
+                        "compiled_truth": text,
+                        "source_id": source,
+                    }
 
     result = await _mcp_call("get_page", {"slug": slug}, source_id=source)
 
@@ -450,7 +470,8 @@ def _fs_search(source: str, query: str, limit: int) -> List[dict[str, Any]]:
         return []
     q = query.lower()
     hits: List[dict[str, Any]] = []
-    for page in _scan_source_dir(brain_dir, None):
+    pages, _stale = _scan_source_dir(brain_dir, None, limit)
+    for page in pages:
         title = str(page.get("frontmatter", {}).get("title", "") or page["slug"])
         if q in title.lower() or q in page["compiled_truth"].lower():
             hits.append({
@@ -489,7 +510,7 @@ async def gbrain_search(
 
     if _read_preference() == "filesystem":
         brain_dir = _brain_source_dir(source)
-        if brain_dir and _fs_mirror_is_fresh(brain_dir):
+        if brain_dir:
             fs_hits = await asyncio.to_thread(_fs_search, source, query, effective)
             if fs_hits:
                 return fs_hits

@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import asyncio
 import copy
+import functools
 import json
 import logging
 import os
@@ -623,11 +624,46 @@ async def get_dashboard_config(
 _CRM_MOCK: Optional[dict] = None
 
 
+_ACRONYMS = {"api", "ai", "id", "crm", "mii", "qbr", "poc", "loa", "nda", "ncr", "sku", "rfq"}
+
+
+def _pretty_word(word: str) -> str:
+    """Title-case a slug word, preserving known acronyms (``api`` → ``API``)."""
+    return word.upper() if word.lower() in _ACRONYMS else word.title()
+
+
 def _last_slug_segment(slug: str) -> str:
-    """Return the human-readable tail of a page slug (``partners/syspex`` → ``syspex``)."""
+    """Return the human-readable tail of a page slug (``partners/syspex`` → ``Syspex``)."""
     if not slug:
         return ""
-    return slug.strip("/").split("/")[-1].replace("-", " ").replace("_", " ").title()
+    tail = slug.strip("/").split("/")[-1].replace("_", "-")
+    return " ".join(_pretty_word(w) for w in tail.split("-") if w)
+
+
+def _filter_mock_tasks(
+    mock: List[dict],
+    completed: Optional[bool],
+    assignee: str,
+    deal: str,
+) -> List[dict]:
+    """Apply completed/assignee/deal filters to a mock task list.
+
+    Single source of truth for every tasks mock fallback so no branch can
+    leak an unfiltered list (the round-4 review's Critical regression).
+    """
+    if completed is not None:
+        mock = [t for t in mock if t["completed"] == completed]
+    if assignee:
+        ca = _canonical_owner(assignee)
+        mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+    if deal:
+        dd = deal.strip().lower()
+        mock = [
+            t for t in mock
+            if dd in str(t.get("deal_slug", "")).lower()
+            or dd in str(t.get("deal_title", "")).lower()
+        ]
+    return mock
 
 
 def _crm_mock_enabled() -> bool:
@@ -768,7 +804,9 @@ async def list_crm_deals(
     # Sort by created date descending (most recent first)
     items.sort(key=lambda d: d.get("created") or "", reverse=True)
 
-    if not items and _crm_mock_enabled():
+    if not pages and _crm_mock_enabled():
+        # live source empty/unavailable — serve the demo payload. Filters are
+        # reapplied so mock responses respect the same query params.
         mock = _load_crm_mock().get("deals", [])
         if stage:
             mock = [d for d in mock if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
@@ -823,7 +861,7 @@ async def list_crm_companies(
 
     items.sort(key=lambda c: c["title"].lower())
 
-    if not items and _crm_mock_enabled():
+    if not pages and _crm_mock_enabled():
         mock = _load_crm_mock().get("companies", [])
         if search:
             s = search.lower()
@@ -861,14 +899,12 @@ async def get_partner_sphere(
         "pricing": None,
         "mock": False,
     }
-    try:
-        partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
-        deals = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
-    except Exception as exc:  # pragma: no cover - defensive
-        logger.exception("partner-sphere: brain fetch failed: %s", exc)
-        partners, deals = [], []
+    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
 
-    if partners or deals:
+    if partners:
+        # Narrow meta filter keeps a partners/readme page from inflating the
+        # roster and the Active Partners KPI (consistency with list_crm_partners).
+        partners = [p for p in partners if isinstance(p, dict) and not _is_meta_slug(str(p.get("slug", "")), broad=False)]
         # Live-derived sections: roster + minimal overview blocks.
         result["masterList"] = [
             {
@@ -947,7 +983,7 @@ async def list_crm_partners(
 
     items.sort(key=lambda c: c["title"].lower())
 
-    if not items and _crm_mock_enabled():
+    if not pages and _crm_mock_enabled():
         mock = _load_crm_mock().get("partners", [])
         if search:
             s = search.lower()
@@ -972,28 +1008,12 @@ async def list_crm_tasks(
     except Exception as exc:  # pragma: no cover - transport/protocol failures
         logger.warning("gbrain fetch failed for %s/tasks-index: %s", CRM_SOURCE, exc)
         if _crm_mock_enabled():
-            mock = _load_crm_mock().get("tasks", [])
-            if completed is not None:
-                mock = [t for t in mock if t["completed"] == completed]
-            if assignee:
-                ca = _canonical_owner(assignee)
-                mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
-            if deal:
-                dd = deal.strip().lower()
-                mock = [t for t in mock if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
             return {"tasks": mock, "total": len(mock), "mock": True}
         return {"tasks": [], "total": 0}
     if not index:
         if _crm_mock_enabled():
-            mock = _load_crm_mock().get("tasks", [])
-            if completed is not None:
-                mock = [t for t in mock if t["completed"] == completed]
-            if assignee:
-                ca = _canonical_owner(assignee)
-                mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
-            if deal:
-                dd = deal.strip().lower()
-                mock = [t for t in mock if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
             return {"tasks": mock, "total": len(mock), "mock": True}
         return {"tasks": [], "total": 0}
 
@@ -1024,13 +1044,10 @@ async def list_crm_tasks(
         dd = deal.strip().lower()
         tasks = [t for t in tasks if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
 
-    if not tasks and _crm_mock_enabled():
-        mock = _load_crm_mock().get("tasks", [])
-        if completed is not None:
-            mock = [t for t in mock if t["completed"] == completed]
-        if assignee:
-            ca = _canonical_owner(assignee)
-            mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+    if not tasks_raw and _crm_mock_enabled():
+        # Live index has no task list at all — serve the demo payload.
+        # (A non-empty source that filters down to zero returns [], NOT mock.)
+        mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
         return {"tasks": mock, "total": len(mock), "mock": True}
 
     return {"tasks": tasks, "total": len(tasks)}
