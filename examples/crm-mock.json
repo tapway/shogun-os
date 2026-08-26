@@ -16,76 +16,364 @@
     "coldDeals": 8,
     "wonDeals": 32,
     "byManager": [
-      { "owner": "Irene", "salesMTD": 145000, "salesQTD": 410000, "salesYTD": 1450000, "deals": 11, "wonDeals": 9, "pipelineValue": 2800000, "weightedPipeline": 1340000, "closeThisMonth": 240000, "closeThisQ": 680000, "closeNextQ": 520000, "closeThisYear": 1450000, "winRate": 78 },
-      { "owner": "Nazrul", "salesMTD": 120000, "salesQTD": 350000, "salesYTD": 1180000, "deals": 9, "wonDeals": 7, "pipelineValue": 2200000, "weightedPipeline": 1050000, "closeThisMonth": 190000, "closeThisQ": 540000, "closeNextQ": 410000, "closeThisYear": 1280000, "winRate": 72 },
-      { "owner": "Shamini", "salesMTD": 105000, "salesQTD": 310000, "salesYTD": 980000, "deals": 8, "wonDeals": 6, "pipelineValue": 1850000, "weightedPipeline": 880000, "closeThisMonth": 175000, "closeThisQ": 470000, "closeNextQ": 380000, "closeThisYear": 1060000, "winRate": 75 },
-      { "owner": "Syarif", "salesMTD": 65000, "salesQTD": 210000, "salesYTD": 720000, "deals": 6, "wonDeals": 5, "pipelineValue": 1150000, "weightedPipeline": 520000, "closeThisMonth": 130000, "closeThisQ": 410000, "closeNextQ": 340000, "closeThisYear": 920000, "winRate": 67 },
-      { "owner": "Shahrul", "salesMTD": 45000, "salesQTD": 140000, "salesYTD": 520000, "deals": 4, "wonDeals": 3, "pipelineValue": 500000, "weightedPipeline": 240000, "closeThisMonth": 95000, "closeThisQ": 280000, "closeNextQ": 260000, "closeThisYear": 690000, "winRate": 60 }
+      {
+        "owner": "Irene",
+        "salesMTD": 145000,
+        "salesQTD": 410000,
+        "salesYTD": 1450000,
+        "deals": 11,
+        "wonDeals": 9,
+        "pipelineValue": 2800000,
+        "weightedPipeline": 1340000,
+        "closeThisMonth": 240000,
+        "closeThisQ": 680000,
+        "closeNextQ": 520000,
+        "closeThisYear": 1450000,
+        "winRate": 78
+      },
+      {
+        "owner": "Nazrul",
+        "salesMTD": 120000,
+        "salesQTD": 350000,
+        "salesYTD": 1180000,
+        "deals": 9,
+        "wonDeals": 7,
+        "pipelineValue": 2200000,
+        "weightedPipeline": 1050000,
+        "closeThisMonth": 190000,
+        "closeThisQ": 540000,
+        "closeNextQ": 410000,
+        "closeThisYear": 1280000,
+        "winRate": 72
+      },
+      {
+        "owner": "Shamini",
+        "salesMTD": 105000,
+        "salesQTD": 310000,
+        "salesYTD": 980000,
+        "deals": 8,
+        "wonDeals": 6,
+        "pipelineValue": 1850000,
+        "weightedPipeline": 880000,
+        "closeThisMonth": 175000,
+        "closeThisQ": 470000,
+        "closeNextQ": 380000,
+        "closeThisYear": 1060000,
+        "winRate": 75
+      },
+      {
+        "owner": "Syarif",
+        "salesMTD": 65000,
+        "salesQTD": 210000,
+        "salesYTD": 720000,
+        "deals": 6,
+        "wonDeals": 5,
+        "pipelineValue": 1150000,
+        "weightedPipeline": 520000,
+        "closeThisMonth": 130000,
+        "closeThisQ": 410000,
+        "closeNextQ": 340000,
+        "closeThisYear": 920000,
+        "winRate": 67
+      },
+      {
+        "owner": "Shahrul",
+        "salesMTD": 45000,
+        "salesQTD": 140000,
+        "salesYTD": 520000,
+        "deals": 4,
+        "wonDeals": 3,
+        "pipelineValue": 500000,
+        "weightedPipeline": 240000,
+        "closeThisMonth": 95000,
+        "closeThisQ": 280000,
+        "closeNextQ": 260000,
+        "closeThisYear": 690000,
+        "winRate": 60
+      }
     ],
     "byPartner": [
-      { "partner": "Parkson Departmental Stores", "booking": 1450000, "dealsWon": 9, "pipelineDeals": 5, "pipelineValue": 1850000, "winRate": 78, "avgDealSize": 161000, "primaryOwner": "Irene" },
-      { "partner": "Aeon Retail Outlets", "booking": 1180000, "dealsWon": 7, "pipelineDeals": 4, "pipelineValue": 1450000, "winRate": 72, "avgDealSize": 168000, "primaryOwner": "Nazrul" },
-      { "partner": "Lotus Supermarkets Wholesale", "booking": 920000, "dealsWon": 6, "pipelineDeals": 4, "pipelineValue": 1100000, "winRate": 75, "avgDealSize": 153000, "primaryOwner": "Shamini" },
-      { "partner": "SOGO KL Fashion Mall", "booking": 650000, "dealsWon": 5, "pipelineDeals": 3, "pipelineValue": 780000, "winRate": 67, "avgDealSize": 130000, "primaryOwner": "Syarif" }
+      {
+        "partner": "Parkson Departmental Stores",
+        "booking": 1450000,
+        "dealsWon": 9,
+        "pipelineDeals": 5,
+        "pipelineValue": 1850000,
+        "winRate": 78,
+        "avgDealSize": 161000,
+        "primaryOwner": "Irene"
+      },
+      {
+        "partner": "Aeon Retail Outlets",
+        "booking": 1180000,
+        "dealsWon": 7,
+        "pipelineDeals": 4,
+        "pipelineValue": 1450000,
+        "winRate": 72,
+        "avgDealSize": 168000,
+        "primaryOwner": "Nazrul"
+      },
+      {
+        "partner": "Lotus Supermarkets Wholesale",
+        "booking": 920000,
+        "dealsWon": 6,
+        "pipelineDeals": 4,
+        "pipelineValue": 1100000,
+        "winRate": 75,
+        "avgDealSize": 153000,
+        "primaryOwner": "Shamini"
+      },
+      {
+        "partner": "SOGO KL Fashion Mall",
+        "booking": 650000,
+        "dealsWon": 5,
+        "pipelineDeals": 3,
+        "pipelineValue": 780000,
+        "winRate": 67,
+        "avgDealSize": 130000,
+        "primaryOwner": "Syarif"
+      }
     ],
     "byStage": [
-      { "stage": "Lead", "count": 10, "value": 1500000 },
-      { "stage": "Prospecting", "count": 8, "value": 2100000 },
-      { "stage": "Qualified", "count": 7, "value": 1850000 },
-      { "stage": "Quote", "count": 6, "value": 1650000 },
-      { "stage": "Tender", "count": 3, "value": 900000 },
-      { "stage": "Confirmed", "count": 4, "value": 500000 },
-      { "stage": "Won", "count": 32, "value": 4850000 }
+      {
+        "stage": "Lead",
+        "count": 10,
+        "value": 1500000
+      },
+      {
+        "stage": "Prospecting",
+        "count": 8,
+        "value": 2100000
+      },
+      {
+        "stage": "Qualified",
+        "count": 7,
+        "value": 1850000
+      },
+      {
+        "stage": "Quote",
+        "count": 6,
+        "value": 1650000
+      },
+      {
+        "stage": "Tender",
+        "count": 3,
+        "value": 900000
+      },
+      {
+        "stage": "Confirmed",
+        "count": 4,
+        "value": 500000
+      },
+      {
+        "stage": "Won",
+        "count": 32,
+        "value": 4850000
+      }
     ],
     "byMonth": [
-      { "month": "2026-01", "value": 3100000 },
-      { "month": "2026-02", "value": 2800000 },
-      { "month": "2026-03", "value": 3400000 },
-      { "month": "2026-04", "value": 3100000 },
-      { "month": "2026-05", "value": 3500000 },
-      { "month": "2026-06", "value": 3800000 },
-      { "month": "2026-07", "value": 4100000 },
-      { "month": "2026-08", "value": 2400000 }
+      {
+        "month": "2026-01",
+        "value": 3100000
+      },
+      {
+        "month": "2026-02",
+        "value": 2800000
+      },
+      {
+        "month": "2026-03",
+        "value": 3400000
+      },
+      {
+        "month": "2026-04",
+        "value": 3100000
+      },
+      {
+        "month": "2026-05",
+        "value": 3500000
+      },
+      {
+        "month": "2026-06",
+        "value": 3800000
+      },
+      {
+        "month": "2026-07",
+        "value": 4100000
+      },
+      {
+        "month": "2026-08",
+        "value": 2400000
+      }
     ],
     "wonByMonth": [
-      { "month": "2026-01", "value": 450000 },
-      { "month": "2026-02", "value": 520000 },
-      { "month": "2026-03", "value": 610000 },
-      { "month": "2026-04", "value": 580000 },
-      { "month": "2026-05", "value": 640000 },
-      { "month": "2026-06", "value": 720000 },
-      { "month": "2026-07", "value": 850000 },
-      { "month": "2026-08", "value": 480000 }
+      {
+        "month": "2026-01",
+        "value": 450000
+      },
+      {
+        "month": "2026-02",
+        "value": 520000
+      },
+      {
+        "month": "2026-03",
+        "value": 610000
+      },
+      {
+        "month": "2026-04",
+        "value": 580000
+      },
+      {
+        "month": "2026-05",
+        "value": 640000
+      },
+      {
+        "month": "2026-06",
+        "value": 720000
+      },
+      {
+        "month": "2026-07",
+        "value": 850000
+      },
+      {
+        "month": "2026-08",
+        "value": 480000
+      }
     ],
     "byPriority": [
-      { "priority": "High", "count": 12 },
-      { "priority": "Medium", "count": 18 },
-      { "priority": "Low", "count": 8 }
+      {
+        "priority": "High",
+        "count": 12
+      },
+      {
+        "priority": "Medium",
+        "count": 18
+      },
+      {
+        "priority": "Low",
+        "count": 8
+      }
     ],
     "byProduct": [
-      { "product": "Apparel & Fashion", "value": 2180000, "count": 15 },
-      { "product": "Consumer Electronics", "value": 1450000, "count": 11 },
-      { "product": "Corporate Wholesale", "value": 500000, "count": 4 },
-      { "product": "Lifestyle & Home", "value": 720000, "count": 8 }
+      {
+        "product": "Apparel & Fashion",
+        "value": 2180000,
+        "count": 15
+      },
+      {
+        "product": "Consumer Electronics",
+        "value": 1450000,
+        "count": 11
+      },
+      {
+        "product": "Corporate Wholesale",
+        "value": 500000,
+        "count": 4
+      },
+      {
+        "product": "Lifestyle & Home",
+        "value": 720000,
+        "count": 8
+      }
     ],
     "atRiskByManager": [
-      { "owner": "Irene", "atRiskDeals": 1, "atRiskValue": 320000 },
-      { "owner": "Shahrul", "atRiskDeals": 2, "atRiskValue": 240000 }
+      {
+        "owner": "Irene",
+        "atRiskDeals": 1,
+        "atRiskValue": 320000
+      },
+      {
+        "owner": "Shahrul",
+        "atRiskDeals": 2,
+        "atRiskValue": 240000
+      }
     ],
     "atRiskByPartner": [
-      { "partner": "Parkson Departmental Stores", "atRiskDeals": 1, "atRiskValue": 320000, "primaryOwner": "Irene" }
+      {
+        "partner": "Parkson Departmental Stores",
+        "atRiskDeals": 1,
+        "atRiskValue": 320000,
+        "primaryOwner": "Irene"
+      }
     ],
     "byManagerByPartner": [
-      { "owner": "Irene", "partner": "Parkson Departmental Stores", "deals": 5 },
-      { "owner": "Nazrul", "partner": "Aeon Retail Outlets", "deals": 4 },
-      { "owner": "Shamini", "partner": "Lotus Supermarkets Wholesale", "deals": 4 },
-      { "owner": "Syarif", "partner": "SOGO KL Fashion Mall", "deals": 3 }
+      {
+        "owner": "Irene",
+        "partner": "Parkson Departmental Stores",
+        "deals": 5
+      },
+      {
+        "owner": "Nazrul",
+        "partner": "Aeon Retail Outlets",
+        "deals": 4
+      },
+      {
+        "owner": "Shamini",
+        "partner": "Lotus Supermarkets Wholesale",
+        "deals": 4
+      },
+      {
+        "owner": "Syarif",
+        "partner": "SOGO KL Fashion Mall",
+        "deals": 3
+      }
     ],
     "topDeals": [
-      { "slug": "deals/apparel-autumn-aeon", "title": "Autumn Fashion Stock Wholesale — Aeon Stores", "customer": "Aeon Co (M) Bhd", "amount": 450000, "stage": "Quote", "priority": "Hot", "owner": "Irene", "partner": "Aeon Retail Outlets", "closeDate": "2026-09-15", "winProbability": 75, "daysInStage": 8, "hot": true },
-      { "slug": "deals/electronics-audio-parkson", "title": "Smart Home Audio Bundle — Parkson Malls", "customer": "Parkson Corporation", "amount": 380000, "stage": "Tender", "priority": "Hot", "owner": "Shamini", "partner": "Parkson Departmental Stores", "closeDate": "2026-09-30", "winProbability": 80, "daysInStage": 14, "hot": true },
-      { "slug": "deals/corporate-uniform-maybank", "title": "Corporate Employee Apparel Supply — Maybank", "customer": "Maybank Malaysia", "amount": 290000, "stage": "Confirmed", "priority": "Hot", "owner": "Nazrul", "partner": "Lotus Supermarkets Wholesale", "closeDate": "2026-08-28", "winProbability": 90, "daysInStage": 5, "hot": true },
-      { "slug": "deals/lifestyle-gift-box-petronas", "title": "Lifestyle Festival Gift Sets — Petronas Retail", "customer": "Petronas Dagangan", "amount": 210000, "stage": "Qualified", "priority": "Warm", "owner": "Syarif", "partner": "SOGO KL Fashion Mall", "closeDate": "2026-10-15", "winProbability": 60, "daysInStage": 10, "hot": false }
+      {
+        "slug": "deals/apparel-autumn-aeon",
+        "title": "Autumn Fashion Stock Wholesale — Aeon Stores",
+        "customer": "Aeon Co (M) Bhd",
+        "amount": 450000,
+        "stage": "Quote",
+        "priority": "Hot",
+        "owner": "Irene",
+        "partner": "Aeon Retail Outlets",
+        "closeDate": "2026-09-15",
+        "winProbability": 75,
+        "daysInStage": 8,
+        "hot": true
+      },
+      {
+        "slug": "deals/electronics-audio-parkson",
+        "title": "Smart Home Audio Bundle — Parkson Malls",
+        "customer": "Parkson Corporation",
+        "amount": 380000,
+        "stage": "Tender",
+        "priority": "Hot",
+        "owner": "Shamini",
+        "partner": "Parkson Departmental Stores",
+        "closeDate": "2026-09-30",
+        "winProbability": 80,
+        "daysInStage": 14,
+        "hot": true
+      },
+      {
+        "slug": "deals/corporate-uniform-maybank",
+        "title": "Corporate Employee Apparel Supply — Maybank",
+        "customer": "Maybank Malaysia",
+        "amount": 290000,
+        "stage": "Confirmed",
+        "priority": "Hot",
+        "owner": "Nazrul",
+        "partner": "Lotus Supermarkets Wholesale",
+        "closeDate": "2026-08-28",
+        "winProbability": 90,
+        "daysInStage": 5,
+        "hot": true
+      },
+      {
+        "slug": "deals/lifestyle-gift-box-petronas",
+        "title": "Lifestyle Festival Gift Sets — Petronas Retail",
+        "customer": "Petronas Dagangan",
+        "amount": 210000,
+        "stage": "Qualified",
+        "priority": "Warm",
+        "owner": "Syarif",
+        "partner": "SOGO KL Fashion Mall",
+        "closeDate": "2026-10-15",
+        "winProbability": 60,
+        "daysInStage": 10,
+        "hot": false
+      }
     ],
     "channelVolume": {
       "shopee": 4250,
@@ -98,12 +386,48 @@
     "aiResolutionPct": 78.5,
     "chatToOrderPct": 22.4,
     "chatToOrderTrend": [
-      { "week": "W23", "shopee": 18.2, "lazada": 15.4, "fbMessenger": 11.1, "whatsapp": 22.8 },
-      { "week": "W24", "shopee": 19.6, "lazada": 16.1, "fbMessenger": 12.4, "whatsapp": 23.2 },
-      { "week": "W25", "shopee": 20.1, "lazada": 17.8, "fbMessenger": 13.9, "whatsapp": 24.6 },
-      { "week": "W26", "shopee": 21.8, "lazada": 18.3, "fbMessenger": 14.2, "whatsapp": 25.1 },
-      { "week": "W27", "shopee": 22.3, "lazada": 19.6, "fbMessenger": 15.4, "whatsapp": 26.3 },
-      { "week": "W28", "shopee": 23.8, "lazada": 20.1, "fbMessenger": 16.9, "whatsapp": 27.2 }
+      {
+        "week": "W23",
+        "shopee": 18.2,
+        "lazada": 15.4,
+        "fbMessenger": 11.1,
+        "whatsapp": 22.8
+      },
+      {
+        "week": "W24",
+        "shopee": 19.6,
+        "lazada": 16.1,
+        "fbMessenger": 12.4,
+        "whatsapp": 23.2
+      },
+      {
+        "week": "W25",
+        "shopee": 20.1,
+        "lazada": 17.8,
+        "fbMessenger": 13.9,
+        "whatsapp": 24.6
+      },
+      {
+        "week": "W26",
+        "shopee": 21.8,
+        "lazada": 18.3,
+        "fbMessenger": 14.2,
+        "whatsapp": 25.1
+      },
+      {
+        "week": "W27",
+        "shopee": 22.3,
+        "lazada": 19.6,
+        "fbMessenger": 15.4,
+        "whatsapp": 26.3
+      },
+      {
+        "week": "W28",
+        "shopee": 23.8,
+        "lazada": 20.1,
+        "fbMessenger": 16.9,
+        "whatsapp": 27.2
+      }
     ],
     "chatInbox": [
       {
@@ -134,6 +458,2169 @@
         "responseMinutes": 6,
         "status": "Resolved"
       }
-    ]
+    ],
+    "marketShare": {
+      "totalSharePct": 32.4,
+      "ytdWonSharePct": 36.1,
+      "trend": [
+        31.2,
+        31.8,
+        32.0,
+        32.4
+      ]
+    }
+  },
+  "deals": [
+    {
+      "slug": "deals/northern-mall-footfall-revamp",
+      "title": "Northern Mall Footfall Analytics Revamp",
+      "customer": "Meridian Retail Group",
+      "owner": "Irene",
+      "stage": "Quote",
+      "created": "2026-08-18",
+      "source": "Email",
+      "amount": 450000,
+      "priority": "Hot",
+      "compiled_truth": "Mall operator wants footfall sensors across 12 sites with monthly analytics dashboard."
+    },
+    {
+      "slug": "deals/warehouse-automation-pilot",
+      "title": "Warehouse Automation Pilot — Phase 1",
+      "customer": "Konsortium Logistik Sdn Bhd",
+      "owner": "Nazrul",
+      "stage": "Tender",
+      "created": "2026-08-15",
+      "source": "Partner Referral",
+      "amount": 380000,
+      "priority": "Hot",
+      "compiled_truth": "Pilot for dock-door gateways and yard cams at central hub; Q4 rollout decision."
+    },
+    {
+      "slug": "deals/retail-uniform-programme",
+      "title": "Retail Staff Uniform Programme — Central Region",
+      "customer": "Lima Apparel Bhd",
+      "owner": "Shamini",
+      "stage": "Confirmed",
+      "created": "2026-08-12",
+      "source": "Shopee Chat",
+      "amount": 290000,
+      "priority": "Hot",
+      "compiled_truth": "Annual uniform supply plus new reflective wear SKUs for 40 outlets."
+    },
+    {
+      "slug": "deals/festive-gift-set-corporate",
+      "title": "Festive Gift Set — Corporate Bulk",
+      "customer": "Nadi Holdings",
+      "owner": "Syarif",
+      "stage": "Qualified",
+      "created": "2026-08-10",
+      "source": "WhatsApp",
+      "amount": 210000,
+      "priority": "Warm",
+      "compiled_truth": "Bulk gift sets for year-end staff gifting; decision after samples approval."
+    },
+    {
+      "slug": "deals/smart-home-audio-bundle",
+      "title": "Smart Home Audio Bundle — Reseller Stock",
+      "customer": "Teras Elektronik",
+      "owner": "Shahrul",
+      "stage": "Prospecting",
+      "created": "2026-08-08",
+      "source": "Lazada Chat",
+      "amount": 175000,
+      "priority": "Warm",
+      "compiled_truth": "Reseller wants 500 audio bundles; negotiating consignment margins."
+    },
+    {
+      "slug": "deals/highway-cam-upgrade-phase2",
+      "title": "Highway CAM Upgrade — Phase 2",
+      "customer": "Lebuhraya Sentosa Sdn Bhd",
+      "owner": "Irene",
+      "stage": "Lead",
+      "created": "2026-08-05",
+      "source": "Cold Call",
+      "amount": 540000,
+      "priority": "Warm",
+      "compiled_truth": "Phase 2 for 22 toll plaza cameras; site survey scheduled."
+    },
+    {
+      "slug": "deals/port-security-observation",
+      "title": "Port Security Observation Package",
+      "customer": "Pelabuhan Timur Berhad",
+      "owner": "Nazrul",
+      "stage": "On Hold",
+      "created": "2026-07-28",
+      "source": "Partner Referral",
+      "amount": 320000,
+      "priority": "Cold",
+      "compiled_truth": "Budget freeze until national cybersecurity review completes."
+    },
+    {
+      "slug": "deals/convenience-store-audit-tool",
+      "title": "Convenience Store Audit Tool License",
+      "customer": "Jejak Runcit Sdn Bhd",
+      "owner": "Shamini",
+      "stage": "Won",
+      "created": "2026-07-20",
+      "source": "Email",
+      "amount": 145000,
+      "priority": "Hot",
+      "compiled_truth": "Closed; annual license for 300 stores + training day booked."
+    },
+    {
+      "slug": "deals/office-furniture-corporate-tender",
+      "title": "Office Furniture Corporate Tender",
+      "customer": "Sentral Land Sdn Bhd",
+      "owner": "Syarif",
+      "stage": "Lost",
+      "created": "2026-07-15",
+      "source": "Tender Portal",
+      "amount": 400000,
+      "priority": "Cold",
+      "compiled_truth": "Lost to incumbent on lowest-price scoring."
+    },
+    {
+      "slug": "deals/residential-guard-kiosk",
+      "title": "Residential Guard Kiosk — CCTV Retrofit",
+      "customer": "Taman Aman Raya RA",
+      "owner": "Shahrul",
+      "stage": "Won",
+      "created": "2026-07-10",
+      "source": "FB Messenger",
+      "amount": 88000,
+      "priority": "Warm",
+      "compiled_truth": "Closed; 8 kiosks retrofitted with new NVR units."
+    }
+  ],
+  "companies": [
+    {
+      "slug": "companies/meridian-retail-group",
+      "title": "Meridian Retail Group",
+      "industry": "Retail — Shopping Malls",
+      "website": "https://meridianretail.example",
+      "source": "enrichment",
+      "first_seen": "2026-05-02"
+    },
+    {
+      "slug": "companies/konsortium-logistik",
+      "title": "Konsortium Logistik Sdn Bhd",
+      "industry": "Logistics & Warehousing",
+      "website": "https://konsortium-logistik.example",
+      "source": "partner referral",
+      "first_seen": "2026-04-18"
+    },
+    {
+      "slug": "companies/lima-apparel",
+      "title": "Lima Apparel Bhd",
+      "industry": "Apparel & Fashion",
+      "website": "https://limaapparel.example",
+      "source": "enrichment",
+      "first_seen": "2026-03-30"
+    },
+    {
+      "slug": "companies/nadi-holdings",
+      "title": "Nadi Holdings",
+      "industry": "Conglomerate",
+      "website": "https://nadiholdings.example",
+      "source": "manual",
+      "first_seen": "2026-06-11"
+    },
+    {
+      "slug": "companies/teras-elektronik",
+      "title": "Teras Elektronik",
+      "industry": "Consumer Electronics",
+      "website": "https://teraselektronik.example",
+      "source": "lazada",
+      "first_seen": "2026-06-25"
+    },
+    {
+      "slug": "companies/lebuhraya-sentosa",
+      "title": "Lebuhraya Sentosa Sdn Bhd",
+      "industry": "Highway Concessionaire",
+      "website": "https://lebuhraya-sentosa.example",
+      "source": "manual",
+      "first_seen": "2026-02-14"
+    },
+    {
+      "slug": "companies/pelabuhan-timur",
+      "title": "Pelabuhan Timur Berhad",
+      "industry": "Ports & Maritime",
+      "website": "https://pelabuhan-timur.example",
+      "source": "partner referral",
+      "first_seen": "2026-01-09"
+    },
+    {
+      "slug": "companies/jejak-runcit",
+      "title": "Jejak Runcit Sdn Bhd",
+      "industry": "Convenience Retail",
+      "website": "https://jejakruncit.example",
+      "source": "enrichment",
+      "first_seen": "2026-05-27"
+    }
+  ],
+  "partners": [
+    {
+      "slug": "partners/insignia-associates",
+      "title": "Insignia Associates",
+      "type": "Reseller",
+      "website": "https://insignia-associates.example",
+      "country": "Malaysia",
+      "source": "manual"
+    },
+    {
+      "slug": "partners/orbita-systems",
+      "title": "Orbita Systems",
+      "type": "System Integrator",
+      "website": "https://orbita-systems.example",
+      "country": "Malaysia",
+      "source": "manual"
+    },
+    {
+      "slug": "partners/kanfer-distribution",
+      "title": "Kanfer Distribution",
+      "type": "Distributor",
+      "website": "https://kanfer.example",
+      "country": "Malaysia",
+      "source": "partner referral"
+    },
+    {
+      "slug": "partners/ledakan-teknologi",
+      "title": "Ledakan Teknologi Sdn Bhd",
+      "type": "Reseller",
+      "website": "https://ledakan-tek.example",
+      "country": "Malaysia",
+      "source": "manual"
+    },
+    {
+      "slug": "partners/nusantara-elektrik",
+      "title": "Nusantara Elektrik PT",
+      "type": "Distributor",
+      "website": "https://nusantara-elektrik.example",
+      "country": "Indonesia",
+      "source": "trade show"
+    },
+    {
+      "slug": "partners/kreasi-media-asia",
+      "title": "PT Kreasi Media Asia",
+      "type": "Channel Partner",
+      "website": "https://kreasimedia.example",
+      "country": "Indonesia",
+      "source": "manual"
+    },
+    {
+      "slug": "partners/fujin-imaging",
+      "title": "Fujin Imaging Solutions",
+      "type": "OEM Partner",
+      "website": "https://fujin-imaging.example",
+      "country": "Malaysia",
+      "source": "vendor onboarding"
+    },
+    {
+      "slug": "partners/techsaltans",
+      "title": "Techsaltans",
+      "type": "System Integrator",
+      "website": "https://techsaltans.example",
+      "country": "Malaysia",
+      "source": "manual"
+    },
+    {
+      "slug": "partners/vektor-mekatronik",
+      "title": "Vektor Mekatronik",
+      "type": "Reseller",
+      "website": "https://vek-mekatronik.example",
+      "country": "Malaysia",
+      "source": "partner referral"
+    }
+  ],
+  "tasks": [
+    {
+      "description": "Send revised quotation with volume pricing",
+      "assignee": "Irene",
+      "completed": false,
+      "deal_slug": "deals/northern-mall-footfall-revamp",
+      "deal_title": "Northern Mall Footfall Analytics Revamp"
+    },
+    {
+      "description": "Site survey at central hub dock doors",
+      "assignee": "Nazrul",
+      "completed": false,
+      "deal_slug": "deals/warehouse-automation-pilot",
+      "deal_title": "Warehouse Automation Pilot — Phase 1"
+    },
+    {
+      "description": "Collect 40-outlet uniform measurements",
+      "assignee": "Shamini",
+      "completed": false,
+      "deal_slug": "deals/retail-uniform-programme",
+      "deal_title": "Retail Staff Uniform Programme — Central Region"
+    },
+    {
+      "description": "Ship gift-set samples for approval",
+      "assignee": "Syarif",
+      "completed": true,
+      "deal_slug": "deals/festive-gift-set-corporate",
+      "deal_title": "Festive Gift Set — Corporate Bulk"
+    },
+    {
+      "description": "Negotiate consignment margin with reseller",
+      "assignee": "Shahrul",
+      "completed": false,
+      "deal_slug": "deals/smart-home-audio-bundle",
+      "deal_title": "Smart Home Audio Bundle — Reseller Stock"
+    },
+    {
+      "description": "Book demo for highway ops team",
+      "assignee": "Irene",
+      "completed": false,
+      "deal_slug": "deals/highway-cam-upgrade-phase2",
+      "deal_title": "Highway CAM Upgrade — Phase 2"
+    },
+    {
+      "description": "Follow up after budget review",
+      "assignee": "Nazrul",
+      "completed": true,
+      "deal_slug": "deals/port-security-observation",
+      "deal_title": "Port Security Observation Package"
+    },
+    {
+      "description": "Schedule training day for store staff",
+      "assignee": "Shamini",
+      "completed": false,
+      "deal_slug": "deals/convenience-store-audit-tool",
+      "deal_title": "Convenience Store Audit Tool License"
+    },
+    {
+      "description": "Prepare tender loss analysis deck",
+      "assignee": "Syarif",
+      "completed": true,
+      "deal_slug": "deals/office-furniture-corporate-tender",
+      "deal_title": "Office Furniture Corporate Tender"
+    },
+    {
+      "description": "Handover NVR manuals to RA committee",
+      "assignee": "Shahrul",
+      "completed": true,
+      "deal_slug": "deals/residential-guard-kiosk",
+      "deal_title": "Residential Guard Kiosk — CCTV Retrofit"
+    },
+    {
+      "description": "Update CRM company records for >90-day quiet accounts",
+      "assignee": "Irene",
+      "completed": false,
+      "deal_slug": "",
+      "deal_title": ""
+    },
+    {
+      "description": "Confirm Q4 trade show booth booking",
+      "assignee": "Nazrul",
+      "completed": false,
+      "deal_slug": "",
+      "deal_title": ""
+    }
+  ],
+  "search_results": [
+    {
+      "slug": "deals/northern-mall-footfall-revamp",
+      "title": "Northern Mall Footfall Analytics Revamp",
+      "frontmatter": {
+        "owner": "Irene",
+        "stage": "Quote",
+        "amount": 450000,
+        "priority": "Hot"
+      },
+      "category": "deals"
+    },
+    {
+      "slug": "companies/meridian-retail-group",
+      "title": "Meridian Retail Group",
+      "frontmatter": {
+        "industry": "Retail — Shopping Malls",
+        "website": "https://meridianretail.example"
+      },
+      "category": "companies"
+    },
+    {
+      "slug": "persons/nadia-rahman",
+      "title": "Nadia Rahman",
+      "frontmatter": {
+        "role": "Procurement Lead",
+        "company": "Meridian Retail Group",
+        "email": "nadia@meridianretail.example"
+      },
+      "category": "persons"
+    },
+    {
+      "slug": "partners/insignia-associates",
+      "title": "Insignia Associates",
+      "frontmatter": {
+        "type": "Reseller",
+        "country": "Malaysia"
+      },
+      "category": "partners"
+    },
+    {
+      "slug": "persons/ahmad-fauzi",
+      "title": "Ahmad Fauzi",
+      "frontmatter": {
+        "role": "Operations Director",
+        "company": "Konsortium Logistik Sdn Bhd"
+      },
+      "category": "persons"
+    },
+    {
+      "slug": "deals/festive-gift-set-corporate",
+      "title": "Festive Gift Set — Corporate Bulk",
+      "frontmatter": {
+        "owner": "Syarif",
+        "stage": "Qualified",
+        "amount": 210000
+      },
+      "category": "deals"
+    },
+    {
+      "slug": "companies/teras-elektronik",
+      "title": "Teras Elektronik",
+      "frontmatter": {
+        "industry": "Consumer Electronics"
+      },
+      "category": "companies"
+    },
+    {
+      "slug": "partners/fujin-imaging",
+      "title": "Fujin Imaging Solutions",
+      "frontmatter": {
+        "type": "OEM Partner",
+        "country": "Malaysia"
+      },
+      "category": "partners"
+    },
+    {
+      "slug": "deals/port-security-observation",
+      "title": "Port Security Observation Package",
+      "frontmatter": {
+        "owner": "Nazrul",
+        "stage": "On Hold",
+        "amount": 320000
+      },
+      "category": "deals"
+    },
+    {
+      "slug": "companies/pelabuhan-timur",
+      "title": "Pelabuhan Timur Berhad",
+      "frontmatter": {
+        "industry": "Ports & Maritime"
+      },
+      "category": "companies"
+    }
+  ],
+  "bev_zones": [
+    {
+      "zoneId": "zone-001",
+      "name": "Loading Bay A",
+      "cameraIds": [
+        "cam-101",
+        "cam-102"
+      ],
+      "calibrationType": "cartesian",
+      "bounds": {
+        "xMin": 0.0,
+        "yMin": 0.0,
+        "xMax": 28.0,
+        "yMax": 16.0
+      },
+      "origin": {
+        "x": "14.0",
+        "y": "8.0"
+      },
+      "rois": [],
+      "tripwires": []
+    },
+    {
+      "zoneId": "zone-002",
+      "name": "Entrance Queue",
+      "cameraIds": [
+        "cam-201"
+      ],
+      "calibrationType": "cartesian",
+      "bounds": {
+        "xMin": 0.0,
+        "yMin": 0.0,
+        "xMax": 12.0,
+        "yMax": 30.0
+      },
+      "origin": {
+        "x": "6.0",
+        "y": "15.0"
+      },
+      "rois": [],
+      "tripwires": []
+    },
+    {
+      "zoneId": "zone-003",
+      "name": "Dock Door 3",
+      "cameraIds": [
+        "cam-301"
+      ],
+      "calibrationType": "cartesian",
+      "bounds": {
+        "xMin": 0.0,
+        "yMin": 0.0,
+        "xMax": 10.0,
+        "yMax": 10.0
+      },
+      "origin": {
+        "x": "5.0",
+        "y": "5.0"
+      },
+      "rois": [],
+      "tripwires": []
+    }
+  ],
+  "partner_sphere": {
+    "overview": {
+      "aiBrief": {
+        "date": "auto-refreshed 24 Aug 2026, 06:00",
+        "kpis": [
+          {
+            "label": "partner pipeline",
+            "value": "RM 8.9M",
+            "delta": "▲1.2M wk"
+          },
+          {
+            "label": "open deals",
+            "value": "11",
+            "delta": ""
+          },
+          {
+            "label": "this quarter",
+            "value": "1 win",
+            "delta": "Fujifilm first POC → quote"
+          },
+          {
+            "label": "need attention today",
+            "value": "2 actions",
+            "delta": ""
+          }
+        ],
+        "narrative": "Pipeline up on Syspex's Gamuda entering Negotiation; Fujifilm converted its first POC — healthy Silver ramp.",
+        "priorities": [
+          "IOI deal protection expires in 5 days",
+          "Vitrox dormant 45 days."
+        ]
+      },
+      "kpis": [
+        {
+          "label": "Active Partners",
+          "value": "9",
+          "note": "— vs last quarter"
+        },
+        {
+          "label": "Partner Pipeline",
+          "value": "RM 4.8M",
+          "note": "▲ 12% QoQ"
+        },
+        {
+          "label": "Partner Won (YTD)",
+          "value": "RM 1.9M",
+          "note": "▲ 31% YoY"
+        },
+        {
+          "label": "POC → Commercial",
+          "value": "38%",
+          "note": "▼ 4pts QoQ"
+        },
+        {
+          "label": "Avg Ramp Velocity",
+          "value": "4.2 mo",
+          "note": "▲ faster by 1.1 mo"
+        }
+      ],
+      "amCoverage": [
+        {
+          "am": "Kunna",
+          "pipeline": "RM 3.4M",
+          "deals": 4,
+          "notes": [
+            "Syspex licences at 62% of Platinum goal",
+            "IOI stalled 31d · protection expiring",
+            "Cadence call Tue — agenda ready"
+          ]
+        },
+        {
+          "am": "Anwar",
+          "pipeline": "RM 3.9M",
+          "deals": 5,
+          "notes": [
+            "Gamuda RM1.2M in Negotiation 23d ⚠️",
+            "Westports POC review Friday",
+            "Sunway quote — CFO follow-up"
+          ]
+        },
+        {
+          "am": "Liyana",
+          "pipeline": "RM 1.6M",
+          "deals": 2,
+          "notes": [
+            "Fujifilm Sari Roti POC → quote 🎉",
+            "Metrodata/MII quiet 6 weeks — re-engage"
+          ]
+        }
+      ],
+      "tierBoard": [
+        {
+          "tier": "PLATINUM",
+          "partners": [
+            {
+              "name": "Syspex",
+              "regions": "MY · SG · ID — since 2025",
+              "score": 92,
+              "pillars": {
+                "activity": 88,
+                "pipeline": 95,
+                "pocCraft": 90,
+                "closure": 94
+              },
+              "archetype": "⚔️ The Closer — few regs, high win rate"
+            }
+          ]
+        },
+        {
+          "tier": "GOLD",
+          "partners": [
+            {
+              "name": "Metrodata / MII",
+              "regions": "Indonesia — since 2026-Q2",
+              "score": 76,
+              "pillars": {
+                "activity": 92,
+                "pipeline": 78,
+                "pocCraft": 70,
+                "closure": 58
+              },
+              "archetype": "🎯 The Flash — high volume, needs qualification coaching"
+            }
+          ]
+        },
+        {
+          "tier": "SILVER",
+          "partners": [
+            {
+              "name": "Fujifilm Biz",
+              "regions": "Malaysia — since 2026-Q3",
+              "score": 71,
+              "pillars": {
+                "activity": 65,
+                "pipeline": 80,
+                "pocCraft": 85,
+                "closure": 62
+              },
+              "archetype": "🔬 The Scientist — strong POCs, convert more"
+            }
+          ]
+        },
+        {
+          "tier": "REFERRAL",
+          "partners": [
+            {
+              "name": "Vitrox",
+              "regions": "Malaysia — since 2026-Q2",
+              "score": 58,
+              "pillars": {
+                "activity": 52,
+                "pipeline": 68,
+                "pocCraft": 61,
+                "closure": 55
+              },
+              "archetype": "🌱 Rising — RM 1.5M deal at Quote stage"
+            }
+          ]
+        },
+        {
+          "tier": "NEW — ONBOARDING",
+          "partners": [
+            {
+              "name": "Nexalytics",
+              "regions": "India — onboarded Aug 2026",
+              "score": 34,
+              "pillars": {
+                "activity": 45,
+                "pipeline": 30,
+                "pocCraft": null,
+                "closure": null
+              },
+              "archetype": "🐣 New — first 5-cam order placed, ramp watch"
+            }
+          ]
+        }
+      ],
+      "funnel": [
+        {
+          "stage": "Registered",
+          "count": 47
+        },
+        {
+          "stage": "Qualified",
+          "count": 37,
+          "pct": "79%",
+          "note": "79% pass-through"
+        },
+        {
+          "stage": "POC Started",
+          "count": 25,
+          "pct": "53%",
+          "note": "68% of qual."
+        },
+        {
+          "stage": "POC Passed",
+          "count": 19,
+          "pct": "40%",
+          "note": "76% of POCs"
+        },
+        {
+          "stage": "Quoted",
+          "count": 15,
+          "pct": "32%",
+          "note": "79% of passes"
+        },
+        {
+          "stage": "Won",
+          "count": 10,
+          "pct": "21%",
+          "note": "67% of quotes"
+        }
+      ],
+      "leakPoints": [
+        {
+          "partner": "Metrodata / MII",
+          "drop": "Qualified → POC (−41%)",
+          "action": "Qualification coaching call"
+        },
+        {
+          "partner": "Fujifilm Biz",
+          "drop": "POC Pass → Quote (−50%)",
+          "action": "TW pre-sales to join pricing talks"
+        },
+        {
+          "partner": "Vitrox",
+          "drop": "Registered → Qualified (−33%)",
+          "action": "Joint account planning"
+        }
+      ],
+      "battleLog": [
+        {
+          "day": "08:42",
+          "partner": "Syspex",
+          "action": "registered Han Bao Bao Pte Ltd (500 cams) · assigned Anwar · Qualified"
+        },
+        {
+          "day": "Mon",
+          "partner": "Metrodata/MII",
+          "action": "Sari Roti moved to Unqualified; J.Co & Mako → On Hold"
+        },
+        {
+          "day": "Fri",
+          "partner": "Syspex",
+          "action": "Taman Safari Indonesia (200 cams) registered via form · Qualified"
+        },
+        {
+          "day": "Aug 19",
+          "partner": "Syspex",
+          "action": "Pricing alignment — quarterly price list agreed, India 40% MD discount"
+        },
+        {
+          "day": "Aug 11",
+          "partner": "Nexalytics",
+          "action": "LOA signed by Chee How — onboarding complete 🎉"
+        },
+        {
+          "day": "Aug 05",
+          "partner": "Fujifilm",
+          "action": "Ajinomoto Smart Factory (10 cams) registered · Qualified"
+        },
+        {
+          "day": "Jul 27",
+          "partner": "Vitrox",
+          "action": "Celestica Worker Productivity hit Quote (RM 1.5M)"
+        }
+      ],
+      "cohortGrid": {
+        "columns": [
+          "Lifetime",
+          "Onboard Q",
+          "Q1",
+          "Q2",
+          "Q3",
+          "Q4",
+          "Q5",
+          "Q6"
+        ],
+        "rows": [
+          {
+            "partner": "Syspex",
+            "lifetime": 14,
+            "onboardQ": "2025-Q1",
+            "quarters": [
+              1,
+              2,
+              3,
+              3,
+              3,
+              2
+            ]
+          },
+          {
+            "partner": "Metrodata / MII",
+            "lifetime": 7,
+            "onboardQ": "2026-Q2",
+            "quarters": [
+              4,
+              2,
+              1
+            ]
+          },
+          {
+            "partner": "Fujifilm Biz",
+            "lifetime": 3,
+            "onboardQ": "2026-Q3",
+            "quarters": [
+              3
+            ]
+          },
+          {
+            "partner": "Vitrox",
+            "lifetime": 2,
+            "onboardQ": "2026-Q2",
+            "quarters": [
+              1,
+              1
+            ]
+          },
+          {
+            "partner": "Nexalytics",
+            "lifetime": 0,
+            "onboardQ": "2026-Q3",
+            "quarters": [
+              0
+            ]
+          }
+        ],
+        "caption": "Reading the diagonal: healthy partners darken quarter-over-quarter (Syspex). Flat rows = warehouse accounts. Bright-then-dark = churn risk (watch MII's Q3 dip after the June burst)."
+      },
+      "openPipeline": [
+        {
+          "partner": "Syspex",
+          "openDeals": 8,
+          "openValue": "RM 2.41M",
+          "weighted": "RM 1.63M",
+          "stalled": 1,
+          "nextStepCoverage": "88%",
+          "status": "HEALTHY"
+        },
+        {
+          "partner": "Metrodata / MII",
+          "openDeals": 6,
+          "openValue": "RM 890K",
+          "weighted": "RM 412K",
+          "stalled": 3,
+          "nextStepCoverage": "50%",
+          "status": "AT RISK"
+        },
+        {
+          "partner": "Fujifilm Biz",
+          "openDeals": 3,
+          "openValue": "RM 640K",
+          "weighted": "RM 380K",
+          "stalled": 0,
+          "nextStepCoverage": "100%",
+          "status": "HEALTHY"
+        },
+        {
+          "partner": "Vitrox",
+          "openDeals": 2,
+          "openValue": "RM 1.50M",
+          "weighted": "RM 900K",
+          "stalled": 1,
+          "nextStepCoverage": "50%",
+          "status": "WATCH"
+        },
+        {
+          "partner": "Nexalytics",
+          "openDeals": 1,
+          "openValue": "RM 48K",
+          "weighted": "RM 29K",
+          "stalled": 0,
+          "nextStepCoverage": "100%",
+          "status": "RAMPING"
+        }
+      ],
+      "hygiene": {
+        "viaForm": 3,
+        "viaFormNote": "100% within 5 min SLA",
+        "viaChat": 44,
+        "viaChatNote": "legacy intake",
+        "completeness": "94%",
+        "completenessNote": "fields filled avg",
+        "duplicates": 0,
+        "duplicatesNote": "dedup clean"
+      }
+    },
+    "masterList": [
+      {
+        "name": "Syspex",
+        "regions": "MY · SG · ID",
+        "since": "since 2025",
+        "tier": "Platinum",
+        "am": "Anwar",
+        "amInitials": "AN",
+        "status": "Active",
+        "statusFlag": "",
+        "tags": [
+          "Packaging",
+          "Warehousing",
+          "SamurAI"
+        ],
+        "openDeals": 4,
+        "pipeline": "RM 4.2M",
+        "licences": "1,240",
+        "score": 92,
+        "lastActivity": "2 days ago"
+      },
+      {
+        "name": "Metrodata / MII",
+        "regions": "Indonesia",
+        "since": "since 2026-Q2",
+        "tier": "Gold",
+        "am": "Kunna",
+        "amInitials": "KU",
+        "status": "Dormant",
+        "statusFlag": "⚠️",
+        "tags": [
+          "ICT Distribution",
+          "Smart City",
+          "DeepVision"
+        ],
+        "openDeals": 3,
+        "pipeline": "RM 1.9M",
+        "licences": "310",
+        "score": 76,
+        "lastActivity": "26 days ago"
+      },
+      {
+        "name": "Fujifilm Business Innovation",
+        "regions": "Malaysia",
+        "since": "since 2026-Q3",
+        "tier": "Silver",
+        "am": "Liyana",
+        "amInitials": "LI",
+        "status": "Warming",
+        "statusFlag": "",
+        "tags": [
+          "Managed Print",
+          "Retail",
+          "Copilot"
+        ],
+        "openDeals": 3,
+        "pipeline": "RM 1.1M",
+        "licences": "60",
+        "score": 71,
+        "lastActivity": "4 days ago"
+      },
+      {
+        "name": "Vitrox",
+        "regions": "Malaysia",
+        "since": "since 2026-Q2",
+        "tier": "Referral",
+        "am": "Kunna",
+        "amInitials": "KU",
+        "status": "Churn risk",
+        "statusFlag": "🔴",
+        "tags": [
+          "Semiconductor",
+          "Referral-only"
+        ],
+        "openDeals": 0,
+        "pipeline": "—",
+        "licences": "—",
+        "score": 58,
+        "lastActivity": "45 days ago"
+      },
+      {
+        "name": "Nexalytics",
+        "regions": "India",
+        "since": "onboarded Aug 2026",
+        "tier": "Onboarding",
+        "am": "Anwar",
+        "amInitials": "AN",
+        "status": "Ramping",
+        "statusFlag": "",
+        "tags": [
+          "Systems Integrator",
+          "LPR"
+        ],
+        "openDeals": 1,
+        "pipeline": "RM 1.5M",
+        "licences": "—",
+        "score": 34,
+        "lastActivity": "Yesterday"
+      }
+    ],
+    "profile": {
+      "header": {
+        "tier": "PLATINUM PARTNER",
+        "discount": "30% software discount",
+        "name": "Syspex",
+        "regions": "MY · SG · ID",
+        "onboarded": "onboarded 2025",
+        "contact": "Primary contact: Ken Wong (Director)",
+        "owner": "Owner: Anwar",
+        "certifications": "Certifications: 4 Technical ✓ · 3 Business ✓ (Gold prereq met)",
+        "cadence": "Cadence calls: biweekly ✓ (next: 28 Aug)"
+      },
+      "score": {
+        "value": 92,
+        "delta": "▲ +6 vs Q2"
+      },
+      "brief": {
+        "kpis": [
+          {
+            "label": "open pipeline",
+            "value": "RM 4.2M",
+            "note": ""
+          },
+          {
+            "label": "POC conversion",
+            "value": "67%",
+            "note": "bench 38%"
+          },
+          {
+            "label": "watch items",
+            "value": "2",
+            "note": "Gamuda · licences pace"
+          }
+        ],
+        "dealWatch": [
+          {
+            "title": "Gamuda",
+            "detail": "23d in Negotiation, legal redlines pending",
+            "state": "⚠️ DEAL WATCH"
+          },
+          {
+            "title": "IOI protection",
+            "detail": "expires in 5 days — renew by Thu",
+            "state": "⚠️ DEAL WATCH"
+          },
+          {
+            "title": "Westports POC",
+            "detail": "review confirmed Friday",
+            "state": "✓ ON TRACK"
+          },
+          {
+            "title": "Cadence call Thu 28 Aug",
+            "detail": "agenda auto-prepped",
+            "state": "✓ ON TRACK"
+          }
+        ],
+        "tierHealth": [
+          {
+            "label": "Licences",
+            "value": "1,240/2,000",
+            "note": "retain goal"
+          },
+          {
+            "label": "New acquisition at",
+            "value": "61%",
+            "note": "of annual pace"
+          },
+          {
+            "label": "Next milestone",
+            "value": "2,000",
+            "note": "raise at cadence call — not yet at risk"
+          }
+        ]
+      },
+      "licenceMilestones": {
+        "active": "1,240",
+        "goal": "goal 500/yr ✓ exceeded",
+        "next": "next milestone 2,000 (retain)",
+        "credits": "credits now +5%, +8% at 2,000, +10% at 5,000"
+      },
+      "stats": [
+        {
+          "label": "Won YTD",
+          "value": "RM 3.1M",
+          "note": "↑ 41% vs same period 2025"
+        },
+        {
+          "label": "POC → Commercial rate",
+          "value": "67%",
+          "note": "best of all partners · benchmark 38%"
+        }
+      ],
+      "pillars": [
+        {
+          "name": "Closure",
+          "score": 33,
+          "max": 35
+        },
+        {
+          "name": "Pipeline",
+          "score": 21,
+          "max": 25
+        },
+        {
+          "name": "Activity",
+          "score": 19,
+          "max": 20
+        },
+        {
+          "name": "POC quality",
+          "score": 19,
+          "max": 20
+        }
+      ],
+      "archetype": "The Closer — few registrations, high win rate. Coach on volume, not qualification.",
+      "funnel": [
+        {
+          "stage": "Registered",
+          "count": 11
+        },
+        {
+          "stage": "Qualified",
+          "count": 9,
+          "pass": "82% pass"
+        },
+        {
+          "stage": "POC Started",
+          "count": 7,
+          "pass": "78% pass"
+        },
+        {
+          "stage": "POC Passed",
+          "count": 6,
+          "pass": "86% pass"
+        },
+        {
+          "stage": "Quoted",
+          "count": 5,
+          "pass": "83% pass"
+        },
+        {
+          "stage": "Won",
+          "count": 4,
+          "pass": "80% win"
+        }
+      ],
+      "deals": [
+        {
+          "deal": "Sunway Retail Group — vehicle analytics",
+          "stage": "Quote",
+          "value": "RM 1,450,000",
+          "days": 12,
+          "next": "Follow up on pricing with CFO",
+          "health": "HEALTHY"
+        },
+        {
+          "deal": "Westports — gate camera upgrade",
+          "stage": "POC",
+          "value": "RM 980,000",
+          "days": 8,
+          "next": "POC review meeting Fri",
+          "health": "IN POC"
+        },
+        {
+          "deal": "Gamuda — haulage fleet monitoring",
+          "stage": "Negotiation",
+          "value": "RM 1,200,000",
+          "days": 23,
+          "next": "Legal redlines from their counsel",
+          "health": "WATCH"
+        },
+        {
+          "deal": "IOI Properties — guard tour compliance",
+          "stage": "Qualified",
+          "value": "RM 570,000",
+          "days": 31,
+          "next": "Awaiting site survey date ⚠️",
+          "health": "AT RISK"
+        }
+      ],
+      "rampCohort": {
+        "columns": [
+          "Onboard",
+          "Q+1",
+          "Q+2",
+          "Q+3",
+          "Q+4",
+          "Q+5"
+        ],
+        "cells": [
+          "2025-Q1 onboard",
+          "—",
+          "1 · RM 210K",
+          "1 · RM 380K",
+          "1 · RM 640K",
+          "1 · RM 1.45M"
+        ],
+        "note": "▲ Healthy ramp: deal size growing every quarter since join."
+      },
+      "recentActivity": [
+        {
+          "date": "22 Aug 2026",
+          "text": "LOA signed with Nexalytics sub-agent under Syspex umbrella"
+        },
+        {
+          "date": "18 Aug 2026",
+          "text": "Gamuda deal moved to Negotiation — commercial terms agreed verbally"
+        },
+        {
+          "date": "11 Aug 2026",
+          "text": "Westports POC kicked off — 6 cameras, 4-week window"
+        },
+        {
+          "date": "29 Jul 2026",
+          "text": "QBR held — score raised to Tier 1 Platinum"
+        }
+      ],
+      "commitments": {
+        "requirements": [
+          {
+            "label": "Retain 2,000 active licences",
+            "value": "1,240 / 2,000",
+            "state": "WATCH"
+          },
+          {
+            "label": "Acquire 1,000 new licences/yr",
+            "value": "610 YTD",
+            "state": "WATCH"
+          },
+          {
+            "label": "Biweekly cadence calls",
+            "value": "8/8 attended",
+            "state": "OK"
+          },
+          {
+            "label": "Certified personnel (3T + 3B)",
+            "value": "4T + 3B",
+            "state": "OK"
+          }
+        ],
+        "entitlements": [
+          {
+            "label": "Software discount",
+            "value": "30%",
+            "note": "+ intro 10% (first 6 mo)"
+          },
+          {
+            "label": "Camera licence credit",
+            "value": "+5%",
+            "note": "(500+ milestone)"
+          },
+          {
+            "label": "Marketing fund",
+            "value": "50% co-funding",
+            "note": "approved campaigns"
+          },
+          {
+            "label": "Special POC fund",
+            "value": "Eligible",
+            "note": "(Platinum)"
+          },
+          {
+            "label": "Dedicated account manager",
+            "value": "Assigned: Anwar",
+            "note": ""
+          }
+        ]
+      },
+      "protectionRegister": [
+        {
+          "deal": "Sunway Retail Group",
+          "state": "PROTECTED",
+          "until": "until 30 Sep"
+        },
+        {
+          "deal": "Westports",
+          "state": "PROTECTED",
+          "until": "until 15 Oct"
+        },
+        {
+          "deal": "Gamuda",
+          "state": "VALIDATION PENDING",
+          "until": ""
+        },
+        {
+          "deal": "IOI Properties",
+          "state": "EXPIRING — 5 days",
+          "until": ""
+        }
+      ]
+    },
+    "commandCenter": {
+      "date": "Monday, 24 August 2026",
+      "focus": "renew IOI deal protection before Thursday · nudge Gamuda legal · send August newsletter draft. That's it — everything else can wait.",
+      "amFilter": {
+        "all": 9,
+        "kunna": 3,
+        "anwar": 4,
+        "liyana": 2
+      },
+      "weekStrip": [
+        {
+          "day": "Wed 19",
+          "label": "Light day"
+        },
+        {
+          "day": "Thu 20",
+          "label": "Cadence calls"
+        },
+        {
+          "day": "Fri 21",
+          "label": "Pipeline sweep"
+        },
+        {
+          "day": "Sat 22",
+          "label": "Rest"
+        },
+        {
+          "day": "Sun 23",
+          "label": "Rest"
+        },
+        {
+          "day": "Mon 24",
+          "label": "Action day"
+        },
+        {
+          "day": "Tue 25",
+          "label": "Cadence call"
+        }
+      ],
+      "overdue": [
+        {
+          "title": "Sumitomo POC feedback — promised to Syspex last Friday",
+          "detail": "Syspex asked for the video-POC results summary; still unsent. Send short note even if partial.",
+          "owner": "Anwar",
+          "due": "2 days late",
+          "ttl": "10 min"
+        },
+        {
+          "title": "Vitrox re-engagement decision",
+          "detail": "45 days no movement. Decide: schedule revival call or flag for demotion review at quarter end.",
+          "owner": "Kunna",
+          "due": "Due Fri, missed",
+          "ttl": "15 min"
+        }
+      ],
+      "today": [
+        {
+          "title": "Renew IOI Properties deal protection",
+          "detail": "Expires Thu 27 Aug · Syspex deal · re-register in portal or extend validation.",
+          "owner": "Anwar",
+          "due": "Today",
+          "ttl": "5 min",
+          "done": false
+        },
+        {
+          "title": "Nudge Gamuda legal on redlines",
+          "detail": "Deal 23 days in Negotiation · RM 1.2M · via Syspex. One-line email to Ken Wong to forward.",
+          "owner": "Anwar",
+          "due": "Today",
+          "ttl": "10 min",
+          "done": false
+        },
+        {
+          "title": "Approve August partner newsletter draft",
+          "detail": "Kizuna drafted: SamurAI Copilot update, Fujifilm win story, HRDC training dates, incentive milestones.",
+          "owner": "Kizuna",
+          "due": "Done ✓",
+          "ttl": "logged 09:12",
+          "done": true
+        },
+        {
+          "title": "Confirm Tue cadence call with Metrodata/MII",
+          "detail": "Agenda auto-prepared: IK Serang status, stalled Quote deal, Q3 registration dip.",
+          "owner": "Anwar",
+          "due": "Today",
+          "ttl": "5 min",
+          "done": false
+        }
+      ],
+      "upcoming": [
+        {
+          "title": "Cadence call — Metrodata/MII (Gold)",
+          "detail": "Tue 25 Aug · biweekly · agenda attached",
+          "owner": "Kunna",
+          "day": "Tue",
+          "ttl": "30 min"
+        },
+        {
+          "title": "Cadence call — Syspex (Platinum)",
+          "detail": "Thu 28 Aug · raise licence pace (61% of annual goal)",
+          "owner": "Anwar",
+          "day": "Thu",
+          "ttl": "30 min"
+        },
+        {
+          "title": "Send August newsletter to all partners",
+          "detail": "Approved draft ready · Mailchimp list · send Wed morning",
+          "owner": "Kizuna",
+          "day": "Wed",
+          "ttl": "10 min"
+        },
+        {
+          "title": "Collect certified personnel names — Fujifilm Biz",
+          "detail": "Silver prereq: ≥1 Technical + ≥1 Business · contact assigned by CH",
+          "owner": "Liyana",
+          "day": "Fri",
+          "ttl": "15 min"
+        },
+        {
+          "title": "Monthly pipeline hygiene sweep",
+          "detail": "Auto-runs Fri 06:00 · review flagged stalls over 21 days",
+          "owner": "Anwar",
+          "day": "Fri",
+          "ttl": "20 min"
+        }
+      ],
+      "rituals": [
+        {
+          "title": "Cadence call — Syspex (Platinum)",
+          "detail": "last: 14 Aug · due biweekly — Kizuna proposed Thu 28 Aug 10:00 & Fri 11:00 to Ken Wong — awaiting pick.",
+          "owner": "Anwar",
+          "state": "PROPOSED"
+        },
+        {
+          "title": "Cadence call — Metrodata/MII (Gold)",
+          "detail": "last: 12 Aug · due biweekly — booked Tue 25 Aug 15:00 · agenda auto-attached.",
+          "owner": "Kunna",
+          "state": "BOOKED"
+        },
+        {
+          "title": "Tech refresh — Fujifilm Biz",
+          "detail": "last session: May 2026 · due quarterly — 3 months stale. Kizuna drafted 2 slot options for Liyana to forward.",
+          "owner": "Liyana",
+          "state": "NEEDS BOOKING"
+        },
+        {
+          "title": "Q3 Quarterly review calls — all partners",
+          "detail": "QBR packs generate 22 Sep. Booking opens 1 Sep — Kizuna will offer each AM two slots per partner.",
+          "owner": "ALL",
+          "state": "OPENS 1 SEP"
+        }
+      ],
+      "tickets": [
+        {
+          "title": "Portal login issue — Metrodata sales rep",
+          "detail": "Raised 21 Aug · waiting on access reset",
+          "state": "SLA 3d"
+        },
+        {
+          "title": "CoPilot licence request — Fujifilm (5 streams)",
+          "detail": "Gold entitlement · needs your approval",
+          "state": "Queued"
+        },
+        {
+          "title": "POC funding query — Syspex (Special fund)",
+          "detail": "Platinum entitlement · quote attached, pending review",
+          "state": "Queued"
+        }
+      ],
+      "reviews": [
+        {
+          "title": "Q3 Quarterly Tier Review — all partners",
+          "detail": "Week of 29 Sep · QBR packs auto-generated 1 week prior",
+          "when": "36 days"
+        },
+        {
+          "title": "Vitrox demotion/promotion review",
+          "detail": "Decision due at Q3 review based on re-engagement result",
+          "when": "At QBR"
+        },
+        {
+          "title": "Yearly partnership renewal — Syspex LOA & targets",
+          "detail": "Anniversary Feb 2027 · prep starts Jan",
+          "when": "FY27"
+        }
+      ]
+    },
+    "protection": {
+      "stats": {
+        "protected": 7,
+        "conflicts": 1
+      },
+      "alerts": [
+        {
+          "level": "red",
+          "count": 1,
+          "text": "IOI Properties — expires in 5 days. Renew or re-register."
+        },
+        {
+          "level": "amber",
+          "count": 2,
+          "text": "Sunway Retail · Westports — plan renewals at next cadence calls."
+        },
+        {
+          "level": "conflict",
+          "count": 1,
+          "text": "Two partners registered the same end-customer — needs arbitration."
+        }
+      ],
+      "policy": "90-day standard protection, renewable +30 days upon documented activity (POC started / quote issued) · tender deals: extension on AM request",
+      "active": [
+        {
+          "deal": "IOI Properties — Guard Tour Compliance",
+          "value": "RM 570K",
+          "stage": "Qualified stage",
+          "partner": "Syspex",
+          "tier": "Platinum",
+          "am": "Anwar",
+          "registered": "28 May 2026",
+          "until": "29 Aug 2026",
+          "daysLeft": "5 days",
+          "status": "EXPIRES IN 5 DAYS",
+          "onTrack": false
+        },
+        {
+          "deal": "Sunway Retail Group — Vehicle Analytics",
+          "value": "RM 1.45M",
+          "stage": "Quote stage",
+          "partner": "Syspex",
+          "tier": "Platinum",
+          "am": "Anwar",
+          "registered": "01 Jul 2026",
+          "until": "30 Sep 2026",
+          "daysLeft": "37 days",
+          "status": "",
+          "onTrack": true
+        },
+        {
+          "deal": "Westports — Gate Camera Upgrade",
+          "value": "RM 980K",
+          "stage": "POC stage",
+          "partner": "Syspex",
+          "tier": "Platinum",
+          "am": "Anwar",
+          "registered": "15 Jul 2026",
+          "until": "15 Oct 2026",
+          "daysLeft": "52 days",
+          "status": "",
+          "onTrack": true
+        },
+        {
+          "deal": "IK Serang (APP Serang) — SamurAI",
+          "value": "Value TBC",
+          "stage": "Qualified stage",
+          "partner": "Metrodata/MII",
+          "tier": "Gold",
+          "am": "Anwar",
+          "registered": "30 Jul 2026",
+          "until": "30 Oct 2026",
+          "daysLeft": "67 days",
+          "status": "",
+          "onTrack": true
+        },
+        {
+          "deal": "Indah Kiat Kerawang Mill — Proposal",
+          "value": "",
+          "stage": "Proposal stage",
+          "partner": "Metrodata/MII",
+          "tier": "Gold",
+          "am": "Kunna",
+          "registered": "18 Aug 2026",
+          "until": "18 Nov 2026",
+          "daysLeft": "86 days",
+          "status": "",
+          "onTrack": true
+        },
+        {
+          "deal": "QRA Supermarket — Vision AI",
+          "value": "",
+          "stage": "Registered by two channels",
+          "partner": "Fujifilm Biz vs direct/other channel",
+          "tier": "Silver",
+          "am": "Liyana",
+          "registered": "14 Jul 2026",
+          "until": "14 Oct 2026",
+          "daysLeft": "",
+          "status": "CONFLICT",
+          "onTrack": false
+        }
+      ],
+      "pending": [
+        {
+          "deal": "Gamuda — Haulage Fleet Monitoring",
+          "value": "RM 1.2M",
+          "stage": "Negotiation",
+          "partner": "Syspex",
+          "tier": "Platinum",
+          "am": "Anwar",
+          "submitted": "21 Aug 2026",
+          "checks": [
+            "✓ No conflict",
+            "✓ Customer verified",
+            "⏳ Eligibility check"
+          ],
+          "action": "Approve protection"
+        }
+      ]
+    },
+    "onboarding": {
+      "pipelineSummary": "3 in pipeline · 1 stalled",
+      "stages": [
+        {
+          "key": "applied",
+          "label": "Applied",
+          "benchmark": "14 days to sign",
+          "count": 1,
+          "cards": [
+            {
+              "name": "Innovision Systems",
+              "org": "Thailand · SI",
+              "am": "Anwar",
+              "age": "19 days in stage",
+              "health": "ok",
+              "checklist": [
+                {
+                  "text": "Intro call held",
+                  "state": "done"
+                },
+                {
+                  "text": "Partner deck sent",
+                  "state": "done"
+                },
+                {
+                  "text": "LOA sent — awaiting signature",
+                  "state": "pending"
+                },
+                {
+                  "text": "NDA countersigned by Tapway",
+                  "state": "tapway"
+                }
+              ],
+              "note": "Anwar · task auto-created"
+            }
+          ]
+        },
+        {
+          "key": "loa",
+          "label": "LOA / NDA Signed",
+          "benchmark": "30 days to trained",
+          "count": 1,
+          "cards": [
+            {
+              "name": "Nexalytics",
+              "org": "India · LPR focus",
+              "am": "Anwar",
+              "age": "22 days in stage",
+              "health": "warn",
+              "checklist": [
+                {
+                  "text": "LOA signed ✓ NDA ✓",
+                  "state": "done"
+                },
+                {
+                  "text": "Portal access created",
+                  "state": "done"
+                },
+                {
+                  "text": "Vision AI training — book session",
+                  "state": "pending"
+                },
+                {
+                  "text": "Certify ≥1 Technical + ≥1 Business",
+                  "state": "pending"
+                },
+                {
+                  "text": "First joint pipeline review",
+                  "state": "pending"
+                }
+              ],
+              "note": "Anwar · already has 1 registration ⚡"
+            }
+          ]
+        },
+        {
+          "key": "trained",
+          "label": "Trained & Certified",
+          "benchmark": "45 days to first reg",
+          "count": 1,
+          "cards": [
+            {
+              "name": "Vertex Digital",
+              "org": "Indonesia · Retail tech",
+              "am": "Kunna",
+              "age": "94 days in stage",
+              "health": "danger",
+              "checklist": [
+                {
+                  "text": "Training completed (July)",
+                  "state": "done"
+                },
+                {
+                  "text": "Certified: 1 Technical ✓",
+                  "state": "done"
+                },
+                {
+                  "text": "Business certification missing",
+                  "state": "pending"
+                },
+                {
+                  "text": "Escalated — decision needed: extend or release",
+                  "state": "pending"
+                }
+              ],
+              "note": "Kunna · flagged in Monday digest"
+            }
+          ]
+        },
+        {
+          "key": "firstReg",
+          "label": "First Registration",
+          "benchmark": "60 days to POC",
+          "count": 0,
+          "cards": []
+        },
+        {
+          "key": "firstPoc",
+          "label": "First POC",
+          "benchmark": "90 days to win",
+          "count": 0,
+          "cards": []
+        },
+        {
+          "key": "graduated",
+          "label": "Graduated",
+          "benchmark": "first win → active roster",
+          "count": 2,
+          "cards": [
+            {
+              "name": "Fujifilm Biz 🎉",
+              "org": "Graduated Aug 2026 · now Silver",
+              "am": "Liyana",
+              "age": "",
+              "health": "ok",
+              "detail": "First win: Sari Roti POC conversion · Full journey: applied → won in 71 days",
+              "graduated": true,
+              "checklist": []
+            },
+            {
+              "name": "Metrodata / MII 🎉",
+              "org": "Graduated Jun 2026 · now Gold",
+              "am": "Kunna",
+              "age": "",
+              "health": "ok",
+              "detail": "Fastest ramp: 58 days to first win",
+              "graduated": true,
+              "checklist": []
+            }
+          ]
+        }
+      ],
+      "legends": {
+        "cardHealth": [
+          "within benchmark",
+          "approaching benchmark (amber)",
+          "2× benchmark — escalated to digest (red)"
+        ],
+        "checkmarks": [
+          "✓ done",
+          "▸ Tapway's action pending",
+          "◻ partner's action pending"
+        ]
+      }
+    },
+    "qbr": {
+      "cycle": "Q3 2026 review cycle",
+      "quarters": [
+        "Q1 2026",
+        "Q2 2026",
+        "Q3 2026"
+      ],
+      "generateAll": true,
+      "partners": [
+        {
+          "name": "Syspex",
+          "org": "MY · SG · ID",
+          "tier": "Platinum",
+          "am": "Anwar",
+          "flags": [
+            "Data complete ✓",
+            "Licence data ✓"
+          ],
+          "pipeline": "RM 4.2M",
+          "won": "RM 1.45M",
+          "score": "92 ▲+6",
+          "licences": "1,240 / 2,000 retain goal",
+          "cadence": "8/8",
+          "slides": "~12 slides",
+          "formats": "PDF + PPTX",
+          "est": "40 seconds"
+        },
+        {
+          "name": "Metrodata / MII",
+          "org": "Indonesia",
+          "tier": "Gold",
+          "am": "Kunna",
+          "flags": [
+            "Data complete ✓",
+            "⚠ Registration dip flagged"
+          ],
+          "pipeline": "RM 1.9M",
+          "won": "—",
+          "score": "76 ▼−4",
+          "licences": "310 · registrations stalled 6 weeks ⚠",
+          "cadence": "",
+          "slides": "Includes re-engagement talking points",
+          "formats": "PDF + PPTX",
+          "est": "35 seconds"
+        },
+        {
+          "name": "Fujifilm Business Innovation",
+          "org": "Malaysia",
+          "tier": "Silver",
+          "am": "Liyana",
+          "flags": [
+            "⚠ Certifications unverified",
+            "Deal data ✓"
+          ],
+          "pipeline": "RM 1.1M",
+          "won": "first POC won (Sari Roti)",
+          "score": "71 ▲+2",
+          "licences": "60 · Silver ramp on track",
+          "cadence": "",
+          "slides": "Includes certification checklist",
+          "formats": "PDF + PPTX",
+          "est": "30 seconds"
+        },
+        {
+          "name": "Vitrox",
+          "org": "Malaysia",
+          "tier": "Referral",
+          "am": "Kunna",
+          "flags": [
+            "⚠ No activity",
+            "45 days 🔴"
+          ],
+          "pipeline": "RM 1.5M",
+          "won": "—",
+          "score": "58 ▼−11",
+          "licences": "Decision required: re-engage or demote",
+          "cadence": "",
+          "slides": "Includes tier decision matrix",
+          "formats": "PDF + PPTX",
+          "est": "25 seconds"
+        }
+      ],
+      "preview": {
+        "title": "Syspex — Q3 2026 Business Review",
+        "meta": "Prepared by TPS Auto-Pack · 24 Aug 2026 · for cadence call 28 Aug",
+        "performance": [
+          {
+            "label": "Partner score",
+            "value": "92 / 100",
+            "delta": "▲6"
+          },
+          {
+            "label": "Pipeline (open)",
+            "value": "RM 4.2M · 4 deals",
+            "delta": ""
+          },
+          {
+            "label": "Won this quarter",
+            "value": "RM 1.45M",
+            "delta": ""
+          },
+          {
+            "label": "POC → commercial rate",
+            "value": "67% (bench 38%)",
+            "delta": ""
+          },
+          {
+            "label": "Avg deal cycle",
+            "value": "41 days",
+            "delta": "▼9d"
+          }
+        ],
+        "commitments": [
+          {
+            "label": "Active licences",
+            "value": "1,240 / 2,000",
+            "delta": "62%"
+          },
+          {
+            "label": "New licences YTD",
+            "value": "610 / 1,000",
+            "delta": "61%"
+          },
+          {
+            "label": "Cadence calls",
+            "value": "8/8 attended",
+            "delta": ""
+          },
+          {
+            "label": "Certified staff",
+            "value": "4T + 3B (req met)",
+            "delta": ""
+          },
+          {
+            "label": "Next credit milestone",
+            "value": "+8% at 2,000",
+            "delta": ""
+          }
+        ],
+        "talkingPoints": [
+          "Gamuda at Negotiation 23d — legal redlines blocking RM 1.2M",
+          "Licence pace behind Platinum goal — joint account plan proposal",
+          "IOI protection renewal — confirm before Thu",
+          "Next-quarter target: 2 new registrations in SG"
+        ],
+        "actions": [
+          "Download PPTX",
+          "Download PDF",
+          "Email to partner contact",
+          "Copy summary"
+        ]
+      }
+    },
+    "ceoDigest": {
+      "week": "Week 34 · 17–23 Aug 2026",
+      "delivery": [
+        {
+          "channel": "Telegram",
+          "detail": "private message to Chee How — every Monday 07:00 · tap items to open in dashboard"
+        },
+        {
+          "channel": "Email copy",
+          "detail": "same content, printable for board packs"
+        },
+        {
+          "channel": "CC account managers",
+          "detail": "Kunna · Anwar · Liyana see the same digest"
+        },
+        {
+          "channel": "Immediate alerts override",
+          "detail": "critical events (protection expiry, conflict, churn signal) push instantly, not weekly"
+        }
+      ],
+      "kpis": [
+        {
+          "label": "partner pipeline",
+          "value": "RM 8.7M",
+          "delta": "▲1.2M"
+        },
+        {
+          "label": "won this week",
+          "value": "RM 1.45M",
+          "delta": ""
+        },
+        {
+          "label": "top score (Syspex)",
+          "value": "92",
+          "delta": ""
+        },
+        {
+          "label": "partners at risk",
+          "value": "2",
+          "delta": ""
+        }
+      ],
+      "decisions": [
+        {
+          "title": "Vitrox demotion or re-engagement?",
+          "detail": "45 days inactive, QBR decision matrix ready in the pack.",
+          "owner": "Kunna",
+          "due": "by 29 Sep QBR"
+        },
+        {
+          "title": "QRA Supermarket registration conflict",
+          "detail": "Fujifilm Biz vs another channel both claim the account. Arbitration recommendation attached.",
+          "owner": "Liyana",
+          "due": "by Fri"
+        }
+      ],
+      "wins": [
+        {
+          "title": "Sunway Retail Group — Vehicle Analytics RM 1.45M",
+          "detail": "WON · Largest partner-sourced win this quarter. via Syspex.",
+          "owner": "AM: Anwar",
+          "emoji": "WON"
+        },
+        {
+          "title": "Fujifilm Biz first POC conversion",
+          "detail": "MILESTONE · Sari Roti moved POC → commercial quote. First Silver-partner ramp success.",
+          "owner": "AM: Liyana",
+          "emoji": "MILESTONE"
+        }
+      ],
+      "watch": [
+        {
+          "title": "Gamuda RM 1.2M",
+          "detail": "STALLED · 23 days in Negotiation awaiting legal redlines (Syspex).",
+          "owner": "AM: Anwar",
+          "tag": "STALLED"
+        },
+        {
+          "title": "Metrodata/MII",
+          "detail": "DORMANT · no new registrations in 6 weeks; cadence call Tue will address.",
+          "owner": "AM: Kunna",
+          "tag": "DORMANT"
+        },
+        {
+          "title": "Syspex at 61% of annual Platinum acquisition goal",
+          "detail": "LICENCE PACE · joint account plan on Thursday's agenda.",
+          "owner": "AM: Anwar",
+          "tag": "LICENCE PACE"
+        }
+      ],
+      "rituals": {
+        "protections": "1 expiring ≤7 days (IOI Properties — renewal task assigned) · 2 more within 30 days",
+        "cadence": "Cadence calls this week: Metrodata/MII (Tue) · Syspex (Thu) — agendas auto-prepared ✓",
+        "q3": "Q3 review cycle: booking opens 1 Sep, packs generate automatically — all four partners' data already complete"
+      }
+    },
+    "pricing": {
+      "currencies": [
+        "MYR",
+        "SGD",
+        "USD"
+      ],
+      "tiers": [
+        {
+          "name": "List",
+          "discount": ""
+        },
+        {
+          "name": "Gold",
+          "discount": "−10%"
+        },
+        {
+          "name": "Platinum",
+          "discount": "−20%"
+        }
+      ],
+      "bundles": [
+        {
+          "name": "Lite",
+          "price": 180,
+          "per": "/mo",
+          "tagline": "Scheduled & on-demand checks"
+        },
+        {
+          "name": "Base",
+          "price": 500,
+          "per": "/mo",
+          "tagline": "Real-time detection & search"
+        },
+        {
+          "name": "Base+",
+          "price": 600,
+          "per": "/mo",
+          "tagline": "Advanced video semantic search"
+        },
+        {
+          "name": "Advanced",
+          "price": 1000,
+          "per": "/mo",
+          "tagline": "Behavioural reasoning & AI"
+        }
+      ],
+      "bundleNote": "Each bundle includes the SamurAI Runner edge device (FOC), 4 cameras, and full Cloud SaaS platform. Minimum 3-year contract.",
+      "baseFeatures": [
+        "People counting & footfall analytics",
+        "Dwell time & zone occupancy",
+        "Customer demographics (age/gender)",
+        "Queue length & wait time monitoring",
+        "Basic semantic search: \"show me queues\""
+      ],
+      "setup": {
+        "price": 400,
+        "unit": "outlet",
+        "count": 1,
+        "note": "On-site configuration, test, and commissioning per outlet. Includes system setup, network configuration, UAT, and go-live. Outstation fees apply outside Klang Valley."
+      },
+      "addonCameras": {
+        "price": 150,
+        "unit": "cam/mo",
+        "count": 0,
+        "note": "Need more than 4 cameras per outlet? Add individual camera subscriptions matching your bundle tier."
+      },
+      "services": [
+        {
+          "name": "Project Management",
+          "price": 1200,
+          "unit": "man day",
+          "count": 1
+        },
+        {
+          "name": "Software Customisation",
+          "price": 1500,
+          "unit": "man day",
+          "count": 1
+        },
+        {
+          "name": "AI Expert Consulting",
+          "price": 1500,
+          "unit": "man day",
+          "count": 1
+        }
+      ],
+      "outstation": [
+        {
+          "name": "Northern & Southern Regions",
+          "trip": 350,
+          "night": 450,
+          "trips": 0,
+          "nights": 0
+        },
+        {
+          "name": "East Malaysia",
+          "trip": 1350,
+          "night": 450,
+          "trips": 0,
+          "nights": 0
+        }
+      ],
+      "summary": {
+        "bundle": {
+          "label": "Bundle",
+          "value": "RM 500/mo",
+          "monthly": true
+        },
+        "setup": {
+          "label": "Setup",
+          "value": "RM 400",
+          "monthly": false
+        },
+        "addonCameras": {
+          "label": "Add-on cameras",
+          "value": "RM 0/mo",
+          "monthly": true
+        },
+        "pm": {
+          "label": "Project Management",
+          "value": "RM 0",
+          "monthly": false
+        },
+        "customisation": {
+          "label": "Software Customisation",
+          "value": "RM 0",
+          "monthly": false
+        },
+        "consulting": {
+          "label": "AI Consulting",
+          "value": "RM 0",
+          "monthly": false
+        },
+        "outstation": {
+          "label": "Outstation",
+          "value": "RM 0",
+          "monthly": false
+        },
+        "monthlyRecurring": "RM 500",
+        "oneTime": "RM 400",
+        "totalFirstMonth": "RM 900",
+        "perOutletMonth": "RM 500",
+        "spread36": "One-time costs (setup, services, outstation) divided evenly across the 36-month term — single predictable monthly subscription"
+      }
+    }
   }
 }
