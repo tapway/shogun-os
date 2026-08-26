@@ -22,6 +22,12 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _async_res(value):
+    async def _inner():
+        return value
+    return _inner()
+
+
 def _make_user():
     u = MagicMock()
     u.id = 1
@@ -369,6 +375,51 @@ def test_search_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     ))
 
     assert result == {"results": []}
+
+
+
+
+def test_partner_sphere_mock_keeps_live_rows_when_source_nonempty(monkeypatch) -> None:
+    """Mock overlay fills only empty sections; live partner rows win."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"partner_sphere": {"masterList": [{"name": "Mock Row"}],
+                                     "profile": {"name": "Mock Profile"}}})
+    live = [
+        {"slug": "partners/acme", "title": "ACME Distribution",
+         "frontmatter": {"tier": "Silver", "am": "Anwar", "status": "Active",
+                         "country": "Malaysia"}},
+    ]
+    monkeypatch.setattr(
+        dashboard, "_fetch_brain_pages_safe",
+        MagicMock(return_value=_async_res(live)))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    rows = res["masterList"]
+    assert len(rows) == 1 and rows[0]["name"] == "ACME Distribution", rows
+    assert res["overview"]["kpis"][0]["value"] == "1"
+    # sections the live path cannot derive are still mock-filled
+    assert res["profile"] == {"name": "Mock Profile"}
+
+
+def test_partner_sphere_mock_fills_when_source_empty(monkeypatch) -> None:
+    """Section-empty (source down) -> mock overlay fills every section."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    fake_sphere = {
+        "masterList": [{"name": "P1"}, {"name": "P2"}, {"name": "P3"},
+                        {"name": "P4"}, {"name": "P5"}],
+        "overview": {"kpis": [{"label": "Active Partners", "value": "5"}]},
+        "profile": {"name": "P1"},
+    }
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock", lambda: {"partner_sphere": fake_sphere})
+    monkeypatch.setattr(
+        dashboard, "_fetch_brain_pages_safe",
+        MagicMock(return_value=_async_res([])))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    assert res.get("mock") is True
+    assert len(res["masterList"]) == 5
+    assert res["profile"] == {"name": "P1"}
 
 
 def test_search_empty_query_returns_empty(monkeypatch) -> None:

@@ -946,7 +946,7 @@ async def get_partner_sphere(
         for key in result:
             if key == "mock":
                 result[key] = True
-            elif mock_sphere.get(key):
+            elif not result[key] and mock_sphere.get(key):
                 result[key] = mock_sphere[key]
     return result
 
