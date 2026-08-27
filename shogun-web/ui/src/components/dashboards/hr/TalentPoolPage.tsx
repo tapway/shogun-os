@@ -48,7 +48,8 @@ function candidateStatusChip(status: string): "ok" | "warn" | "bad" | "muted" {
 }
 
 export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpenCandidate }: Props) {
-  const [typeFilter, setTypeFilter] = useState<string>("all");
+  const [statusFilter, setStatusFilter] = useState<string>("all");
+  const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
 
   const job = (stats.job_openings || []).find((j) => j.id === jobId) ?? fallbackJob;
@@ -56,15 +57,26 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
 
   const candidates = useMemo(() => findCandidatesForJob(job, allCandidates), [job, allCandidates]);
 
-  const types = useMemo(
+  const trackerTypes = useMemo(
     () => Array.from(new Set(candidates.map((c) => c.candidate_type).filter(Boolean))).sort(),
+    [candidates],
+  );
+
+  const statuses = useMemo(
+    () => Array.from(new Set(candidates.map((c) => (c.status || "").trim()).filter(Boolean))).sort(),
+    [candidates],
+  );
+
+  const sources = useMemo(
+    () => Array.from(new Set(candidates.map((c) => (c.source || "").trim()).filter(Boolean))).sort(),
     [candidates],
   );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
-      if (typeFilter !== "all" && c.candidate_type !== typeFilter) return false;
+      if (statusFilter !== "all" && (c.status || "").trim() !== statusFilter) return false;
+      if (sourceFilter !== "all" && (c.source || "").trim() !== sourceFilter) return false;
       if (!q) return true;
       return (
         c.name.toLowerCase().includes(q) ||
@@ -72,7 +84,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, typeFilter, search]);
+  }, [candidates, statusFilter, sourceFilter, search]);
 
   const hiredCount = candidates.filter((c) => candidateStatusChip(c.status) === "ok").length;
 
@@ -134,8 +146,8 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
         </div>
         <div className="sd-kpi-card">
           <div className="sd-kpi-label">Trackers</div>
-          <div className="sd-kpi-value" style={{ color: TEXT }}>{types.length}</div>
-          <div style={{ fontSize: "0.7rem", color: MUTED, marginTop: "0.25rem" }}>{types.join(", ") || "—"}</div>
+          <div className="sd-kpi-value" style={{ color: TEXT }}>{trackerTypes.length}</div>
+          <div style={{ fontSize: "0.7rem", color: MUTED, marginTop: "0.25rem" }}>{trackerTypes.join(", ") || "—"}</div>
         </div>
       </div>
 
@@ -185,8 +197,8 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
             }}
           />
           <select
-            value={typeFilter}
-            onChange={(e) => setTypeFilter(e.target.value)}
+            value={statusFilter}
+            onChange={(e) => setStatusFilter(e.target.value)}
             style={{
               padding: "0.35rem 0.6rem",
               borderRadius: "0.4rem",
@@ -196,9 +208,26 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
               fontSize: "0.8rem",
             }}
           >
-            <option value="all">All Trackers</option>
-            {types.map((t) => (
-              <option key={t} value={t}>{t}</option>
+            <option value="all">All Status</option>
+            {statuses.map((s) => (
+              <option key={s} value={s}>{s}</option>
+            ))}
+          </select>
+          <select
+            value={sourceFilter}
+            onChange={(e) => setSourceFilter(e.target.value)}
+            style={{
+              padding: "0.35rem 0.6rem",
+              borderRadius: "0.4rem",
+              border: `1px solid ${BORDER}`,
+              background: SURFACE_2,
+              color: TEXT,
+              fontSize: "0.8rem",
+            }}
+          >
+            <option value="all">All Sources</option>
+            {sources.map((s) => (
+              <option key={s} value={s}>{s}</option>
             ))}
           </select>
         </div>
