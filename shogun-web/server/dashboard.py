@@ -15,7 +15,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote as _url_quote
 
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -3369,3 +3369,327 @@ async def get_hr_stats(
         "meeting_attendees": [a.to_dict() for a in attendees],
         "source": "notion_sync",
     }
+
+
+_ALLOWED_JD_EXTS = {"pdf", "doc", "docx", "txt", "md", "rtf"}
+
+
+@router.post("/hr/job-openings")
+async def create_hr_job_opening(
+    name: str = Path(...),
+    file: UploadFile = File(None),
+    job_title: str = Form(...),
+    department: str = Form(""),
+    employment_type: str = Form(""),
+    experience: str = Form(""),
+    budget_max: str = Form(""),
+    hiring_manager: str = Form(""),
+    application_start: str = Form(""),
+    job_status: str = Form("Not Initiated"),
+    job_description: str = Form(""),
+    jd_link: str = Form(""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create a job opening from the portal.
+
+    Local rows get a synthetic ``notion_page_id`` (``local-*``) so Notion
+    sync upserts never overwrite them. Optional job-description upload (served
+    via /api/doc-uploads) and/or external JD link. Deadline/Days Left/Overdue
+    are computed on read (Application Start + 90 days).
+    """
+    from models import HrJobOpening
+
+    title = (job_title or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Job title is required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    import uuid as _uuid
+
+    jd_file_url = None
+    if file is not None and file.filename:
+        safe_name = pathlib.Path(file.filename or "document").name
+        ext = pathlib.Path(safe_name).suffix.lower().lstrip(".")
+        if ext not in _ALLOWED_JD_EXTS:
+            raise HTTPException(status_code=422, detail=f"Unsupported file type (.{ext}). Allowed: pdf, doc, docx, txt, md, rtf")
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+        (upload_dir / unique_name).write_bytes(content)
+        jd_file_url = f"/api/doc-uploads/{unique_name}"
+
+    budget = None
+    raw_budget = (budget_max or "").strip().replace(",", "")
+    if raw_budget:
+        try:
+            budget = float(raw_budget)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Budget must be a number")
+
+    opening = HrJobOpening(
+        tenant_id=tenant.id,
+        notion_page_id=f"local-{_uuid.uuid4().hex}",
+        job_title=title,
+        job_status=job_status.strip() or "Not Initiated",
+        department=department.strip(),
+        employment_type=employment_type.strip(),
+        experience=experience.strip(),
+        budget_max=budget,
+        hiring_manager=hiring_manager.strip() or None,
+        application_start=application_start.strip() or None,
+        job_description=job_description or None,
+        jd_link=jd_link.strip() or None,
+        jd_file_url=jd_file_url,
+    )
+    db.add(opening)
+    db.commit()
+    db.refresh(opening)
+
+    try:
+        import audit  # audit infra is optional on this branch — never break the flow
+        audit.log_action(
+            db, tenant, user, "hr", "hr.job_opening.create", "job_opening",
+            str(opening.id),
+            detail={"job_title": opening.job_title, "department": opening.department,
+                    "jd_link": opening.jd_link, "jd_file_url": opening.jd_file_url},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "job": opening.to_dict()}
+
+
+class HrCandidateReviewBody(BaseModel):
+    kind: str = "hr"
+
+
+def _drive_file_id(url: str) -> Optional[str]:
+    """Extract a Google Drive file id from a viewer/drive link, if any."""
+    if not url:
+        return None
+    m = _re.search(r"drive\.google\.com/file/d/([A-Za-z0-9_-]+)", url)
+    return m.group(1) if m else None
+
+
+async def _fetch_candidate_doc(url: str) -> str:
+    """Best-effort text extraction from a candidate's Drive-hosted resume /
+    screening-answers link. Returns "" on any failure — never raises."""
+    fid = _drive_file_id(url)
+    if not fid:
+        return ""
+    try:
+        async with httpx.AsyncClient(timeout=25.0) as client:
+            resp = await client.get(
+                f"https://drive.google.com/uc?export=download&id={fid}",
+                follow_redirects=True,
+            )
+            if resp.status_code != 200 or not resp.content:
+                return ""
+            data = resp.content
+    except Exception:
+        return ""
+    if data[:5] == b"%PDF-":
+        try:
+            import fitz  # pymupdf
+
+            text = ""
+            with fitz.open(stream=data, filetype="pdf") as doc:
+                for page in doc:
+                    text += page.get_text()
+            return text
+        except Exception:
+            return ""
+    for enc in ("utf-8", "latin-1"):
+        try:
+            s = data.decode(enc)
+            printable = sum(1 for ch in s if ch.isprintable() or ch in "\n\t\r")
+            if printable > len(s) * 0.9:
+                return s
+        except Exception:
+            continue
+    return ""
+
+
+def _candidate_fallback_extract(cand) -> dict:
+    """DB-record-only extraction when the LLM is unavailable."""
+    return {
+        "summary": "",
+        "skills": [],
+        "experience": [],
+        "education": [],
+        "screening_answers": [],
+        "key_details": {
+            "role": cand.role or "",
+            "status": cand.status or "",
+            "source": cand.source or "",
+            "tracker": cand.candidate_type or "",
+        },
+        "source": "fallback",
+    }
+
+
+async def _ai_extract_candidate(cand, resume_text: str, screening_text: str) -> dict:
+    """Run DeepSeek structured extraction over the candidate record + docs."""
+    prompt = f"""You are an HR assistant. Extract structured information about this job candidate.
+Candidate record (from the hiring board):
+- Name: {cand.name}
+- Role applied: {cand.role or '(none)'}
+- Email: {cand.email or '(none)'}
+- Phone: {cand.phone_no or '(none)'}
+- Pipeline status: {cand.status or '(none)'}
+- Source: {cand.source or '(none)'}
+- Tracker type: {cand.candidate_type or '(none)'}
+
+RESUME TEXT:
+{resume_text[:6000] or '(not available)'}
+
+SCREENING ANSWERS TEXT:
+{screening_text[:6000] or '(not available)'}
+
+Return ONLY valid JSON (no markdown fences) with this schema:
+{{
+  "summary": "2-3 sentence professional summary of the candidate",
+  "skills": ["skill1", "skill2"],
+  "experience": [{{"title": "...", "company": "...", "period": "..."}}],
+  "education": ["..."],
+  "screening_answers": [{{"question": "...", "answer": "..."}}],
+  "key_details": {{"notice_period": "...", "expected_salary": "...", "current_location": "...", "notes": "..."}}
+}}"""
+    try:
+        from gateway import _call_deepseek
+
+        raw = await _call_deepseek(
+            prompt,
+            system_prompt="You extract structured candidate data from resumes. Reply with ONLY valid JSON.",
+            max_tokens=2400,
+        )
+    except Exception:
+        raw = None
+    if raw:
+        parsed = _extract_json_from_text(raw)
+        if isinstance(parsed, dict) and parsed and "raw_response" not in parsed:
+            parsed.setdefault("summary", "")
+            parsed.setdefault("source", "ai")
+            return parsed
+    return _candidate_fallback_extract(cand)
+
+
+@router.post("/hr/candidates/{candidate_id}/extract")
+async def extract_hr_candidate(
+    candidate_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """AI-extract all candidate details from the resume + screening docs."""
+    from models import HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    resume_text = await _fetch_candidate_doc(cand.resume_url or "")
+    screening_text = await _fetch_candidate_doc(cand.screening_answers_url or "")
+    result = await _ai_extract_candidate(cand, resume_text, screening_text)
+
+    cand.ai_extract_json = json.dumps(result)
+    cand.ai_summary = (result.get("summary") or "")[:2000]
+    cand.extracted_at = datetime.utcnow().isoformat(timespec="seconds")
+    db.commit()
+
+    try:  # audit infra optional on this branch — never break the flow
+        import audit
+        audit.log_action(
+            db, tenant, user, "hr", "hr.candidate.extract", "candidate",
+            str(candidate_id), detail={"source": result.get("source")},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "candidate": cand.to_dict(), "extract": result}
+
+
+@router.post("/hr/candidates/{candidate_id}/review")
+async def review_hr_candidate(
+    candidate_id: int,
+    body: HrCandidateReviewBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Record an HR or Manager review tap for a candidate."""
+    from models import HrCandidate
+
+    kind = (body.kind or "").strip().lower()
+    if kind not in ("hr", "manager"):
+        raise HTTPException(status_code=422, detail="kind must be 'hr' or 'manager'")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    now = datetime.utcnow().isoformat(timespec="seconds")
+    if kind == "hr":
+        cand.hr_reviewed = True
+        cand.hr_reviewed_at = now
+    else:
+        cand.manager_reviewed = True
+        cand.manager_reviewed_at = now
+    db.commit()
+
+    try:
+        import audit
+        audit.log_action(
+            db, tenant, user, "hr", f"hr.candidate.{kind}.review", "candidate",
+            str(candidate_id), detail={"review": f"{kind.capitalize()} done review"},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/add-to-pipeline")
+async def add_hr_candidate_to_pipeline(
+    candidate_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Flag a candidate as added to the recruitment pipeline."""
+    from models import HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    cand.in_pipeline = True
+    db.commit()
+
+    try:
+        import audit
+        audit.log_action(
+            db, tenant, user, "hr", "hr.candidate.add_to_pipeline", "candidate",
+            str(candidate_id), detail={},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "candidate": cand.to_dict()}

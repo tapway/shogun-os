@@ -1068,6 +1068,10 @@ class HrJobOpening(Base):
 
     job_description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
+    jd_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+    jd_file_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
 
         DateTime(timezone=True), nullable=False, default=utcnow
@@ -1142,6 +1146,10 @@ class HrJobOpening(Base):
 
             "job_description": self.job_description,
 
+            "jd_link": self.jd_link,
+
+            "jd_file_url": self.jd_file_url,
+
             "deadline": self.deadline(),
 
             "days_left": dl,
@@ -1192,6 +1200,22 @@ class HrCandidate(Base):
 
     candidate_type: Mapped[str] = mapped_column(String(32), nullable=False, default="fulltime")
 
+    ai_summary: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    ai_extract_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    extracted_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    hr_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    hr_reviewed_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    manager_reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
+    manager_reviewed_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    in_pipeline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+
     created_at: Mapped[datetime] = mapped_column(
 
         DateTime(timezone=True), nullable=False, default=utcnow
@@ -1235,6 +1259,22 @@ class HrCandidate(Base):
             "date_entry": self.date_entry,
 
             "last_edited": self.last_edited,
+
+            "ai_summary": self.ai_summary,
+
+            "ai_extract_json": self.ai_extract_json,
+
+            "extracted_at": self.extracted_at,
+
+            "hr_reviewed": bool(self.hr_reviewed),
+
+            "hr_reviewed_at": self.hr_reviewed_at,
+
+            "manager_reviewed": bool(self.manager_reviewed),
+
+            "manager_reviewed_at": self.manager_reviewed_at,
+
+            "in_pipeline": bool(self.in_pipeline),
 
         }
 
