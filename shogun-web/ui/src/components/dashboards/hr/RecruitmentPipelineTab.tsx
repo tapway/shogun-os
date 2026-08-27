@@ -205,16 +205,17 @@ export function RecruitmentPipelineTab({ stats }: Props) {
     return map;
   }, [globallyFiltered, jobOpenings]);
 
-  // Open positions per employment type (section header chips).
-  const openPositionsByType = useMemo(() => {
-    const map: Record<string, string[]> = {};
+  // Positions per employment type (section header chips) — open and closed,
+  // so every process pipeline shows the positions it refers to.
+  const positionsByType = useMemo(() => {
+    const map: Record<string, { title: string; open: boolean }[]> = {};
     for (const j of jobOpenings) {
-      if (!isOpenJob(j) || !j.job_title) continue;
+      if (!j.job_title) continue;
       const t = (j.employment_type || "").trim();
       const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
       const key = canonical ? canonical.key : t || OTHER_KEY;
       if (!map[key]) map[key] = [];
-      map[key].push(j.job_title.trim());
+      map[key].push({ title: j.job_title.trim(), open: isOpenJob(j) });
     }
     return map;
   }, [jobOpenings]);
@@ -225,7 +226,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
   const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
 
-  const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [], positions: openPositionsByType[s.key] || [] }));
+  const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [], positions: positionsByType[s.key] || [] }));
   const otherCandidates = bySection[OTHER_KEY] || [];
 
   return (
@@ -303,7 +304,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
 
       {/* One pipeline per recruitment process, referenced by position */}
       {sections.map((section) => {
-        if (section.candidates.length === 0 && section.positions.length === 0) return null;
+        const openPositions = section.positions.filter((p) => p.open);
         return (
           <div key={section.key} className="sd-chart-card">
             <SectionHeader
@@ -313,7 +314,11 @@ export function RecruitmentPipelineTab({ stats }: Props) {
             />
             {section.candidates.length === 0 ? (
               <p style={{ padding: "0.75rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
-                No active candidates for these positions yet.
+                {section.positions.length === 0
+                  ? "No positions yet — add a job opening of this type to start the pipeline."
+                  : openPositions.length === 0
+                    ? "All positions in this pipeline are Hired/Closed — their candidates have moved out of the active pipeline."
+                    : "No active candidates for these positions yet."}
               </p>
             ) : (
               <KanbanBoard candidates={section.candidates} onSelect={setSelected} />
@@ -405,7 +410,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   );
 }
 
-function SectionHeader({ label, count, positions }: { label: string; count: number; positions: string[] }) {
+function SectionHeader({ label, count, positions }: { label: string; count: number; positions: { title: string; open: boolean }[] }) {
   return (
     <div style={{ marginBottom: "0.75rem" }}>
       <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
@@ -428,17 +433,19 @@ function SectionHeader({ label, count, positions }: { label: string; count: numb
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
           {positions.map((p) => (
             <span
-              key={p}
+              key={p.title}
+              title={p.open ? "Open position" : "Hired/Closed"}
               style={{
                 fontSize: "0.72rem",
-                color: "var(--samurai-text)",
-                border: "1px solid var(--samurai-border)",
-                background: "var(--samurai-surface-2)",
+                color: p.open ? "var(--samurai-text)" : "var(--samurai-muted)",
+                border: `1px solid ${p.open ? "var(--samurai-border)" : "transparent"}`,
+                background: p.open ? "var(--samurai-surface-2)" : "transparent",
                 padding: "0.15rem 0.55rem",
                 borderRadius: "999px",
+                textDecoration: p.open ? "none" : "line-through",
               }}
             >
-              {p}
+              {p.title}
             </span>
           ))}
         </div>
