@@ -8,6 +8,7 @@ Covers the two behaviours added on the CRM-brain-direct change:
 """
 
 import asyncio
+import json
 import sys
 from pathlib import Path
 
@@ -384,3 +385,53 @@ def test_fs_search_stale_flag_and_search_defers(monkeypatch, tmp_path) -> None:
     res = _run(gbrain_client.gbrain_search("crm", "old"))
     assert "search" in called, "stale fs must defer to MCP"
     assert res == []
+
+
+def test_mcp_call_non_object_payload_returns_none(monkeypatch) -> None:
+    """gbrain answering with a JSON array payload must degrade to None, not raise."""
+
+    class _Resp:
+        status_code = 200
+        text = "event: message\ndata: []\n\n"
+
+    class _Client:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, **kw):
+            return _Resp()
+
+    monkeypatch.setattr(gbrain_client.httpx, "AsyncClient", _Client)
+    monkeypatch.setattr(gbrain_client, "get_config", lambda: _StubConfig("x"))
+    assert asyncio.run(gbrain_client._mcp_call("get_page", {"slug": "a"})) is None
+
+
+def test_mcp_call_non_object_result_returns_none(monkeypatch) -> None:
+    """A JSON-RPC result that is not an object must degrade to None, not raise AttributeError."""
+
+    class _Resp:
+        status_code = 200
+        text = 'event: message\ndata: {"result": ["not", "a", "dict"]}\n\n'
+
+    class _Client:
+        def __init__(self, *a, **kw):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *a):
+            return False
+
+        async def post(self, url, **kw):
+            return _Resp()
+
+    monkeypatch.setattr(gbrain_client.httpx, "AsyncClient", _Client)
+    monkeypatch.setattr(gbrain_client, "get_config", lambda: _StubConfig("x"))
+    assert asyncio.run(gbrain_client._mcp_call("get_page", {"slug": "a"})) is None

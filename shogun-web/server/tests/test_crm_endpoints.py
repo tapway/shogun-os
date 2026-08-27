@@ -492,3 +492,19 @@ def test_partner_sphere_kpi_counts_only_active_and_wires_fields(monkeypatch) -> 
     assert acme["score"] == 87
     assert acme["lastActivity"] == "2026-08-20"
     assert res["mock"] is False
+
+
+def test_bev_mock_explicit_flag_overrides_crm(monkeypatch) -> None:
+    """SHOGUN_WEB_BEV_MOCK set explicitly must win over the CRM demo flag."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setenv("SHOGUN_WEB_BEV_MOCK", "0")
+    assert dashboard._bev_mock_enabled() is False
+
+
+def test_bev_mock_falls_back_to_crm_flag(monkeypatch) -> None:
+    """BEV flag unset -> CRM demo flag drives BEV mock (legacy demo setups)."""
+    monkeypatch.delenv("SHOGUN_WEB_BEV_MOCK", raising=False)
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    assert dashboard._bev_mock_enabled() is True
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "0")
+    assert dashboard._bev_mock_enabled() is False
