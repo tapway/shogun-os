@@ -598,9 +598,11 @@ async def gbrain_search(
 
     Filesystem-first (honouring ``gbrain_read_preference``): a substring
     search over the local mirror means Search keeps working when MCP is down
-    — the same degradation contract as the listing endpoints. Falls back to
-    MCP semantic search when the filesystem yields nothing (semantic matching
-    is MCP-only by design; the fs pass is a coarse safety net).
+    — the same degradation contract as the listing endpoints. A FRESH mirror
+    is authoritative: zero matches return [] without touching MCP (otherwise
+    an MCP outage would surface as "source unavailable" and endpoints would
+    serve mock demo rows for a populated source). Only a missing or stale
+    mirror falls back to MCP semantic search.
 
     Note: MCP search is capped at ``_MCP_LIST_PAGE_SIZE`` results; a
     warning is logged when the requested limit exceeds the cap.
@@ -616,12 +618,19 @@ async def gbrain_search(
         brain_dir = _brain_source_dir(source)
         if brain_dir:
             fs_hits, fs_stale = await asyncio.to_thread(_fs_search, source, query, effective)
-            if fs_hits and not fs_stale:
+            fs_fresh = not fs_stale
+            if fs_hits and fs_fresh:
                 return fs_hits
             if fs_hits and fs_stale:
                 logger.warning(
                     "gbrain_search: file mirror for %r is stale — deferring to MCP", source
                 )
+            elif fs_fresh:
+                # Fresh mirror, zero matches: the source is available and the
+                # query legitimately matched nothing. Never fall through to
+                # MCP here — if MCP then raised, the endpoint's except path
+                # would serve mock demo rows for a populated source.
+                return []
 
     result = await _mcp_call("search", {
         "query": query,

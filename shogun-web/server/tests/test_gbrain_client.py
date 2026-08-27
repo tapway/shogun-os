@@ -387,6 +387,30 @@ def test_fs_search_stale_flag_and_search_defers(monkeypatch, tmp_path) -> None:
     assert res == []
 
 
+def test_search_fresh_mirror_zero_match_never_touches_mcp(monkeypatch, tmp_path) -> None:
+    """A fresh populated mirror with zero matches returns [] — MCP is never called.
+
+    If the search fell through to MCP here and MCP raised, crm_search's except
+    path would serve mock demo rows while the live source is available.
+    """
+    brain = tmp_path / "brain" / "crm" / "deals"
+    brain.mkdir(parents=True)
+    (brain / "alpha.md").write_text("---\ntitle: Alpha Deal\n---\n\n# Alpha\n", encoding="utf-8")
+    monkeypatch.setattr(gbrain_client, "get_config",
+                        lambda: _StubConfig(tmp_path / "brain", fs_max_age=60))
+
+    called = []
+
+    async def fake_mcp_call(*a, **k):
+        called.append(a[0])
+        raise RuntimeError("MCP outage")
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    res = _run(gbrain_client.gbrain_search("crm", "zzz-no-match"))
+    assert res == []
+    assert called == [], "fresh mirror zero-match must not fall through to MCP"
+
+
 def test_mcp_call_non_object_payload_returns_none(monkeypatch) -> None:
     """gbrain answering with a JSON array payload must degrade to None, not raise."""
 
