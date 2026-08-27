@@ -150,13 +150,13 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
         {(job.jd_file_url || job.jd_link) && (
           <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
             {job.jd_file_url && (
-              <a href={job.jd_file_url} target="_blank" rel="noreferrer" title="Open job description document" style={jdBtnStyle}>
-                <FileText size={14} /> View JD Document
+              <a href={job.jd_file_url} target="_blank" rel="noreferrer" title="View job description file" style={jdBtnStyle}>
+                <FileText size={14} /> Job Description{job.jd_link ? " (File)" : ""}
               </a>
             )}
             {job.jd_link && (
-              <a href={job.jd_link} target="_blank" rel="noreferrer" title="Open job description link" style={jdBtnStyle}>
-                <ExternalLink size={14} /> View JD Link
+              <a href={job.jd_link} target="_blank" rel="noreferrer" title="View job description" style={jdBtnStyle}>
+                <FileText size={14} /> Job Description{job.jd_file_url ? " (Link)" : ""}
               </a>
             )}
           </div>
@@ -240,9 +240,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
                     <td style={{ ...tdStyle, fontWeight: 600, color: TEXT }}>{c.name || "—"}</td>
                     <td style={{ ...tdStyle, color: TEXT }}>{c.candidate_type || "—"}</td>
                     <td style={{ ...tdStyle, color: TEXT }}>{c.role || "—"}</td>
-                    <td style={tdStyle}>
-                      <span className={`sd-chip ${candidateStatusChip(c.status)}`}>{c.status || "—"}</span>
-                    </td>
+<td style={{ ...tdStyle, color: TEXT }}>{c.status || "—"}</td>
                     <td style={tdStyle}>{c.source || "—"}</td>
                     <td style={tdStyle}>{c.email || "—"}</td>
                     <td style={tdStyle}>{c.phone_no || "—"}</td>

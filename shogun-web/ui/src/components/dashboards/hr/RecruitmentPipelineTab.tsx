@@ -1,6 +1,6 @@
 import { useMemo, useState } from "react";
 import { Search, ExternalLink } from "lucide-react";
-import type { HrCandidate, HrDashboardStats } from "../../../lib/types";
+import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 
 interface Props {
   stats: HrDashboardStats;
@@ -84,6 +84,22 @@ function roleMatchesJobTitle(role: string | undefined, jobTitle: string): boolea
   return jw.some((a) => rw.some((b) => b.includes(a) || a.includes(b)));
 }
 
+/** Candidates stay visible in the pipeline only while they are still in the
+ * recruitment process (not Hired/Rejected) AND have at least one matching job
+ * opening that is not Hired/Closed. Manually curated in_pipeline candidates
+ * always stay visible. */
+const TERMINAL_STAGES = new Set(["Hired", "Rejected"]);
+
+function isInActiveRecruitment(c: HrCandidate, jobOpenings: HrJobOpening[]): boolean {
+  if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return false;
+  const matching = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title));
+  if (matching.length === 0) return false;
+  return matching.some((j) => {
+    const s = (j.job_status || "").toLowerCase();
+    return !s.includes("hired") && !s.includes("closed");
+  });
+}
+
 export function RecruitmentPipelineTab({ stats }: Props) {
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
@@ -133,6 +149,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (pipelineOnly && !c.in_pipeline) return false;
+      if (!c.in_pipeline && !isInActiveRecruitment(c, jobOpenings)) return false;
       if (trackerFilter && c.candidate_type !== trackerFilter) return false;
       if (stageFilter && canonicalStatus(c.status) !== stageFilter) return false;
       if (roleFilter && c.role !== roleFilter) return false;
@@ -174,7 +191,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const totalCandidates = candidates.length;
   const hiredCount = candidates.filter((c) => canonicalStatus(c.status) === "Hired").length;
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
-  const activeCount = totalCandidates - hiredCount - rejectedCount;
+  const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
 
   return (
     <div className="sd-stack">
@@ -261,6 +278,10 @@ export function RecruitmentPipelineTab({ stats }: Props) {
         {columns.length === 0 && (
           <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
             No candidates match the current filters.
+            <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
+              Pipeline shows only candidates still in the recruitment process whose job opening is still open
+              (Hired/Closed jobs and Hired/Rejected candidates stay hidden).
+            </div>
           </div>
         )}
         {columns.map((stage) => {
