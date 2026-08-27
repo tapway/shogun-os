@@ -112,7 +112,7 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
           onOpenTalentPool={(j) => setTalentPool({ id: j.id, job: j })}
         />
       )}
-      {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} />}
+      {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} department={department} />}
       {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} />}
       {activeTab === "leave" && <LeaveTrackerTab stats={stats} color={color} />}
       {activeTab === "performance" && <PerformanceTab stats={stats} color={color} />}

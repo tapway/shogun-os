@@ -3693,3 +3693,45 @@ async def add_hr_candidate_to_pipeline(
         pass
 
     return {"ok": True, "candidate": cand.to_dict()}
+
+
+class HrCandidateMoveBody(BaseModel):
+    status: str
+
+
+@router.post("/hr/candidates/{candidate_id}/move")
+async def move_hr_candidate(
+    candidate_id: int,
+    body: HrCandidateMoveBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Change a candidate's pipeline stage (drag & drop on the board)."""
+    from models import HrCandidate
+
+    status = (body.status or "").strip()
+    if not status or len(status) > 128:
+        raise HTTPException(status_code=422, detail="Status must be a non-empty stage name")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    old_status = cand.status
+    cand.status = status
+    db.commit()
+
+    try:  # audit infra optional on this branch — never break the flow
+        import audit
+        audit.log_action(
+            db, tenant, user, "hr", "hr.candidate.move", "candidate",
+            str(candidate_id), detail={"from": old_status, "to": status},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "candidate": cand.to_dict()}

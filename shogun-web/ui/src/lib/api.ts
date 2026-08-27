@@ -833,4 +833,9 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/add-to-pipeline`,
       { method: 'POST' },
     ),
+  candidateMove: (dept: string, id: number, status: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/move`,
+      { method: 'POST', body: JSON.stringify({ status }) },
+    ),
 };

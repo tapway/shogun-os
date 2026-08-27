@@ -145,3 +145,35 @@ def test_extract_wrong_tenant_404(db_session):
             candidate_id=cand.id, name="hr", user=_user(db_session), db=db_session,
         ))
     assert ei.value.status_code == 404
+
+
+def test_move_candidate_updates_status(db_session):
+    cand = _candidate(db_session)
+    r = asyncio.run(dashboard.move_hr_candidate(
+        candidate_id=cand.id, body=dashboard.HrCandidateMoveBody(status="HR Review"),
+        name="hr", user=_user(db_session), db=db_session,
+    ))
+    assert r["ok"] is True
+    assert r["candidate"]["status"] == "HR Review"
+    db_session.refresh(cand)
+    assert cand.status == "HR Review"
+
+
+def test_move_candidate_rejects_empty_status(db_session):
+    cand = _candidate(db_session)
+    with pytest.raises(HTTPException) as ei:
+        asyncio.run(dashboard.move_hr_candidate(
+            candidate_id=cand.id, body=dashboard.HrCandidateMoveBody(status="   "),
+            name="hr", user=_user(db_session), db=db_session,
+        ))
+    assert ei.value.status_code == 422
+
+
+def test_move_candidate_wrong_tenant_404(db_session):
+    cand = _candidate(db_session, tenant_id=2)
+    with pytest.raises(HTTPException) as ei:
+        asyncio.run(dashboard.move_hr_candidate(
+            candidate_id=cand.id, body=dashboard.HrCandidateMoveBody(status="Hired"),
+            name="hr", user=_user(db_session), db=db_session,
+        ))
+    assert ei.value.status_code == 404

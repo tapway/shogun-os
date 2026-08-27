@@ -1,10 +1,13 @@
 import { useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Search, ExternalLink, Briefcase } from "lucide-react";
+import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 
 interface Props {
   stats: HrDashboardStats;
   color: string;
+  department: string;
 }
 
 // Canonical pipeline stages (ordered) — folds variant spellings across the
@@ -121,7 +124,6 @@ function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string |
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return null;
   const openMatches = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j));
   if (openMatches.length > 0) {
-    // Prefer a canonical section type; fall back to the raw value.
     const t = (openMatches[0].employment_type || "").trim();
     const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
     return canonical ? canonical.key : t || OTHER_KEY;
@@ -130,7 +132,8 @@ function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string |
   return null;
 }
 
-export function RecruitmentPipelineTab({ stats }: Props) {
+export function RecruitmentPipelineTab({ stats, department }: Props) {
+  const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [jobTitleFilter, setJobTitleFilter] = useState("");
@@ -138,9 +141,36 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const [trackerFilter, setTrackerFilter] = useState("");
   const [pipelineOnly, setPipelineOnly] = useState(false);
   const [selected, setSelected] = useState<HrCandidate | null>(null);
+  const [dragId, setDragId] = useState<number | null>(null);
+  const [dragOver, setDragOver] = useState<string | null>(null);
+  // Local stage overrides applied immediately on drop (optimistic) until the
+  // stats query refetch lands with the persisted status.
+  const [moves, setMoves] = useState<Record<number, string>>({});
+  const [moveError, setMoveError] = useState("");
 
   const candidates = stats.candidates || [];
   const jobOpenings = stats.job_openings || [];
+
+  const applyMoves = (list: HrCandidate[]): HrCandidate[] =>
+    list.map((c) => (moves[c.id] && moves[c.id] !== c.status ? { ...c, status: moves[c.id] } : c));
+
+  async function moveCandidate(id: number, newStage: string) {
+    const cand = candidates.find((c) => c.id === id);
+    if (!cand || canonicalStatus(cand.status) === newStage) return;
+    setMoveError("");
+    setMoves((m) => ({ ...m, [id]: newStage }));
+    try {
+      await hrApi.candidateMove(department, id, newStage);
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+    } catch (err) {
+      setMoveError(err instanceof Error ? err.message : "Failed to move candidate.");
+      setMoves((m) => {
+        const copy = { ...m };
+        delete copy[id];
+        return copy;
+      });
+    }
+  }
 
   const roles = useMemo(() => {
     const s = new Set<string>();
@@ -195,32 +225,19 @@ export function RecruitmentPipelineTab({ stats }: Props) {
     });
   }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, pipelineOnly, jobOpenings]);
 
-  // Bucket candidates into the three position-based pipelines.
+  // Bucket candidates into the three position-based pipelines (with local
+  // drag overrides applied).
   const bySection = useMemo(() => {
     const map: Record<string, HrCandidate[]> = {};
-    for (const c of globallyFiltered) {
+    for (const c of applyMoves(globallyFiltered)) {
       const key = classifyPipeline(c, jobOpenings);
       if (!key) continue;
       if (!map[key]) map[key] = [];
       map[key].push(c);
     }
     return map;
-  }, [globallyFiltered, jobOpenings]);
-
-  // Positions per employment type (section header chips) — open and closed,
-  // so every process pipeline shows the positions it refers to.
-  const positionsByType = useMemo(() => {
-    const map: Record<string, { title: string; open: boolean }[]> = {};
-    for (const j of jobOpenings) {
-      if (!j.job_title) continue;
-      const t = (j.employment_type || "").trim();
-      const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
-      const key = canonical ? canonical.key : t || OTHER_KEY;
-      if (!map[key]) map[key] = [];
-      map[key].push({ title: j.job_title.trim(), open: isOpenJob(j) });
-    }
-    return map;
-  }, [jobOpenings]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globallyFiltered, jobOpenings, moves]);
 
   // KPI metrics (canonical)
   const totalCandidates = candidates.length;
@@ -228,7 +245,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
   const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
 
-  const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [], positions: positionsByType[s.key] || [] }));
+  const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [] }));
   const otherCandidates = bySection[OTHER_KEY] || [];
 
   return (
@@ -304,26 +321,31 @@ export function RecruitmentPipelineTab({ stats }: Props) {
         </button>
       </div>
 
-      {/* One pipeline per recruitment process, referenced by position */}
+      {moveError && (
+        <div style={{ padding: "0.5rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--samurai-danger)", color: "var(--samurai-danger)", fontSize: "0.8rem" }}>
+          {moveError}
+        </div>
+      )}
+
+      {/* One pipeline per recruitment process */}
       {sections.map((section) => {
-        const openPositions = section.positions.filter((p) => p.open);
         return (
           <div key={section.key} className="sd-chart-card">
-            <SectionHeader
-              label={section.label}
-              count={section.candidates.length}
-              positions={section.positions}
-            />
+            <SectionHeader label={section.label} count={section.candidates.length} />
             {section.candidates.length === 0 ? (
               <p style={{ padding: "0.75rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
-                {section.positions.length === 0
-                  ? "No positions yet — add a job opening of this type to start the pipeline."
-                  : openPositions.length === 0
-                    ? "All positions in this pipeline are Hired/Closed — their candidates have moved out of the active pipeline."
-                    : "No active candidates for these positions yet."}
+                No active candidates in this pipeline yet.
               </p>
             ) : (
-              <KanbanBoard candidates={section.candidates} onSelect={setSelected} />
+              <KanbanBoard
+                candidates={section.candidates}
+                onSelect={setSelected}
+                dragId={dragId}
+                dragOver={dragOver}
+                setDragId={setDragId}
+                setDragOver={setDragOver}
+                onDropStage={moveCandidate}
+              />
             )}
           </div>
         );
@@ -331,8 +353,16 @@ export function RecruitmentPipelineTab({ stats }: Props) {
 
       {otherCandidates.length > 0 && (
         <div className="sd-chart-card">
-          <SectionHeader label="Other / Unassigned Positions" count={otherCandidates.length} positions={[]} />
-          <KanbanBoard candidates={otherCandidates} onSelect={setSelected} />
+          <SectionHeader label="Other / Unassigned Positions" count={otherCandidates.length} />
+          <KanbanBoard
+            candidates={otherCandidates}
+            onSelect={setSelected}
+            dragId={dragId}
+            dragOver={dragOver}
+            setDragId={setDragId}
+            setDragOver={setDragOver}
+            onDropStage={moveCandidate}
+          />
         </div>
       )}
 
@@ -341,7 +371,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
           No candidates match the current filters.
           <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
             Pipeline shows only candidates still in the recruitment process whose job opening is still open
-            (Hired/Closed jobs and Hired/Rejected candidates stay hidden).
+            (Hired/Closed/Not Initiated jobs and Hired/Rejected candidates stay hidden).
           </div>
         </div>
       )}
@@ -412,51 +442,47 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   );
 }
 
-function SectionHeader({ label, count, positions }: { label: string; count: number; positions: { title: string; open: boolean }[] }) {
+function SectionHeader({ label, count }: { label: string; count: number }) {
   return (
-    <div style={{ marginBottom: "0.75rem" }}>
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-        <Briefcase size={14} style={{ color: "var(--samurai-text)" }} />
-        <h3 className="sd-chart-title" style={{ margin: 0 }}>{label}</h3>
-        <span
-          style={{
-            fontSize: "0.75rem",
-            fontWeight: 700,
-            color: "var(--samurai-lime)",
-            background: "var(--samurai-surface-2)",
-            padding: "0.1rem 0.5rem",
-            borderRadius: "0.4rem",
-          }}
-        >
-          {count} candidates
-        </span>
-      </div>
-      {positions.length > 0 && (
-        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
-          {positions.map((p) => (
-            <span
-              key={p.title}
-              title={p.open ? "Open position" : "Hired/Closed"}
-              style={{
-                fontSize: "0.72rem",
-                color: p.open ? "var(--samurai-text)" : "var(--samurai-muted)",
-                border: `1px solid ${p.open ? "var(--samurai-border)" : "transparent"}`,
-                background: p.open ? "var(--samurai-surface-2)" : "transparent",
-                padding: "0.15rem 0.55rem",
-                borderRadius: "999px",
-                textDecoration: p.open ? "none" : "line-through",
-              }}
-            >
-              {p.title}
-            </span>
-          ))}
-        </div>
-      )}
+    <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <Briefcase size={14} style={{ color: "var(--samurai-text)" }} />
+      <h3 className="sd-chart-title" style={{ margin: 0 }}>{label}</h3>
+      <span
+        style={{
+          fontSize: "0.75rem",
+          fontWeight: 700,
+          color: "var(--samurai-lime)",
+          background: "var(--samurai-surface-2)",
+          padding: "0.1rem 0.5rem",
+          borderRadius: "0.4rem",
+        }}
+      >
+        {count} candidates
+      </span>
+      <span style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", marginLeft: "auto" }}>
+        Drag cards between columns to change status
+      </span>
     </div>
   );
 }
 
-function KanbanBoard({ candidates, onSelect }: { candidates: HrCandidate[]; onSelect: (c: HrCandidate) => void }) {
+function KanbanBoard({
+  candidates,
+  onSelect,
+  dragId,
+  dragOver,
+  setDragId,
+  setDragOver,
+  onDropStage,
+}: {
+  candidates: HrCandidate[];
+  onSelect: (c: HrCandidate) => void;
+  dragId: number | null;
+  dragOver: string | null;
+  setDragId: (v: number | null) => void;
+  setDragOver: (v: string | null) => void;
+  onDropStage: (id: number, stage: string) => void;
+}) {
   const byStage = useMemo(() => {
     const map: Record<string, HrCandidate[]> = {};
     for (const c of candidates) {
@@ -491,18 +517,39 @@ function KanbanBoard({ candidates, onSelect }: { candidates: HrCandidate[]; onSe
       {columns.map((stage) => {
         const items = byStage[stage] || [];
         const chipCls = STATUS_CHIP[stage] || "muted";
+        const isDropTarget = dragOver === stage && dragId != null;
         return (
           <div
             key={stage}
+            onDragOver={(e) => {
+              e.preventDefault();
+              e.dataTransfer.dropEffect = "move";
+              if (dragOver !== stage) setDragOver(stage);
+            }}
+            onDragLeave={(e) => {
+              if (!(e.currentTarget as HTMLElement).contains(e.relatedTarget as Node) && dragOver === stage) {
+                setDragOver(null);
+              }
+            }}
+            onDrop={(e) => {
+              e.preventDefault();
+              const raw = e.dataTransfer.getData("text/plain");
+              const id = raw ? Number(raw) : dragId;
+              setDragId(null);
+              setDragOver(null);
+              if (id != null && !Number.isNaN(id)) onDropStage(id, stage);
+            }}
             style={{
               minWidth: "240px",
               maxWidth: "280px",
               flex: "0 0 240px",
               background: "var(--samurai-surface)",
               borderRadius: "0.75rem",
-              border: "1px solid var(--samurai-border)",
+              border: `1px solid ${isDropTarget ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+              boxShadow: isDropTarget ? "0 0 0 2px var(--samurai-lime)" : "none",
               display: "flex",
               flexDirection: "column",
+              transition: "border-color 0.15s, box-shadow 0.15s",
             }}
           >
             {/* Column header */}
@@ -532,10 +579,20 @@ function KanbanBoard({ candidates, onSelect }: { candidates: HrCandidate[]; onSe
               </span>
             </div>
             {/* Cards */}
-            <div style={{ padding: "0.5rem", overflowY: "auto", maxHeight: "500px" }}>
+            <div style={{ padding: "0.5rem", overflowY: "auto", maxHeight: "500px", minHeight: "3rem" }}>
               {items.map((c) => (
                 <div
                   key={c.id}
+                  draggable
+                  onDragStart={(e) => {
+                    e.dataTransfer.setData("text/plain", String(c.id));
+                    e.dataTransfer.effectAllowed = "move";
+                    setDragId(c.id);
+                  }}
+                  onDragEnd={() => {
+                    setDragId(null);
+                    setDragOver(null);
+                  }}
                   onClick={() => onSelect(c)}
                   style={{
                     padding: "0.6rem",
@@ -543,8 +600,9 @@ function KanbanBoard({ candidates, onSelect }: { candidates: HrCandidate[]; onSe
                     borderRadius: "0.5rem",
                     background: "var(--samurai-surface-2)",
                     border: "1px solid var(--samurai-border)",
-                    cursor: "pointer",
-                    transition: "border-color 0.2s",
+                    cursor: "grab",
+                    opacity: dragId === c.id ? 0.4 : 1,
+                    transition: "border-color 0.2s, opacity 0.15s",
                   }}
                   onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--samurai-lime)")}
                   onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--samurai-border)")}
