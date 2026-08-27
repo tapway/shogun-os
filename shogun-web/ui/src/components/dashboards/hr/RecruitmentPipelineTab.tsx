@@ -86,7 +86,9 @@ function roleMatchesJobTitle(role: string | undefined, jobTitle: string): boolea
 
 function isOpenJob(j: HrJobOpening): boolean {
   const s = (j.job_status || "").toLowerCase();
-  return !s.includes("hired") && !s.includes("closed");
+  // "Not Initiated" positions are treated as closed — recruitment has not
+  // started, so their candidates stay out of the active pipelines.
+  return !s.includes("hired") && !s.includes("closed") && !s.includes("not initiated");
 }
 
 /** Candidates stay visible in the pipeline only while they are still in the
