@@ -235,7 +235,10 @@ def sync_employees(rows: list, db, tenant_id: int, dry_run: bool = False) -> dic
             if pic_url:
                 data["profile_picture_path"] = _download_asset(pic_url, f"employees/{nid}_pic")
             file_url = prop_file_url(row, "Employee File")
-            if file_url:
+            # Store the raw link (Notion external URL, e.g. Google Drive) for
+            # the portal UI. Only attempt a local download for real hosted files.
+            data["employee_file_url"] = file_url or None
+            if file_url and ("amazonaws.com" in file_url or "notion-static.com" in file_url):
                 data["employee_file_path"] = _download_asset(file_url, f"employees/{nid}_file")
 
             if existing:

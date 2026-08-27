@@ -1313,6 +1313,7 @@ export interface HrEmployee {
   linkedin_profile: string;
   profile_picture_path: string;
   employee_file_path: string;
+  employee_file_url: string;
   q1: string;
   q2: string;
   q3: string;
