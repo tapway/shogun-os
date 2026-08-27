@@ -67,7 +67,7 @@ def patch_db():
 # ─── Tab structure ───────────────────────────────────────────────────────
 
 
-def test_get_dashboard_config_crm_returns_6_tabs():
+def test_get_dashboard_config_crm_returns_7_tabs():
     result = asyncio.run(_call_dashboard_config_inner("crm"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
@@ -75,7 +75,9 @@ def test_get_dashboard_config_crm_returns_6_tabs():
     assert "deals" in tab_ids
     assert "companies" in tab_ids
     assert "search" in tab_ids
-    assert len(result["tabs"]) == 6
+    assert "bev" in tab_ids
+    assert "partners" in tab_ids
+    assert len(result["tabs"]) == 7
 
 
 def test_get_dashboard_config_finance_returns_8_tabs():

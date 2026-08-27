@@ -22,6 +22,8 @@ import type {
   Connector,
   CreateStaffPayload,
   CrmCompanyItem,
+  CrmPartnerItem,
+  PartnerSphereData,
   CrmDealListItem,
   CrmSearchResult,
   CrmTaskItem,
@@ -149,6 +151,14 @@ export const authApi = {
       method: 'POST',
       body: JSON.stringify(payload),
     }),
+  forgotPassword: (email: string) =>
+    apiFetch<{ ok: boolean; message: string; temporary_password?: string }>(
+      '/api/auth/forgot-password',
+      {
+        method: 'POST',
+        body: JSON.stringify({ email }),
+      },
+    ),
   oauthUrl: (provider: 'google' | 'microsoft') => `/api/auth/oauth/${provider}`,
   oauthCallback: (params: URLSearchParams) =>
     apiFetch<AuthResponse>(`/api/auth/callback?${params.toString()}`),
@@ -339,11 +349,13 @@ export const departmentsApi = {
     apiFetch<ProcurementDashboardStats>(`/api/departments/${dept}/dashboard/procurement-stats`),
 
   // CRM list endpoints (live gbrain data)
-  crmDealsList: (dept: string, search = '', stage = '', owner = '') => {
+  crmDealsList: (dept: string, search = '', stage = '', owner = '', priority = '', source = '') => {
     const qs = new URLSearchParams();
     if (search) qs.set('search', search);
     if (stage) qs.set('stage', stage);
     if (owner) qs.set('owner', owner);
+    if (priority) qs.set('priority', priority);
+    if (source) qs.set('source', source);
     const q = qs.toString();
     return apiFetch<{ deals: CrmDealListItem[]; total: number }>(
       `/api/departments/${dept}/dashboard/deals${q ? `?${q}` : ''}`,
@@ -360,10 +372,25 @@ export const departmentsApi = {
     );
   },
 
-  crmTasksList: (dept: string, completed?: boolean, assignee = '') => {
+  crmPartnerSphere: (dept: string) => {
+    const url = `/api/departments/${dept}/dashboard/partner-sphere`;
+    return apiFetch<PartnerSphereData>(url);
+  },
+
+  crmPartnersList: (dept: string, search = '') => {
+    const qs = new URLSearchParams();
+    if (search) qs.set('search', search);
+    const q = qs.toString();
+    return apiFetch<{ partners: CrmPartnerItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/partners${q ? `?${q}` : ''}`,
+    );
+  },
+
+  crmTasksList: (dept: string, completed?: boolean, assignee = '', deal = '') => {
     const qs = new URLSearchParams();
     if (completed !== undefined) qs.set('completed', String(completed));
     if (assignee) qs.set('assignee', assignee);
+    if (deal) qs.set('deal', deal);
     const q = qs.toString();
     return apiFetch<{ tasks: CrmTaskItem[]; total: number }>(
       `/api/departments/${dept}/dashboard/tasks${q ? `?${q}` : ''}`,

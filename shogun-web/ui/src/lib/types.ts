@@ -755,6 +755,285 @@ export interface CrmCompanyItem {
   first_seen?: string;
 }
 
+// ---- Partner Sphere (9 sections: overview/roster/profile/command/
+// protection/onboarding/qbr/ceoDigest/pricing) ----
+
+export interface SphereKpi { label: string; value: string; note?: string; delta?: string; }
+
+export interface SphereAmCoverage {
+  am: string;
+  pipeline: string;
+  deals: number;
+  notes: string[];
+}
+
+export interface SphereTierPartner {
+  name: string;
+  regions: string;
+  score: number;
+  pillars: { activity: number | null; pipeline: number | null; pocCraft: number | null; closure: number | null };
+  archetype: string;
+}
+
+export interface SphereTierGroup { tier: string; partners: SphereTierPartner[]; }
+
+export interface SphereFunnelStage { stage: string; count: number; pct?: string; note?: string; }
+
+export interface SphereLeakPoint { partner: string; drop: string; action: string; }
+
+export interface SphereBattleLogEntry { day: string; partner: string; action: string; }
+
+export interface SphereCohortRow {
+  partner: string;
+  lifetime: number;
+  onboardQ: string;
+  quarters: number[];
+}
+
+export interface SphereCohortGrid {
+  columns: string[];
+  rows: SphereCohortRow[];
+  caption: string;
+}
+
+export interface SphereOpenPipelineRow {
+  partner: string;
+  openDeals: number;
+  openValue: string;
+  weighted: string;
+  stalled: number;
+  nextStepCoverage: string;
+  status: string;
+}
+
+export interface SphereHygiene {
+  viaForm: number; viaFormNote: string;
+  viaChat: number; viaChatNote: string;
+  completeness: string; completenessNote: string;
+  duplicates: number; duplicatesNote: string;
+}
+
+export interface SphereAiBrief {
+  date: string;
+  kpis: SphereKpi[];
+  narrative: string;
+  priorities: string[];
+}
+
+export interface PartnerSphereOverview {
+  aiBrief?: SphereAiBrief | null;
+  kpis: SphereKpi[];
+  amCoverage: SphereAmCoverage[];
+  tierBoard: SphereTierGroup[];
+  funnel: SphereFunnelStage[];
+  leakPoints: SphereLeakPoint[];
+  battleLog: SphereBattleLogEntry[];
+  cohortGrid: SphereCohortGrid | null;
+  openPipeline: SphereOpenPipelineRow[];
+  hygiene: SphereHygiene | null;
+}
+
+export interface PartnerMasterListItem {
+  name: string;
+  regions: string;
+  since: string;
+  tier: string;
+  am: string;
+  amInitials: string;
+  status: string;
+  statusFlag: string;
+  tags: string[];
+  openDeals: number;
+  pipeline: string;
+  licences: string;
+  score: number;
+  lastActivity: string;
+}
+
+export interface SphereDealWatchItem { title: string; detail: string; state: string; }
+export interface SphereTierHealthItem { label: string; value: string; note: string; }
+export interface SpherePillar { name: string; score: number; max: number; }
+export interface SphereFunnelStep { stage: string; count: number; pass?: string; }
+export interface SphereDealRow {
+  deal: string; stage: string; value: string; days: number; next: string; health: string;
+}
+export interface SphereActivityEntry { date: string; text: string; }
+export interface SphereCommitmentRow { label: string; value: string; state: string; }
+export interface SphereEntitlementRow { label: string; value: string; note: string; }
+export interface SphereProtectionEntry { deal: string; state: string; until: string; }
+
+export interface PartnerSphereProfile {
+  header: {
+    tier: string; discount: string; name: string; regions: string; onboarded: string;
+    contact: string; owner: string; certifications: string; cadence: string;
+  };
+  score: { value: number; delta: string };
+  brief: {
+    kpis: SphereKpi[];
+    dealWatch: SphereDealWatchItem[];
+    tierHealth: SphereTierHealthItem[];
+  };
+  licenceMilestones: { active: string; goal: string; next: string; credits: string };
+  stats: SphereKpi[];
+  pillars: SpherePillar[];
+  archetype: string;
+  funnel: SphereFunnelStep[];
+  deals: SphereDealRow[];
+  rampCohort: { columns: string[]; cells: string[]; note: string };
+  recentActivity: SphereActivityEntry[];
+  commitments: {
+    requirements: SphereCommitmentRow[];
+    entitlements: SphereEntitlementRow[];
+  };
+  protectionRegister: SphereProtectionEntry[];
+}
+
+export interface SphereActionItem {
+  title: string; detail: string; owner: string; due?: string; ttl?: string;
+  day?: string; state?: string; done?: boolean; when?: string;
+}
+
+export interface PartnerSphereCommandCenter {
+  date: string;
+  focus: string;
+  amFilter: { all: number; kunna: number; anwar: number; liyana: number };
+  weekStrip: { day: string; label: string }[];
+  overdue: SphereActionItem[];
+  today: SphereActionItem[];
+  upcoming: SphereActionItem[];
+  rituals: SphereActionItem[];
+  tickets: SphereActionItem[];
+  reviews: SphereActionItem[];
+}
+
+export interface SphereProtectionRow {
+  deal: string; value: string; stage: string; partner: string; tier: string;
+  am: string; registered: string; until: string; daysLeft: string;
+  status: string; onTrack: boolean;
+}
+
+export interface SphereProtectionPending {
+  deal: string; value: string; stage: string; partner: string; tier: string;
+  am: string; submitted: string; checks: string[]; action: string;
+}
+
+export interface PartnerSphereProtection {
+  stats: { protected: number; conflicts: number };
+  alerts: { level: string; count: number; text: string }[];
+  policy: string;
+  active: SphereProtectionRow[];
+  pending: SphereProtectionPending[];
+}
+
+export interface SphereChecklistItem { text: string; state: string; }
+
+export interface SphereOnboardingCard {
+  name: string; org: string; am: string; age: string; health: string;
+  checklist: SphereChecklistItem[];
+  note: string;
+  detail?: string;
+  graduated?: boolean;
+}
+
+export interface SphereOnboardingStage {
+  key: string; label: string; benchmark: string; count: number;
+  cards: SphereOnboardingCard[];
+}
+
+export interface PartnerSphereOnboarding {
+  pipelineSummary: string;
+  stages: SphereOnboardingStage[];
+  legends: { cardHealth: string[]; checkmarks: string[] };
+}
+
+export interface SphereQbrPartner {
+  name: string; org: string; tier: string; am: string;
+  flags: string[]; pipeline: string; won: string; score: string;
+  licences: string; cadence: string; slides: string; formats: string; est: string;
+}
+
+export interface SphereQbrPreview {
+  title: string; meta: string;
+  performance: { label: string; value: string; delta: string }[];
+  commitments: { label: string; value: string; delta: string }[];
+  talkingPoints: string[];
+  actions: string[];
+}
+
+export interface PartnerSphereQbr {
+  cycle: string;
+  quarters: string[];
+  generateAll: boolean;
+  partners: SphereQbrPartner[];
+  preview: SphereQbrPreview;
+}
+
+export interface SphereDigestDecision {
+  title: string; detail: string; owner: string; due: string;
+  emoji?: string; tag?: string;
+}
+
+export interface PartnerSphereCeoDigest {
+  week: string;
+  delivery: string;
+  kpis: SphereKpi[];
+  decisions: SphereDigestDecision[];
+  wins: SphereDigestDecision[];
+  watch: SphereDigestDecision[];
+  rituals: { protections: string; cadence: string; q3: string };
+  delivery2?: { channel: string; detail: string }[];
+  deliverySettings?: { channel: string; detail: string }[];
+}
+
+export interface SpherePricingBundle { name: string; price: number; per: string; tagline: string; }
+export interface SpherePricingService { name: string; price: number; unit: string; count: number; }
+export interface SphereOutstationRow { name: string; trip: number; night: number; trips: number; nights: number; }
+
+export interface PartnerSpherePricing {
+  currencies: string[];
+  tiers: { name: string; discount: string }[];
+  bundles: SpherePricingBundle[];
+  bundleNote: string;
+  baseFeatures: string[];
+  setup: { price: number; unit: string; count: number; note: string };
+  addonCameras: { price: number; unit: string; count: number; note: string };
+  services: SpherePricingService[];
+  outstation: SphereOutstationRow[];
+  summary: {
+    bundle: { label: string; value: string; monthly: boolean };
+    setup: { label: string; value: string; monthly: boolean };
+    addonCameras: { label: string; value: string; monthly: boolean };
+    pm: { label: string; value: string; monthly: boolean };
+    customisation: { label: string; value: string; monthly: boolean };
+    consulting: { label: string; value: string; monthly: boolean };
+    outstation: { label: string; value: string; monthly: boolean };
+    monthlyRecurring: string; oneTime: string; totalFirstMonth: string;
+    perOutletMonth: string; spread36: string;
+  };
+}
+
+export interface PartnerSphereData {
+  overview: PartnerSphereOverview | null;
+  masterList: PartnerMasterListItem[];
+  profile: PartnerSphereProfile | null;
+  commandCenter: PartnerSphereCommandCenter | null;
+  protection: PartnerSphereProtection | null;
+  onboarding: PartnerSphereOnboarding | null;
+  qbr: PartnerSphereQbr | null;
+  ceoDigest: PartnerSphereCeoDigest | null;
+  pricing: PartnerSpherePricing | null;
+  mock: boolean;
+}
+
+export interface CrmPartnerItem {
+  slug: string;
+  title: string;
+  type?: string;
+  website?: string;
+  country?: string;
+  source?: string;
+}
+
 export interface CrmTaskItem {
   description: string;
   assignee: string;
@@ -767,7 +1046,7 @@ export interface CrmSearchResult {
   slug: string;
   title: string;
   frontmatter: Record<string, unknown>;
-  category: 'companies' | 'deals' | 'unknown';
+  category: 'companies' | 'deals' | 'partners' | 'persons' | 'unknown';
 }
 
 export interface BevZone {
