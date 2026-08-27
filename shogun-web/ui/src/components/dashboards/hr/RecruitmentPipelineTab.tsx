@@ -1,5 +1,5 @@
 import { useMemo, useState } from "react";
-import { Search, ExternalLink } from "lucide-react";
+import { Search, ExternalLink, Briefcase } from "lucide-react";
 import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 
 interface Props {
@@ -84,6 +84,11 @@ function roleMatchesJobTitle(role: string | undefined, jobTitle: string): boolea
   return jw.some((a) => rw.some((b) => b.includes(a) || a.includes(b)));
 }
 
+function isOpenJob(j: HrJobOpening): boolean {
+  const s = (j.job_status || "").toLowerCase();
+  return !s.includes("hired") && !s.includes("closed");
+}
+
 /** Candidates stay visible in the pipeline only while they are still in the
  * recruitment process (not Hired/Rejected) AND have at least one matching job
  * opening that is not Hired/Closed. Manually curated in_pipeline candidates
@@ -94,10 +99,33 @@ function isInActiveRecruitment(c: HrCandidate, jobOpenings: HrJobOpening[]): boo
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return false;
   const matching = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title));
   if (matching.length === 0) return false;
-  return matching.some((j) => {
-    const s = (j.job_status || "").toLowerCase();
-    return !s.includes("hired") && !s.includes("closed");
-  });
+  return matching.some((j) => isOpenJob(j));
+}
+
+// Three recruitment processes — each gets its own pipeline, referenced by the
+// positions (job openings) of that employment type.
+const PIPELINE_SECTIONS = [
+  { key: "Full Time", label: "Full Time Pipeline" },
+  { key: "Internship", label: "Internship Pipeline" },
+  { key: "Contract", label: "Contract Pipeline" },
+] as const;
+
+const OTHER_KEY = "Other";
+
+/** Classify a candidate by the employment type of their matching OPEN job
+ * opening (position-based). in_pipeline candidates with no open match go to
+ * "Other". Returns null when the candidate must stay hidden. */
+function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string | null {
+  if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return null;
+  const openMatches = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j));
+  if (openMatches.length > 0) {
+    // Prefer a canonical section type; fall back to the raw value.
+    const t = (openMatches[0].employment_type || "").trim();
+    const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
+    return canonical ? canonical.key : t || OTHER_KEY;
+  }
+  if (c.in_pipeline) return OTHER_KEY;
+  return null;
 }
 
 export function RecruitmentPipelineTab({ stats }: Props) {
@@ -145,7 +173,9 @@ export function RecruitmentPipelineTab({ stats }: Props) {
     return [...ordered, ...unlisted];
   }, [candidates]);
 
-  const filtered = useMemo(() => {
+  // Apply the global filters first; keep candidates regardless of section so
+  // per-section KPIs stay honest.
+  const globallyFiltered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (pipelineOnly && !c.in_pipeline) return false;
@@ -161,37 +191,42 @@ export function RecruitmentPipelineTab({ stats }: Props) {
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter]);
+  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, pipelineOnly, jobOpenings]);
 
-  // Group candidates by canonical stage (kanban columns)
-  const byStage = useMemo(() => {
+  // Bucket candidates into the three position-based pipelines.
+  const bySection = useMemo(() => {
     const map: Record<string, HrCandidate[]> = {};
-    for (const c of filtered) {
-      const st = canonicalStatus(c.status);
-      if (!map[st]) map[st] = [];
-      map[st].push(c);
+    for (const c of globallyFiltered) {
+      const key = classifyPipeline(c, jobOpenings);
+      if (!key) continue;
+      if (!map[key]) map[key] = [];
+      map[key].push(c);
     }
     return map;
-  }, [filtered]);
+  }, [globallyFiltered, jobOpenings]);
 
-  // Kanban columns ordered by STATUS_ORDER, then any extras
-  const columns = useMemo(() => {
-    const present = new Set(filtered.map((c) => canonicalStatus(c.status)));
-    const ordered: string[] = [];
-    STATUS_ORDER.forEach((s) => {
-      if (present.has(s)) ordered.push(s);
-    });
-    const unlisted = Array.from(present)
-      .filter((s) => !STATUS_ORDER.includes(s))
-      .sort();
-    return [...ordered, ...unlisted];
-  }, [filtered]);
+  // Open positions per employment type (section header chips).
+  const openPositionsByType = useMemo(() => {
+    const map: Record<string, string[]> = {};
+    for (const j of jobOpenings) {
+      if (!isOpenJob(j) || !j.job_title) continue;
+      const t = (j.employment_type || "").trim();
+      const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
+      const key = canonical ? canonical.key : t || OTHER_KEY;
+      if (!map[key]) map[key] = [];
+      map[key].push(j.job_title.trim());
+    }
+    return map;
+  }, [jobOpenings]);
 
   // KPI metrics (canonical)
   const totalCandidates = candidates.length;
   const hiredCount = candidates.filter((c) => canonicalStatus(c.status) === "Hired").length;
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
   const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
+
+  const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [], positions: openPositionsByType[s.key] || [] }));
+  const otherCandidates = bySection[OTHER_KEY] || [];
 
   return (
     <div className="sd-stack">
@@ -266,148 +301,43 @@ export function RecruitmentPipelineTab({ stats }: Props) {
         </button>
       </div>
 
-      {/* Kanban Board — horizontal scroll */}
-      <div
-        style={{
-          display: "flex",
-          gap: "0.75rem",
-          overflowX: "auto",
-          paddingBottom: "1rem",
-        }}
-      >
-        {columns.length === 0 && (
-          <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
-            No candidates match the current filters.
-            <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
-              Pipeline shows only candidates still in the recruitment process whose job opening is still open
-              (Hired/Closed jobs and Hired/Rejected candidates stay hidden).
-            </div>
+      {/* One pipeline per recruitment process, referenced by position */}
+      {sections.map((section) => {
+        if (section.candidates.length === 0 && section.positions.length === 0) return null;
+        return (
+          <div key={section.key} className="sd-chart-card">
+            <SectionHeader
+              label={section.label}
+              count={section.candidates.length}
+              positions={section.positions}
+            />
+            {section.candidates.length === 0 ? (
+              <p style={{ padding: "0.75rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
+                No active candidates for these positions yet.
+              </p>
+            ) : (
+              <KanbanBoard candidates={section.candidates} onSelect={setSelected} />
+            )}
           </div>
-        )}
-        {columns.map((stage) => {
-          const items = byStage[stage] || [];
-          const chipCls = STATUS_CHIP[stage] || "muted";
-          return (
-            <div
-              key={stage}
-              style={{
-                minWidth: "240px",
-                maxWidth: "280px",
-                flex: "0 0 240px",
-                background: "var(--samurai-surface)",
-                borderRadius: "0.75rem",
-                border: "1px solid var(--samurai-border)",
-                display: "flex",
-                flexDirection: "column",
-              }}
-            >
-              {/* Column header */}
-              <div
-                style={{
-                  padding: "0.75rem 1rem",
-                  borderBottom: "1px solid var(--samurai-border)",
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                }}
-              >
-                <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--samurai-text)" }}>
-                  {stage}
-                </span>
-                <span
-                  style={{
-                    fontSize: "0.75rem",
-                    fontWeight: 700,
-                    color: CHIP_CLS[chipCls],
-                    background: "var(--samurai-surface-2)",
-                    padding: "0.1rem 0.5rem",
-                    borderRadius: "0.4rem",
-                  }}
-                >
-                  {items.length}
-                </span>
-              </div>
-              {/* Cards */}
-              <div style={{ padding: "0.5rem", overflowY: "auto", maxHeight: "500px" }}>
-                {items.map((c) => (
-                  <div
-                    key={c.id}
-                    onClick={() => setSelected(c)}
-                    style={{
-                      padding: "0.6rem",
-                      marginBottom: "0.5rem",
-                      borderRadius: "0.5rem",
-                      background: "var(--samurai-surface-2)",
-                      border: "1px solid var(--samurai-border)",
-                      cursor: "pointer",
-                      transition: "border-color 0.2s",
-                    }}
-                    onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--samurai-lime)")}
-                    onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--samurai-border)")}
-                  >
-                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
-                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--samurai-text)" }}>
-                        {c.name}
-                      </div>
-                      {c.in_pipeline && (
-                        <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--samurai-lime)", border: "1px solid var(--samurai-lime)", padding: "0.05rem 0.35rem", borderRadius: "0.3rem" }}>
-                          ✓ Pipeline
-                        </span>
-                      )}
-                    </div>
-                    {c.role && (
-                      <div style={{ fontSize: "0.75rem", color: "var(--samurai-muted)", marginTop: "0.15rem" }}>
-                        {c.role}
-                      </div>
-                    )}
-                    {c.candidate_type && c.candidate_type !== "fulltime" && (
-                      <span
-                        style={{
-                          display: "inline-block",
-                          marginTop: "0.25rem",
-                          fontSize: "0.65rem",
-                          fontWeight: 600,
-                          padding: "0.1rem 0.4rem",
-                          borderRadius: "0.3rem",
-                          background: "var(--samurai-surface)",
-                          color: "var(--samurai-lime)",
-                          border: "1px solid var(--samurai-border)",
-                        }}
-                      >
-                        {c.candidate_type}
-                      </span>
-                    )}
-                    {c.source && (
-                      <div style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", marginTop: "0.25rem" }}>
-                        Source: {c.source}
-                      </div>
-                    )}
-                    {c.resume_url && (
-                      <a
-                        href={c.resume_url}
-                        target="_blank"
-                        rel="noreferrer"
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          display: "inline-flex",
-                          alignItems: "center",
-                          gap: "0.25rem",
-                          fontSize: "0.7rem",
-                          color: "var(--samurai-lime)",
-                          marginTop: "0.25rem",
-                          textDecoration: "none",
-                        }}
-                      >
-                        <ExternalLink size={12} /> Resume
-                      </a>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          );
-        })}
-      </div>
+        );
+      })}
+
+      {otherCandidates.length > 0 && (
+        <div className="sd-chart-card">
+          <SectionHeader label="Other / Unassigned Positions" count={otherCandidates.length} positions={[]} />
+          <KanbanBoard candidates={otherCandidates} onSelect={setSelected} />
+        </div>
+      )}
+
+      {globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
+        <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
+          No candidates match the current filters.
+          <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
+            Pipeline shows only candidates still in the recruitment process whose job opening is still open
+            (Hired/Closed jobs and Hired/Rejected candidates stay hidden).
+          </div>
+        </div>
+      )}
 
       {/* Candidate Detail Modal */}
       {selected && (
@@ -471,6 +401,207 @@ export function RecruitmentPipelineTab({ stats }: Props) {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function SectionHeader({ label, count, positions }: { label: string; count: number; positions: string[] }) {
+  return (
+    <div style={{ marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+        <Briefcase size={14} style={{ color: "var(--samurai-text)" }} />
+        <h3 className="sd-chart-title" style={{ margin: 0 }}>{label}</h3>
+        <span
+          style={{
+            fontSize: "0.75rem",
+            fontWeight: 700,
+            color: "var(--samurai-lime)",
+            background: "var(--samurai-surface-2)",
+            padding: "0.1rem 0.5rem",
+            borderRadius: "0.4rem",
+          }}
+        >
+          {count} candidates
+        </span>
+      </div>
+      {positions.length > 0 && (
+        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem", marginTop: "0.5rem" }}>
+          {positions.map((p) => (
+            <span
+              key={p}
+              style={{
+                fontSize: "0.72rem",
+                color: "var(--samurai-text)",
+                border: "1px solid var(--samurai-border)",
+                background: "var(--samurai-surface-2)",
+                padding: "0.15rem 0.55rem",
+                borderRadius: "999px",
+              }}
+            >
+              {p}
+            </span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function KanbanBoard({ candidates, onSelect }: { candidates: HrCandidate[]; onSelect: (c: HrCandidate) => void }) {
+  const byStage = useMemo(() => {
+    const map: Record<string, HrCandidate[]> = {};
+    for (const c of candidates) {
+      const st = canonicalStatus(c.status);
+      if (!map[st]) map[st] = [];
+      map[st].push(c);
+    }
+    return map;
+  }, [candidates]);
+
+  const columns = useMemo(() => {
+    const present = new Set(candidates.map((c) => canonicalStatus(c.status)));
+    const ordered: string[] = [];
+    STATUS_ORDER.forEach((s) => {
+      if (present.has(s)) ordered.push(s);
+    });
+    const unlisted = Array.from(present)
+      .filter((s) => !STATUS_ORDER.includes(s))
+      .sort();
+    return [...ordered, ...unlisted];
+  }, [candidates]);
+
+  return (
+    <div
+      style={{
+        display: "flex",
+        gap: "0.75rem",
+        overflowX: "auto",
+        paddingBottom: "0.5rem",
+      }}
+    >
+      {columns.map((stage) => {
+        const items = byStage[stage] || [];
+        const chipCls = STATUS_CHIP[stage] || "muted";
+        return (
+          <div
+            key={stage}
+            style={{
+              minWidth: "240px",
+              maxWidth: "280px",
+              flex: "0 0 240px",
+              background: "var(--samurai-surface)",
+              borderRadius: "0.75rem",
+              border: "1px solid var(--samurai-border)",
+              display: "flex",
+              flexDirection: "column",
+            }}
+          >
+            {/* Column header */}
+            <div
+              style={{
+                padding: "0.75rem 1rem",
+                borderBottom: "1px solid var(--samurai-border)",
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+              }}
+            >
+              <span style={{ fontSize: "0.8rem", fontWeight: 600, color: "var(--samurai-text)" }}>
+                {stage}
+              </span>
+              <span
+                style={{
+                  fontSize: "0.75rem",
+                  fontWeight: 700,
+                  color: CHIP_CLS[chipCls],
+                  background: "var(--samurai-surface-2)",
+                  padding: "0.1rem 0.5rem",
+                  borderRadius: "0.4rem",
+                }}
+              >
+                {items.length}
+              </span>
+            </div>
+            {/* Cards */}
+            <div style={{ padding: "0.5rem", overflowY: "auto", maxHeight: "500px" }}>
+              {items.map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => onSelect(c)}
+                  style={{
+                    padding: "0.6rem",
+                    marginBottom: "0.5rem",
+                    borderRadius: "0.5rem",
+                    background: "var(--samurai-surface-2)",
+                    border: "1px solid var(--samurai-border)",
+                    cursor: "pointer",
+                    transition: "border-color 0.2s",
+                  }}
+                  onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--samurai-lime)")}
+                  onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--samurai-border)")}
+                >
+                  <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--samurai-text)" }}>
+                      {c.name}
+                    </div>
+                    {c.in_pipeline && (
+                      <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--samurai-lime)", border: "1px solid var(--samurai-lime)", padding: "0.05rem 0.35rem", borderRadius: "0.3rem" }}>
+                        ✓ Pipeline
+                      </span>
+                    )}
+                  </div>
+                  {c.role && (
+                    <div style={{ fontSize: "0.75rem", color: "var(--samurai-muted)", marginTop: "0.15rem" }}>
+                      {c.role}
+                    </div>
+                  )}
+                  {c.candidate_type && c.candidate_type !== "fulltime" && (
+                    <span
+                      style={{
+                        display: "inline-block",
+                        marginTop: "0.25rem",
+                        fontSize: "0.65rem",
+                        fontWeight: 600,
+                        padding: "0.1rem 0.4rem",
+                        borderRadius: "0.3rem",
+                        background: "var(--samurai-surface)",
+                        color: "var(--samurai-lime)",
+                        border: "1px solid var(--samurai-border)",
+                      }}
+                    >
+                      {c.candidate_type}
+                    </span>
+                  )}
+                  {c.source && (
+                    <div style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", marginTop: "0.25rem" }}>
+                      Source: {c.source}
+                    </div>
+                  )}
+                  {c.resume_url && (
+                    <a
+                      href={c.resume_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: "0.25rem",
+                        fontSize: "0.7rem",
+                        color: "var(--samurai-lime)",
+                        marginTop: "0.25rem",
+                        textDecoration: "none",
+                      }}
+                    >
+                      <ExternalLink size={12} /> Resume
+                    </a>
+                  )}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })}
     </div>
   );
 }
