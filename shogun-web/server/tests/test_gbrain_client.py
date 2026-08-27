@@ -312,3 +312,75 @@ def test_enrich_cap_is_configurable(monkeypatch, tmp_path) -> None:
     pages = _run(gbrain_client.gbrain_fetch_pages("crm", limit=100, slug_prefix="deals/"))
     assert len(pages) == 3
     assert len(enriched) == 2, "only the first <cap> rows are enriched"
+
+def test_fetch_page_rejects_traversal_slug(monkeypatch, tmp_path) -> None:
+    """gbrain_fetch_page must reject .. slugs before any filesystem/MCP work."""
+    monkeypatch.setattr(gbrain_client, "get_config",
+                        lambda: _StubConfig(tmp_path / "brain"))
+    called = []
+
+    async def fake_mcp_call(*a, **k):
+        called.append(True)
+        return {}
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    result = _run(gbrain_client.gbrain_fetch_page("crm", "deals/../../etc/passwd"))
+    assert result is None
+    assert not called, "unsafe slug must never reach MCP"
+
+
+def test_safe_slug_and_source_units() -> None:
+    """Traversal/absolute path markers are rejected for both slug and source."""
+    assert gbrain_client._safe_slug("deals/../../etc") is None
+    assert gbrain_client._safe_slug("/etc/passwd") is None
+    assert gbrain_client._safe_slug("deals/nested/slug") == "deals/nested/slug"
+    assert gbrain_client._safe_source("../crm") is None
+    assert gbrain_client._safe_source("crm") == "crm"
+
+
+def test_mcp_pagination_recovers_equal_timestamp_boundary(monkeypatch) -> None:
+    """Bulk imports sharing one updated_at are not starved by a strict cursor."""
+    ts = "2026-08-26T00:00:00Z"
+    b1 = [{"slug": f"deals/a{i:03d}", "updated_at": ts} for i in range(100)]
+    b2 = [{"slug": f"deals/b{i:03d}", "updated_at": ts} for i in range(100)]
+    seq = [b1, b2]
+
+    async def fake_mcp_call(tool, arguments, source_id=""):
+        return seq.pop(0) if seq else []
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+
+    rows = _run(gbrain_client._mcp_list_paginated("crm", "deals/", limit=1000))
+    slugs = [r["slug"] for r in rows]
+    assert len(slugs) == 200, f"expected both same-timestamp chunks, got {len(slugs)}"
+    assert "deals/a099" in slugs
+    assert "deals/b099" in slugs
+
+
+def test_fs_search_stale_flag_and_search_defers(monkeypatch, tmp_path) -> None:
+    """Search must not serve a stale mirror the listings would refuse."""
+    import os
+    import time
+
+    brain = tmp_path / "brain" / "crm" / "deals"
+    brain.mkdir(parents=True)
+    f = brain / "old.md"
+    f.write_text("---\ntitle: Old Deal\n---\n\n# Old\n", encoding="utf-8")
+    old = time.time() - 3600
+    os.utime(f, (old, old))
+    monkeypatch.setattr(gbrain_client, "get_config",
+                        lambda: _StubConfig(tmp_path / "brain", fs_max_age=1))
+
+    hits, stale = gbrain_client._fs_search("crm", "old", 5)
+    assert hits and stale is True, "stale flag must mirror the listing guard"
+
+    called = []
+
+    async def fake_mcp_call(*a, **k):
+        called.append(a[0])
+        return None
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    res = _run(gbrain_client.gbrain_search("crm", "old"))
+    assert "search" in called, "stale fs must defer to MCP"
+    assert res == []

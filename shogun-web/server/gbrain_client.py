@@ -158,6 +158,40 @@ def _fs_max_age_minutes() -> int:
     return getattr(get_config(), "gbrain_fs_max_age_minutes", 60) or 0
 
 
+_FS_NEWEST_CACHE: Dict[str, Tuple[float, float]] = {}
+_FS_NEWEST_CACHE_TTL = 15.0  # seconds — far below the minutes-scale staleness window
+
+
+def _newest_mtime(brain_dir: pathlib.Path) -> float:
+    """Newest ``.md`` mtime in a source dir (short-TTL cached walk).
+
+    Single-page reads call this on every ``gbrain_fetch_page``; without the
+    cache that is an O(N) walk + stat per read, and enrichment can issue up
+    to ``enrich_cap`` reads per listing. The TTL sits far below the
+    staleness window (minutes), so it cannot mask a stale mirror.
+    """
+    key = str(brain_dir)
+    now = time.monotonic()
+    hit = _FS_NEWEST_CACHE.get(key)
+    if hit is not None and (now - hit[1]) < _FS_NEWEST_CACHE_TTL:
+        return hit[0]
+    newest = 0.0
+    root_resolved = brain_dir.resolve()
+    for md in brain_dir.rglob("*.md"):
+        if md.is_symlink():
+            continue
+        try:
+            md.resolve().relative_to(root_resolved)
+        except ValueError:
+            continue  # symlinked-dir escape — never trust its mtime
+        try:
+            newest = max(newest, md.stat().st_mtime)
+        except OSError:
+            pass
+    _FS_NEWEST_CACHE[key] = (newest, now)
+    return newest
+
+
 def _scan_source_dir(
     brain_dir: pathlib.Path,
     slug_prefix: Optional[str],
@@ -185,16 +219,18 @@ def _scan_source_dir(
                 continue  # skip symlinked files — avoids traversal outside brain_dir
             if md_path.name == "README.md":
                 continue
-            try:
-                newest = max(newest, md_path.stat().st_mtime)
-            except OSError:
-                pass
             rel = md_path.relative_to(brain_dir)
             slug = str(rel).replace("\\", "/")
             if not slug.endswith(".md"):
+                # Only markdown feeds listings AND freshness: a stray
+                # .json/.txt mtime must not mask a stale markdown mirror.
                 continue
             slug = slug[:-3]
             if slug_prefix and not slug.startswith(slug_prefix):
+                continue
+            try:
+                newest = max(newest, md_path.stat().st_mtime)
+            except OSError:
                 continue
             try:
                 text = md_path.read_text(encoding="utf-8", errors="replace")
@@ -232,14 +268,9 @@ def _read_page_file_sync(
     the single-page fetch cannot silently serve a broken-sync mirror.
     """
     slug_rel = slug.replace("\\", "/").strip("/")
-    newest = 0.0
-    for md in brain_dir.rglob("*.md"):
-        if md.is_symlink():
-            continue
-        try:
-            newest = max(newest, md.stat().st_mtime)
-        except OSError:
-            pass
+    # Cached newest-mtime walk (short TTL): a per-read rglob here was
+    # O(N) stat work for every enrichment get_page call.
+    newest = _newest_mtime(brain_dir)
     stale = False
     max_age_min = _fs_max_age_minutes()
     if max_age_min > 0 and newest > 0:
@@ -288,6 +319,8 @@ async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
       ``TypeError`` on transport or protocol failure. Callers decide whether
       to degrade to an empty state — wrap every call site accordingly.
     * Returns None when gbrain answers but the tool produced no content.
+    * Malformed protocol responses (non-object payloads) return None;
+      transport and JSON-decode failures raise as documented above.
     """
     cfg = get_config()
     base = cfg.gbrain_base_url.rstrip("/")
@@ -321,18 +354,23 @@ async def _mcp_call(tool: str, arguments: dict, source_id: str = "") -> Any:
             logger.warning("gbrain MCP returned no data: lines: %s", resp.text[:200])
             return None
         data = json.loads(data_lines[-1])
+        if not isinstance(data, dict):
+            logger.warning("gbrain MCP returned a non-object payload: %s", type(data).__name__)
+            return None
         result = data.get("result", {})
+        if not isinstance(result, dict):
+            logger.warning("gbrain MCP result is not an object: %s", type(result).__name__)
+            return None
         content = result.get("content", [])
         if content and isinstance(content, list) and len(content) > 0:
-            text_val = content[0].get("text", "")
+            first = content[0]
+            text_val = first.get("text", "") if isinstance(first, dict) else ""
             if text_val:
                 try:
                     return json.loads(text_val)
                 except (json.JSONDecodeError, TypeError):
                     return text_val
         return None
-
-
 def _rows_from_batch(batch: Any) -> List[dict]:
     if isinstance(batch, list):
         return [r for r in batch if isinstance(r, dict)]
@@ -363,6 +401,7 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
     cursor: Optional[str] = None
     rescanned_boundary = False
     prev_batch_full = False
+    matches = 0
 
     for _ in range(_MCP_LIST_MAX_PAGES):
         args: dict = {"limit": _MCP_LIST_PAGE_SIZE, "sort": "updated_asc"}
@@ -443,7 +482,7 @@ async def gbrain_fetch_pages(
         if fs_pages and not fs_stale:
             return fs_pages
         if fs_pages and fs_stale:
-            logger.warning("gerain fetch_pages: file mirror for %r is stale — deferring to MCP", source)
+            logger.warning("gbrain fetch_pages: file mirror for %r is stale — deferring to MCP", source)
 
     rows = await _mcp_list_paginated(source, slug_prefix, limit)
     pages: List[dict] = rows if not slug_prefix else [
@@ -521,16 +560,21 @@ async def gbrain_fetch_page(source: str, slug: str) -> Optional[dict[str, Any]]:
     return None
 
 
-def _fs_search(source: str, query: str, limit: int) -> List[dict[str, Any]]:
-    """Synchronous substring search over the filesystem mirror (worker thread)."""
+def _fs_search(source: str, query: str, limit: int) -> Tuple[List[dict[str, Any]], bool]:
+    """Synchronous substring search over the filesystem mirror (worker thread).
+
+    Returns ``(hits, stale)`` — ``stale`` uses the same freshness guard
+    as the listing path, so search never serves a mirror the listings
+    refuse.
+    """
     brain_dir = _brain_source_dir(source)
     if not brain_dir:
-        return []
+        return [], False
     q = query.lower()
     hits: List[dict[str, Any]] = []
     # Scan the WHOLE mirror (limit=None): `limit` caps hits returned, not
     # pages scanned — a match at file N>limit must still be found.
-    pages, _stale = _scan_source_dir(brain_dir, None, None)
+    pages, stale = _scan_source_dir(brain_dir, None, None, _fs_max_age_minutes())
     for page in pages:
         title = str(page.get("frontmatter", {}).get("title", "") or page["slug"])
         if q in title.lower() or q in page["compiled_truth"].lower():
@@ -542,7 +586,7 @@ def _fs_search(source: str, query: str, limit: int) -> List[dict[str, Any]]:
             })
             if len(hits) >= limit:
                 break
-    return hits
+    return hits, stale
 
 
 async def gbrain_search(
@@ -571,9 +615,13 @@ async def gbrain_search(
     if _read_preference() == "filesystem":
         brain_dir = _brain_source_dir(source)
         if brain_dir:
-            fs_hits = await asyncio.to_thread(_fs_search, source, query, effective)
-            if fs_hits:
+            fs_hits, fs_stale = await asyncio.to_thread(_fs_search, source, query, effective)
+            if fs_hits and not fs_stale:
                 return fs_hits
+            if fs_hits and fs_stale:
+                logger.warning(
+                    "gbrain_search: file mirror for %r is stale — deferring to MCP", source
+                )
 
     result = await _mcp_call("search", {
         "query": query,

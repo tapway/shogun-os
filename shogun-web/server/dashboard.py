@@ -3,7 +3,6 @@ from __future__ import annotations
 
 import asyncio
 import copy
-import functools
 import json
 import logging
 import os
@@ -675,6 +674,19 @@ def _crm_mock_enabled() -> bool:
     return os.environ.get("SHOGUN_WEB_CRM_MOCK", "").lower() in ("1", "true", "yes")
 
 
+def _bev_mock_enabled() -> bool:
+    """Opt-in demo mode for BEV zones — independent of the CRM flag.
+
+    SHOGUN_WEB_BEV_MOCK=1 enables it directly. When the BEV flag is unset
+    the CRM demo flag is treated as a fallback so existing demo setups
+    keep working without reconfiguring.
+    """
+    raw = os.environ.get("SHOGUN_WEB_BEV_MOCK", "").strip()
+    if raw:
+        return raw.lower() in ("1", "true", "yes")
+    return _crm_mock_enabled()
+
+
 def _load_crm_mock() -> dict:
     """Load examples/crm-mock.json once (empty dict when absent/corrupt)."""
     global _CRM_MOCK
@@ -881,7 +893,7 @@ async def get_partner_sphere(
     name: str = Path(...),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
-):
+) -> dict:
     """Partner Sphere — 9 sections (overview, roster, profile, command center,
     protection, onboarding, QBR, CEO digest, pricing simulator).
 
@@ -908,26 +920,44 @@ async def get_partner_sphere(
         # Narrow meta filter keeps a partners/readme page from inflating the
         # roster and the Active Partners KPI (consistency with list_crm_partners).
         partners = [p for p in partners if isinstance(p, dict) and not _is_meta_slug(str(p.get("slug", "")), broad=False)]
-        # Live-derived sections: roster + minimal overview blocks.
-        result["masterList"] = [
-            {
+        # Live-derived sections: roster + overview KPIs.
+        # Business fields wire from partner-page frontmatter where present
+        # (snake_case keys); pages without them keep the placeholders.
+
+        def _int0(v):
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return 0
+
+        def _str_field(fm, key):
+            v = fm.get(key)
+            return str(v) if v not in (None, "") else "—"
+
+        master_rows: list = []
+        active_count = 0
+        for p in partners:
+            fm = _parse_frontmatter(p.get("frontmatter") or {})
+            status = str(fm.get("status") or "Active")
+            if status.lower() == "active":
+                active_count += 1
+            master_rows.append({
                 "name": (p.get("title") or _last_slug_segment(p.get("slug", "")) or "Partner"),
-                "tier": str((p.get("frontmatter") or {}).get("tier", "")),
-                "am": str((p.get("frontmatter") or {}).get("am", "")),
-                "status": str((p.get("frontmatter") or {}).get("status", "Active")),
-                "regions": str((p.get("frontmatter") or {}).get("country", "")),
-                "tags": [],
-                "openDeals": 0,
-                "pipeline": "—",
-                "licences": "—",
-                "score": 0,
-                "lastActivity": "—",
-            }
-            for p in partners
-        ]
+                "tier": str(fm.get("tier", "")),
+                "am": str(fm.get("am", "")),
+                "status": status,
+                "regions": str(fm.get("country", "")),
+                "tags": fm.get("tags") if isinstance(fm.get("tags"), list) else [],
+                "openDeals": _int0(fm.get("open_deals")),
+                "pipeline": _str_field(fm, "pipeline"),
+                "licences": _str_field(fm, "licences"),
+                "score": _safe_float(fm.get("score")),
+                "lastActivity": _str_field(fm, "last_activity"),
+            })
+        result["masterList"] = master_rows
         result["overview"] = {
             "kpis": [
-                {"label": "Active Partners", "value": str(len(partners)), "note": "from brain"},
+                {"label": "Active Partners", "value": str(active_count), "note": "from brain"},
                 {"label": "Partner Pipeline", "value": "—", "note": ""},
                 {"label": "Partner Won (YTD)", "value": "—", "note": ""},
                 {"label": "POC → Commercial", "value": "—", "note": ""},
@@ -993,7 +1023,7 @@ async def list_crm_partners(
         mock = _load_crm_mock().get("partners", [])
         if search:
             s = search.lower()
-            mock = [x for x in mock if s in x["title"].lower()]
+            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
         return {"partners": mock, "total": len(mock), "mock": True}
 
     return {"partners": items, "total": len(items)}
@@ -1106,12 +1136,9 @@ async def crm_search(
                 row["category"] = "unknown"
         normalised.append(row)
 
-    if not normalised and _crm_mock_enabled():
-        q = query.lower()
-        mock = [r for r in _load_crm_mock().get("search_results", [])
-                if q in str(r.get("title", "")).lower() or q in str(r.get("slug", "")).lower()]
-        return {"results": mock, "mock": True}
-
+    # A live, populated brain that legitimately matches nothing returns [].
+    # Demo search rows are served ONLY when the source itself is unavailable
+    # (the except path above) — never on a filtered/empty result.
     return {"results": normalised}
 
 
@@ -1157,7 +1184,7 @@ async def list_bev_zones(
 
     if live_ok:
         return {"zones": live_zones}
-    if _crm_mock_enabled():
+    if _bev_mock_enabled():
         mock_zones = _load_crm_mock().get("bev_zones")
         if mock_zones:
             return {"zones": mock_zones, "mock": True}

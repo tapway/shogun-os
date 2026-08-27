@@ -427,3 +427,68 @@ def test_search_empty_query_returns_empty(monkeypatch) -> None:
         dashboard.SearchBody(query="   "), name="crm", user=USER, db=DB,
     ))
     assert result == {"results": []}
+
+# ─── Review round-6: mock gating + partner sphere accounting ──────────
+
+def test_search_empty_match_never_serves_mock(monkeypatch) -> None:
+    """Populated-brain zero-match search must NOT fabricate demo rows."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"search_results": [{"title": "Demo Deal", "slug": "deals/demo"}]})
+
+    async def empty(source, query, limit=20):
+        return []
+
+    monkeypatch.setattr(dashboard, "gbrain_search", empty)
+
+    result = _run(dashboard.crm_search(
+        dashboard.SearchBody(query="zebra"), name="crm", user=USER, db=DB,
+    ))
+    assert result == {"results": []}
+
+
+def test_search_mock_served_only_when_source_unavailable(monkeypatch) -> None:
+    """gbrain outage + demo flag → mock rows; empty results are NOT a trigger."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"search_results": [{"title": "Demo Deal", "slug": "deals/demo"}]})
+
+    async def boom(source, query, limit=20):
+        raise RuntimeError("MCP down")
+
+    monkeypatch.setattr(dashboard, "gbrain_search", boom)
+
+    result = _run(dashboard.crm_search(
+        dashboard.SearchBody(query="demo"), name="crm", user=USER, db=DB,
+    ))
+    assert result.get("mock") is True
+    assert result["results"] == [{"title": "Demo Deal", "slug": "deals/demo"}]
+
+
+def test_partner_sphere_kpi_counts_only_active_and_wires_fields(monkeypatch) -> None:
+    """Active Partners KPI excludes Inactive rows; business fields wire from fm."""
+    monkeypatch.delenv("SHOGUN_WEB_CRM_MOCK", raising=False)
+    live = [
+        {"slug": "partners/acme", "title": "ACME Distribution",
+         "frontmatter": {"tier": "Gold", "am": "Anwar", "status": "Active",
+                         "country": "Malaysia", "tags": ["hw", "video"],
+                         "open_deals": 3, "pipeline": "RM 1.2M", "score": 87,
+                         "last_activity": "2026-08-20"}},
+        {"slug": "partners/oldco", "title": "OldCo",
+         "frontmatter": {"status": "Inactive"}},
+    ]
+    monkeypatch.setattr(dashboard, "_fetch_brain_pages_safe",
+                        MagicMock(return_value=_async_res(live)))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    assert res["overview"]["kpis"][0]["value"] == "1"
+    rows = {r["name"]: r for r in res["masterList"]}
+    assert len(rows) == 2
+    acme = rows["ACME Distribution"]
+    assert acme["tags"] == ["hw", "video"]
+    assert acme["openDeals"] == 3
+    assert acme["pipeline"] == "RM 1.2M"
+    assert acme["score"] == 87
+    assert acme["lastActivity"] == "2026-08-20"
+    assert res["mock"] is False
