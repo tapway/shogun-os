@@ -90,6 +90,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const [jobTitleFilter, setJobTitleFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [trackerFilter, setTrackerFilter] = useState("");
+  const [pipelineOnly, setPipelineOnly] = useState(false);
   const [selected, setSelected] = useState<HrCandidate | null>(null);
 
   const candidates = stats.candidates || [];
@@ -131,6 +132,7 @@ export function RecruitmentPipelineTab({ stats }: Props) {
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
+      if (pipelineOnly && !c.in_pipeline) return false;
       if (trackerFilter && c.candidate_type !== trackerFilter) return false;
       if (stageFilter && canonicalStatus(c.status) !== stageFilter) return false;
       if (roleFilter && c.role !== roleFilter) return false;
@@ -229,6 +231,22 @@ export function RecruitmentPipelineTab({ stats }: Props) {
           options={trackers}
           capitalize
         />
+        <button
+          type="button"
+          onClick={() => setPipelineOnly((v) => !v)}
+          style={{
+            padding: "0.5rem 0.85rem",
+            borderRadius: "0.5rem",
+            border: `1px solid ${pipelineOnly ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+            background: pipelineOnly ? "var(--samurai-surface-2)" : "var(--samurai-surface)",
+            color: pipelineOnly ? "var(--samurai-lime)" : "var(--samurai-text)",
+            fontSize: "0.85rem",
+            fontWeight: 600,
+            cursor: "pointer",
+          }}
+        >
+          ✓ Pipeline Added ({candidates.filter((c) => c.in_pipeline).length})
+        </button>
       </div>
 
       {/* Kanban Board — horizontal scroll */}
@@ -306,8 +324,15 @@ export function RecruitmentPipelineTab({ stats }: Props) {
                     onMouseEnter={(e) => (e.currentTarget.style.borderColor = "var(--samurai-lime)")}
                     onMouseLeave={(e) => (e.currentTarget.style.borderColor = "var(--samurai-border)")}
                   >
-                    <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--samurai-text)" }}>
-                      {c.name}
+                    <div style={{ display: "flex", alignItems: "center", gap: "0.4rem", flexWrap: "wrap" }}>
+                      <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--samurai-text)" }}>
+                        {c.name}
+                      </div>
+                      {c.in_pipeline && (
+                        <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--samurai-lime)", border: "1px solid var(--samurai-lime)", padding: "0.05rem 0.35rem", borderRadius: "0.3rem" }}>
+                          ✓ Pipeline
+                        </span>
+                      )}
                     </div>
                     {c.role && (
                       <div style={{ fontSize: "0.75rem", color: "var(--samurai-muted)", marginTop: "0.15rem" }}>

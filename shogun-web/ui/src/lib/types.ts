@@ -1335,6 +1335,8 @@ export interface HrJobOpening {
   hiring_manager: string;
   application_start: string;
   job_description: string;
+  jd_link: string;
+  jd_file_url: string;
   deadline?: string;
   days_left?: number;
   overdue?: string;
@@ -1354,6 +1356,24 @@ export interface HrCandidate {
   candidate_type: string;
   date_entry: string;
   last_edited: string;
+  ai_summary: string;
+  ai_extract_json: string;
+  extracted_at: string;
+  hr_reviewed?: boolean;
+  hr_reviewed_at: string;
+  manager_reviewed?: boolean;
+  manager_reviewed_at: string;
+  in_pipeline?: boolean;
+}
+
+export interface HrCandidateExtract {
+  summary?: string;
+  source?: string;
+  skills?: string[];
+  experience?: { title: string; company: string; period: string }[];
+  education?: string[];
+  screening_answers?: { question: string; answer: string }[];
+  key_details?: Record<string, string>;
 }
 
 export interface HrOnboardingTask {

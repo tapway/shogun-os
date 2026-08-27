@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { departmentsApi, hrApi } from "../../../lib/api";
 import { DashboardSubNav } from "../DashboardSubNav";
-import type { DashboardTab, HrDashboardStats } from "../../../lib/types";
+import type { DashboardTab, HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 import { OverviewTab } from "./OverviewTab";
 import { EmployeeDirectoryTab } from "./EmployeeDirectoryTab";
 import { JobOpeningsTab } from "./JobOpeningsTab";
@@ -13,6 +13,8 @@ import { PerformanceTab } from "./PerformanceTab";
 import { EquipmentTab } from "./EquipmentTab";
 import { TrainingTab } from "./TrainingTab";
 import { MeetingsTab } from "./MeetingsTab";
+import { TalentPoolPage } from "./TalentPoolPage";
+import { CandidateDetailPage } from "./CandidateDetailPage";
 
 const TABS: DashboardTab[] = [
   { id: "overview", label: "Overview", icon: "LayoutDashboard" },
@@ -34,6 +36,8 @@ interface HrDashboardProps {
 
 export function HrDashboard({ department, color }: HrDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [talentPool, setTalentPool] = useState<{ id: number; job: HrJobOpening } | null>(null);
+  const [candidatePage, setCandidatePage] = useState<{ id: number; candidate: HrCandidate } | null>(null);
 
   const statsQuery = useQuery({
     queryKey: ["dashboard-hr-stats", department],
@@ -64,12 +68,50 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
 
   const stats: HrDashboardStats = statsQuery.data;
 
+  if (candidatePage) {
+    return (
+      <CandidateDetailPage
+        candidateId={candidatePage.id}
+        fallbackCandidate={candidatePage.candidate}
+        stats={stats}
+        color={color}
+        department={department}
+        onBack={() => setCandidatePage(null)}
+        onAddedToPipeline={() => {
+          setCandidatePage(null);
+          setTalentPool(null);
+          setActiveTab("pipeline");
+        }}
+      />
+    );
+  }
+
+  if (talentPool) {
+    return (
+      <TalentPoolPage
+        jobId={talentPool.id}
+        fallbackJob={talentPool.job}
+        stats={stats}
+        color={color}
+        onBack={() => setTalentPool(null)}
+        onOpenCandidate={(c) => setCandidatePage({ id: c.id, candidate: c })}
+      />
+    );
+  }
+
   return (
     <div className="sd-stack">
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
       {activeTab === "overview" && <OverviewTab stats={stats} color={color} onNavigateTab={setActiveTab} />}
       {activeTab === "directory" && <EmployeeDirectoryTab stats={stats} color={color} />}
-      {activeTab === "openings" && <JobOpeningsTab stats={stats} color={color} />}
+      {activeTab === "openings" && (
+        <JobOpeningsTab
+          stats={stats}
+          color={color}
+          department={department}
+          onOpenTalentPool={(j) => setTalentPool({ id: j.id, job: j })}
+        />
+      )}
       {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} />}
       {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} />}
       {activeTab === "leave" && <LeaveTrackerTab stats={stats} color={color} />}

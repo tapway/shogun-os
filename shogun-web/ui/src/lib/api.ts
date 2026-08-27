@@ -32,7 +32,10 @@ import type {
   EmailDraft,
   EmailTemplate,
   FinanceDashboardStats,
+  HrCandidate,
+  HrCandidateExtract,
   HrDashboardStats,
+  HrJobOpening,
   GeneratedSkill,
   LoginPayload,
   OnboardingState,
@@ -809,4 +812,25 @@ export const emailTemplatesApi = {
 export const hrApi = {
   stats: (dept: string) =>
     apiFetch<HrDashboardStats>(`/api/departments/${dept}/dashboard/hr-stats`),
+  createJobOpening: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(`/api/departments/${dept}/dashboard/hr/job-openings`, {
+      method: 'POST',
+      body: form,
+      headers: {},
+    }),
+  candidateExtract: (dept: string, id: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate; extract: HrCandidateExtract }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/extract`,
+      { method: 'POST' },
+    ),
+  candidateReview: (dept: string, id: number, kind: 'hr' | 'manager') =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/review`,
+      { method: 'POST', body: JSON.stringify({ kind }) },
+    ),
+  candidateAddToPipeline: (dept: string, id: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/add-to-pipeline`,
+      { method: 'POST' },
+    ),
 };
