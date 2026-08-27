@@ -33,6 +33,38 @@ function fmtDate(s: string | null | undefined): string {
   return d.toLocaleDateString("en-MY", { day: "2-digit", month: "short", year: "numeric" });
 }
 
+function driveThumb(url: string): string | null {
+  const m = url.match(/drive\.google\.com\/file\/d\/([^/?#]+)/);
+  return m ? `https://drive.google.com/thumbnail?id=${m[1]}&sz=w512` : url;
+}
+
+function EmployeeAvatar({ e }: { e: HrEmployee }) {
+  const [err, setErr] = useState(false);
+  const src = e.profile_picture_url ? driveThumb(e.profile_picture_url) : null;
+  const initials = (e.employees_name || "?")
+    .split(/\s+/)
+    .map((w) => w[0])
+    .slice(0, 2)
+    .join("")
+    .toUpperCase();
+  if (src && !err) {
+    return (
+      <img
+        src={src}
+        alt={e.employees_name || "Profile picture"}
+        referrerPolicy="no-referrer"
+        onError={() => setErr(true)}
+        style={{ width: "3rem", height: "3rem", borderRadius: "9999px", objectFit: "cover", border: `2px solid ${BORDER}`, background: SURFACE_2, flexShrink: 0 }}
+      />
+    );
+  }
+  return (
+    <div style={{ width: "3rem", height: "3rem", borderRadius: "9999px", display: "flex", alignItems: "center", justifyContent: "center", background: SURFACE_2, border: `2px solid ${BORDER}`, color: MUTED, fontSize: "0.8rem", fontWeight: 600, flexShrink: 0 }}>
+      {initials}
+    </div>
+  );
+}
+
 export function EmployeeDirectoryTab({ stats, color }: Props) {
   const [query, setQuery] = useState("");
   const [deptFilter, setDeptFilter] = useState<string>("all");
@@ -188,13 +220,16 @@ export function EmployeeDirectoryTab({ stats, color }: Props) {
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.75rem", marginBottom: "0.75rem" }}>
-                <div>
-                  <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
-                    {selected.employees_name || "Unknown"}
-                  </h2>
-                  <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
-                    {selected.role || "—"} · {selected.department || "—"}
-                  </p>
+                <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+                  <EmployeeAvatar e={selected} />
+                  <div>
+                    <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
+                      {selected.employees_name || "Unknown"}
+                    </h2>
+                    <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
+                      {selected.role || "—"} · {selected.department || "—"}
+                    </p>
+                  </div>
                 </div>
                 <button type="button" className="sd-icon-btn" onClick={() => setSelected(null)} aria-label="Close">
                   <X className="h-5 w-5" />

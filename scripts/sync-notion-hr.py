@@ -230,9 +230,13 @@ def sync_employees(rows: list, db, tenant_id: int, dry_run: bool = False) -> dic
                 "q4": prop_str(row, "Q4") or None,
                 "leave_taken": prop_str(row, "Leave Taken") or None,
             }
-            # Download profile picture + employee file
+            # Profile picture: store the raw external URL for the portal UI
+            # and only download real hosted (Notion S3) files. Drive viewer
+            # links are turned into thumbnails by the frontend.
             pic_url = prop_file_url(row, "Profile Picture")
-            if pic_url:
+            data["profile_picture_url"] = pic_url or None
+            data["profile_picture_path"] = None
+            if pic_url and ("amazonaws.com" in pic_url or "notion-static.com" in pic_url):
                 data["profile_picture_path"] = _download_asset(pic_url, f"employees/{nid}_pic")
             file_url = prop_file_url(row, "Employee File")
             # Store the raw link (Notion external URL, e.g. Google Drive) for

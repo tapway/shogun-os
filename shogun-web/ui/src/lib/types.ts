@@ -1312,6 +1312,7 @@ export interface HrEmployee {
   phone_number: string;
   linkedin_profile: string;
   profile_picture_path: string;
+  profile_picture_url: string;
   employee_file_path: string;
   employee_file_url: string;
   q1: string;

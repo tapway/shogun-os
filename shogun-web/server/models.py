@@ -939,6 +939,7 @@ class HrEmployee(Base):
     linkedin_profile: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     profile_picture_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    profile_picture_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     employee_file_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     employee_file_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
@@ -1010,6 +1011,7 @@ class HrEmployee(Base):
             "linkedin_profile": self.linkedin_profile,
 
             "profile_picture_path": self.profile_picture_path,
+            "profile_picture_url": self.profile_picture_url,
 
             "employee_file_path": self.employee_file_path,
             "employee_file_url": self.employee_file_url,
