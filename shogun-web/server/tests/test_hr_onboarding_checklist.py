@@ -17,6 +17,7 @@ if str(_SERVER) not in sys.path:
     sys.path.insert(0, str(_SERVER))
 
 import dashboard  # noqa: E402
+from dashboard import _DEFAULT_ONBOARDING_CHECKLIST, _seed_default_checklist_items  # noqa: E402
 from models import (  # noqa: E402
     Base, Department, HrOnboardingChecklistItem, HrOnboardingChecklistProgress,
     HrOnboardingTask, Tenant, User,
@@ -191,3 +192,48 @@ def test_no_checklist_items_never_all_done(db_session):
     with pytest.raises(HTTPException) as ei:
         _toggle(db_session, 999, "Alice Tan", True)
     assert ei.value.status_code == 404
+
+
+def test_section_round_trip(db_session):
+    item = _add_item(db_session, "Add to Slack", desc="Office-News, Happy-Hour")
+    # set section via update
+    r = asyncio.run(dashboard.update_hr_checklist_item(
+        item_id=item["id"],
+        body=dashboard.HrChecklistItemBody(title="Add to Slack", description="Office-News, Happy-Hour", section="Accounts Activation"),
+        name="hr", user=_user(db_session), db=db_session,
+    ))
+    assert r["item"]["section"] == "Accounts Activation"
+
+
+def test_create_with_section(db_session):
+    r = asyncio.run(dashboard.add_hr_checklist_item(
+        body=dashboard.HrChecklistItemBody(title="Welcome Email", section="HR Documents"),
+        name="hr", user=_user(db_session), db=db_session,
+    ))
+    assert r["item"]["section"] == "HR Documents"
+
+
+def test_seed_default_checklist_items(db_session):
+    _seed_default_checklist_items(db_session, 1)
+    items = db_session.query(HrOnboardingChecklistItem).order_by(HrOnboardingChecklistItem.sort_order).all()
+    assert len(items) == len(_DEFAULT_ONBOARDING_CHECKLIST)
+    sections = {i.section for i in items}
+    assert sections == {"HR Documents", "On-The-Day Adhoc", "Accounts Activation"}
+    # HR Documents items present
+    hr_docs = [i.title for i in items if i.section == "HR Documents"]
+    assert "Create gdrive folder in Employee Files (HR)" in hr_docs
+    assert "Welcome Email" in hr_docs
+
+
+def test_seed_is_idempotent(db_session):
+    _seed_default_checklist_items(db_session, 1)
+    _seed_default_checklist_items(db_session, 1)
+    count = db_session.query(HrOnboardingChecklistItem).count()
+    assert count == len(_DEFAULT_ONBOARDING_CHECKLIST)
+
+
+def test_seed_skipped_when_items_exist(db_session):
+    _add_item(db_session, "Custom Item")
+    _seed_default_checklist_items(db_session, 1)
+    count = db_session.query(HrOnboardingChecklistItem).count()
+    assert count == 1  # only the custom item, no defaults

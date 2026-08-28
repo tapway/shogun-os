@@ -3559,6 +3559,7 @@ async def get_hr_stats(
     meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
     from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview, HrOnboardingChecklistItem, HrOnboardingChecklistProgress, HrTrainingParticipant
     training_participants = db.execute(select(HrTrainingParticipant).where(HrTrainingParticipant.tenant_id == tenant.id)).scalars().all()
+    _seed_default_checklist_items(db, tenant.id)
     checklist_items = db.execute(select(HrOnboardingChecklistItem).where(HrOnboardingChecklistItem.tenant_id == tenant.id).order_by(HrOnboardingChecklistItem.sort_order, HrOnboardingChecklistItem.id)).scalars().all()
     checklist_progress = db.execute(select(HrOnboardingChecklistProgress).where(HrOnboardingChecklistProgress.tenant_id == tenant.id)).scalars().all()
     candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
@@ -4765,6 +4766,48 @@ async def upload_hr_equipment_file(
     return {"ok": True, "equipment": eq.to_dict()}
 
 
+# Default onboarding checklist template (seeded once per tenant when the
+# checklist is still empty). HR can edit/remove items afterwards.
+_DEFAULT_ONBOARDING_CHECKLIST = [
+    ("HR Documents", "Create gdrive folder in Employee Files (HR)", None),
+    ("HR Documents", "Offer Letter in designated Employee Files (HR)", None),
+    ("HR Documents", "Welcome Email", None),
+    ("HR Documents", "Collecting Filled On-Boarding Form in designated Employee Files (HR)", None),
+    ("HR Documents", "Copy of intern IC / Passport in designated Employee Files (HR)", None),
+    ("On-The-Day Adhoc", "Set up face ID for office entrance", None),
+    ("On-The-Day Adhoc", "Onboarding briefing with HR", None),
+    ("On-The-Day Adhoc", "Add Birthday to Google Calendar", "If the birthday is within the internship period"),
+    ("On-The-Day Adhoc", "Add in Team On Leave calendar for Intern on leave", None),
+    ("On-The-Day Adhoc", "Take individual picture and keep in this Individual Staff Photos File", None),
+    ("On-The-Day Adhoc", "Add personal informations in Payroll Tracker", None),
+    ("Accounts Activation", "Add to Slack", "Office-News, Happy-Hour, Team Happiness, Sharing Knowledge, Scrum channel (relevant department), Intern Club Group, any relevant channels according to the new hire department"),
+    ("Accounts Activation", "Add in Google Calendar Townhall meeting or any other related meetings", None),
+    ("Accounts Activation", "Add in HR Dashboard", None),
+    ("Accounts Activation", "Add to Team WhatsApp group", None),
+]
+
+
+def _seed_default_checklist_items(db, tenant_id: int) -> None:
+    """Seed the default 3-section onboarding checklist on first use."""
+    from models import HrOnboardingChecklistItem
+
+    has_items = db.execute(select(HrOnboardingChecklistItem.id).where(
+        HrOnboardingChecklistItem.tenant_id == tenant_id
+    ).limit(1)).first()
+    if has_items:
+        return
+    for order, (section, title, desc) in enumerate(_DEFAULT_ONBOARDING_CHECKLIST, start=1):
+        db.add(HrOnboardingChecklistItem(
+            tenant_id=tenant_id,
+            title=title,
+            description=desc,
+            section=section,
+            sort_order=order,
+            created_by="System",
+        ))
+    db.commit()
+
+
 # ---------------------------------------------------------------------------
 # Onboarding Checklist — HR-managed template, per-staff tick-off
 # ---------------------------------------------------------------------------
@@ -4772,6 +4815,7 @@ async def upload_hr_equipment_file(
 class HrChecklistItemBody(BaseModel):
     title: str
     description: Optional[str] = None
+    section: Optional[str] = None
 
 
 @router.post("/hr/onboarding-checklist")
@@ -4801,6 +4845,7 @@ async def add_hr_checklist_item(
         tenant_id=tenant.id,
         title=title[:256],
         description=(body.description or "").strip()[:1024] or None,
+        section=(body.section or "").strip()[:128] or None,
         sort_order=max_order + 1,
         created_by=(user.name if user else "HR") or "HR",
     )
@@ -4833,6 +4878,8 @@ async def update_hr_checklist_item(
         raise HTTPException(status_code=422, detail="Checklist item title is required")
     item.title = title[:256]
     item.description = (body.description or "").strip()[:1024] or None
+    if body.section is not None:
+        item.section = body.section.strip()[:128] or None
     db.commit()
     db.refresh(item)
     return {"ok": True, "item": item.to_dict()}

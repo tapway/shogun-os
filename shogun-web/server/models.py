@@ -1400,6 +1400,7 @@ class HrOnboardingChecklistItem(Base):
     tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
     title: Mapped[str] = mapped_column(String(256), nullable=False, default="")
     description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    section: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
     sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
     created_by: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     created_at: Mapped[datetime] = mapped_column(
@@ -1411,6 +1412,7 @@ class HrOnboardingChecklistItem(Base):
             "id": self.id,
             "title": self.title,
             "description": self.description,
+            "section": self.section,
             "sort_order": self.sort_order,
             "created_by": self.created_by,
         }

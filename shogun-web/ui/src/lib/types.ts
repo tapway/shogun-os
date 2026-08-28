@@ -1750,6 +1750,7 @@ export interface HrOnboardingChecklistItem {
   id: number;
   title: string;
   description?: string | null;
+  section?: string | null;
   sort_order: number;
   created_by?: string | null;
 }

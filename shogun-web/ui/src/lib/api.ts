@@ -968,12 +968,12 @@ export const hrApi = {
       { method: 'POST', body: form, headers: {} },
     );
   },
-  checklistAdd: (dept: string, payload: { title: string; description?: string }) =>
+  checklistAdd: (dept: string, payload: { title: string; description?: string; section?: string }) =>
     apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
       `/api/departments/${dept}/dashboard/hr/onboarding-checklist`,
       { method: 'POST', body: JSON.stringify(payload) },
     ),
-  checklistUpdate: (dept: string, itemId: number, payload: { title: string; description?: string }) =>
+  checklistUpdate: (dept: string, itemId: number, payload: { title: string; description?: string; section?: string }) =>
     apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
       `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}`,
       { method: 'PUT', body: JSON.stringify(payload) },
