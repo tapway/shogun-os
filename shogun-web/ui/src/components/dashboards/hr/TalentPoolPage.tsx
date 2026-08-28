@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, ExternalLink, FileText, Search, Upload, UserPlus, Users, X } from "lucide-react";
+import { ArrowLeft, ChevronDown, ChevronRight, ExternalLink, FileText, Search, Upload, UserPlus, Users, X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
+import { CandidateReviewsPanel, reviewEvents } from "./CandidateReviewsPanel";
 import { findCandidatesForJob } from "./hrCandidateMatch";
 import { JourneyStepperModal } from "./JourneyStepperModal";
 
@@ -62,6 +63,8 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
   const [showAddApplicant, setShowAddApplicant] = useState(false);
   const [showScreeningSetup, setShowScreeningSetup] = useState(false);
   const [journeyCandidate, setJourneyCandidate] = useState<HrCandidate | null>(null);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
+  const allEvents = stats.candidate_events || [];
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -357,6 +360,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                  <th style={{ ...thStyle, width: "1.6rem" }} />
                   <th style={{ ...thStyle, width: "2rem" }}>
                     <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} onClick={(e) => e.stopPropagation()} style={{ accentColor: "var(--samurai-lime)" }} />
                   </th>
@@ -375,13 +379,18 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
               </thead>
               <tbody>
                 {filtered.map((c) => (
+                  <Fragment key={c.id}>
                   <tr
-                    key={c.id}
                     onClick={() => onOpenCandidate(c)}
                     style={{ borderBottom: `1px solid ${BORDER}`, cursor: "pointer" }}
                     onMouseEnter={(ev) => (ev.currentTarget.style.background = SURFACE_2)}
                     onMouseLeave={(ev) => (ev.currentTarget.style.background = "")}
                   >
+                    <td style={tdStyle} onClick={(e) => { e.stopPropagation(); setExpandedId(expandedId === c.id ? null : c.id); }}>
+                      <span style={{ display: "inline-flex", alignItems: "center", color: LIME, cursor: "pointer" }}>
+                        {expandedId === c.id ? <ChevronDown size={13} /> : <ChevronRight size={13} />}
+                      </span>
+                    </td>
                     <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} style={{ accentColor: "var(--samurai-lime)" }} />
                     </td>
@@ -450,6 +459,17 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                       </div>
                     </td>
                   </tr>
+                  {expandedId === c.id && (
+                    <tr>
+                      <td colSpan={13} style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}`, background: "color-mix(in srgb, var(--samurai-surface) 55%, transparent)" }}>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: TEXT, marginBottom: "0.5rem" }}>
+                          📋 Reviews & Feedback — {c.name || "candidate"}
+                        </div>
+                        <CandidateReviewsPanel events={allEvents} candidateId={c.id} compact />
+                      </td>
+                    </tr>
+                  )}
+                  </Fragment>
                 ))}
               </tbody>
             </table>

@@ -1,8 +1,9 @@
 import { useEffect, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { ArrowLeft, CheckCircle2, ExternalLink, FileText, Sparkles, UserCheck } from "lucide-react";
+import { ArrowLeft, CheckCircle2, ExternalLink, FileText, MessageSquare, Sparkles, UserCheck } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrCandidateExtract, HrDashboardStats } from "../../../lib/types";
+import { CandidateReviewsPanel, reviewEvents } from "./CandidateReviewsPanel";
 
 interface Props {
   candidateId: number;
@@ -294,6 +295,20 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
             </button>
           )}
         </div>
+      </div>
+
+      {/* Reviews & Feedback written during recruitment */}
+      <div className="sd-chart-card">
+        <h3 className="sd-chart-title" style={{ display: "flex", alignItems: "center", gap: "0.4rem" }}>
+          <MessageSquare size={15} /> Reviews & Feedback
+          <span style={{ marginLeft: "auto", fontSize: "0.7rem", fontWeight: 600, color: MUTED }}>
+            {reviewEvents(stats.candidate_events || [], candidateId).length} entr{reviewEvents(stats.candidate_events || [], candidateId).length === 1 ? "y" : "ies"}
+          </span>
+        </h3>
+        <p style={{ fontSize: "0.78rem", color: MUTED, margin: "0.25rem 0 0.75rem" }}>
+          Comments, interview feedback, decisions and notes written for this candidate in the Recruitment Pipeline.
+        </p>
+        <CandidateReviewsPanel events={stats.candidate_events || []} candidateId={candidateId} />
       </div>
     </div>
   );

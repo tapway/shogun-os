@@ -1,8 +1,9 @@
-import { useMemo, useState } from "react";
+import { Fragment, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Plus, Users, X } from "lucide-react";
+import { ChevronDown, ChevronRight, ExternalLink, Plus, Users, X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrDashboardStats, HrJobOpening } from "../../../lib/types";
+import { CandidateReviewsPanel, reviewEvents } from "./CandidateReviewsPanel";
 import { findCandidatesForJob } from "./hrCandidateMatch";
 
 interface Props {
@@ -46,6 +47,8 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
   const [showCreate, setShowCreate] = useState(false);
   const [closingJob, setClosingJob] = useState<HrJobOpening | null>(null);
   const [closeBusy, setCloseBusy] = useState(false);
+  const [expandedJobId, setExpandedJobId] = useState<number | null>(null);
+  const allEvents = stats.candidate_events || [];
 
   const jobOpenings = stats.job_openings || [];
   const allCandidates = stats.candidates || [];
@@ -146,6 +149,7 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                  <th style={{ ...thStyle, width: "1.6rem" }} />
                   <th style={thStyle}>Job Title</th>
                   <th style={thStyle}>Department</th>
                   <th style={thStyle}>Type</th>
@@ -165,9 +169,11 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                 {filtered.map((j) => {
                   const isOverdue = j.overdue === "Overdue";
                   const count = candidatesPerJob[j.id] || 0;
+                  const jobCandidates = findCandidatesForJob(j, allCandidates);
+                  const isExpanded = expandedJobId === j.id;
                   return (
+                    <Fragment key={j.id}>
                     <tr
-                      key={j.id}
                       onClick={() => onOpenTalentPool(j)}
                       style={{
                         borderBottom: `1px solid ${BORDER}`,
@@ -178,6 +184,11 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                       onMouseEnter={(e) => { if (!isOverdue) e.currentTarget.style.background = SURFACE_2; }}
                       onMouseLeave={(e) => { if (!isOverdue) e.currentTarget.style.background = "transparent"; }}
                     >
+                      <td style={tdStyle} onClick={(e) => { e.stopPropagation(); setExpandedJobId(expandedJobId === j.id ? null : j.id); }}>
+                        <span style={{ display: "inline-flex", alignItems: "center", color: LIME, cursor: "pointer" }}>
+                          {expandedJobId === j.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
+                        </span>
+                      </td>
                       <td style={tdBold}>{j.job_title || "—"}</td>
                       <td style={tdStyle}>{j.department || "—"}</td>
                       <td style={tdStyle}>{j.employment_type || "—"}</td>
@@ -234,6 +245,43 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                         )}
                       </td>
                     </tr>
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={14} style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}`, background: "color-mix(in srgb, var(--samurai-surface) 55%, transparent)" }}>
+                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
+                            <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT }}>
+                              📋 Candidate Pool — {j.job_title} <span style={{ color: MUTED, fontWeight: 400 }}>({jobCandidates.length} candidate{jobCandidates.length === 1 ? "" : "s"})</span>
+                            </div>
+                            <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTalentPool(j); }} style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem", cursor: "pointer" }}>
+                              Open Full Talent Pool →
+                            </button>
+                          </div>
+                          {jobCandidates.length === 0 ? (
+                            <p style={{ margin: 0, fontSize: "0.78rem", color: MUTED }}>No candidates linked to this job yet.</p>
+                          ) : (
+                            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", maxHeight: "22rem", overflowY: "auto" }}>
+                              {jobCandidates.map((c) => {
+                                const nReviews = reviewEvents(allEvents, c.id).length;
+                                return (
+                                  <div key={c.id} style={{ border: `1px solid ${BORDER}`, borderRadius: "0.5rem", padding: "0.6rem 0.75rem", background: "var(--samurai-surface)" }}>
+                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: nReviews > 0 ? "0.45rem" : 0 }}>
+                                      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: TEXT }}>{c.name || "—"}</span>
+                                      <span className={`sd-chip ${c.status === "Done" ? "ok" : c.status === "Rejected" || c.status === "No Response" ? "bad" : c.status === "Shortlisted" ? "ok" : c.status === "Resume Received" ? "muted" : "warn"}`}>{c.status || "—"}</span>
+                                      <span style={{ fontSize: "0.72rem", color: MUTED }}>{c.role || ""}</span>
+                                      <span style={{ fontSize: "0.72rem", color: MUTED, marginLeft: "auto" }}>
+                                        💬 {nReviews} review{nReviews === 1 ? "" : "s"}
+                                      </span>
+                                    </div>
+                                    {nReviews > 0 && <CandidateReviewsPanel events={allEvents} candidateId={c.id} compact />}
+                                  </div>
+                                );
+                              })}
+                            </div>
+                          )}
+                        </td>
+                      </tr>
+                    )}
+                    </Fragment>
                   );
                 })}
               </tbody>
