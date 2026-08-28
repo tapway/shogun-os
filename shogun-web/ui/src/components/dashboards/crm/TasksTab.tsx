@@ -19,18 +19,28 @@ type FilterMode = 'all' | 'open' | 'done';
 export function TasksTab({ dept, color }: Props) {
   const [filter, setFilter] = useState<FilterMode>('all');
   const [assignee, setAssignee] = useState('');
+  const [dealFilter, setDealFilter] = useState('');
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
 
   const query = useQuery({
-    queryKey: ['crm-tasks', dept, filter, assignee],
+    queryKey: ['crm-tasks', dept, filter, assignee, dealFilter],
     queryFn: () => {
       const completed = filter === 'open' ? false : filter === 'done' ? true : undefined;
-      return departmentsApi.crmTasksList(dept, completed, assignee);
+      return departmentsApi.crmTasksList(dept, completed, assignee, dealFilter);
     },
     refetchInterval: 120_000,
   });
 
+  // Always-complete task list (no filters) so the "By Deals" dropdown stays
+  // fully populated even while a deal is selected.
+  const optionsQuery = useQuery({
+    queryKey: ['crm-tasks-options', dept],
+    queryFn: () => departmentsApi.crmTasksList(dept),
+    refetchInterval: 300_000,
+  });
+
   const tasks = query.data?.tasks ?? [];
+  const allTasks = optionsQuery.data?.tasks ?? [];
 
   // Group by deal
   const grouped = useMemo(() => {
@@ -47,6 +57,16 @@ export function TasksTab({ dept, color }: Props) {
     const set = new Set(tasks.map((t) => t.assignee).filter(Boolean));
     return [...set].sort();
   }, [tasks]);
+
+  const deals = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const t of allTasks) {
+      if (t.deal_slug && !map.has(t.deal_slug)) {
+        map.set(t.deal_slug, t.deal_title || t.deal_slug);
+      }
+    }
+    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]));
+  }, [allTasks]);
 
   const openCount = tasks.filter((t) => !t.completed).length;
   const doneCount = tasks.length - openCount;
@@ -108,6 +128,17 @@ export function TasksTab({ dept, color }: Props) {
         >
           <option value="">All Assignees</option>
           {assignees.map((a) => <option key={a} value={a}>{a}</option>)}
+        </select>
+        <select
+          value={dealFilter}
+          onChange={(e) => setDealFilter(e.target.value)}
+          style={{
+            padding: '8px 12px', fontSize: '0.85rem', borderRadius: 8, border: `1px solid ${BORDER}`,
+            background: 'var(--samurai-surface)', color: TEXT, outline: 'none', cursor: 'pointer',
+          }}
+        >
+          <option value="">All Deals</option>
+          {deals.map(([slug, title]) => <option key={slug} value={slug}>{title}</option>)}
         </select>
         <span style={{ fontSize: '0.8rem', color: MUTED, whiteSpace: 'nowrap' }}>{tasks.length} tasks</span>
       </div>

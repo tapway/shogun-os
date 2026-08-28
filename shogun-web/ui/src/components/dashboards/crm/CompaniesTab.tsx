@@ -14,11 +14,7 @@ const TEXT = 'var(--samurai-text)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
-}
+import { Th } from './table';
 
 export function CompaniesTab({ dept, color }: Props) {
   const [search, setSearch] = useState('');

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_pages, gbrain_search
+from gbrain_client import gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
 
 import httpx
@@ -63,6 +63,17 @@ def _canonical_stage(raw: str) -> str:
         if s in known.lower() or known.lower() in s:
             return known
     return raw.strip()
+
+
+def _canonical_priority(raw: str) -> str:
+    p = (raw or "").strip().lower()
+    if p in ("high", "hot"):
+        return "High"
+    if p in ("medium", "warm", "normal"):
+        return "Medium"
+    if p in ("low", "cold"):
+        return "Low"
+    return (raw or "").strip()
 
 
 def _parse_frontmatter(fm: Any) -> dict:
@@ -429,6 +440,14 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         except Exception as e:
             logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
+    if totalActiveDeals == 0 and not wonDeals and _crm_mock_enabled():
+        # Demo mode: serve the full mock payload so every Overview panel renders.
+        mock_payload = _load_crm_mock().get("dashboard_mock", {})
+        if not mock_payload:  # noqa: SIM102 - clarity
+            pass
+        else:
+            return {**mock_payload, "mock": True}
+
     if totalActiveDeals == 0 and not wonDeals:
         # No real deals at all — return an empty-state payload, not fabricated
         # mock figures. Same policy as finance/procurement (PR #12 review: no
@@ -545,6 +564,7 @@ async def get_dashboard_config(
                 {"id": "tasks", "label": "Tasks", "icon": "SquareCheckBig"},
                 {"id": "search", "label": "Search", "icon": "Search"},
                 {"id": "bev", "label": "BEV Zones", "icon": "Map"},
+                {"id": "partners", "label": "Partners", "icon": "Users"},
             ],
         },
         "finance": {
@@ -609,21 +629,99 @@ async def get_dashboard_config(
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
 
 
-# ─── CRM list/search endpoints (live data from external CRM API) ───
+# ─── CRM list/search endpoints (live data direct from the brain) ───
 
-# The CRM data lives on an external CRM server.
-# Set CRM_API_URL in .env to point to your CRM's JSON API.
-# When unset, the CRM list/search endpoints return empty lists (no data leakage).
-CRM_API_URL = os.environ.get("CRM_API_URL", "")
-CRM_API_TOKEN = os.environ.get("CRM_API_TOKEN", "")
+# CRM data lives in the brain under source ``crm``. Deals are pages with
+# slug prefix ``deals/``, companies are ``companies/``, and tasks are held in
+# a single index page ``crm/tasks-index`` (tasks are not first-class pages).
+
+_CRM_MOCK: Optional[dict] = None
 
 
-def _crm_headers() -> dict[str, str]:
-    """Build headers for external CRM API calls, with optional auth token."""
-    h: dict[str, str] = {"Accept": "application/json"}
-    if CRM_API_TOKEN:
-        h["Authorization"] = f"Bearer {CRM_API_TOKEN}"
-    return h
+_ACRONYMS = {"api", "ai", "id", "crm", "mii", "qbr", "poc", "loa", "nda", "ncr", "sku", "rfq"}
+
+
+def _pretty_word(word: str) -> str:
+    """Title-case a slug word, preserving known acronyms (``api`` → ``API``)."""
+    return word.upper() if word.lower() in _ACRONYMS else word.title()
+
+
+def _last_slug_segment(slug: str) -> str:
+    """Return the human-readable tail of a page slug (``partners/syspex`` → ``Syspex``)."""
+    if not slug:
+        return ""
+    tail = slug.strip("/").split("/")[-1].replace("_", "-")
+    return " ".join(_pretty_word(w) for w in tail.split("-") if w)
+
+
+def _filter_mock_tasks(
+    mock: List[dict],
+    completed: Optional[bool],
+    assignee: str,
+    deal: str,
+) -> List[dict]:
+    """Apply completed/assignee/deal filters to a mock task list.
+
+    Single source of truth for every tasks mock fallback so no branch can
+    leak an unfiltered list (the round-4 review's Critical regression).
+    """
+    if completed is not None:
+        mock = [t for t in mock if t.get("completed") == completed]
+    if assignee:
+        ca = _canonical_owner(assignee)
+        mock = [t for t in mock if _canonical_owner(t.get("assignee", "")) == ca]
+    if deal:
+        dd = deal.strip().lower()
+        mock = [
+            t for t in mock
+            if dd in str(t.get("deal_slug", "")).lower()
+            or dd in str(t.get("deal_title", "")).lower()
+        ]
+    return mock
+
+
+def _crm_mock_enabled() -> bool:
+    """Opt-in demo mode: serve examples/crm-mock.json when the brain has no data.
+
+    Off by default — live brain data is always preferred. Set
+    SHOGUN_WEB_CRM_MOCK=1 to populate every tab with the mock payloads.
+    """
+    return os.environ.get("SHOGUN_WEB_CRM_MOCK", "").lower() in ("1", "true", "yes")
+
+
+def _bev_mock_enabled() -> bool:
+    """Opt-in demo mode for BEV zones — independent of the CRM flag.
+
+    SHOGUN_WEB_BEV_MOCK=1 enables it directly. When the BEV flag is unset
+    the CRM demo flag is treated as a fallback so existing demo setups
+    keep working without reconfiguring.
+    """
+    raw = os.environ.get("SHOGUN_WEB_BEV_MOCK", "").strip()
+    if raw:
+        return raw.lower() in ("1", "true", "yes")
+    return _crm_mock_enabled()
+
+
+def _load_crm_mock() -> dict:
+    """Load examples/crm-mock.json once (empty dict when absent/corrupt)."""
+    global _CRM_MOCK
+    if _CRM_MOCK is not None:
+        return _CRM_MOCK
+    _CRM_MOCK = {}
+    mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "crm-mock.json"
+    try:
+        with open(mock_json_path, "r", encoding="utf-8") as f:
+            _CRM_MOCK = json.load(f)
+    except Exception as exc:  # pragma: no cover - local dev file only
+        logger.warning("Failed to load CRM mock data from %s: %s", mock_json_path, exc)
+    return _CRM_MOCK
+
+
+CRM_SOURCE = "crm"
+# Standardised listing limit for CRM endpoints. Only matters on the
+# filesystem path (unbounded); the MCP fallback pages until exhaustion
+# regardless and enriches at most _MCP_ENRICH_CAP rows.
+CRM_LIST_LIMIT = 10000
 
 
 from auth import require_admin  # noqa: E402 — admin guard for BEV zone CRUD
@@ -637,50 +735,11 @@ async def get_crm_ceo_stats(
 ) -> dict:
     """Aggregated CEO dashboard stats for CRM.
 
-    Tries gbrain first; falls back to external CRM API when gbrain
-    has no CRM data (e.g. local PGLite with empty crm source).
+    Reads CRM pages directly from the brain (source ``crm``) via gbrain.
+    Returns empty state when the brain has no CRM pages yet or is down.
     """
-    pages = await gbrain_fetch_pages("crm", limit=200)
-    if pages:
-        return _run_ceo_aggregation(pages)
-
-    # Fallback: aggregate from external CRM API (if configured).
-    # External API deals have frontmatter as a dict but lack compiled_truth;
-    # wrap each deal into a page-like shape so _run_ceo_aggregation can read
-    # them the same way it reads gbrain pages.
-    if CRM_API_URL:
-        logger.info("gbrain has no CRM pages — aggregating from external CRM API")
-        try:
-            async with httpx.AsyncClient(timeout=20.0) as client:
-                resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
-                if resp.status_code == 200:
-                    api_deals = resp.json().get("deals", [])
-                    if api_deals:
-                        # Normalise into the page-like shape _run_ceo_aggregation expects:
-                        # {slug, title, frontmatter (dict), compiled_truth (str)}
-                        wrapped = [
-                            {
-                                "slug": d.get("slug", ""),
-                                "title": d.get("title", ""),
-                                "frontmatter": _parse_frontmatter(d.get("frontmatter", {})),
-                                "compiled_truth": "",
-                            }
-                            for d in api_deals
-                            if isinstance(d, dict)
-                        ]
-                        try:
-                            return _run_ceo_aggregation(wrapped)
-                        except Exception as agg_exc:
-                            logger.warning(
-                                "CEO aggregation from external API failed: %s", agg_exc
-                            )
-        except httpx.HTTPError as exc:
-            logger.warning("External CRM API fallback for ceo-stats failed: %s", exc)
-
-    # No data at all — return empty state
-    return _run_ceo_aggregation([])
-
-
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
+    return _run_ceo_aggregation(pages)
 
 
 def _extract_deal_list_item(page: dict) -> dict:
@@ -702,47 +761,56 @@ def _extract_deal_list_item(page: dict) -> dict:
     }
 
 
+# Slug metadata to exclude from listings (scaffolding / meta pages).
+#   broad set  — deal listings may contain gbrain-internal scaffolds
+#   narrow set — companies/partners only skip README/_schema (a company
+#                named "...activity-log" is legitimate)
+# NOTE: the broad set (deal listings only) matches the pre-existing dashboard
+# exclusion convention (docs/plans/2026-07-26-profile-dashboards-implementation.md):
+# activity-log / risk-register are gbrain scaffolding pages, not real deals —
+# real deal slugs are customer/scoped names, so the over-exclude risk is low.
+# Companies/partners use the NARROW set; a business named "...activity-log" stays.
+_SLUG_SEGMENT_EXCLUDES_BROAD = {"readme", "_schema", "activity-log", "risk-register"}
+_SLUG_SEGMENT_EXCLUDES_NARROW = {"readme", "_schema"}
+_SLUG_PREFIX_EXCLUDES = ("templates/",)
+
+
+def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
+    last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
+    if last_segment in (_SLUG_SEGMENT_EXCLUDES_BROAD if broad else _SLUG_SEGMENT_EXCLUDES_NARROW):
+        return True
+    return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
+
+
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: str) -> list:
+    """Graceful fetching: never let a gbrain failure 500 a CRM listing.
+
+    Returns the raw pages list; an MCP failure (server down, timeout) or any
+    other exception degrades to [] — the endpoints return their empty-state
+    shapes, exactly like the pre-brain code.
+    """
+    try:
+        return await gbrain_fetch_pages(source, limit=limit, slug_prefix=slug_prefix)
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain fetch failed for %s/%s: %s", source, slug_prefix, exc)
+        return []
+
+
 @router.get("/deals")
 async def list_crm_deals(
     name: str = Path(...),
     search: str = Query("", description="Filter by title/customer"),
     stage: str = Query("", description="Filter by stage"),
     owner: str = Query("", description="Filter by owner"),
+    priority: str = Query("", description="Filter by priority (High/Medium/Low)"),
+    source: str = Query("", description="Filter by lead source"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM deals from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"deals": [], "total": 0}
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/deals", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /deals returned %s", resp.status_code)
-                return {"deals": [], "total": 0}
-            payload = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM deals fetch error: %s", exc)
-        return {"deals": [], "total": 0}
+    """List CRM deals direct from the brain (source ``crm``, slug ``deals/*``)."""
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
 
-    raw_deals = payload.get("deals", [])
-
-    # Filter out scaffolding/meta slugs.
-    # Use path-segment checks so "readme" only excludes a slug whose *last segment*
-    # is exactly "readme" (e.g. deals/readme), not legitimate deals like
-    # deals/readme-followup.  Other markers (templates/, _schema, etc.) are
-    # unambiguous directory prefixes so a substring check is fine there.
-    _SLUG_SEGMENT_EXCLUDES = {"readme", "_schema", "activity-log", "risk-register"}
-    _SLUG_PREFIX_EXCLUDES = ("templates/",)
-
-    def _is_meta_slug(slug: str) -> bool:
-        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
-        if last_segment in _SLUG_SEGMENT_EXCLUDES:
-            return True
-        return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
-
-    deals = [p for p in raw_deals if not _is_meta_slug(str(p.get("slug", "")))]
-
+    deals = [p for p in pages if not _is_meta_slug(str(p.get("slug", "")))]
     items = [_extract_deal_list_item(p) for p in deals]
 
     if search:
@@ -753,9 +821,36 @@ async def list_crm_deals(
     if owner:
         co = _canonical_owner(owner)
         items = [d for d in items if d.get("owner", "") == co]
+    if priority:
+        cp = _canonical_priority(priority)
+        items = [d for d in items if _canonical_priority(d.get("priority", "")) == cp]
+    if source:
+        ss = source.strip().lower()
+        items = [d for d in items if ss in (d.get("source") or "").lower()]
 
     # Sort by created date descending (most recent first)
-    items.sort(key=lambda d: d.get("created", ""), reverse=True)
+    items.sort(key=lambda d: d.get("created") or "", reverse=True)
+
+    if not pages and _crm_mock_enabled():
+        # Live source empty/unavailable — serve the demo payload. Filters are
+        # reapplied in the SAME ORDER as the live path (search, stage, owner,
+        # priority, source) so behaviour is indistinguishable from live data.
+        mock = _load_crm_mock().get("deals", [])
+        if search:
+            s = search.lower()
+            mock = [d for d in mock if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
+        if stage:
+            mock = [d for d in mock if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
+        if owner:
+            mock = [d for d in mock if _canonical_owner(d.get("owner", "")) == _canonical_owner(owner)]
+        if priority:
+            cp = _canonical_priority(priority)
+            mock = [d for d in mock if _canonical_priority(d.get("priority", "")) == cp]
+        if source:
+            ss = source.strip().lower()
+            mock = [d for d in mock if ss in (d.get("source") or "").lower()]
+        mock = sorted(mock, key=lambda d: str(d.get("created", "")), reverse=True)
+        return {"deals": mock, "total": len(mock), "mock": True}
 
     return {"deals": items, "total": len(items)}
 
@@ -768,46 +863,19 @@ async def list_crm_companies(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM companies from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"companies": [], "total": 0}
-    try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/companies", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /companies returned %s", resp.status_code)
-                return {"companies": [], "total": 0}
-            companies = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM companies fetch error: %s", exc)
-        return {"companies": [], "total": 0}
-
-    if not isinstance(companies, list):
-        logger.warning("CRM API /companies returned non-list: %s", type(companies).__name__)
-        return {"companies": [], "total": 0}
-
-    # The API returns [{slug, title}, ...] — frontmatter may be absent.
-    # industry/website/first_seen populate from frontmatter when present.
-    # Exclude scaffolding/meta slugs (same logic as list_crm_deals).
-    _COMPANY_SEGMENT_EXCLUDES = {"readme", "_schema"}
-    _COMPANY_PREFIX_EXCLUDES = ("templates/",)
-
-    def _is_meta_company_slug(slug: str) -> bool:
-        last_segment = slug.rstrip("/").rsplit("/", 1)[-1].lower()
-        if last_segment in _COMPANY_SEGMENT_EXCLUDES:
-            return True
-        return any(slug.startswith(pfx) for pfx in _COMPANY_PREFIX_EXCLUDES)
+    """List CRM companies direct from the brain (source ``crm``, slug ``companies/*``)."""
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="companies/")
 
     items = []
-    for p in companies:
+    for p in pages:
         if not isinstance(p, dict):
             continue
-        if _is_meta_company_slug(str(p.get("slug", ""))):
+        if _is_meta_slug(str(p.get("slug", "")), broad=False):
             continue
         fm = _parse_frontmatter(p.get("frontmatter") or {})
         items.append({
             "slug": p.get("slug", ""),
-            "title": p.get("title", ""),
+            "title": p.get("title") or "",
             "industry": fm.get("industry", ""),
             "website": fm.get("website", ""),
             "source": fm.get("source", ""),
@@ -822,7 +890,158 @@ async def list_crm_companies(
 
     items.sort(key=lambda c: c["title"].lower())
 
+    if not pages and _crm_mock_enabled():
+        mock = _load_crm_mock().get("companies", [])
+        if search:
+            s = search.lower()
+            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
+        if industry:
+            mock = [x for x in mock if x.get("industry", "").lower() == industry.lower()]
+        mock = sorted(mock, key=lambda x: str(x.get("title", "")).lower())
+        return {"companies": mock, "total": len(mock), "mock": True}
+
     return {"companies": items, "total": len(items)}
+
+
+@router.get("/partner-sphere")
+async def get_partner_sphere(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Partner Sphere — 9 sections (overview, roster, profile, command center,
+    protection, onboarding, QBR, CEO digest, pricing simulator).
+
+    Live mode derives the roster + overview KPIs from partner/deal pages in
+    the brain. When the brain has no data the sections come back empty unless
+    SHOGUN_WEB_CRM_MOCK=1, which serves the demo payload from
+    examples/crm-mock.json (marked ``mock: True``).
+    """
+    result: dict = {
+        "overview": None,
+        "masterList": [],
+        "profile": None,
+        "commandCenter": None,
+        "protection": None,
+        "onboarding": None,
+        "qbr": None,
+        "ceoDigest": None,
+        "pricing": None,
+        "mock": False,
+    }
+    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+
+    if partners:
+        # Narrow meta filter keeps a partners/readme page from inflating the
+        # roster and the Active Partners KPI (consistency with list_crm_partners).
+        partners = [p for p in partners if isinstance(p, dict) and not _is_meta_slug(str(p.get("slug", "")), broad=False)]
+        # Live-derived sections: roster + overview KPIs.
+        # Business fields wire from partner-page frontmatter where present
+        # (snake_case keys); pages without them keep the placeholders.
+
+        def _int0(v):
+            try:
+                return int(v)
+            except (TypeError, ValueError):
+                return 0
+
+        def _str_field(fm, key):
+            v = fm.get(key)
+            return str(v) if v not in (None, "") else "—"
+
+        master_rows: list = []
+        active_count = 0
+        for p in partners:
+            fm = _parse_frontmatter(p.get("frontmatter") or {})
+            status = str(fm.get("status") or "Active")
+            if status.lower() == "active":
+                active_count += 1
+            master_rows.append({
+                "name": (p.get("title") or _last_slug_segment(p.get("slug", "")) or "Partner"),
+                "tier": str(fm.get("tier", "")),
+                "am": str(fm.get("am", "")),
+                "status": status,
+                "regions": str(fm.get("country", "")),
+                "tags": fm.get("tags") if isinstance(fm.get("tags"), list) else [],
+                "openDeals": _int0(fm.get("open_deals")),
+                "pipeline": _str_field(fm, "pipeline"),
+                "licences": _str_field(fm, "licences"),
+                "score": _safe_float(fm.get("score")),
+                "lastActivity": _str_field(fm, "last_activity"),
+            })
+        result["masterList"] = master_rows
+        result["overview"] = {
+            "kpis": [
+                {"label": "Active Partners", "value": str(active_count), "note": "from brain"},
+                {"label": "Partner Pipeline", "value": "—", "note": ""},
+                {"label": "Partner Won (YTD)", "value": "—", "note": ""},
+                {"label": "POC → Commercial", "value": "—", "note": ""},
+                {"label": "Avg Ramp Velocity", "value": "—", "note": ""},
+            ],
+            "amCoverage": [],
+            "tierBoard": [],
+            "funnel": [],
+            "leakPoints": [],
+            "battleLog": [],
+            "cohortGrid": None,
+            "openPipeline": [],
+            "hygiene": None,
+            "aiBrief": None,
+        }
+
+    if _crm_mock_enabled():
+        mock_sphere = _load_crm_mock().get("partner_sphere") or {}
+        filled = False
+        for key in result:
+            if key == "mock":
+                continue
+            if not result[key] and mock_sphere.get(key):
+                result[key] = mock_sphere[key]
+                filled = True
+        result["mock"] = filled
+    return result
+
+
+@router.get("/partners")
+async def list_crm_partners(
+    name: str = Path(...),
+    search: str = Query("", description="Filter by title"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+
+    items = []
+    for p in pages:
+        if not isinstance(p, dict):
+            continue
+        if _is_meta_slug(str(p.get("slug", "")), broad=False):
+            continue
+        fm = _parse_frontmatter(p.get("frontmatter") or {})
+        items.append({
+            "slug": p.get("slug", ""),
+            "title": p.get("title") or "",
+            "type": fm.get("type", ""),
+            "website": fm.get("website", ""),
+            "country": fm.get("country", ""),
+            "source": fm.get("source", ""),
+        })
+
+    if search:
+        s = search.lower()
+        items = [c for c in items if s in c["title"].lower()]
+
+    items.sort(key=lambda c: c["title"].lower())
+
+    if not pages and _crm_mock_enabled():
+        mock = _load_crm_mock().get("partners", [])
+        if search:
+            s = search.lower()
+            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
+        return {"partners": mock, "total": len(mock), "mock": True}
+
+    return {"partners": items, "total": len(items)}
 
 
 @router.get("/tasks")
@@ -830,24 +1049,31 @@ async def list_crm_tasks(
     name: str = Path(...),
     completed: Optional[bool] = Query(None, description="Filter by completion status"),
     assignee: str = Query("", description="Filter by assignee"),
+    deal: str = Query("", description="Filter by deal slug/title"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM tasks from external CRM API (live)."""
-    if not CRM_API_URL:
-        return {"tasks": [], "total": 0}
+    """List CRM tasks direct from the brain (``crm/tasks-index`` page)."""
     try:
-        async with httpx.AsyncClient(timeout=20.0) as client:
-            resp = await client.get(f"{CRM_API_URL}/tasks", headers=_crm_headers())
-            if resp.status_code >= 400:
-                logger.warning("CRM API /tasks returned %s", resp.status_code)
-                return {"tasks": [], "total": 0}
-            tasks_raw = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM tasks fetch error: %s", exc)
+        index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain fetch failed for %s/tasks-index: %s", CRM_SOURCE, exc)
+        if _crm_mock_enabled():
+            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
+            return {"tasks": mock, "total": len(mock), "mock": True}
+        return {"tasks": [], "total": 0}
+    if not index:
+        if _crm_mock_enabled():
+            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
+            return {"tasks": mock, "total": len(mock), "mock": True}
         return {"tasks": [], "total": 0}
 
-    # Normalize to CrmTaskItem contract
+    fm = _parse_frontmatter(index.get("frontmatter") or {})
+    tasks_raw = fm.get("tasks")
+    if not isinstance(tasks_raw, list):
+        # No task list in frontmatter — nothing to list (empty state).
+        tasks_raw = []
+
     tasks: List[dict] = []
     for t in tasks_raw:
         if not isinstance(t, dict):
@@ -865,6 +1091,15 @@ async def list_crm_tasks(
     if assignee:
         ca = _canonical_owner(assignee)
         tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
+    if deal:
+        dd = deal.strip().lower()
+        tasks = [t for t in tasks if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
+
+    if not tasks_raw and _crm_mock_enabled():
+        # Live index has no task list at all — serve the demo payload.
+        # (A non-empty source that filters down to zero returns [], NOT mock.)
+        mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
+        return {"tasks": mock, "total": len(mock), "mock": True}
 
     return {"tasks": tasks, "total": len(tasks)}
 
@@ -880,38 +1115,27 @@ async def crm_search(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Global search across external CRM pages (live)."""
+    """Global search across CRM pages direct from the brain (source ``crm``)."""
     query = body.query.strip()
-    if not query or not CRM_API_URL:
+    if not query:
         return {"results": []}
 
     try:
-        async with httpx.AsyncClient(timeout=15.0) as client:
-            resp = await client.post(
-                f"{CRM_API_URL}/search",
-                json={"query": query},
-                headers=_crm_headers(),
-            )
-            if resp.status_code >= 400:
-                logger.warning("CRM API /search returned %s", resp.status_code)
-                return {"results": []}
-            payload = resp.json()
-    except httpx.HTTPError as exc:
-        logger.warning("CRM search error: %s", exc)
+        raw = await gbrain_search(CRM_SOURCE, query, limit=20)
+    except Exception as exc:  # pragma: no cover - transport/protocol failures
+        logger.warning("gbrain search failed for %s: %s", CRM_SOURCE, exc)
+        if _crm_mock_enabled():
+            q = query.lower()
+            mock = [r for r in _load_crm_mock().get("search_results", [])
+                    if q in str(r.get("title", "")).lower() or q in str(r.get("slug", "")).lower()]
+            return {"results": mock, "mock": True}
         return {"results": []}
 
-    results = payload.get("results", [])
-    if not isinstance(results, list):
-        return {"results": []}
-
-    # Copy each result dict before mutating so we don't modify the payload in place.
-    # Also infer `category` from the slug prefix when the API doesn't supply it,
-    # so the frontend SearchTab category chips always have a value to filter on.
     normalised: list[dict] = []
-    for r in results:
+    for r in raw:
         if not isinstance(r, dict):
             continue
-        row = copy.deepcopy(r)  # deep copy — frontmatter is a nested dict; shallow copy still shares it
+        row = copy.deepcopy(r)
         row["frontmatter"] = _parse_frontmatter(row.get("frontmatter"))
         if not row.get("category"):
             slug = str(row.get("slug", ""))
@@ -919,10 +1143,17 @@ async def crm_search(
                 row["category"] = "deals"
             elif slug.startswith("companies/"):
                 row["category"] = "companies"
+            elif slug.startswith("partners/"):
+                row["category"] = "partners"
+            elif slug.startswith("persons/"):
+                row["category"] = "persons"
             else:
                 row["category"] = "unknown"
         normalised.append(row)
 
+    # A live, populated brain that legitimately matches nothing returns [].
+    # Demo search rows are served ONLY when the source itself is unavailable
+    # (the except path above) — never on a filtered/empty result.
     return {"results": normalised}
 
 
@@ -950,21 +1181,29 @@ async def list_bev_zones(
 ) -> dict:
     """List BEV zones via the BEV microservice."""
     base = _bev_base_url()
+    live_zones: list = []
+    live_ok = False
     try:
         async with httpx.AsyncClient(timeout=15.0) as client:
             resp = await client.get(f"{base}/zones", headers=_bev_headers())
-            if resp.status_code >= 400:
-                return {"zones": []}
-            data = resp.json()
-            # Normalize: ensure we return {zones: [...]}
-            if isinstance(data, list):
-                return {"zones": data}
-            if isinstance(data, dict) and "zones" in data:
-                return data
-            return {"zones": []}
+            if resp.status_code < 400:
+                data = resp.json()
+                if isinstance(data, list):
+                    live_zones = data
+                    live_ok = True
+                elif isinstance(data, dict) and "zones" in data:
+                    live_zones = data["zones"]
+                    live_ok = True
     except httpx.HTTPError as exc:
         logger.warning("BEV zones list error: %s", exc)
-        return {"zones": []}
+
+    if live_ok:
+        return {"zones": live_zones}
+    if _bev_mock_enabled():
+        mock_zones = _load_crm_mock().get("bev_zones")
+        if mock_zones:
+            return {"zones": mock_zones, "mock": True}
+    return {"zones": []}
 
 
 
@@ -2480,7 +2719,7 @@ async def get_finance_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Finance dashboard stats — all 5 tabs."""
-    pages = await gbrain_fetch_pages("finance", limit=300)
+    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix="")
     return await _run_finance_aggregation(pages)
 
 
@@ -2657,7 +2896,7 @@ async def get_procurement_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Procurement dashboard stats — all 5 tabs."""
-    pages = await gbrain_fetch_pages("procurement", limit=300)
+    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
     return _run_procurement_aggregation(pages)
 
 

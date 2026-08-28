@@ -38,6 +38,21 @@ class OAuthProviderConfig:
     redirect_uri: str = ""
 
 
+def _env_int(name: str, default: int) -> int:
+    """Parse an int env var — garbage values degrade to the default instead of a boot crash.
+
+    Must live above WebConfig: the dataclass defaults are evaluated at class
+    definition time, so the helper has to be defined by then.
+    """
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return int(raw)
+    except ValueError:
+        return default
+
+
 @dataclass
 class WebConfig:
     """Typed configuration for the per-tenant web portal."""
@@ -62,6 +77,15 @@ class WebConfig:
     gbrain_base_url: str = "http://127.0.0.1:7432"
     gbrain_api_key: str = os.environ.get("GBRAIN_API_KEY", "")
     brain_root: str = str(Path.home() / "brain")
+    gbrain_read_preference: str = os.environ.get("GBRAIN_READ_PREFERENCE", "filesystem")
+    # MCP-only sources: cap per-fetch enrichment of metadata-only list_pages rows.
+    # Raise above the source size for large remote brains (each enrich = 1 get_page).
+    gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 50)
+    # Filesystem mirror staleness guard (minutes, default 60 = ON). When the
+    # newest markdown is older than this the mirror defers to MCP (guards
+    # against a failed put_page sync mirror serving stale data indefinitely).
+    # Set 0 to disable.
+    gbrain_fs_max_age_minutes: int = _env_int("GBRAIN_FS_MAX_AGE_MINUTES", 60)
     seed_demo_brain: bool = os.environ.get("SEED_DEMO_BRAIN", "false").lower() == "true"
 
     # CORS
