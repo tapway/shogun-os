@@ -93,6 +93,7 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
         fallbackJob={talentPool.job}
         stats={stats}
         color={color}
+        department={department}
         onBack={() => setTalentPool(null)}
         onOpenCandidate={(c) => setCandidatePage({ id: c.id, candidate: c })}
       />

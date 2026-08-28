@@ -944,6 +944,8 @@ class HrEmployee(Base):
     employee_file_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
     employee_file_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
+    user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
     q1: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
 
     q2: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
@@ -1071,6 +1073,8 @@ class HrJobOpening(Base):
     jd_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     jd_file_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+
+    jd_template_subject: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -1216,6 +1220,12 @@ class HrCandidate(Base):
 
     in_pipeline: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
+    waiting_since: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    waiting_reason: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+
+    removed_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
     created_at: Mapped[datetime] = mapped_column(
 
         DateTime(timezone=True), nullable=False, default=utcnow
@@ -1275,6 +1285,12 @@ class HrCandidate(Base):
             "manager_reviewed_at": self.manager_reviewed_at,
 
             "in_pipeline": bool(self.in_pipeline),
+
+            "waiting_since": self.waiting_since,
+
+            "waiting_reason": self.waiting_reason,
+
+            "removed_reason": self.removed_reason,
 
         }
 
@@ -1898,3 +1914,96 @@ class HrMeetingAttendee(Base):
 
         }
 
+
+class HrCandidateFile(Base):
+
+    """File attached to a candidate (resume / screening answers / offer letter / other)."""
+
+    __tablename__ = "hr_candidate_files"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    kind: Mapped[str] = mapped_column(String(32), nullable=False, default="other")
+    filename: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    file_url: Mapped[str] = mapped_column(String(1024), nullable=False, default="")
+    uploaded_by_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    uploaded_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "candidate_id": self.candidate_id,
+            "kind": self.kind,
+            "filename": self.filename,
+            "file_url": self.file_url,
+            "uploaded_by_name": self.uploaded_by_name,
+            "uploaded_at": self.uploaded_at,
+        }
+
+
+class HrCandidateEvent(Base):
+
+    """Workflow history entry for a candidate (stage moves, comments, decisions,
+    uploads, email drafts, reviews)."""
+
+    __tablename__ = "hr_candidate_events"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="note")
+    note: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    from_status: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    to_status: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    actor_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    actor_email: Mapped[Optional[str]] = mapped_column(String(320), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "candidate_id": self.candidate_id,
+            "event_type": self.event_type,
+            "note": self.note,
+            "from_status": self.from_status,
+            "to_status": self.to_status,
+            "actor_name": self.actor_name,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
+
+
+class HrInterview(Base):
+
+    """Scheduled interview row (1st round or manager round)."""
+
+    __tablename__ = "hr_interviews"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    job_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    round: Mapped[str] = mapped_column(String(16), nullable=False, default="first")
+    scheduled_at: Mapped[str] = mapped_column(String(32), nullable=False, default="")
+    interviewer_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    interviewer_employee_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    location: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "candidate_id": self.candidate_id,
+            "job_id": self.job_id,
+            "round": self.round,
+            "scheduled_at": self.scheduled_at,
+            "interviewer_name": self.interviewer_name,
+            "interviewer_employee_id": self.interviewer_employee_id,
+            "location": self.location,
+            "status": self.status,
+        }

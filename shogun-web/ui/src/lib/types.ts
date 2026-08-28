@@ -1643,6 +1643,50 @@ export interface HrCandidate {
   manager_reviewed?: boolean;
   manager_reviewed_at: string;
   in_pipeline?: boolean;
+  waiting_since: string;
+  waiting_reason: string;
+  removed_reason: string;
+}
+
+export interface HrCandidateFile {
+  id: number;
+  candidate_id: number;
+  kind: string;
+  filename: string;
+  file_url: string;
+  uploaded_by_name: string;
+  uploaded_at: string;
+}
+
+export interface HrCandidateEvent {
+  id: number;
+  candidate_id: number;
+  event_type: string;
+  note: string;
+  from_status: string;
+  to_status: string;
+  actor_name: string;
+  created_at: string;
+}
+
+export interface HrInterview {
+  id: number;
+  candidate_id: number;
+  job_id?: number;
+  round: string;
+  scheduled_at: string;
+  interviewer_name: string;
+  interviewer_employee_id?: number;
+  location: string;
+  status: string;
+}
+
+export interface HrResumeExtract {
+  name: string;
+  email: string;
+  phone: string;
+  summary: string;
+  source: string;
 }
 
 export interface HrCandidateExtract {
@@ -1782,5 +1826,8 @@ export interface HrDashboardStats {
   meetings: HrMeeting[];
   meeting_action_items: HrMeetingActionItem[];
   meeting_attendees: HrMeetingAttendee[];
+  candidate_files: HrCandidateFile[];
+  candidate_events: HrCandidateEvent[];
+  interviews: HrInterview[];
   source?: string;
 }

@@ -3558,6 +3558,10 @@ async def get_hr_stats(
     trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
     trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
     meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
+    from models import HrCandidateEvent, HrCandidateFile, HrInterview
+    candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
+    candidate_events = db.execute(select(HrCandidateEvent).where(HrCandidateEvent.tenant_id == tenant.id).order_by(HrCandidateEvent.id.desc())).scalars().all()
+    interviews = db.execute(select(HrInterview).where(HrInterview.tenant_id == tenant.id)).scalars().all()
     action_items = db.execute(select(HrMeetingActionItem).where(HrMeetingActionItem.tenant_id == tenant.id)).scalars().all()
     attendees = db.execute(select(HrMeetingAttendee).where(HrMeetingAttendee.tenant_id == tenant.id)).scalars().all()
 
@@ -3606,6 +3610,9 @@ async def get_hr_stats(
         "meetings": [m.to_dict() for m in meetings],
         "meeting_action_items": [a.to_dict() for a in action_items],
         "meeting_attendees": [a.to_dict() for a in attendees],
+        "candidate_files": [f.to_dict() for f in candidate_files],
+        "candidate_events": [e.to_dict() for e in candidate_events],
+        "interviews": [i.to_dict() for i in interviews],
         "source": "notion_sync",
     }
 
@@ -3919,14 +3926,20 @@ async def add_hr_candidate_to_pipeline(
     if cand is None or cand.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
+    old_status = cand.status
     cand.in_pipeline = True
+    if old_status not in ("1st round of interview", "Manager Interview", "Offer Sent", "Hired"):
+        cand.status = "Schedule 1st Round of Interview"
+    _hr_event(db, tenant.id, candidate_id, "stage_move",
+              note="Added into recruitment pipeline",
+              from_status=old_status, to_status=cand.status, user=user)
     db.commit()
 
     try:
         import audit
         audit.log_action(
             db, tenant, user, "hr", "hr.candidate.add_to_pipeline", "candidate",
-            str(candidate_id), detail={},
+            str(candidate_id), detail={"to": cand.status},
         )
     except Exception:
         pass
@@ -3962,6 +3975,12 @@ async def move_hr_candidate(
 
     old_status = cand.status
     cand.status = status
+    if status in ("Schedule 1st Round of Interview", "Schedule Manager Interview",
+                  "1st round of interview", "Manager Interview", "Offer Sent", "Hired"):
+        cand.waiting_since = None
+        cand.waiting_reason = None
+    _hr_event(db, tenant.id, candidate_id, "stage_move",
+              from_status=old_status, to_status=status, user=user)
     db.commit()
 
     try:  # audit infra optional on this branch — never break the flow
@@ -3973,4 +3992,496 @@ async def move_hr_candidate(
     except Exception:
         pass
 
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+# ─── HR recruitment workflow (Phase 1) ───
+
+def _hr_event(db, tenant_id: int, candidate_id: int, event_type: str,
+              note: Optional[str] = None, from_status: Optional[str] = None,
+              to_status: Optional[str] = None, user: Optional[User] = None) -> None:
+    from models import HrCandidateEvent
+    try:
+        db.add(HrCandidateEvent(
+            tenant_id=tenant_id, candidate_id=candidate_id, event_type=event_type,
+            note=note, from_status=from_status, to_status=to_status,
+            actor_name=(user.name or "") if user else None,
+            actor_email=(user.email or "") if user else None,
+        ))
+    except Exception:
+        pass
+
+
+class HrCommentBody(BaseModel):
+    note: str
+
+
+class HrDecisionBody(BaseModel):
+    decision: str
+    comment: str = ""
+
+
+class HrScheduleBody(BaseModel):
+    round: str = "first"
+    scheduled_at: str
+    interviewer_name: str = ""
+    interviewer_employee_id: Optional[int] = None
+    location: str = ""
+
+
+class HrInterviewStatusBody(BaseModel):
+    status: str
+
+
+def _extract_text_from_upload(data: bytes) -> str:
+    """Best-effort text extraction from an uploaded resume document."""
+    if data[:5] == b"%PDF-":
+        try:
+            import fitz  # pymupdf
+            text = ""
+            with fitz.open(stream=data, filetype="pdf") as doc:
+                for page in doc:
+                    text += page.get_text()
+            return text
+        except Exception:
+            return ""
+    for enc in ("utf-8", "latin-1"):
+        try:
+            s = data.decode(enc)
+            printable = sum(1 for ch in s if ch.isprintable() or ch in "\n\t\r")
+            if printable > len(s) * 0.9:
+                return s
+        except Exception:
+            continue
+    return ""
+
+
+@router.post("/hr/extract-resume")
+async def hr_extract_resume(
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Extract name/email/phone from an applicant resume before HR saves it."""
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
+    text = _extract_text_from_upload(content)
+
+    result = {"name": "", "email": "", "phone": "", "summary": "", "source": "empty"}
+
+    # regex fallback (also used to cross-check the LLM answer)
+    import re as _re_local
+    m_email = _re_local.search(r"[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,}", text)
+    m_phone = _re_local.search(r"(\+?\d[\d\s\-()]{7,15}\d)", text)
+    if m_email:
+        result["email"] = m_email.group(0)
+    if m_phone:
+        result["phone"] = m_phone.group(0).strip()
+
+    if text.strip():
+        result["source"] = "fallback"
+        try:
+            from gateway import _call_deepseek
+            raw = await _call_deepseek(
+                "Extract the candidate's full name, email address and phone number from this "
+                "resume text. Return ONLY valid JSON: "
+                "{\"name\": \"...\", \"email\": \"...\", \"phone\": \"...\", \"summary\": \"one-sentence professional summary\"}.\n\n"
+                + text[:6000],
+                system_prompt="You extract contact details from resumes. Reply with ONLY valid JSON.",
+                max_tokens=500,
+            )
+            if raw:
+                parsed = _extract_json_from_text(raw)
+                if isinstance(parsed, dict) and "raw_response" not in parsed:
+                    result["source"] = "ai"
+                    result["name"] = (parsed.get("name") or "").strip()[:200]
+                    result["email"] = (parsed.get("email") or result["email"]).strip()[:320]
+                    result["phone"] = (parsed.get("phone") or result["phone"]).strip()[:64]
+                    result["summary"] = (parsed.get("summary") or "").strip()[:1000]
+        except Exception:
+            pass
+    return {"ok": True, "extract": result}
+
+
+@router.post("/hr/job-openings/{job_id}/applicants")
+async def add_hr_applicant(
+    job_id: int,
+    name: str = Path(...),
+    file: UploadFile = File(None),
+    applicant_name: str = Form(...),
+    email: str = Form(""),
+    phone_no: str = Form(""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Add an applicant (resume upload + AI-prefilled details) to a job opening.
+
+    The applicant enters the pipeline at Screening - Pending with
+    date_entry = upload timestamp and their role set to the job title.
+    """
+    import uuid as _uuid
+    from models import HrCandidate, HrCandidateFile, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    job = db.get(HrJobOpening, job_id)
+    if job is None or job.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+    app_name = (applicant_name or "").strip()
+    if not app_name:
+        raise HTTPException(status_code=422, detail="Applicant name is required")
+
+    now = datetime.utcnow().isoformat(timespec="seconds")
+    ctype = "internship" if (job.employment_type or "").lower() == "internship" else "fulltime"
+    cand = HrCandidate(
+        tenant_id=tenant.id,
+        notion_page_id=f"portal-{_uuid.uuid4().hex}",
+        name=app_name,
+        email=email.strip() or None,
+        phone_no=phone_no.strip() or None,
+        role=job.job_title,
+        status="Screening - Pending",
+        source="Portal",
+        candidate_type=ctype,
+        date_entry=now,
+    )
+    db.add(cand)
+    db.flush()
+
+    file_url = None
+    filename = None
+    if file is not None and file.filename:
+        safe_name = pathlib.Path(file.filename or "resume").name
+        ext = pathlib.Path(safe_name).suffix.lower().lstrip(".")
+        if ext not in {"pdf", "doc", "docx", "txt", "md", "rtf", "png", "jpg", "jpeg", "webp"}:
+            raise HTTPException(status_code=422, detail="Unsupported resume file type")
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+        (upload_dir / unique_name).write_bytes(content)
+        file_url = f"/api/doc-uploads/{unique_name}"
+        filename = safe_name
+        cand.resume_url = file_url
+        db.add(HrCandidateFile(
+            tenant_id=tenant.id, candidate_id=cand.id, kind="resume",
+            filename=filename, file_url=file_url,
+            uploaded_by_name=user.name if user else None, uploaded_at=now,
+        ))
+
+    _hr_event(db, tenant.id, cand.id, "stage_move", note="Applicant added",
+              to_status="Screening - Pending", user=user)
+    _hr_event(db, tenant.id, cand.id, "upload", note=f"Resume uploaded: {filename or '(none)'}", user=user)
+    db.commit()
+    db.refresh(cand)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.applicant.add", "candidate",
+                         str(cand.id), detail={"job_id": job.id, "job_title": job.job_title})
+    except Exception:
+        pass
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/file")
+async def upload_hr_candidate_file(
+    candidate_id: int,
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    kind: str = Form("other"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Upload a workflow document for a candidate (screening_answers /
+    offer_letter / other)."""
+    import uuid as _uuid
+    from models import HrCandidate, HrCandidateFile
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    if kind not in ("resume", "screening_answers", "offer_letter", "other"):
+        raise HTTPException(status_code=422, detail="Invalid file kind")
+
+    safe_name = pathlib.Path(file.filename or "document").name
+    ext = pathlib.Path(safe_name).suffix.lower().lstrip(".")
+    if ext not in {"pdf", "doc", "docx", "txt", "md", "rtf", "png", "jpg", "jpeg", "webp"}:
+        raise HTTPException(status_code=422, detail="Unsupported file type")
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
+
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+    (upload_dir / unique_name).write_bytes(content)
+    file_url = f"/api/doc-uploads/{unique_name}"
+
+    now = datetime.utcnow().isoformat(timespec="seconds")
+    db.add(HrCandidateFile(
+        tenant_id=tenant.id, candidate_id=candidate_id, kind=kind,
+        filename=safe_name, file_url=file_url,
+        uploaded_by_name=user.name if user else None, uploaded_at=now,
+    ))
+    _hr_event(db, tenant.id, candidate_id, "upload",
+              note=f"{kind.replace('_', ' ').title()} uploaded: {safe_name}", user=user)
+    db.commit()
+    return {"ok": True, "file_url": file_url, "filename": safe_name}
+
+
+@router.post("/hr/candidates/{candidate_id}/comment")
+async def comment_hr_candidate(
+    candidate_id: int,
+    body: HrCommentBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Add a comment to the candidate timeline."""
+    from models import HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    note = (body.note or "").strip()
+    if not note:
+        raise HTTPException(status_code=422, detail="Comment cannot be empty")
+
+    _hr_event(db, tenant.id, candidate_id, "comment", note=note, user=user)
+    db.commit()
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/decision")
+async def decide_hr_candidate(
+    candidate_id: int,
+    body: HrDecisionBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Record an interview decision.
+
+    From "1st round of interview": continue → Schedule Manager Interview, reject → Rejected.
+    From "Manager Interview": offer → Offer Sent, reject → Rejected.
+    """
+    from models import HrCandidate
+
+    decision = (body.decision or "").strip().lower()
+    if decision not in ("continue", "reject", "offer"):
+        raise HTTPException(status_code=422, detail="decision must be continue, reject or offer")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    cur = (cand.status or "").strip()
+    if decision == "continue":
+        if cur.lower() != "1st round of interview":
+            raise HTTPException(status_code=422, detail="Continue is only valid after the 1st round of interview")
+        new_status = "Schedule Manager Interview"
+    elif decision == "offer":
+        if cur.lower() != "manager interview":
+            raise HTTPException(status_code=422, detail="Offer is only valid after the Manager Interview")
+        new_status = "Offer Sent"
+    else:  # reject — allowed from either interview stage
+        if cur.lower() not in ("1st round of interview", "manager interview"):
+            raise HTTPException(status_code=422, detail="Reject is only valid from an interview stage")
+        new_status = "Rejected"
+
+    old = cand.status
+    cand.status = new_status
+    cand.waiting_since = None
+    cand.waiting_reason = None
+    if new_status == "Rejected":
+        cand.removed_reason = "Rejected"
+    _hr_event(db, tenant.id, candidate_id, "decision",
+              note=f"Decision: {decision.upper()}. {(body.comment or '').strip()}" if body.comment else f"Decision: {decision.upper()}",
+              from_status=old, to_status=new_status, user=user)
+    db.commit()
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", f"hr.candidate.decision.{decision}",
+                         "candidate", str(candidate_id),
+                         detail={"from": old, "to": new_status})
+    except Exception:
+        pass
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/schedule")
+async def schedule_hr_interview(
+    candidate_id: int,
+    body: HrScheduleBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Confirm an interview date/time: creates the schedule row and moves the
+    candidate into the corresponding interview stage in one action."""
+    from models import HrCandidate, HrInterview, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    rnd = (body.round or "").strip().lower()
+    if rnd not in ("first", "manager"):
+        raise HTTPException(status_code=422, detail="round must be 'first' or 'manager'")
+    when = (body.scheduled_at or "").strip()
+    if not when:
+        raise HTTPException(status_code=422, detail="Interview date/time is required")
+
+    job_id = None
+    if cand.role:
+        job = db.execute(
+            select(HrJobOpening).where(
+                HrJobOpening.tenant_id == tenant.id,
+                HrJobOpening.job_title == cand.role,
+            )
+        ).scalars().first()
+        if job is not None:
+            job_id = job.id
+
+    old = cand.status
+    new_status = "1st round of interview" if rnd == "first" else "Manager Interview"
+    interview = HrInterview(
+        tenant_id=tenant.id, candidate_id=candidate_id, job_id=job_id,
+        round=rnd, scheduled_at=when,
+        interviewer_name=(body.interviewer_name or "").strip() or None,
+        interviewer_employee_id=body.interviewer_employee_id,
+        location=(body.location or "").strip() or None,
+        status="scheduled",
+    )
+    db.add(interview)
+    cand.status = new_status
+    cand.waiting_since = None
+    cand.waiting_reason = None
+    _hr_event(db, tenant.id, candidate_id, "stage_move",
+              note=f"Interview scheduled ({rnd} round) at {when}"
+                   + (f" with {body.interviewer_name}" if body.interviewer_name else ""),
+              from_status=old, to_status=new_status, user=user)
+    db.commit()
+    db.refresh(interview)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.candidate.schedule", "candidate",
+                         str(candidate_id), detail={"round": rnd, "scheduled_at": when})
+    except Exception:
+        pass
+    return {"ok": True, "candidate": cand.to_dict(), "interview": interview.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/status")
+async def update_hr_interview_status(
+    interview_id: int,
+    body: HrInterviewStatusBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark an interview completed / cancelled / back to scheduled."""
+    from models import HrInterview
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    st = (body.status or "").strip().lower()
+    if st not in ("scheduled", "completed", "cancelled"):
+        raise HTTPException(status_code=422, detail="Invalid interview status")
+    iv.status = st
+    db.commit()
+    return {"ok": True, "interview": iv.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/waiting")
+async def set_hr_candidate_waiting(
+    candidate_id: int,
+    body: HrCommentBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Set/clear a waiting state (pass note='' to clear)."""
+    from models import HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    reason = (body.note or "").strip()
+    if reason:
+        cand.waiting_since = datetime.utcnow().isoformat(timespec="seconds")
+        cand.waiting_reason = reason[:256]
+        _hr_event(db, tenant.id, candidate_id, "note", note=f"Waiting: {reason}", user=user)
+    else:
+        cand.waiting_since = None
+        cand.waiting_reason = None
+        _hr_event(db, tenant.id, candidate_id, "note", note="Waiting cleared (replied / resolved)", user=user)
+    db.commit()
+    return {"ok": True, "candidate": cand.to_dict()}
+
+
+@router.post("/hr/candidates/{candidate_id}/remove")
+async def remove_hr_candidate(
+    candidate_id: int,
+    body: HrCommentBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Soft-remove a candidate: status Rejected with reason kept for audit."""
+    from models import HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    old = cand.status
+    reason = (body.note or "").strip() or "No response"
+    cand.status = "Rejected"
+    cand.removed_reason = reason[:1000]
+    cand.waiting_since = None
+    cand.waiting_reason = None
+    _hr_event(db, tenant.id, candidate_id, "stage_move",
+              note=f"Removed: {reason}", from_status=old, to_status="Rejected", user=user)
+    db.commit()
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.candidate.remove", "candidate",
+                         str(candidate_id), detail={"from": old, "reason": reason})
+    except Exception:
+        pass
     return {"ok": True, "candidate": cand.to_dict()}

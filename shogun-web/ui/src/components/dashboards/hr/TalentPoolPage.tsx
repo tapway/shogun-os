@@ -1,5 +1,7 @@
 import { useMemo, useState } from "react";
-import { ArrowLeft, ExternalLink, FileText, Search, Users } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ArrowLeft, ExternalLink, FileText, Search, Upload, UserPlus, Users, X } from "lucide-react";
+import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 import { findCandidatesForJob } from "./hrCandidateMatch";
 
@@ -8,6 +10,7 @@ interface Props {
   fallbackJob: HrJobOpening;
   stats: HrDashboardStats;
   color: string;
+  department: string;
   onBack: () => void;
   onOpenCandidate: (candidate: HrCandidate) => void;
 }
@@ -47,10 +50,11 @@ function candidateStatusChip(status: string): "ok" | "warn" | "bad" | "muted" {
   return "warn";
 }
 
-export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpenCandidate }: Props) {
+export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, onBack, onOpenCandidate }: Props) {
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
+  const [showAddApplicant, setShowAddApplicant] = useState(false);
 
   const job = (stats.job_openings || []).find((j) => j.id === jobId) ?? fallbackJob;
   const allCandidates = stats.candidates || [];
@@ -116,6 +120,17 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
           <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.25rem", fontWeight: 700, color: TEXT, margin: 0 }}>
             {job.job_title || "Untitled Role"} <span style={{ color: MUTED, fontWeight: 500 }}>Talent Pool</span>
           </h2>
+          <button
+            type="button"
+            onClick={() => setShowAddApplicant(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "0.35rem",
+              padding: "0.4rem 0.85rem", borderRadius: "0.5rem", border: "none",
+              background: LIME, color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            <UserPlus size={14} /> Add Applicant
+          </button>
           <span className={`sd-chip ${statusChipClass(job.job_status)}`}>{job.job_status || "—"}</span>
           {job.overdue === "Overdue" && <span className="sd-chip bad">Overdue</span>}
         </div>
@@ -295,9 +310,127 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, onBack, onOpe
           </div>
         )}
       </div>
+
+      {showAddApplicant && (
+        <AddApplicantModal
+          job={job}
+          department={department}
+          onClose={() => setShowAddApplicant(false)}
+        />
+      )}
     </div>
   );
 }
+
+function AddApplicantModal({
+  job, department, onClose,
+}: {
+  job: HrJobOpening;
+  department: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [resume, setResume] = useState<File | null>(null);
+  const [extracting, setExtracting] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [form, setForm] = useState({ name: "", email: "", phone: "" });
+
+  async function pickFile(f: File) {
+    setResume(f);
+    setError("");
+    setExtracting(true);
+    try {
+      const res = await hrApi.extractResume(department, f);
+      const ex = res.extract;
+      setForm((prev) => ({
+        name: ex.name || prev.name,
+        email: ex.email || prev.email,
+        phone: ex.phone || prev.phone,
+      }));
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Extraction failed — fill the fields manually.");
+    } finally {
+      setExtracting(false);
+    }
+  }
+
+  async function submit() {
+    if (!form.name.trim()) { setError("Applicant name is required."); return; }
+    setBusy(true);
+    setError("");
+    const fd = new FormData();
+    fd.append("applicant_name", form.name.trim());
+    if (form.email.trim()) fd.append("email", form.email.trim());
+    if (form.phone.trim()) fd.append("phone_no", form.phone.trim());
+    if (resume) fd.append("file", resume);
+    try {
+      await hrApi.addApplicant(department, job.id, fd);
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to add applicant.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button type="button" onClick={onClose} aria-label="Close"
+        style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)", border: "none", cursor: "default" }} />
+      <div onClick={onClose}
+        style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
+        <div onClick={(e) => e.stopPropagation()} className="sd-chart-card"
+          style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "28rem", padding: "1.25rem" }}>
+          <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.75rem", marginBottom: "0.75rem" }}>
+            <div>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
+                Add Applicant — {job.job_title}
+              </h2>
+              <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
+                Upload the resume — name, email and phone are extracted automatically. Date received is set to now.
+              </p>
+            </div>
+            <button type="button" className="sd-icon-btn" onClick={onClose} aria-label="Close">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: `1px dashed ${LIME}`, color: LIME, fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", marginBottom: "0.75rem" }}>
+            <Upload size={14} /> {extracting ? "Extracting details…" : resume ? resume.name : "Choose resume file"}
+            <input type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp" style={{ display: "none" }}
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
+          </label>
+
+          <div style={{ display: "grid", gap: "0.55rem" }}>
+            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Full name *" style={appInputStyle} />
+            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" style={appInputStyle} />
+            <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" style={appInputStyle} />
+          </div>
+
+          {error && <p style={{ color: DANGER, fontSize: "0.78rem", margin: "0.6rem 0 0" }}>{error}</p>}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.9rem" }}>
+            <button type="button" onClick={onClose}
+              style={{ padding: "0.45rem 0.9rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+              Cancel
+            </button>
+            <button type="button" onClick={submit} disabled={busy}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.45rem 1rem", borderRadius: "0.5rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+              <UserPlus size={14} /> {busy ? "Adding…" : "Add Applicant"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+const appInputStyle: React.CSSProperties = {
+  width: "100%", borderRadius: "0.4rem", border: `1px solid ${BORDER}`,
+  background: SURFACE_2, color: TEXT, padding: "0.45rem 0.6rem",
+  fontSize: "0.82rem", boxSizing: "border-box",
+};
 
 const thStyle: React.CSSProperties = {
   textAlign: "left",

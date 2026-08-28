@@ -323,6 +323,18 @@ def init_db() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        # Defensive ALTERs for HR workflow columns added after the tables
+        # already existed (create_all cannot ALTER existing tables).
+        for table, col, ddl in [
+            ("hr_candidates", "waiting_since", "VARCHAR(32)"),
+            ("hr_candidates", "waiting_reason", "VARCHAR(256)"),
+            ("hr_candidates", "removed_reason", "TEXT"),
+            ("hr_employees", "user_id", "INTEGER"),
+            ("hr_job_openings", "jd_template_subject", "VARCHAR(256)"),
+        ]:
+            cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if cols and col not in cols:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
         conn.commit()
     with session_scope() as db:
         tenant = _ensure_tenant(db)

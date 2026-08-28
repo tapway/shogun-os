@@ -2,7 +2,8 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, ExternalLink, Briefcase } from "lucide-react";
 import { hrApi } from "../../../lib/api";
-import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
+import type { HrCandidate, HrDashboardStats, HrJobOpening, HrInterview } from "../../../lib/types";
+import { CandidateWorkflowModal } from "./CandidateWorkflowModal";
 
 interface Props {
   stats: HrDashboardStats;
@@ -16,7 +17,9 @@ const STATUS_ORDER = [
   "Screening - Pending",
   "HR Review",
   "Hiring Manager Pending Review",
+  "Schedule 1st Round of Interview",
   "1st round of interview",
+  "Schedule Manager Interview",
   "Manager Interview",
   "Assessment DONE",
   "Offer Sent",
@@ -43,7 +46,9 @@ const STATUS_CHIP: Record<string, string> = {
   "Screening - Pending": "muted",
   "HR Review": "warn",
   "Hiring Manager Pending Review": "warn",
+  "Schedule 1st Round of Interview": "warn",
   "1st round of interview": "warn",
+  "Schedule Manager Interview": "warn",
   "Manager Interview": "warn",
   "Assessment DONE": "ok",
   "Offer Sent": "ok",
@@ -66,6 +71,13 @@ function canonicalStatus(raw: string | undefined): string {
   const trimmed = (raw || "").trim();
   if (!trimmed) return NO_STATUS;
   return STATUS_ALIASES[trimmed] || trimmed;
+}
+
+function daysWaiting(since: string | undefined): number {
+  if (!since) return 0;
+  const d = new Date(since);
+  if (isNaN(d.getTime())) return 0;
+  return Math.max(0, Math.floor((Date.now() - d.getTime()) / 86400000));
 }
 
 // Generic words stripped before fuzzy job-title matching.
@@ -140,6 +152,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [stageFilter, setStageFilter] = useState("");
   const [trackerFilter, setTrackerFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
+  const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   // Local stage overrides applied immediately on drop (optimistic) until the
@@ -246,6 +259,19 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
   const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
 
+  // Waiting candidates (visible in pipelines), oldest first
+  const waitingList = useMemo(() => {
+    return applyMoves(globallyFiltered)
+      .filter((c) => c.waiting_since)
+      .sort((a, b) => (a.waiting_since || "").localeCompare(b.waiting_since || ""));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globallyFiltered, moves]);
+
+  const interviews = useMemo(
+    () => (stats.interviews || []).slice().sort((a, b) => (a.scheduled_at || "").localeCompare(b.scheduled_at || "")),
+    [stats.interviews],
+  );
+
   const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [] }));
   const otherCandidates = bySection[OTHER_KEY] || [];
 
@@ -306,14 +332,130 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         />
       </div>
 
+      {/* View toggle: pipeline vs interview schedule */}
+      <div style={{ display: "flex", gap: "0.5rem" }}>
+        {([
+          { id: "pipeline", label: "Pipeline Board" },
+          { id: "schedule", label: `Interview Schedule (${interviews.filter((i) => i.status === "scheduled").length})` },
+        ] as const).map((v) => (
+          <button
+            key={v.id}
+            type="button"
+            onClick={() => setView(v.id)}
+            style={{
+              padding: "0.45rem 0.9rem",
+              borderRadius: "0.5rem",
+              border: `1px solid ${view === v.id ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+              background: view === v.id ? "var(--samurai-surface-2)" : "var(--samurai-surface)",
+              color: view === v.id ? "var(--samurai-lime)" : "var(--samurai-text)",
+              fontSize: "0.85rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            {v.label}
+          </button>
+        ))}
+      </div>
+
       {moveError && (
         <div style={{ padding: "0.5rem 0.75rem", borderRadius: "0.5rem", border: "1px solid var(--samurai-danger)", color: "var(--samurai-danger)", fontSize: "0.8rem" }}>
           {moveError}
         </div>
       )}
 
+      {view === "schedule" && (
+        <div className="sd-chart-card">
+          <h3 className="sd-chart-title" style={{ marginBottom: "0.75rem" }}>Interview Schedule</h3>
+          {interviews.length === 0 ? (
+            <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
+              No interviews scheduled yet — confirm a date/time from a Schedule stage card.
+            </p>
+          ) : (
+            <div style={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: "2px solid var(--samurai-border)" }}>
+                    {["When", "Candidate", "Role", "Round", "Interviewer", "Location", "Status", ""].map((h) => (
+                      <th key={h} style={{ textAlign: "left", padding: "0.5rem 0.75rem", color: "var(--samurai-muted)", fontWeight: 600, fontSize: "0.72rem", textTransform: "uppercase" }}>{h}</th>
+                    ))}
+                  </tr>
+                </thead>
+                <tbody>
+                  {interviews.map((iv) => {
+                    const cand = candidates.find((c) => c.id === iv.candidate_id);
+                    const upcoming = iv.status === "scheduled";
+                    return (
+                      <tr key={iv.id} style={{ borderBottom: "1px solid var(--samurai-border)" }}>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-text)", fontWeight: 600 }}>
+                          {new Date(iv.scheduled_at).toLocaleString("en-MY", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                        </td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-text)" }}>{cand?.name || `#${iv.candidate_id}`}</td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-muted)" }}>{cand?.role || "—"}</td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-text)" }}>{iv.round === "manager" ? "Manager" : "1st Round"}</td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-text)" }}>{iv.interviewer_name || "—"}</td>
+                        <td style={{ padding: "0.5rem 0.75rem", color: "var(--samurai-muted)" }}>{iv.location || "—"}</td>
+                        <td style={{ padding: "0.5rem 0.75rem" }}>
+                          <span className={`sd-chip ${upcoming ? "warn" : iv.status === "completed" ? "ok" : "muted"}`}>{iv.status}</span>
+                        </td>
+                        <td style={{ padding: "0.5rem 0.75rem" }}>
+                          {upcoming && (
+                            <button
+                              type="button"
+                              onClick={() => hrApi.interviewStatus(department, iv.id, "completed").then(() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] }))}
+                              style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--samurai-lime)", background: "transparent", border: "1px solid var(--samurai-lime)", borderRadius: "0.4rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
+                            >
+                              Mark completed
+                            </button>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Waiting panel */}
+      {view === "pipeline" && waitingList.length > 0 && (
+        <div className="sd-chart-card" style={{ borderColor: "var(--samurai-warning)" }}>
+          <h3 className="sd-chart-title" style={{ marginBottom: "0.5rem" }}>
+            ⏳ Waiting ({waitingList.length}) — awaiting replies / approvals
+          </h3>
+          <div style={{ display: "flex", flexWrap: "wrap", gap: "0.5rem" }}>
+            {waitingList.map((c) => {
+              const days = daysWaiting(c.waiting_since);
+              const stale = days >= 14;
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => setSelected(c)}
+                  style={{
+                    display: "flex", alignItems: "center", gap: "0.5rem",
+                    padding: "0.4rem 0.7rem", borderRadius: "0.5rem",
+                    border: `1px solid ${stale ? "var(--samurai-danger)" : "var(--samurai-border)"}`,
+                    background: "var(--samurai-surface-2)", cursor: "pointer",
+                  }}
+                >
+                  <span style={{ fontWeight: 600, fontSize: "0.8rem", color: "var(--samurai-text)" }}>{c.name}</span>
+                  <span style={{ fontSize: "0.72rem", color: stale ? "var(--samurai-danger)" : "var(--samurai-warning)", fontWeight: 600 }}>
+                    {days}d{c.waiting_reason ? ` · ${c.waiting_reason}` : ""}
+                  </span>
+                </div>
+              );
+            })}
+          </div>
+          <p style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", margin: "0.5rem 0 0" }}>
+            Waiting ≥ 14 days shows red — open the card and use Remove (soft-reject, kept for audit) if there is no reply.
+          </p>
+        </div>
+      )}
+
       {/* One pipeline per recruitment process */}
-      {sections.map((section) => {
+      {view === "pipeline" && sections.map((section) => {
         return (
           <div key={section.key} className="sd-chart-card">
             <SectionHeader label={section.label} count={section.candidates.length} />
@@ -336,7 +478,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         );
       })}
 
-      {otherCandidates.length > 0 && (
+      {view === "pipeline" && otherCandidates.length > 0 && (
         <div className="sd-chart-card">
           <SectionHeader label="Other / Unassigned Positions" count={otherCandidates.length} />
           <KanbanBoard
@@ -351,7 +493,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         </div>
       )}
 
-      {globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
+      {view === "pipeline" && globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
         <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
           No candidates match the current filters.
           <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
@@ -361,67 +503,15 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         </div>
       )}
 
-      {/* Candidate Detail Modal */}
+      {/* Candidate Workflow Modal */}
       {selected && (
-        <div
-          onClick={() => setSelected(null)}
-          style={{
-            position: "fixed",
-            inset: 0,
-            background: "rgba(0,0,0,0.6)",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            zIndex: 1000,
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              background: "var(--samurai-surface)",
-              borderRadius: "0.75rem",
-              border: "1px solid var(--samurai-border)",
-              padding: "1.5rem",
-              maxWidth: "500px",
-              width: "90%",
-            }}
-          >
-            <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "1rem" }}>
-              <h3 style={{ margin: 0, color: "var(--samurai-text)" }}>{selected.name}</h3>
-              <button
-                onClick={() => setSelected(null)}
-                style={{
-                  background: "none",
-                  border: "none",
-                  color: "var(--samurai-muted)",
-                  cursor: "pointer",
-                  fontSize: "1.2rem",
-                }}
-              >
-                ×
-              </button>
-            </div>
-            <div style={{ display: "grid", gap: "0.5rem", fontSize: "0.85rem" }}>
-              <Row label="Role" value={selected.role} />
-              <Row label="Stage" value={canonicalStatus(selected.status)} />
-              <Row label="Tracker" value={selected.candidate_type} />
-              <Row label="Source" value={selected.source} />
-              <Row label="Email" value={selected.email} />
-              <Row label="Phone" value={selected.phone_no} />
-              <Row label="Date Entry" value={selected.date_entry} />
-              {selected.resume_url && (
-                <a href={selected.resume_url} target="_blank" rel="noreferrer" style={{ color: "var(--samurai-lime)", textDecoration: "none" }}>
-                  View Resume →
-                </a>
-              )}
-              {selected.screening_answers_url && (
-                <a href={selected.screening_answers_url} target="_blank" rel="noreferrer" style={{ color: "var(--samurai-lime)", textDecoration: "none" }}>
-                  Screening Answers →
-                </a>
-              )}
-            </div>
-          </div>
-        </div>
+        <CandidateWorkflowModal
+          candidate={selected}
+          stats={stats}
+          department={department}
+          onClose={() => setSelected(null)}
+          onCandidateChanged={() => setSelected(null)}
+        />
       )}
     </div>
   );
@@ -599,6 +689,11 @@ function KanbanBoard({
                     {c.in_pipeline && (
                       <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--samurai-lime)", border: "1px solid var(--samurai-lime)", padding: "0.05rem 0.35rem", borderRadius: "0.3rem" }}>
                         ✓ Pipeline
+                      </span>
+                    )}
+                    {c.waiting_since && (
+                      <span style={{ fontSize: "0.65rem", fontWeight: 700, color: daysWaiting(c.waiting_since) >= 14 ? "var(--samurai-danger)" : "var(--samurai-warning)", border: `1px solid ${daysWaiting(c.waiting_since) >= 14 ? "var(--samurai-danger)" : "var(--samurai-warning)"}`, padding: "0.05rem 0.35rem", borderRadius: "0.3rem" }}>
+                        ⏳ {daysWaiting(c.waiting_since)}d
                       </span>
                     )}
                   </div>
