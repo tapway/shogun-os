@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink, FileText, Search, Upload, UserPlus, Users, X }
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrDashboardStats, HrJobOpening } from "../../../lib/types";
 import { findCandidatesForJob } from "./hrCandidateMatch";
+import { JourneyStepperModal } from "./JourneyStepperModal";
 
 interface Props {
   jobId: number;
@@ -59,6 +60,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
   const [search, setSearch] = useState("");
   const [showAddApplicant, setShowAddApplicant] = useState(false);
   const [showScreeningSetup, setShowScreeningSetup] = useState(false);
+  const [journeyCandidate, setJourneyCandidate] = useState<HrCandidate | null>(null);
   const [selected, setSelected] = useState<number[]>([]);
   const [busy, setBusy] = useState(false);
   const [actionError, setActionError] = useState("");
@@ -435,6 +437,15 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                             📧 Screening Email
                           </button>
                         )}
+                        {["Shortlisted", "Screening - Pending", "Schedule 1st Round of Interview", "1st round of interview", "Schedule Manager Interview", "Manager Interview", "Offer Sent"].includes(c.status || "") && (
+                          <button
+                            type="button"
+                            onClick={() => setJourneyCandidate(c)}
+                            style={{ borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "transparent", color: TEXT, fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.5rem", cursor: "pointer" }}
+                          >
+                            ▶ Journey
+                          </button>
+                        )}
                       </div>
                     </td>
                   </tr>
@@ -458,6 +469,15 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
           job={job}
           department={department}
           onClose={() => setShowScreeningSetup(false)}
+        />
+      )}
+
+      {journeyCandidate && (
+        <JourneyStepperModal
+          candidate={journeyCandidate}
+          stats={stats}
+          department={department}
+          onClose={() => setJourneyCandidate(null)}
         />
       )}
     </div>

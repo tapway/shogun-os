@@ -4,6 +4,7 @@ import { Search, ExternalLink, Briefcase } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrDashboardStats, HrJobOpening, HrInterview } from "../../../lib/types";
 import { CandidateWorkflowModal } from "./CandidateWorkflowModal";
+import { JourneyStepperModal, journeyIndex, journeyLength } from "./JourneyStepperModal";
 
 interface Props {
   stats: HrDashboardStats;
@@ -156,6 +157,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [stageFilter, setStageFilter] = useState("");
   const [trackerFilter, setTrackerFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
+  const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
   const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -507,14 +509,25 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         </div>
       )}
 
-      {/* Candidate Workflow Modal */}
-      {selected && (
-        <CandidateWorkflowModal
+      {/* Journey Stepper — the step-by-step recruitment guide */}
+      {selected && !detailsCandidate && (
+        <JourneyStepperModal
           candidate={selected}
           stats={stats}
           department={department}
           onClose={() => setSelected(null)}
-          onCandidateChanged={() => setSelected(null)}
+          onOpenDetails={(c) => setDetailsCandidate(c)}
+        />
+      )}
+
+      {/* Candidate Workflow Modal (full details) */}
+      {detailsCandidate && (
+        <CandidateWorkflowModal
+          candidate={detailsCandidate}
+          stats={stats}
+          department={department}
+          onClose={() => setDetailsCandidate(null)}
+          onCandidateChanged={() => setDetailsCandidate(null)}
         />
       )}
     </div>
@@ -723,6 +736,18 @@ function KanbanBoard({
                       {c.candidate_type}
                     </span>
                   )}
+                  {(() => {
+                    const idx = journeyIndex(c.status);
+                    if (idx < 0 || c.status === "Hired") return null;
+                    return (
+                      <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem" }}>
+                        <div style={{ height: "0.3rem", flex: 1, borderRadius: 999, overflow: "hidden", background: "var(--samurai-surface)" }}>
+                          <div style={{ height: "100%", width: `${((idx + 1) / journeyLength) * 100}%`, background: "var(--samurai-lime)", borderRadius: 999 }} />
+                        </div>
+                        <span style={{ fontSize: "0.65rem", fontWeight: 700, color: "var(--samurai-muted)" }}>{idx + 1}/{journeyLength}</span>
+                      </div>
+                    );
+                  })()}
                   {c.source && (
                     <div style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", marginTop: "0.25rem" }}>
                       Source: {c.source}
