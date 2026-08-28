@@ -21,7 +21,17 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
       .map(([name, count]) => ({ name, value: count }));
   }, [stats.dept_counts]);
 
-  // Pipeline funnel data
+  // Pipeline funnel data — axis labels shortened to avoid overlap.
+  const FUNNEL_SHORT: Record<string, string> = {
+    "Screening - Pending": "Screening",
+    "HR Review": "HR Review",
+    "Hiring Manager Pending Review": "Hiring Mgr Review",
+    "1st round of interview": "1st Interview",
+    "Manager Interview": "Mgr Interview",
+    "Assessment DONE": "Assessment",
+    "Offer Sent": "Offer Sent",
+    "Hired": "Hired",
+  };
   const funnelData = useMemo(() => {
     const ordered = [
       "Screening - Pending",
@@ -35,7 +45,7 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
     ];
     return ordered
       .filter((s) => stats.pipeline_counts?.[s])
-      .map((name) => ({ name, value: stats.pipeline_counts[name] }));
+      .map((name) => ({ name: FUNNEL_SHORT[name] || name, value: stats.pipeline_counts[name] }));
   }, [stats.pipeline_counts]);
 
   const KPIs = [
@@ -124,12 +134,12 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Headcount by Department</h3>
           <p className="sd-chart-sub">Distribution across {deptData.length} departments</p>
-          {deptData.length > 0 && <BarChart data={deptData} xKey="name" yKey="value" color={TEXT} />}
+          {deptData.length > 0 && <BarChart data={deptData} xKey="name" yKey="value" color={TEXT} xAngle={-25} />}
         </div>
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Recruitment Pipeline Funnel</h3>
           <p className="sd-chart-sub">{stats.total_candidates} total candidates</p>
-          {funnelData.length > 0 && <BarChart data={funnelData} xKey="name" yKey="value" color="var(--samurai-lime)" />}
+          {funnelData.length > 0 && <BarChart data={funnelData} xKey="name" yKey="value" color="var(--samurai-lime)" xAngle={-25} />}
         </div>
       </div>
 

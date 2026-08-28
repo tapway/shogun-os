@@ -139,7 +139,6 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [jobTitleFilter, setJobTitleFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
   const [trackerFilter, setTrackerFilter] = useState("");
-  const [pipelineOnly, setPipelineOnly] = useState(false);
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
@@ -185,10 +184,13 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     return Array.from(s).sort();
   }, [jobOpenings]);
 
-  // Tracker types (fulltime / internship / freelancer / virtual_bench)
+  // Tracker types (fulltime / internship / freelancer) — virtual_bench is a
+  // holding bucket, not a recruitment tracker, so it is not offered as a filter.
   const trackers = useMemo(() => {
     const s = new Set<string>();
-    candidates.forEach((c) => c.candidate_type && s.add(c.candidate_type));
+    candidates.forEach((c) => {
+      if (c.candidate_type && c.candidate_type !== "virtual_bench") s.add(c.candidate_type);
+    });
     return Array.from(s).sort();
   }, [candidates]);
 
@@ -210,7 +212,6 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const globallyFiltered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
-      if (pipelineOnly && !c.in_pipeline) return false;
       if (!c.in_pipeline && !isInActiveRecruitment(c, jobOpenings)) return false;
       if (trackerFilter && c.candidate_type !== trackerFilter) return false;
       if (stageFilter && canonicalStatus(c.status) !== stageFilter) return false;
@@ -223,7 +224,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, pipelineOnly, jobOpenings]);
+  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, jobOpenings]);
 
   // Bucket candidates into the three position-based pipelines (with local
   // drag overrides applied).
@@ -303,22 +304,6 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
           options={trackers}
           capitalize
         />
-        <button
-          type="button"
-          onClick={() => setPipelineOnly((v) => !v)}
-          style={{
-            padding: "0.5rem 0.85rem",
-            borderRadius: "0.5rem",
-            border: `1px solid ${pipelineOnly ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
-            background: pipelineOnly ? "var(--samurai-surface-2)" : "var(--samurai-surface)",
-            color: pipelineOnly ? "var(--samurai-lime)" : "var(--samurai-text)",
-            fontSize: "0.85rem",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          ✓ Pipeline Added ({candidates.filter((c) => c.in_pipeline).length})
-        </button>
       </div>
 
       {moveError && (

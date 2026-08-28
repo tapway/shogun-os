@@ -352,7 +352,7 @@ const primaryBtnStyle: React.CSSProperties = {
   borderRadius: "0.5rem",
   border: "none",
   background: LIME,
-  color: "#ffffff",
+  color: "#0a0a0a",
   fontSize: "0.82rem",
   fontWeight: 600,
   cursor: "pointer",
