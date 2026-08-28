@@ -266,16 +266,7 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
       key={id}
       type="button"
       onClick={() => setSubTab(id)}
-      style={{
-        padding: "0.3rem 0.8rem",
-        borderRadius: "0.45rem",
-        border: subTab === id ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
-        background: subTab === id ? `color-mix(in srgb, ${LIME} 10%, transparent)` : "transparent",
-        color: subTab === id ? TEXT : MUTED,
-        fontSize: "0.78rem",
-        fontWeight: subTab === id ? 700 : 500,
-        cursor: "pointer",
-      }}
+      className={`sd-subnav-pill${subTab === id ? " active" : ""}`}
     >
       {label}
     </button>
@@ -283,8 +274,8 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
 
   return (
     <div className="sd-stack">
-      {/* Inner sub-tabs: Status vs Checklist */}
-      <div style={{ display: "flex", gap: "0.4rem", marginTop: "-0.4rem" }}>
+      {/* Inner sub-tabs: Status vs Checklist (shared pill-group design) */}
+      <div className="sd-subnav-pill-group">
         {subTabBtn("status", "Status")}
         {subTabBtn("checklist", `Checklist (${checklistItems.length} items)`)}
       </div>
