@@ -19,7 +19,7 @@ portal-owned data simply stays.
 
 | # | Decision |
 |---|----------|
-| 1 | Email/SMTP features: **deferred** — not building now (Phase 2) |
+| 1 | Email: **mailto compose** — portal prepares To/Subject/Body from template, click opens the user's default email client (Gmail/Outlook), HR clicks Send. **No SMTP needed, zero config.** Portal logs a `draft_opened` event (cannot confirm Send was clicked) |
 | 2 | Screening questions: **one tenant-wide standard PDF** uploaded once by HR, attached to all screening emails |
 | 3 | No portal-wins sync protection — Notion will be removed; keep sync as-is until then |
 | 4 | Remove candidate = **soft reject** (`Rejected`, reason "No response"), record preserved for audit |
@@ -110,12 +110,16 @@ check extended to `hr_candidate_files`).
 - Candidate detail timeline (events render)
 - Soft-reject Remove action + waiting-state fields + Waiting panel
 - `hr_employees.user_id` column + auto-link by email (groundwork only)
+- **Email compose (mailto, zero config)**: template store for HR (screening
+  questions, interview schedule ×2, offer), placeholder fill, "Open in email
+  app" button per stage, `draft_opened` event logged
 
-### Phase 2 — Email (only after user provides HR SMTP config)
-- SMTP config gate UI for HR department
-- 4 templates: screening questions (attach standard PDF), interview schedule ×2,
-  offer letter
-- Candidate file table kind=email-attachment; send log per candidate
+### Phase 2 — Email polish (optional, only if SMTP is ever provided)
+- Fully automated send from the portal (no user email client) — requires HR
+  SMTP credentials; otherwise mailto compose covers everything
+- Attachments via SMTP when available; until then standard PDFs are embedded
+  as Drive links in the email body (Drive "anyone with link" view) with a
+  Download button in the compose modal as manual-attach fallback
 
 ### Phase 3 — Reminders + hardening
 - In-app reminder banner + Send Reminder buttons
