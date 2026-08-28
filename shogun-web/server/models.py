@@ -1503,6 +1503,12 @@ class HrEquipment(Base):
     return_due_date: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     loan_document_path: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    item_number: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    amount: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    image_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    signature_doc_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    returned: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    return_date: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -1519,6 +1525,10 @@ class HrEquipment(Base):
 
 
     def is_overdue(self) -> bool:
+
+        if self.returned:
+
+            return False
 
         if not self.return_due_date:
 
@@ -1557,13 +1567,47 @@ class HrEquipment(Base):
             "return_due_date": self.return_due_date,
 
             "loan_document_path": self.loan_document_path,
-
+            "item_number": self.item_number,
+            "amount": self.amount,
+            "image_url": self.image_url,
+            "signature_doc_url": self.signature_doc_url,
+            "returned": self.returned,
+            "return_date": self.return_date,
             "is_overdue": self.is_overdue(),
 
         }
 
 
 
+
+
+class HrEquipmentLog(Base):
+
+    """Per-equipment activity log (created, edited, returned, etc.)."""
+
+    __tablename__ = "hr_equipment_logs"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    equipment_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("hr_equipment.id"), nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(String(32), nullable=False, default="note")
+    actor: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    detail: Mapped[Optional[str]] = mapped_column(String(2048), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "equipment_id": self.equipment_id,
+            "event_type": self.event_type,
+            "actor": self.actor,
+            "detail": self.detail,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+        }
 
 
 class HrTraining(Base):

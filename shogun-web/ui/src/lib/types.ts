@@ -1737,7 +1737,22 @@ export interface HrEquipment {
   purchase_date: string;
   return_due_date: string;
   loan_document_path: string;
+  item_number?: string | null;
+  amount?: number | null;
+  image_url?: string | null;
+  signature_doc_url?: string | null;
+  returned?: boolean;
+  return_date?: string | null;
   is_overdue?: boolean;
+}
+
+export interface HrEquipmentLog {
+  id: number;
+  equipment_id: number;
+  event_type: string;
+  actor: string;
+  detail?: string | null;
+  created_at?: string | null;
 }
 
 export interface HrTraining {
@@ -1829,5 +1844,6 @@ export interface HrDashboardStats {
   candidate_files: HrCandidateFile[];
   candidate_events: HrCandidateEvent[];
   interviews: HrInterview[];
+  equipment_logs?: HrEquipmentLog[];
   source?: string;
 }

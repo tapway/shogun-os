@@ -38,6 +38,7 @@ import type {
   HrCandidateExtract,
   HrCandidateFile,
   HrDashboardStats,
+  HrEquipment,
   HrInterview,
   HrJobOpening,
   HrResumeExtract,
@@ -922,5 +923,29 @@ export const hrApi = {
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/remove`,
       { method: 'POST', body: JSON.stringify({ note }) },
+    ),
+  equipmentCreate: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment`,
+      { method: 'POST', body: form, headers: {} },
+    ),
+  equipmentUpdate: (dept: string, id: number, payload: Record<string, string | null>) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  equipmentFileUpload: (dept: string, id: number, file: File, kind: 'image' | 'signature_doc') => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('kind', kind);
+    return apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}/file`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  equipmentReturn: (dept: string, id: number, payload: { return_date?: string; condition?: string; note?: string }) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}/return`,
+      { method: 'POST', body: JSON.stringify(payload) },
     ),
 };

@@ -3558,8 +3558,9 @@ async def get_hr_stats(
     trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
     trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
     meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
-    from models import HrCandidateEvent, HrCandidateFile, HrInterview
+    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview
     candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
+    equipment_logs = db.execute(select(HrEquipmentLog).where(HrEquipmentLog.tenant_id == tenant.id).order_by(HrEquipmentLog.id.desc())).scalars().all()
     candidate_events = db.execute(select(HrCandidateEvent).where(HrCandidateEvent.tenant_id == tenant.id).order_by(HrCandidateEvent.id.desc())).scalars().all()
     interviews = db.execute(select(HrInterview).where(HrInterview.tenant_id == tenant.id)).scalars().all()
     action_items = db.execute(select(HrMeetingActionItem).where(HrMeetingActionItem.tenant_id == tenant.id)).scalars().all()
@@ -3613,6 +3614,7 @@ async def get_hr_stats(
         "candidate_files": [f.to_dict() for f in candidate_files],
         "candidate_events": [e.to_dict() for e in candidate_events],
         "interviews": [i.to_dict() for i in interviews],
+        "equipment_logs": [l.to_dict() for l in equipment_logs],
         "source": "notion_sync",
     }
 
@@ -4485,3 +4487,275 @@ async def remove_hr_candidate(
     except Exception:
         pass
     return {"ok": True, "candidate": cand.to_dict()}
+
+
+_ALLOWED_EQ_IMG_EXTS = {"png", "jpg", "jpeg", "webp"}
+_ALLOWED_EQ_DOC_EXTS = {"pdf", "doc", "docx", "txt", "png", "jpg", "jpeg", "webp"}
+
+
+def _equipment_log(db, tenant_id: int, equipment_id: int, event_type: str,
+                   actor: str, detail: Optional[str] = None) -> None:
+    """Append an activity log entry for a single piece of equipment."""
+    from models import HrEquipmentLog
+    db.add(HrEquipmentLog(
+        tenant_id=tenant_id,
+        equipment_id=equipment_id,
+        event_type=event_type,
+        actor=(actor or "HR")[:256],
+        detail=(detail or None) and detail[:2048],
+    ))
+
+
+async def _save_equipment_upload(file: UploadFile, allowed: set, kind: str) -> str:
+    """Persist an equipment image/document upload; return its served URL."""
+    import uuid as _uuid
+    safe_name = pathlib.Path(file.filename or kind).name
+    ext = pathlib.Path(safe_name).suffix.lower().lstrip(".")
+    if ext not in allowed:
+        raise HTTPException(status_code=422, detail=f"Unsupported {kind} file type (.{ext})")
+    content = await file.read()
+    if len(content) > 10 * 1024 * 1024:
+        raise HTTPException(status_code=422, detail=f"{kind} file too large (max 10 MB)")
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+    (upload_dir / unique_name).write_bytes(content)
+    return f"/api/doc-uploads/{unique_name}"
+
+
+def _parse_amount(raw: str) -> Optional[float]:
+    raw = (raw or "").strip().replace(",", "").replace("RM", "").replace("rm", "")
+    if not raw:
+        return None
+    try:
+        return float(raw)
+    except ValueError:
+        raise HTTPException(status_code=422, detail="Amount must be a number")
+
+
+@router.post("/hr/equipment")
+async def create_hr_equipment(
+    name: str = Path(...),
+    image: UploadFile = File(None),
+    signature_doc: UploadFile = File(None),
+    equipment_name: str = Form(...),
+    item_number: str = Form(""),
+    category: str = Form(""),
+    condition: str = Form(""),
+    assigned_to: str = Form(""),
+    amount: str = Form(""),
+    purchase_date: str = Form(""),
+    return_due_date: str = Form(""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Add equipment from the portal (logged to hr_equipment_logs)."""
+    import uuid as _uuid
+    from models import HrEquipment
+
+    eq_name = (equipment_name or "").strip()
+    if not eq_name:
+        raise HTTPException(status_code=422, detail="Equipment name is required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    image_url = await _save_equipment_upload(image, _ALLOWED_EQ_IMG_EXTS, "image") if image is not None and image.filename else None
+    signature_doc_url = await _save_equipment_upload(signature_doc, _ALLOWED_EQ_DOC_EXTS, "signature doc") if signature_doc is not None and signature_doc.filename else None
+
+    eq = HrEquipment(
+        tenant_id=tenant.id,
+        notion_page_id=f"local-{_uuid.uuid4().hex}",
+        equipment_name=eq_name,
+        item_number=item_number.strip() or None,
+        category=category.strip(),
+        condition=condition.strip() or None,
+        assigned_to=assigned_to.strip() or None,
+        amount=_parse_amount(amount),
+        purchase_date=purchase_date.strip() or None,
+        return_due_date=return_due_date.strip() or None,
+        image_url=image_url,
+        signature_doc_url=signature_doc_url,
+        returned=False,
+    )
+    db.add(eq)
+    db.flush()
+    _equipment_log(db, tenant.id, eq.id, "created",
+                   user.name if user else "HR",
+                   f"Equipment added: {eq_name}")
+    db.commit()
+    db.refresh(eq)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.equipment.create", "equipment",
+                         str(eq.id), detail={"equipment_name": eq.equipment_name})
+    except Exception:
+        pass
+    return {"ok": True, "equipment": eq.to_dict()}
+
+
+class HrEquipmentEditBody(BaseModel):
+    equipment_name: Optional[str] = None
+    item_number: Optional[str] = None
+    category: Optional[str] = None
+    condition: Optional[str] = None
+    assigned_to: Optional[str] = None
+    amount: Optional[str] = None
+    purchase_date: Optional[str] = None
+    return_due_date: Optional[str] = None
+    image_url: Optional[str] = None
+    signature_doc_url: Optional[str] = None
+
+
+@router.put("/hr/equipment/{equipment_id}")
+async def update_hr_equipment(
+    equipment_id: int,
+    body: HrEquipmentEditBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Edit equipment fields; each change is logged."""
+    from models import HrEquipment
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    eq = db.get(HrEquipment, equipment_id)
+    if eq is None or eq.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    changes: List[str] = []
+    simple_fields = {
+        "equipment_name": "Equipment name",
+        "item_number": "Item number",
+        "category": "Category",
+        "condition": "Condition",
+        "assigned_to": "Assigned to",
+        "purchase_date": "Purchase date",
+        "return_due_date": "Return due date",
+        "image_url": "Image",
+        "signature_doc_url": "Signature doc",
+    }
+    for field, label in simple_fields.items():
+        val = getattr(body, field)
+        if val is None:
+            continue
+        val = val.strip()
+        old = getattr(eq, field)
+        new = val or None
+        if old != new:
+            setattr(eq, field, new)
+            changes.append(label)
+    if body.amount is not None:
+        new_amount = _parse_amount(body.amount)
+        if (eq.amount or None) != new_amount:
+            eq.amount = new_amount
+            changes.append("Amount")
+    if not (eq.equipment_name or "").strip():
+        raise HTTPException(status_code=422, detail="Equipment name cannot be empty")
+
+    if changes:
+        _equipment_log(db, tenant.id, eq.id, "edited",
+                       user.name if user else "HR",
+                       "Updated: " + ", ".join(changes))
+    db.commit()
+    db.refresh(eq)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.equipment.update", "equipment",
+                         str(eq.id), detail={"changes": changes})
+    except Exception:
+        pass
+    return {"ok": True, "equipment": eq.to_dict()}
+
+
+class HrEquipmentReturnBody(BaseModel):
+    return_date: Optional[str] = None
+    condition: Optional[str] = None
+    note: Optional[str] = None
+
+
+@router.post("/hr/equipment/{equipment_id}/return")
+async def return_hr_equipment(
+    equipment_id: int,
+    body: HrEquipmentReturnBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark equipment as returned; logged with date + condition."""
+    from models import HrEquipment
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    eq = db.get(HrEquipment, equipment_id)
+    if eq is None or eq.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+    if eq.returned:
+        raise HTTPException(status_code=422, detail="Equipment already returned")
+
+    eq.returned = True
+    eq.return_date = (body.return_date or "").strip() or datetime.utcnow().strftime("%Y-%m-%d")
+    if (body.condition or "").strip():
+        eq.condition = body.condition.strip()
+    detail = f"Returned on {eq.return_date}"
+    if eq.assigned_to:
+        detail += f" (was assigned to {eq.assigned_to})"
+    if (body.note or "").strip():
+        detail += f" — {body.note.strip()}"
+    _equipment_log(db, tenant.id, eq.id, "returned",
+                   user.name if user else "HR", detail)
+    db.commit()
+    db.refresh(eq)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.equipment.return", "equipment",
+                         str(eq.id), detail={"return_date": eq.return_date})
+    except Exception:
+        pass
+    return {"ok": True, "equipment": eq.to_dict()}
+
+
+@router.post("/hr/equipment/{equipment_id}/file")
+async def upload_hr_equipment_file(
+    equipment_id: int,
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    kind: str = Form("image"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Attach/replace an image or signature doc on existing equipment (logged)."""
+    from models import HrEquipment
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    eq = db.get(HrEquipment, equipment_id)
+    if eq is None or eq.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Equipment not found")
+
+    if kind == "image":
+        url = await _save_equipment_upload(file, _ALLOWED_EQ_IMG_EXTS, "image")
+        eq.image_url = url
+        label = "Image"
+    elif kind == "signature_doc":
+        url = await _save_equipment_upload(file, _ALLOWED_EQ_DOC_EXTS, "signature doc")
+        eq.signature_doc_url = url
+        label = "Signature doc"
+    else:
+        raise HTTPException(status_code=422, detail="kind must be 'image' or 'signature_doc'")
+
+    _equipment_log(db, tenant.id, eq.id, "edited",
+                   user.name if user else "HR", f"Updated: {label}")
+    db.commit()
+    db.refresh(eq)
+    return {"ok": True, "equipment": eq.to_dict()}
+
