@@ -144,6 +144,11 @@ export function EmailTemplatesManager({ department, isAdmin }: EmailTemplatesMan
                   <option value="dunning_final">Final Demand</option>
                   <option value="payment_receipt">Payment Confirmation</option>
                   <option value="onboarding">Onboarding</option>
+                  <option value="recruitment_screening">Recruitment — Screening Questions</option>
+                  <option value="recruitment_interview">Recruitment — Interview Scheduling</option>
+                  <option value="recruitment_feedback">Recruitment — Interview Feedback</option>
+                  <option value="recruitment_offer">Recruitment — Job Offer</option>
+                  <option value="recruitment_rejection">Recruitment — Not Proceeding</option>
                   <option value="general">General</option>
                 </select>
               </div>
