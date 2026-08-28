@@ -338,6 +338,11 @@ def init_db() -> None:
             ("hr_equipment", "returned", "BOOLEAN NOT NULL DEFAULT 0"),
             ("hr_equipment", "return_date", "VARCHAR(32)"),
             ("hr_training", "approval_doc_url", "VARCHAR(1024)"),
+            ("hr_job_openings", "screening_form_link", "VARCHAR(1024)"),
+            ("hr_job_openings", "screening_email_subject", "VARCHAR(256)"),
+            ("hr_job_openings", "screening_email_body", "TEXT"),
+            ("hr_job_openings", "closed_at", "VARCHAR(32)"),
+            ("hr_candidates", "job_opening_id", "INTEGER"),
         ]:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:

@@ -922,6 +922,26 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/waiting`,
       { method: 'POST', body: JSON.stringify({ note }) },
     ),
+  jobScreeningSetup: (dept: string, jobId: number, payload: { screening_form_link?: string; screening_email_subject?: string; screening_email_body?: string }) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/screening`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  jobClose: (dept: string, jobId: number, payload: { reason?: string; remaining_action?: string }) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening; rejected_candidates: number }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/close`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  candidateBulkAction: (dept: string, jobId: number, payload: { candidate_ids: number[]; action: 'shortlist' | 'reject'; reason?: string }) =>
+    apiFetch<{ ok: boolean; updated: number }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/candidates/bulk`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  candidateAttachJob: (dept: string, candidateId: number, jobId: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${candidateId}/attach-job`,
+      { method: 'POST', body: JSON.stringify({ job_id: jobId }) },
+    ),
   candidateRemove: (dept: string, id: number, note: string) =>
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/remove`,

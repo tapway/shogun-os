@@ -1614,8 +1614,12 @@ export interface HrJobOpening {
   hiring_manager: string;
   application_start: string;
   job_description: string;
-  jd_link: string;
-  jd_file_url: string;
+  jd_link?: string | null;
+  jd_file_url?: string | null;
+  screening_form_link?: string | null;
+  screening_email_subject?: string | null;
+  screening_email_body?: string | null;
+  closed_at?: string | null;
   deadline?: string;
   days_left?: number;
   overdue?: string;
@@ -1643,6 +1647,7 @@ export interface HrCandidate {
   manager_reviewed?: boolean;
   manager_reviewed_at: string;
   in_pipeline?: boolean;
+  job_opening_id?: number | null;
   waiting_since: string;
   waiting_reason: string;
   removed_reason: string;

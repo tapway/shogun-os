@@ -4151,10 +4151,11 @@ async def add_hr_applicant(
         email=email.strip() or None,
         phone_no=phone_no.strip() or None,
         role=job.job_title,
-        status="Screening - Pending",
+        status="Resume Received",
         source="Portal",
         candidate_type=ctype,
         date_entry=now,
+        job_opening_id=job.id,
     )
     db.add(cand)
     db.flush()
@@ -4183,8 +4184,8 @@ async def add_hr_applicant(
             uploaded_by_name=user.name if user else None, uploaded_at=now,
         ))
 
-    _hr_event(db, tenant.id, cand.id, "stage_move", note="Applicant added",
-              to_status="Screening - Pending", user=user)
+    _hr_event(db, tenant.id, cand.id, "stage_move", note="Applicant added (resume received)",
+              to_status="Resume Received", user=user)
     _hr_event(db, tenant.id, cand.id, "upload", note=f"Resume uploaded: {filename or '(none)'}", user=user)
     db.commit()
     db.refresh(cand)
@@ -5180,4 +5181,199 @@ async def upload_hr_training_certificate(
     db.commit()
     db.refresh(participant)
     return {"ok": True, "participant": participant.to_dict()}
+
+
+# ---------------------------------------------------------------------------
+# Recruitment lifecycle — screening setup, shortlist gate, close job
+# ---------------------------------------------------------------------------
+
+class HrJobScreeningBody(BaseModel):
+    screening_form_link: Optional[str] = None
+    screening_email_subject: Optional[str] = None
+    screening_email_body: Optional[str] = None
+
+
+@router.put("/hr/job-openings/{job_id}/screening")
+async def update_job_screening_setup(
+    job_id: int,
+    body: HrJobScreeningBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """HR edits the job's screening setup (Google Form link + email template)."""
+    from models import HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    job = db.get(HrJobOpening, job_id)
+    if job is None or job.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+
+    if body.screening_form_link is not None:
+        job.screening_form_link = body.screening_form_link.strip()[:1024] or None
+    if body.screening_email_subject is not None:
+        job.screening_email_subject = body.screening_email_subject.strip()[:256] or None
+    if body.screening_email_body is not None:
+        job.screening_email_body = body.screening_email_body.strip() or None
+    db.commit()
+    db.refresh(job)
+    return {"ok": True, "job": job.to_dict()}
+
+
+class HrCandidateBulkBody(BaseModel):
+    candidate_ids: List[int]
+    action: str  # "shortlist" | "reject"
+    reason: Optional[str] = None
+
+
+@router.post("/hr/job-openings/{job_id}/candidates/bulk")
+async def bulk_candidate_action(
+    job_id: int,
+    body: HrCandidateBulkBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Bulk shortlist / soft-reject candidates on a job (resume inbox gate).
+
+    Rejected candidates are never deleted — kept with reason for the talent pool.
+    """
+    from models import HrCandidate, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    job = db.get(HrJobOpening, job_id)
+    if job is None or job.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+    if body.action not in ("shortlist", "reject"):
+        raise HTTPException(status_code=422, detail="action must be 'shortlist' or 'reject'")
+    if not body.candidate_ids:
+        raise HTTPException(status_code=422, detail="candidate_ids is required")
+
+    updated = 0
+    for cid in body.candidate_ids:
+        cand = db.get(HrCandidate, cid)
+        if cand is None or cand.tenant_id != tenant.id:
+            continue
+        if body.action == "shortlist":
+            if cand.status in ("Rejected", "Hired"):
+                continue  # terminal states are not shortlistable
+            old = cand.status
+            cand.status = "Shortlisted"
+            cand.removed_reason = None
+            cand.waiting_since = None
+            cand.waiting_reason = None
+            _hr_event(db, tenant.id, cand.id, "stage_move",
+                      note=f"Shortlisted for {job.job_title}",
+                      from_status=old, to_status="Shortlisted", user=user)
+        else:
+            old = cand.status
+            reason = (body.reason or "").strip() or "Not suitable"
+            cand.status = "Rejected"
+            cand.removed_reason = reason[:1000]
+            cand.waiting_since = None
+            cand.waiting_reason = None
+            _hr_event(db, tenant.id, cand.id, "stage_move",
+                      note=f"Rejected: {reason}", from_status=old, to_status="Rejected", user=user)
+        updated += 1
+    db.commit()
+    return {"ok": True, "updated": updated}
+
+
+class HrCloseJobBody(BaseModel):
+    reason: str = "Filled"  # "Filled" | "Cancelled"
+    remaining_action: str = "reject"  # "reject" | "keep"
+
+
+@router.post("/hr/job-openings/{job_id}/close")
+async def close_hr_job_opening(
+    job_id: int,
+    body: HrCloseJobBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Close a job opening. Remaining non-terminal candidates are soft-rejected
+    (kept in the talent pool) unless remaining_action='keep'."""
+    from models import HrCandidate, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    job = db.get(HrJobOpening, job_id)
+    if job is None or job.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+    if (job.job_status or "").startswith("Closed"):
+        raise HTTPException(status_code=422, detail="Job already closed")
+    reason = (body.reason or "Filled").strip() or "Filled"
+
+    job.job_status = f"Closed ({reason})"
+    job.closed_at = datetime.utcnow().strftime("%Y-%m-%d")
+
+    rejected_count = 0
+    if body.remaining_action == "reject":
+        candidates = db.execute(select(HrCandidate).where(
+            HrCandidate.tenant_id == tenant.id,
+            HrCandidate.role == job.job_title,
+        )).scalars().all()
+        close_reason = f"Job closed — position {reason.lower()}"
+        for cand in candidates:
+            if cand.status in ("Rejected", "Hired"):
+                continue
+            old = cand.status
+            cand.status = "Rejected"
+            cand.removed_reason = close_reason
+            cand.waiting_since = None
+            cand.waiting_reason = None
+            _hr_event(db, tenant.id, cand.id, "stage_move",
+                      note=f"Rejected: {close_reason}", from_status=old,
+                      to_status="Rejected", user=user)
+            rejected_count += 1
+    db.commit()
+    db.refresh(job)
+    return {"ok": True, "job": job.to_dict(), "rejected_candidates": rejected_count}
+
+
+class HrAttachCandidateBody(BaseModel):
+    job_id: int
+
+
+@router.post("/hr/candidates/{candidate_id}/attach-job")
+async def attach_candidate_to_job(
+    candidate_id: int,
+    body: HrAttachCandidateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Attach (or re-invite) a talent-pool candidate to a job opening and
+    restart their journey at Resume Received."""
+    from models import HrCandidate, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    cand = db.get(HrCandidate, candidate_id)
+    if cand is None or cand.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+    job = db.get(HrJobOpening, body.job_id)
+    if job is None or job.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+    if (job.job_status or "").startswith("Closed"):
+        raise HTTPException(status_code=422, detail="Cannot attach to a closed job")
+
+    old_status = cand.status
+    cand.job_opening_id = job.id
+    cand.role = job.job_title
+    cand.status = "Resume Received"
+    cand.removed_reason = None
+    _hr_event(db, tenant.id, cand.id, "stage_move",
+              note=f"Attached to job '{job.job_title}' (re-invited from talent pool)",
+              from_status=old_status, to_status="Resume Received", user=user)
+    db.commit()
+    db.refresh(cand)
+    return {"ok": True, "candidate": cand.to_dict()}
 

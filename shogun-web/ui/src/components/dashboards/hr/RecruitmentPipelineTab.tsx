@@ -14,6 +14,8 @@ interface Props {
 // Canonical pipeline stages (ordered) — folds variant spellings across the
 // fulltime / internship / freelancer / virtual-bench trackers into one stage.
 const STATUS_ORDER = [
+  "Resume Received",
+  "Shortlisted",
   "Screening - Pending",
   "HR Review",
   "Hiring Manager Pending Review",
@@ -43,6 +45,8 @@ const STATUS_ALIASES: Record<string, string> = {
 const NO_STATUS = "(No status)";
 
 const STATUS_CHIP: Record<string, string> = {
+  "Resume Received": "muted",
+  "Shortlisted": "ok",
   "Screening - Pending": "muted",
   "HR Review": "warn",
   "Hiring Manager Pending Review": "warn",

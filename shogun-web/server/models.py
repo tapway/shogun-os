@@ -1075,6 +1075,10 @@ class HrJobOpening(Base):
     jd_file_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     jd_template_subject: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    screening_form_link: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    screening_email_subject: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    screening_email_body: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    closed_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -1153,6 +1157,10 @@ class HrJobOpening(Base):
             "jd_link": self.jd_link,
 
             "jd_file_url": self.jd_file_url,
+            "screening_form_link": self.screening_form_link,
+            "screening_email_subject": self.screening_email_subject,
+            "screening_email_body": self.screening_email_body,
+            "closed_at": self.closed_at,
 
             "deadline": self.deadline(),
 
@@ -1225,6 +1233,7 @@ class HrCandidate(Base):
     waiting_reason: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
 
     removed_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    job_opening_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -1285,6 +1294,7 @@ class HrCandidate(Base):
             "manager_reviewed_at": self.manager_reviewed_at,
 
             "in_pipeline": bool(self.in_pipeline),
+            "job_opening_id": self.job_opening_id,
 
             "waiting_since": self.waiting_since,
 

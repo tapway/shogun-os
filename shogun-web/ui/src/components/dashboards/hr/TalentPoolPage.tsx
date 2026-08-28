@@ -45,16 +45,23 @@ function statusChipClass(status: string | null | undefined): "ok" | "warn" | "ba
 function candidateStatusChip(status: string): "ok" | "warn" | "bad" | "muted" {
   const s = (status || "").toLowerCase();
   if (s.includes("hired") || s.includes("offer") || s.includes("accepted")) return "ok";
-  if (s.includes("rejected") || s.includes("no response") || s.includes("no")) return "bad";
+  if (s.includes("shortlisted")) return "ok";
+  if (s.includes("rejected") || s.includes("no response")) return "bad";
+  if (s.includes("resume received")) return "muted";
   if (s.includes("screening") || s.includes("pending") || s.includes("review")) return "muted";
   return "warn";
 }
 
 export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, onBack, onOpenCandidate }: Props) {
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [showAddApplicant, setShowAddApplicant] = useState(false);
+  const [showScreeningSetup, setShowScreeningSetup] = useState(false);
+  const [selected, setSelected] = useState<number[]>([]);
+  const [busy, setBusy] = useState(false);
+  const [actionError, setActionError] = useState("");
 
   const job = (stats.job_openings || []).find((j) => j.id === jobId) ?? fallbackJob;
   const allCandidates = stats.candidates || [];
@@ -91,6 +98,51 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
   }, [candidates, statusFilter, sourceFilter, search]);
 
   const hiredCount = candidates.filter((c) => candidateStatusChip(c.status) === "ok").length;
+
+  const toggleSelect = (id: number) =>
+    setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+  const allSelected = filtered.length > 0 && filtered.every((c) => selected.includes(c.id));
+  const toggleSelectAll = () =>
+    setSelected(allSelected ? [] : filtered.map((c) => c.id));
+
+  const runBulk = async (ids: number[], action: "shortlist" | "reject") => {
+    if (ids.length === 0) return;
+    let reason: string | undefined;
+    if (action === "reject") {
+      reason = window.prompt("Rejection reason (kept in talent pool):", "Not suitable") ?? "";
+    }
+    setBusy(true);
+    setActionError("");
+    try {
+      await hrApi.candidateBulkAction(department, job.id, { candidate_ids: ids, action, reason });
+      setSelected((s) => s.filter((x) => !ids.includes(x)));
+      queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
+    } catch (e) {
+      setActionError(e instanceof Error ? e.message : "Action failed");
+    } finally {
+      setBusy(false);
+    }
+  };
+  const bulkAction = (action: "shortlist" | "reject") => runBulk(selected, action);
+  const shortlistOne = (id: number) => runBulk([id], "shortlist");
+
+  const composeScreeningEmail = (c: HrCandidate) => {
+    const subj = (job.screening_email_subject || "Screening Questions — {job_title}")
+      .replaceAll("{candidate_name}", c.name || "")
+      .replaceAll("{job_title}", job.job_title || "");
+    const formLink = job.screening_form_link || "(screening form link not set — add it in Screening Setup)";
+    const defaultBody =
+      `Dear ${c.name || "Candidate"},\n\n` +
+      `Thank you for applying for the ${job.job_title || "position"} role. As the next step, please fill in our screening questions here:\n\n` +
+      `${formLink}\n\n` +
+      `Kindly complete it within 3 working days.\n\nBest regards,\nHR Team`;
+    const body = (job.screening_email_body || defaultBody)
+      .replaceAll("{candidate_name}", c.name || "")
+      .replaceAll("{job_title}", job.job_title || "")
+      .replaceAll("{screening_link}", formLink)
+      .replaceAll("{hiring_manager}", job.hiring_manager || "");
+    window.location.href = `mailto:${c.email || ""}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  };
 
   return (
     <div className="sd-stack">
@@ -130,6 +182,18 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
             }}
           >
             <UserPlus size={14} /> Add Applicant
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowScreeningSetup(true)}
+            style={{
+              display: "inline-flex", alignItems: "center", gap: "0.35rem",
+              padding: "0.4rem 0.85rem", borderRadius: "0.5rem",
+              border: `1px solid ${BORDER}`, background: "transparent",
+              color: TEXT, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer",
+            }}
+          >
+            <FileText size={14} /> Screening Setup
           </button>
           <span className={`sd-chip ${statusChipClass(job.job_status)}`}>{job.job_status || "—"}</span>
           {job.overdue === "Overdue" && <span className="sd-chip bad">Overdue</span>}
@@ -247,6 +311,36 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
           </select>
         </div>
 
+        {selected.length > 0 && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.6rem", padding: "0.5rem 0.75rem", border: `1px solid ${BORDER}`, borderRadius: "0.5rem", background: SURFACE_2 }}>
+            <span style={{ fontSize: "0.8rem", fontWeight: 600, color: TEXT }}>{selected.length} selected</span>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => bulkAction("shortlist")}
+              style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.7rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}
+            >
+              ✓ Shortlist Selected
+            </button>
+            <button
+              type="button"
+              disabled={busy}
+              onClick={() => bulkAction("reject")}
+              style={{ borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "transparent", color: DANGER, fontSize: "0.75rem", fontWeight: 600, padding: "0.3rem 0.7rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}
+            >
+              ✗ Reject Selected
+            </button>
+            <button
+              type="button"
+              onClick={() => setSelected([])}
+              style={{ marginLeft: "auto", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.75rem", padding: "0.3rem 0.7rem", cursor: "pointer" }}
+            >
+              Clear
+            </button>
+          </div>
+        )}
+        {actionError && <p style={{ color: DANGER, fontSize: "0.78rem", margin: "0 0 0.5rem" }}>{actionError}</p>}
+
         {filtered.length === 0 ? (
           <p style={{ textAlign: "center", color: MUTED, padding: "2rem 0", fontSize: "0.85rem" }}>
             No candidates found matching this role.
@@ -260,6 +354,9 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                  <th style={{ ...thStyle, width: "2rem" }}>
+                    <input type="checkbox" checked={allSelected} onChange={toggleSelectAll} onClick={(e) => e.stopPropagation()} style={{ accentColor: "var(--samurai-lime)" }} />
+                  </th>
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Tracker</th>
                   <th style={thStyle}>Role</th>
@@ -270,6 +367,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                   <th style={thStyle}>Date Entry</th>
                   <th style={thStyle}>Resume</th>
                   <th style={thStyle}>Screening</th>
+                  <th style={thStyle}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -281,6 +379,9 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                     onMouseEnter={(ev) => (ev.currentTarget.style.background = SURFACE_2)}
                     onMouseLeave={(ev) => (ev.currentTarget.style.background = "")}
                   >
+                    <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selected.includes(c.id)} onChange={() => toggleSelect(c.id)} style={{ accentColor: "var(--samurai-lime)" }} />
+                    </td>
                     <td style={{ ...tdStyle, fontWeight: 600, color: TEXT }}>{c.name || "—"}</td>
                     <td style={{ ...tdStyle, color: TEXT }}>{c.candidate_type || "—"}</td>
                     <td style={{ ...tdStyle, color: TEXT }}>{c.role || "—"}</td>
@@ -303,6 +404,39 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                         </a>
                       ) : "—"}
                     </td>
+                    <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                      <div style={{ display: "flex", gap: "0.3rem", whiteSpace: "nowrap" }}>
+                        {(c.status || "") === "Resume Received" && (
+                          <>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => shortlistOne(c.id)}
+                              style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.55rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}
+                            >
+                              ✓ Shortlist
+                            </button>
+                            <button
+                              type="button"
+                              disabled={busy}
+                              onClick={() => runBulk([c.id], "reject")}
+                              style={{ borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "transparent", color: DANGER, fontSize: "0.72rem", padding: "0.2rem 0.5rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1 }}
+                            >
+                              ✗
+                            </button>
+                          </>
+                        )}
+                        {(c.status || "") === "Shortlisted" && c.email && (
+                          <button
+                            type="button"
+                            onClick={() => composeScreeningEmail(c)}
+                            style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.55rem", cursor: "pointer" }}
+                          >
+                            📧 Screening Email
+                          </button>
+                        )}
+                      </div>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -316,6 +450,14 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
           job={job}
           department={department}
           onClose={() => setShowAddApplicant(false)}
+        />
+      )}
+
+      {showScreeningSetup && (
+        <ScreeningSetupModal
+          job={job}
+          department={department}
+          onClose={() => setShowScreeningSetup(false)}
         />
       )}
     </div>
@@ -420,6 +562,120 @@ function AddApplicantModal({
               <UserPlus size={14} /> {busy ? "Adding…" : "Add Applicant"}
             </button>
           </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
+function ScreeningSetupModal({
+  job, department, onClose,
+}: {
+  job: HrJobOpening;
+  department: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [formLink, setFormLink] = useState(job.screening_form_link || "");
+  const [subject, setSubject] = useState(
+    job.screening_email_subject || "Screening Questions — {job_title}",
+  );
+  const [body, setBody] = useState(
+    job.screening_email_body ||
+      "Dear {candidate_name},\n\n" +
+      "Thank you for applying for the {job_title} role. As the next step, please fill in our screening questions here:\n\n" +
+      "{screening_link}\n\n" +
+      "Kindly complete it within 3 working days.\n\nBest regards,\nHR Team",
+  );
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const save = async () => {
+    setBusy(true);
+    setError("");
+    try {
+      await hrApi.jobScreeningSetup(department, job.id, {
+        screening_form_link: formLink.trim() || undefined,
+        screening_email_subject: subject,
+        screening_email_body: body,
+      });
+      queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save screening setup");
+      setBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "1rem" }} />
+      <div
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(620px, 94vw)", maxHeight: "88vh", overflowY: "auto", background: "var(--samurai-bg)", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", padding: "1.25rem", zIndex: 51 }}
+      >
+        <div style={{ display: "flex", alignItems: "center", marginBottom: "0.75rem" }}>
+          <h3 style={{ margin: 0, fontSize: "1rem", color: TEXT, marginRight: "auto" }}>
+            Screening Setup — {job.job_title}
+          </h3>
+          <button type="button" onClick={onClose}
+            style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: "1rem" }}>
+            <X size={16} />
+          </button>
+        </div>
+
+        {error && <p style={{ color: DANGER, fontSize: "0.78rem", margin: "0 0 0.6rem" }}>{error}</p>}
+
+        <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+          <div>
+            <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+              Google Form link (candidates fill this)
+            </label>
+            <input
+              value={formLink}
+              onChange={(e) => setFormLink(e.target.value)}
+              placeholder="https://forms.gle/…"
+              style={appInputStyle}
+            />
+            <p style={{ fontSize: "0.72rem", color: MUTED, margin: "0.3rem 0 0" }}>
+              Paste the public link to your screening Google Form. Set the form to "Anyone with the link can view". Edit the questions in Google Forms anytime — this link never changes.
+            </p>
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+              Email subject
+            </label>
+            <input
+              value={subject}
+              onChange={(e) => setSubject(e.target.value)}
+              style={appInputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+              Email body
+            </label>
+            <textarea
+              value={body}
+              onChange={(e) => setBody(e.target.value)}
+              rows={8}
+              style={{ ...appInputStyle, resize: "vertical", fontFamily: "inherit" }}
+            />
+            <p style={{ fontSize: "0.72rem", color: MUTED, margin: "0.3rem 0 0" }}>
+              Placeholders: <code>{"{candidate_name}"}</code> <code>{"{job_title}"}</code> <code>{"{screening_link}"}</code> <code>{"{hiring_manager}"}</code>
+            </p>
+          </div>
+        </div>
+
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "0.9rem" }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: "0.45rem 0.9rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button type="button" onClick={save} disabled={busy}
+            style={{ padding: "0.45rem 1rem", borderRadius: "0.5rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+            {busy ? "Saving…" : "Save Screening Setup"}
+          </button>
         </div>
       </div>
     </>

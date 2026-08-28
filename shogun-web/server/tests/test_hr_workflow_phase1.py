@@ -93,7 +93,7 @@ def test_add_applicant_creates_candidate_and_resume_file(db_session):
     c = r["candidate"]
     assert c["name"] == "Alice Tan"
     assert c["role"] == "Backend Engineer"
-    assert c["status"] == "Screening - Pending"
+    assert c["status"] == "Resume Received"
     assert c["source"] == "Portal"
     assert c["date_entry"]  # upload timestamp
     assert c["resume_url"].startswith("/api/doc-uploads/")

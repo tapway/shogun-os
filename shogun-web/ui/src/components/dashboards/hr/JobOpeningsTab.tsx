@@ -41,8 +41,11 @@ function statusChipClass(status: string | null | undefined): "ok" | "warn" | "ba
 }
 
 export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: Props) {
+  const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [showCreate, setShowCreate] = useState(false);
+  const [closingJob, setClosingJob] = useState<HrJobOpening | null>(null);
+  const [closeBusy, setCloseBusy] = useState(false);
 
   const jobOpenings = stats.job_openings || [];
   const allCandidates = stats.candidates || [];
@@ -155,6 +158,7 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                   <th style={thStyle}>Days Left</th>
                   <th style={thStyle}>Candidates</th>
                   <th style={thStyle}>Talent Pool</th>
+                  <th style={thStyle}>Actions</th>
                 </tr>
               </thead>
               <tbody>
@@ -211,6 +215,24 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                       <td style={tdStyle}>
                         <span style={{ color: LIME, fontSize: "0.75rem", fontWeight: 600 }}>Open →</span>
                       </td>
+                      <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
+                        {!(j.job_status || "").startsWith("Closed") ? (
+                          <button
+                            type="button"
+                            onClick={() => setClosingJob(j)}
+                            style={{
+                              borderRadius: "0.4rem", border: `1px solid ${BORDER}`,
+                              background: "transparent", color: DANGER,
+                              fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem",
+                              cursor: "pointer", whiteSpace: "nowrap",
+                            }}
+                          >
+                            Close Job
+                          </button>
+                        ) : (
+                          <span style={{ color: MUTED, fontSize: "0.72rem" }}>{fmtDate(j.closed_at)}</span>
+                        )}
+                      </td>
                     </tr>
                   );
                 })}
@@ -228,6 +250,23 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
           onCreated={(job) => {
             setShowCreate(false);
             onOpenTalentPool(job);
+          }}
+        />
+      )}
+
+      {closingJob && (
+        <CloseJobModal
+          job={closingJob}
+          department={department}
+          busy={closeBusy}
+          onBusy={setCloseBusy}
+          onClose={() => setClosingJob(null)}
+          onClosed={(rejectedCount) => {
+            setClosingJob(null);
+            queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
+            if (rejectedCount > 0) {
+              window.alert(`Job closed. ${rejectedCount} remaining candidate(s) were soft-rejected and kept in the Talent Pool.`);
+            }
           }}
         />
       )}
@@ -478,6 +517,84 @@ const thStyle: React.CSSProperties = {
   fontSize: "0.72rem",
   textTransform: "uppercase",
 };
+
+/** Confirm + close a job opening. Remaining candidates are soft-rejected (kept in Talent Pool). */
+function CloseJobModal({
+  job, department, busy, onBusy, onClose, onClosed,
+}: {
+  job: HrJobOpening;
+  department: string;
+  busy: boolean;
+  onBusy: (b: boolean) => void;
+  onClose: () => void;
+  onClosed: (rejectedCount: number) => void;
+}) {
+  const [reason, setReason] = useState<"Filled" | "Cancelled">("Filled");
+
+  const confirmClose = async () => {
+    onBusy(true);
+    try {
+      const res = await hrApi.jobClose(department, job.id, {
+        reason,
+        remaining_action: "reject",
+      });
+      onClosed(res.rejected_candidates);
+    } catch (e) {
+      window.alert(e instanceof Error ? e.message : "Failed to close job");
+      onBusy(false);
+    }
+  };
+
+  return (
+    <>
+      <div onClick={onClose}
+        style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", alignItems: "center", justifyContent: "center", zIndex: 50, padding: "1rem" }} />
+      <div
+        style={{ position: "fixed", top: "50%", left: "50%", transform: "translate(-50%,-50%)", width: "min(460px, 94vw)", background: "var(--samurai-bg)", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", padding: "1.25rem", zIndex: 51 }}
+      >
+        <h3 style={{ margin: "0 0 0.75rem", fontSize: "1rem", color: TEXT }}>
+          Close Job — {job.job_title}
+        </h3>
+        <p style={{ fontSize: "0.82rem", color: MUTED, margin: "0 0 0.75rem" }}>
+          Any remaining candidates who are not yet Hired or Rejected will be
+          <strong> soft-rejected</strong> (reason: job closed) and kept in the Talent Pool for future search. Nothing is deleted.
+        </p>
+        <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.9rem" }}>
+          {(["Filled", "Cancelled"] as const).map((r) => (
+            <button
+              key={r}
+              type="button"
+              onClick={() => setReason(r)}
+              style={{
+                flex: 1,
+                padding: "0.5rem",
+                borderRadius: "0.5rem",
+                border: reason === r ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
+                background: reason === r ? SURFACE_2 : "transparent",
+                color: TEXT,
+                fontSize: "0.82rem",
+                fontWeight: 600,
+                cursor: "pointer",
+              }}
+            >
+              {r === "Filled" ? "✅ Position Filled" : "✗ Cancelled"}
+            </button>
+          ))}
+        </div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem" }}>
+          <button type="button" onClick={onClose}
+            style={{ padding: "0.45rem 0.9rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
+            Cancel
+          </button>
+          <button type="button" onClick={confirmClose} disabled={busy}
+            style={{ padding: "0.45rem 1rem", borderRadius: "0.5rem", border: "none", background: DANGER, color: "#fff", fontSize: "0.8rem", fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
+            {busy ? "Closing…" : "Close Job"}
+          </button>
+        </div>
+      </div>
+    </>
+  );
+}
 
 const tdStyle: React.CSSProperties = {
   padding: "0.5rem 0.75rem",
