@@ -101,6 +101,9 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
   );
   const progress = stats.onboarding_checklist_progress || [];
 
+  // Inner sub-tabs: Status (Onboarding Tasks) / Checklist (template setup)
+  const [subTab, setSubTab] = useState<"status" | "checklist">("status");
+
   // Group checklist items by section (preserving item order within a section)
   const sections = useMemo(() => {
     const order: string[] = [];
@@ -153,7 +156,7 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
     };
   };
 
-  // KPI calculations
+  // KPI calculations (Status tab)
   const inProgress = tasks.filter((t) => {
     const s = (t.status || "").toLowerCase();
     return (
@@ -171,13 +174,6 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
 
   // Progress percentage
   const progressPct = total > 0 ? (done / total) * 100 : 0;
-
-  const KPIs = [
-    { label: "In Progress", value: `${inProgress}`, warn: inProgress > 0 },
-    { label: "Done", value: `${done}`, ok: true },
-    { label: "Total", value: `${total}` },
-    { label: "Checklist Items", value: `${checklistItems.length}` },
-  ];
 
   const addItem = async () => {
     if (!newTitle.trim()) {
@@ -265,308 +261,430 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
     }
   };
 
+  const subTabBtn = (id: "status" | "checklist", label: string) => (
+    <button
+      key={id}
+      type="button"
+      onClick={() => setSubTab(id)}
+      style={{
+        padding: "0.3rem 0.8rem",
+        borderRadius: "0.45rem",
+        border: subTab === id ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
+        background: subTab === id ? `color-mix(in srgb, ${LIME} 10%, transparent)` : "transparent",
+        color: subTab === id ? TEXT : MUTED,
+        fontSize: "0.78rem",
+        fontWeight: subTab === id ? 700 : 500,
+        cursor: "pointer",
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div className="sd-stack">
-      {/* KPI Cards */}
-      <div className="sd-kpi-grid">
-        {KPIs.map((k) => (
-          <div key={k.label} className="sd-kpi-card">
-            <div className="sd-kpi-label">{k.label}</div>
-            <div
-              className="sd-kpi-value"
-              style={{ color: k.ok ? OK : k.warn ? WARNING : TEXT }}
-            >
-              {k.value}
-            </div>
-          </div>
-        ))}
+      {/* Inner sub-tabs: Status vs Checklist */}
+      <div style={{ display: "flex", gap: "0.4rem", marginTop: "-0.4rem" }}>
+        {subTabBtn("status", "Status")}
+        {subTabBtn("checklist", `Checklist (${checklistItems.length} items)`)}
       </div>
 
       {error && (
         <p style={{ color: DANGER, fontSize: "0.8rem", margin: 0 }}>{error}</p>
       )}
 
-      {/* Progress Bar */}
-      <div className="sd-chart-card">
-        <h3 className="sd-chart-title">Onboarding Progress</h3>
-        <p className="sd-chart-sub">
-          {done} of {total} tasks completed
-        </p>
-        <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-          <div
-            style={{
-              height: "0.75rem",
-              flex: 1,
-              borderRadius: 999,
-              overflow: "hidden",
-              background: SURFACE_2,
-            }}
-          >
-            <div
-              style={{
-                height: "100%",
-                borderRadius: 999,
-                background:
-                  progressPct >= 100
-                    ? OK
-                    : progressPct >= 50
-                      ? WARNING
-                      : DANGER,
-                width: `${Math.min(progressPct, 100)}%`,
-                transition: "width 0.3s ease",
-              }}
-            />
-          </div>
-          <span
-            style={{
-              width: "3.5rem",
-              textAlign: "right",
-              fontSize: "0.78rem",
-              fontWeight: 600,
-              color: TEXT,
-            }}
-          >
-            {progressPct.toFixed(0)}%
-          </span>
-        </div>
-      </div>
-
-      {/* Onboarding Checklist Setup (HR-managed template) */}
-      <div className="sd-chart-card">
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            alignItems: "center",
-            gap: "0.5rem",
-            marginBottom: "0.75rem",
-          }}
-        >
-          <h3
-            className="sd-chart-title"
-            style={{ margin: 0, marginRight: "auto" }}
-          >
-            Onboarding Checklist
-          </h3>
-          <button
-            onClick={() => setShowChecklistSetup((v) => !v)}
-            style={{
-              borderRadius: "0.5rem",
-              border: `1px solid ${BORDER}`,
-              background: "transparent",
-              color: TEXT,
-              fontSize: "0.8rem",
-              padding: "0.4rem 0.8rem",
-              cursor: "pointer",
-            }}
-          >
-            {showChecklistSetup ? "Hide Setup" : "Setup Checklist"}
-          </button>
-        </div>
-
-        {checklistItems.length === 0 && !showChecklistSetup && (
-          <p style={{ padding: "0.5rem 0", fontSize: "0.85rem", color: MUTED }}>
-            No checklist items yet. Click <strong>Setup Checklist</strong> to
-            define the onboarding checklist for all new staff.
-          </p>
-        )}
-
-        {showChecklistSetup && (
-          <div
-            style={{
-              border: `1px dashed ${BORDER}`,
-              borderRadius: "0.6rem",
-              padding: "0.9rem",
-              marginBottom: checklistItems.length > 0 ? "0.9rem" : 0,
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr 1fr auto",
-                gap: "0.5rem",
-                alignItems: "end",
-              }}
-            >
-              <div>
-                <label
-                  style={{
-                    fontSize: "0.72rem",
-                    fontWeight: 600,
-                    color: MUTED,
-                    display: "block",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Item Title *
-                </label>
-                <input
-                  style={{ ...inputStyle, width: "100%" }}
-                  value={newTitle}
-                  onChange={(e) => setNewTitle(e.target.value)}
-                  placeholder="e.g. Sign employment contract"
-                />
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: "0.72rem",
-                    fontWeight: 600,
-                    color: MUTED,
-                    display: "block",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Section
-                </label>
-                <input
-                  style={{ ...inputStyle, width: "100%" }}
-                  value={newSection}
-                  onChange={(e) => setNewSection(e.target.value)}
-                  placeholder="e.g. HR Documents"
-                  list="checklist-sections"
-                />
-                <datalist id="checklist-sections">
-                  {sectionNames.map((s) => (
-                    <option key={s} value={s} />
-                  ))}
-                </datalist>
-              </div>
-              <div>
-                <label
-                  style={{
-                    fontSize: "0.72rem",
-                    fontWeight: 600,
-                    color: MUTED,
-                    display: "block",
-                    marginBottom: "0.25rem",
-                  }}
-                >
-                  Description (optional)
-                </label>
-                <input
-                  style={{ ...inputStyle, width: "100%" }}
-                  value={newDesc}
-                  onChange={(e) => setNewDesc(e.target.value)}
-                  placeholder="e.g. Collect IC and bank details"
-                />
-              </div>
-              <button
-                onClick={addItem}
-                disabled={busy}
-                style={{
-                  borderRadius: "0.5rem",
-                  border: "none",
-                  background: LIME,
-                  color: "#0a0a0a",
-                  fontWeight: 600,
-                  fontSize: "0.85rem",
-                  padding: "0.5rem 1rem",
-                  cursor: busy ? "wait" : "pointer",
-                  opacity: busy ? 0.6 : 1,
-                  whiteSpace: "nowrap",
-                }}
-              >
-                {busy ? "Adding…" : "+ Add Item"}
-              </button>
-            </div>
-          </div>
-        )}
-
-        {checklistItems.length > 0 && (
-          <div
-            style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
-          >
-            {sections.map((sec) => (
-              <div key={sec.name}>
+      {subTab === "status" && (
+        <>
+          {/* KPI Cards */}
+          <div className="sd-kpi-grid">
+            {[
+              { label: "In Progress", value: `${inProgress}`, warn: inProgress > 0 },
+              { label: "Done", value: `${done}`, ok: true },
+              { label: "Total", value: `${total}` },
+              { label: "Checklist Items", value: `${checklistItems.length}` },
+            ].map((k) => (
+              <div key={k.label} className="sd-kpi-card">
+                <div className="sd-kpi-label">{k.label}</div>
                 <div
-                  style={{
-                    fontSize: "0.78rem",
-                    fontWeight: 700,
-                    color: TEXT,
-                    marginBottom: "0.35rem",
-                  }}
+                  className="sd-kpi-value"
+                  style={{ color: k.ok ? OK : k.warn ? WARNING : TEXT }}
                 >
-                  {sec.name}
-                </div>
-                <div
-                  style={{
-                    display: "flex",
-                    flexDirection: "column",
-                    gap: "0.4rem",
-                  }}
-                >
-                  {sec.items.map((item) => (
-                    <div
-                      key={item.id}
-                      style={{
-                        display: "flex",
-                        alignItems: "center",
-                        gap: "0.6rem",
-                        border: `1px solid ${BORDER}`,
-                        borderRadius: "0.5rem",
-                        padding: "0.5rem 0.75rem",
-                      }}
-                    >
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div
-                          style={{
-                            fontSize: "0.85rem",
-                            fontWeight: 600,
-                            color: TEXT,
-                          }}
-                        >
-                          {item.title}
-                        </div>
-                        {item.description && (
-                          <div style={{ fontSize: "0.75rem", color: MUTED }}>
-                            {item.description}
-                          </div>
-                        )}
-                      </div>
-                      <button
-                        onClick={() =>
-                          setEditItem({
-                            id: item.id,
-                            title: item.title,
-                            description: item.description || "",
-                            section: item.section || "",
-                          })
-                        }
-                        style={{
-                          borderRadius: "0.4rem",
-                          border: `1px solid ${BORDER}`,
-                          background: "transparent",
-                          color: TEXT,
-                          fontSize: "0.72rem",
-                          padding: "0.2rem 0.55rem",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => removeItem(item.id, item.title)}
-                        style={{
-                          borderRadius: "0.4rem",
-                          border: `1px solid ${BORDER}`,
-                          background: "transparent",
-                          color: DANGER,
-                          fontSize: "0.72rem",
-                          padding: "0.2rem 0.55rem",
-                          cursor: "pointer",
-                        }}
-                      >
-                        Remove
-                      </button>
-                    </div>
-                  ))}
+                  {k.value}
                 </div>
               </div>
             ))}
           </div>
-        )}
-      </div>
+
+          {/* Progress Bar */}
+          <div className="sd-chart-card">
+            <h3 className="sd-chart-title">Onboarding Progress</h3>
+            <p className="sd-chart-sub">
+              {done} of {total} tasks completed
+            </p>
+            <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+              <div
+                style={{
+                  height: "0.75rem",
+                  flex: 1,
+                  borderRadius: 999,
+                  overflow: "hidden",
+                  background: SURFACE_2,
+                }}
+              >
+                <div
+                  style={{
+                    height: "100%",
+                    borderRadius: 999,
+                    background:
+                      progressPct >= 100
+                        ? OK
+                        : progressPct >= 50
+                          ? WARNING
+                          : DANGER,
+                    width: `${Math.min(progressPct, 100)}%`,
+                    transition: "width 0.3s ease",
+                  }}
+                />
+              </div>
+              <span
+                style={{
+                  width: "3.5rem",
+                  textAlign: "right",
+                  fontSize: "0.78rem",
+                  fontWeight: 600,
+                  color: TEXT,
+                }}
+              >
+                {progressPct.toFixed(0)}%
+              </span>
+            </div>
+          </div>
+
+          {/* Onboarding Tasks Table — each staff expands into the checklist */}
+          <div className="sd-chart-card">
+            <h3
+              className="sd-chart-title"
+              style={{ margin: 0, marginBottom: "0.75rem" }}
+            >
+              Onboarding Tasks
+            </h3>
+
+            {tasks.length === 0 ? (
+              <p
+                style={{
+                  padding: "1rem 0",
+                  textAlign: "center",
+                  fontSize: "0.85rem",
+                  color: MUTED,
+                }}
+              >
+                No onboarding tasks found.
+              </p>
+            ) : (
+              <div className="overflow-x-auto">
+                <table
+                  className="w-full text-sm"
+                  style={{ borderCollapse: "collapse" }}
+                >
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <Th align="center"> </Th>
+                      <Th align="left">Staff Name</Th>
+                      <Th align="left">Department</Th>
+                      <Th align="left">Start Date</Th>
+                      <Th align="left">End Date</Th>
+                      <Th align="right">Days</Th>
+                      <Th align="left">Assigned To</Th>
+                      <Th align="center">Status</Th>
+                      <Th align="center">Task Status</Th>
+                      <Th align="left">Checklist Completeness</Th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {tasks.map((t) => {
+                      const days = computeDays(t.start_date, t.end_date);
+                      const emoji = taskStatusEmoji(t.task_status);
+                      const statusClass = onboardingStatusChip(t.status);
+                      const {
+                        done: doneCount,
+                        total: totalItems,
+                        pct,
+                      } = staffPct(t.staff_name);
+                      const expanded = expandedStaff === t.staff_name;
+                      const complete = totalItems > 0 && doneCount >= totalItems;
+                      return (
+                        <FragmentRow
+                          key={t.id}
+                          task={t}
+                          days={days}
+                          emoji={emoji}
+                          statusClass={statusClass}
+                          doneCount={doneCount}
+                          totalItems={totalItems}
+                          pct={pct}
+                          complete={complete}
+                          expanded={expanded}
+                          onToggleExpand={() =>
+                            setExpandedStaff(expanded ? null : t.staff_name)
+                          }
+                          sections={sections}
+                          progress={progress}
+                          busy={busy}
+                          onToggleItem={(itemId, checked) =>
+                            toggleItem(t.staff_name, itemId, checked)
+                          }
+                          color={color}
+                        />
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {subTab === "checklist" && (
+        <>
+          {/* Onboarding Checklist Setup (HR-managed template) */}
+          <div className="sd-chart-card">
+            <div
+              style={{
+                display: "flex",
+                flexWrap: "wrap",
+                alignItems: "center",
+                gap: "0.5rem",
+                marginBottom: "0.75rem",
+              }}
+            >
+              <h3
+                className="sd-chart-title"
+                style={{ margin: 0, marginRight: "auto" }}
+              >
+                Onboarding Checklist
+              </h3>
+              <button
+                onClick={() => setShowChecklistSetup((v) => !v)}
+                style={{
+                  borderRadius: "0.5rem",
+                  border: `1px solid ${BORDER}`,
+                  background: "transparent",
+                  color: TEXT,
+                  fontSize: "0.8rem",
+                  padding: "0.4rem 0.8rem",
+                  cursor: "pointer",
+                }}
+              >
+                {showChecklistSetup ? "Hide Setup" : "Setup Checklist"}
+              </button>
+            </div>
+
+            {checklistItems.length === 0 && !showChecklistSetup && (
+              <p style={{ padding: "0.5rem 0", fontSize: "0.85rem", color: MUTED }}>
+                No checklist items yet. Click <strong>Setup Checklist</strong> to
+                define the onboarding checklist for all new staff.
+              </p>
+            )}
+
+            {showChecklistSetup && (
+              <div
+                style={{
+                  border: `1px dashed ${BORDER}`,
+                  borderRadius: "0.6rem",
+                  padding: "0.9rem",
+                  marginBottom: checklistItems.length > 0 ? "0.9rem" : 0,
+                }}
+              >
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr auto",
+                    gap: "0.5rem",
+                    alignItems: "end",
+                  }}
+                >
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        color: MUTED,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Item Title *
+                    </label>
+                    <input
+                      style={{ ...inputStyle, width: "100%" }}
+                      value={newTitle}
+                      onChange={(e) => setNewTitle(e.target.value)}
+                      placeholder="e.g. Sign employment contract"
+                    />
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        color: MUTED,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Section
+                    </label>
+                    <input
+                      style={{ ...inputStyle, width: "100%" }}
+                      value={newSection}
+                      onChange={(e) => setNewSection(e.target.value)}
+                      placeholder="e.g. HR Documents"
+                      list="checklist-sections"
+                    />
+                    <datalist id="checklist-sections">
+                      {sectionNames.map((s) => (
+                        <option key={s} value={s} />
+                      ))}
+                    </datalist>
+                  </div>
+                  <div>
+                    <label
+                      style={{
+                        fontSize: "0.72rem",
+                        fontWeight: 600,
+                        color: MUTED,
+                        display: "block",
+                        marginBottom: "0.25rem",
+                      }}
+                    >
+                      Description (optional)
+                    </label>
+                    <input
+                      style={{ ...inputStyle, width: "100%" }}
+                      value={newDesc}
+                      onChange={(e) => setNewDesc(e.target.value)}
+                      placeholder="e.g. Collect IC and bank details"
+                    />
+                  </div>
+                  <button
+                    onClick={addItem}
+                    disabled={busy}
+                    style={{
+                      borderRadius: "0.5rem",
+                      border: "none",
+                      background: LIME,
+                      color: "#0a0a0a",
+                      fontWeight: 600,
+                      fontSize: "0.85rem",
+                      padding: "0.5rem 1rem",
+                      cursor: busy ? "wait" : "pointer",
+                      opacity: busy ? 0.6 : 1,
+                      whiteSpace: "nowrap",
+                    }}
+                  >
+                    {busy ? "Adding…" : "+ Add Item"}
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {checklistItems.length > 0 && (
+              <div
+                style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}
+              >
+                {sections.map((sec) => (
+                  <div key={sec.name}>
+                    <div
+                      style={{
+                        fontSize: "0.78rem",
+                        fontWeight: 700,
+                        color: TEXT,
+                        marginBottom: "0.35rem",
+                      }}
+                    >
+                      {sec.name}
+                    </div>
+                    <div
+                      style={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: "0.4rem",
+                      }}
+                    >
+                      {sec.items.map((item) => (
+                        <div
+                          key={item.id}
+                          style={{
+                            display: "flex",
+                            alignItems: "center",
+                            gap: "0.6rem",
+                            border: `1px solid ${BORDER}`,
+                            borderRadius: "0.5rem",
+                            padding: "0.5rem 0.75rem",
+                          }}
+                        >
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div
+                              style={{
+                                fontSize: "0.85rem",
+                                fontWeight: 600,
+                                color: TEXT,
+                              }}
+                            >
+                              {item.title}
+                            </div>
+                            {item.description && (
+                              <div style={{ fontSize: "0.75rem", color: MUTED }}>
+                                {item.description}
+                              </div>
+                            )}
+                          </div>
+                          <button
+                            onClick={() =>
+                              setEditItem({
+                                id: item.id,
+                                title: item.title,
+                                description: item.description || "",
+                                section: item.section || "",
+                              })
+                            }
+                            style={{
+                              borderRadius: "0.4rem",
+                              border: `1px solid ${BORDER}`,
+                              background: "transparent",
+                              color: TEXT,
+                              fontSize: "0.72rem",
+                              padding: "0.2rem 0.55rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Edit
+                          </button>
+                          <button
+                            onClick={() => removeItem(item.id, item.title)}
+                            style={{
+                              borderRadius: "0.4rem",
+                              border: `1px solid ${BORDER}`,
+                              background: "transparent",
+                              color: DANGER,
+                              fontSize: "0.72rem",
+                              padding: "0.2rem 0.55rem",
+                              cursor: "pointer",
+                            }}
+                          >
+                            Remove
+                          </button>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </>
+      )}
 
       {/* Edit Checklist Item Modal */}
       {editItem && (
@@ -711,89 +829,6 @@ export function OnboardingTab({ stats, color, department, onChanged }: Props) {
           </div>
         </div>
       )}
-
-      {/* Onboarding Tasks Table — each staff expands into the checklist */}
-      <div className="sd-chart-card">
-        <h3
-          className="sd-chart-title"
-          style={{ margin: 0, marginBottom: "0.75rem" }}
-        >
-          Onboarding Tasks
-        </h3>
-
-        {tasks.length === 0 ? (
-          <p
-            style={{
-              padding: "1rem 0",
-              textAlign: "center",
-              fontSize: "0.85rem",
-              color: MUTED,
-            }}
-          >
-            No onboarding tasks found.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table
-              className="w-full text-sm"
-              style={{ borderCollapse: "collapse" }}
-            >
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="center"> </Th>
-                  <Th align="left">Staff Name</Th>
-                  <Th align="left">Department</Th>
-                  <Th align="left">Start Date</Th>
-                  <Th align="left">End Date</Th>
-                  <Th align="right">Days</Th>
-                  <Th align="left">Assigned To</Th>
-                  <Th align="center">Status</Th>
-                  <Th align="center">Task Status</Th>
-                  <Th align="left">Checklist Completeness</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {tasks.map((t) => {
-                  const days = computeDays(t.start_date, t.end_date);
-                  const emoji = taskStatusEmoji(t.task_status);
-                  const statusClass = onboardingStatusChip(t.status);
-                  const {
-                    done: doneCount,
-                    total: totalItems,
-                    pct,
-                  } = staffPct(t.staff_name);
-                  const expanded = expandedStaff === t.staff_name;
-                  const complete = totalItems > 0 && doneCount >= totalItems;
-                  return (
-                    <FragmentRow
-                      key={t.id}
-                      task={t}
-                      days={days}
-                      emoji={emoji}
-                      statusClass={statusClass}
-                      doneCount={doneCount}
-                      totalItems={totalItems}
-                      pct={pct}
-                      complete={complete}
-                      expanded={expanded}
-                      onToggleExpand={() =>
-                        setExpandedStaff(expanded ? null : t.staff_name)
-                      }
-                      sections={sections}
-                      progress={progress}
-                      busy={busy}
-                      onToggleItem={(itemId, checked) =>
-                        toggleItem(t.staff_name, itemId, checked)
-                      }
-                      color={color}
-                    />
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
     </div>
   );
 }
@@ -969,7 +1004,7 @@ function FragmentRow({
             {totalItems === 0 ? (
               <p style={{ color: MUTED, fontSize: "0.85rem" }}>
                 No checklist items have been set yet. Ask HR to add items under{" "}
-                <strong>Onboarding Checklist → Setup Checklist</strong>.
+                <strong>Onboarding → Checklist tab → Setup Checklist</strong>.
               </p>
             ) : (
               <div
