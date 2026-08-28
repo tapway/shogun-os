@@ -17,7 +17,7 @@ from starlette.middleware.sessions import SessionMiddleware
 from auth import get_current_user
 from config import get_config, save_config
 from database import get_db, init_db, session_scope
-from models import HrCandidateFile, HrEquipment, HrJobOpening, ScannedDocument, SiteInspection, Tenant, User
+from models import HrCandidateFile, HrEquipment, HrJobOpening, HrTraining, HrTrainingParticipant, ScannedDocument, SiteInspection, Tenant, User
 from sqlalchemy import or_, select
 from sqlalchemy.orm import Session
 from registry import register_with_central
@@ -218,6 +218,20 @@ def create_app() -> FastAPI:
                         HrEquipment.image_url == f"/api/doc-uploads/{safe}",
                         HrEquipment.signature_doc_url == f"/api/doc-uploads/{safe}",
                     ),
+                )
+            ).first()
+        if not owned:
+            owned = db.execute(
+                select(HrTraining.id).where(
+                    HrTraining.tenant_id == tenant_id,
+                    HrTraining.approval_doc_url == f"/api/doc-uploads/{safe}",
+                )
+            ).first()
+        if not owned:
+            owned = db.execute(
+                select(HrTrainingParticipant.id).where(
+                    HrTrainingParticipant.tenant_id == tenant_id,
+                    HrTrainingParticipant.cert_url == f"/api/doc-uploads/{safe}",
                 )
             ).first()
         if not owned:

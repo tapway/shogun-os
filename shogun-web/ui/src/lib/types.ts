@@ -1785,6 +1785,16 @@ export interface HrTraining {
   exam_included: boolean;
   bond_agreement: boolean;
   feedback_form_url: string;
+  approval_doc_url?: string | null;
+}
+
+export interface HrTrainingParticipant {
+  id: number;
+  training_id: number;
+  staff_name: string;
+  department?: string | null;
+  cert_url?: string | null;
+  cert_uploaded_at?: string | null;
 }
 
 export interface HrTrainer {
@@ -1862,6 +1872,7 @@ export interface HrDashboardStats {
   candidate_events: HrCandidateEvent[];
   interviews: HrInterview[];
   equipment_logs?: HrEquipmentLog[];
+  training_participants?: HrTrainingParticipant[];
   onboarding_checklist_items?: HrOnboardingChecklistItem[];
   onboarding_checklist_progress?: HrOnboardingChecklistProgress[];
   source?: string;

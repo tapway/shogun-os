@@ -43,6 +43,8 @@ import type {
   HrJobOpening,
   HrOnboardingChecklistItem,
   HrResumeExtract,
+  HrTraining,
+  HrTrainingParticipant,
   GeneratedSkill,
   LoginPayload,
   OnboardingState,
@@ -935,6 +937,37 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/equipment/${id}`,
       { method: 'PUT', body: JSON.stringify(payload) },
     ),
+  trainingCreate: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; training: HrTraining }>(
+      `/api/departments/${dept}/dashboard/hr/trainings`,
+      { method: 'POST', body: form, headers: {} },
+    ),
+  trainingApprovalDoc: (dept: string, trainingId: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<{ ok: boolean; training: HrTraining }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/approval-doc`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  trainingAddParticipant: (dept: string, trainingId: number, payload: { staff_name: string; department?: string }) =>
+    apiFetch<{ ok: boolean; participant: HrTrainingParticipant }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  trainingRemoveParticipant: (dept: string, trainingId: number, participantId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants/${participantId}`,
+      { method: 'DELETE' },
+    ),
+  trainingUploadCert: (dept: string, trainingId: number, participantId: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<{ ok: boolean; participant: HrTrainingParticipant }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants/${participantId}/certificate`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
   checklistAdd: (dept: string, payload: { title: string; description?: string }) =>
     apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
       `/api/departments/${dept}/dashboard/hr/onboarding-checklist`,

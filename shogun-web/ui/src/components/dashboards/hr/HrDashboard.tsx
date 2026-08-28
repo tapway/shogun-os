@@ -12,7 +12,7 @@ import { LeaveTrackerTab } from "./LeaveTrackerTab";
 import { PerformanceTab } from "./PerformanceTab";
 import { EquipmentTab } from "./EquipmentTab";
 import { TrainingTab } from "./TrainingTab";
-import { MeetingsTab } from "./MeetingsTab";
+
 import { TalentPoolPage } from "./TalentPoolPage";
 import { CandidateDetailPage } from "./CandidateDetailPage";
 
@@ -26,7 +26,7 @@ const TABS: DashboardTab[] = [
   { id: "performance", label: "Performance Reviews", icon: "TrendingUp" },
   { id: "equipment", label: "Equipment Tracker", icon: "Monitor" },
   { id: "training", label: "Training & Development", icon: "GraduationCap" },
-  { id: "meetings", label: "Meetings", icon: "CalendarClock" },
+
 ];
 
 interface HrDashboardProps {
@@ -118,8 +118,8 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
       {activeTab === "leave" && <LeaveTrackerTab stats={stats} color={color} />}
       {activeTab === "performance" && <PerformanceTab stats={stats} color={color} />}
       {activeTab === "equipment" && <EquipmentTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
-      {activeTab === "training" && <TrainingTab stats={stats} color={color} />}
-      {activeTab === "meetings" && <MeetingsTab stats={stats} color={color} />}
+      {activeTab === "training" && <TrainingTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
+
     </div>
   );
 }

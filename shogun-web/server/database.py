@@ -337,6 +337,7 @@ def init_db() -> None:
             ("hr_equipment", "signature_doc_url", "VARCHAR(1024)"),
             ("hr_equipment", "returned", "BOOLEAN NOT NULL DEFAULT 0"),
             ("hr_equipment", "return_date", "VARCHAR(32)"),
+            ("hr_training", "approval_doc_url", "VARCHAR(1024)"),
         ]:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:

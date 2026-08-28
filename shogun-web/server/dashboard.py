@@ -612,7 +612,6 @@ async def get_dashboard_config(
                 {"id": "performance", "label": "Performance Reviews", "icon": "TrendingUp"},
                 {"id": "equipment", "label": "Equipment Tracker", "icon": "Monitor"},
                 {"id": "training", "label": "Training & Development", "icon": "GraduationCap"},
-                {"id": "meetings", "label": "Meetings", "icon": "CalendarClock"},
             ],
         },
         "facility": {
@@ -3558,7 +3557,8 @@ async def get_hr_stats(
     trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
     trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
     meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
-    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview, HrOnboardingChecklistItem, HrOnboardingChecklistProgress
+    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview, HrOnboardingChecklistItem, HrOnboardingChecklistProgress, HrTrainingParticipant
+    training_participants = db.execute(select(HrTrainingParticipant).where(HrTrainingParticipant.tenant_id == tenant.id)).scalars().all()
     checklist_items = db.execute(select(HrOnboardingChecklistItem).where(HrOnboardingChecklistItem.tenant_id == tenant.id).order_by(HrOnboardingChecklistItem.sort_order, HrOnboardingChecklistItem.id)).scalars().all()
     checklist_progress = db.execute(select(HrOnboardingChecklistProgress).where(HrOnboardingChecklistProgress.tenant_id == tenant.id)).scalars().all()
     candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
@@ -3617,6 +3617,7 @@ async def get_hr_stats(
         "candidate_events": [e.to_dict() for e in candidate_events],
         "interviews": [i.to_dict() for i in interviews],
         "equipment_logs": [l.to_dict() for l in equipment_logs],
+        "training_participants": [p.to_dict() for p in training_participants],
         "onboarding_checklist_items": [i.to_dict() for i in checklist_items],
         "onboarding_checklist_progress": [p.to_dict() for p in checklist_progress],
         "source": "notion_sync",
@@ -4949,4 +4950,187 @@ async def toggle_hr_checklist_item(
         "done_count": len(done_items),
         "total_items": len(total_items),
     }
+
+
+# ---------------------------------------------------------------------------
+# Training & Development — create programs, participants, approval doc, certs
+# ---------------------------------------------------------------------------
+
+_ALLOWED_TRAINING_DOC_EXTS = {"pdf", "doc", "docx", "txt", "png", "jpg", "jpeg", "webp"}
+
+
+@router.post("/hr/trainings")
+async def create_hr_training(
+    name: str = Path(...),
+    approval_doc: UploadFile = File(None),
+    training_name: str = Form(...),
+    staff_name: str = Form(""),
+    trainer_name: str = Form(""),
+    training_format: str = Form(""),
+    start_date: str = Form(""),
+    end_date: str = Form(""),
+    training_charges: str = Form(""),
+    exam_included: bool = Form(False),
+    bond_agreement: bool = Form(False),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create a training program from the portal (optional approval doc upload)."""
+    import uuid as _uuid
+    from models import HrTraining
+
+    tname = (training_name or "").strip()
+    if not tname:
+        raise HTTPException(status_code=422, detail="Training name is required")
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    approval_doc_url = None
+    if approval_doc is not None and approval_doc.filename:
+        approval_doc_url = await _save_equipment_upload(approval_doc, _ALLOWED_TRAINING_DOC_EXTS, "approval doc")
+
+    training = HrTraining(
+        tenant_id=tenant.id,
+        notion_page_id=f"local-{_uuid.uuid4().hex}",
+        training_name=tname,
+        staff_name=staff_name.strip() or None,
+        trainer_name=trainer_name.strip() or None,
+        training_format=training_format.strip() or None,
+        start_date=start_date.strip() or None,
+        end_date=end_date.strip() or None,
+        training_charges=_parse_amount(training_charges),
+        exam_included=bool(exam_included),
+        bond_agreement=bool(bond_agreement),
+        approval_doc_url=approval_doc_url,
+    )
+    db.add(training)
+    db.commit()
+    db.refresh(training)
+
+    try:
+        import audit
+        audit.log_action(db, tenant, user, "hr", "hr.training.create", "training",
+                         str(training.id), detail={"training_name": training.training_name})
+    except Exception:
+        pass
+    return {"ok": True, "training": training.to_dict()}
+
+
+@router.post("/hr/trainings/{training_id}/approval-doc")
+async def upload_hr_training_approval_doc(
+    training_id: int,
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Attach/replace the approval document on an existing training program."""
+    from models import HrTraining
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    training = db.get(HrTraining, training_id)
+    if training is None or training.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Training not found")
+
+    training.approval_doc_url = await _save_equipment_upload(file, _ALLOWED_TRAINING_DOC_EXTS, "approval doc")
+    db.commit()
+    db.refresh(training)
+    return {"ok": True, "training": training.to_dict()}
+
+
+class HrTrainingParticipantBody(BaseModel):
+    staff_name: str
+    department: Optional[str] = None
+
+
+@router.post("/hr/trainings/{training_id}/participants")
+async def add_hr_training_participant(
+    training_id: int,
+    body: HrTrainingParticipantBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Add a participant to a training program."""
+    from models import HrTraining, HrTrainingParticipant
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    training = db.get(HrTraining, training_id)
+    if training is None or training.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Training not found")
+    staff = (body.staff_name or "").strip()
+    if not staff:
+        raise HTTPException(status_code=422, detail="Participant name is required")
+
+    existing = db.execute(select(HrTrainingParticipant).where(
+        HrTrainingParticipant.tenant_id == tenant.id,
+        HrTrainingParticipant.training_id == training_id,
+        HrTrainingParticipant.staff_name == staff,
+    )).scalars().first()
+    if existing is not None:
+        raise HTTPException(status_code=422, detail="Participant already added to this training")
+
+    participant = HrTrainingParticipant(
+        tenant_id=tenant.id,
+        training_id=training_id,
+        staff_name=staff,
+        department=(body.department or "").strip() or None,
+    )
+    db.add(participant)
+    db.commit()
+    db.refresh(participant)
+    return {"ok": True, "participant": participant.to_dict()}
+
+
+@router.delete("/hr/trainings/{training_id}/participants/{participant_id}")
+async def remove_hr_training_participant(
+    training_id: int,
+    participant_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Remove a participant from a training program."""
+    from models import HrTrainingParticipant
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    participant = db.get(HrTrainingParticipant, participant_id)
+    if participant is None or participant.tenant_id != tenant.id or participant.training_id != training_id:
+        raise HTTPException(status_code=404, detail="Participant not found")
+    db.delete(participant)
+    db.commit()
+    return {"ok": True}
+
+
+@router.post("/hr/trainings/{training_id}/participants/{participant_id}/certificate")
+async def upload_hr_training_certificate(
+    training_id: int,
+    participant_id: int,
+    name: str = Path(...),
+    file: UploadFile = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Upload a participant's training certificate."""
+    from models import HrTrainingParticipant
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    participant = db.get(HrTrainingParticipant, participant_id)
+    if participant is None or participant.tenant_id != tenant.id or participant.training_id != training_id:
+        raise HTTPException(status_code=404, detail="Participant not found")
+
+    participant.cert_url = await _save_equipment_upload(file, _ALLOWED_TRAINING_DOC_EXTS, "certificate")
+    participant.cert_uploaded_at = datetime.utcnow().strftime("%Y-%m-%d")
+    db.commit()
+    db.refresh(participant)
+    return {"ok": True, "participant": participant.to_dict()}
 

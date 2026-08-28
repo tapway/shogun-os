@@ -1701,6 +1701,7 @@ class HrTraining(Base):
     bond_agreement: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
 
     feedback_form_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    approval_doc_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -1743,11 +1744,45 @@ class HrTraining(Base):
             "bond_agreement": self.bond_agreement,
 
             "feedback_form_url": self.feedback_form_url,
+            "approval_doc_url": self.approval_doc_url,
 
         }
 
 
 
+
+
+class HrTrainingParticipant(Base):
+
+    """Participant enrolled in a training program (with certificate upload)."""
+
+    __tablename__ = "hr_training_participants"
+    __table_args__ = (
+        UniqueConstraint("training_id", "staff_name", name="uq_training_participant"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    training_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("hr_training.id"), nullable=False
+    )
+    staff_name: Mapped[str] = mapped_column(String(256), nullable=False)
+    department: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    cert_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    cert_uploaded_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "training_id": self.training_id,
+            "staff_name": self.staff_name,
+            "department": self.department,
+            "cert_url": self.cert_url,
+            "cert_uploaded_at": self.cert_uploaded_at,
+        }
 
 
 class HrTrainer(Base):
