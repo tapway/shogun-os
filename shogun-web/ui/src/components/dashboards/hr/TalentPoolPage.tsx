@@ -46,7 +46,7 @@ function statusChipClass(status: string | null | undefined): "ok" | "warn" | "ba
 
 function candidateStatusChip(status: string): "ok" | "warn" | "bad" | "muted" {
   const s = (status || "").toLowerCase();
-  if (s.includes("hired") || s.includes("offer") || s.includes("accepted")) return "ok";
+  if (s.includes("done") || s.includes("hired")) return "ok";
   if (s.includes("shortlisted")) return "ok";
   if (s.includes("rejected") || s.includes("no response")) return "bad";
   if (s.includes("resume received")) return "muted";
@@ -438,7 +438,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
                             📧 Screening Email
                           </button>
                         )}
-                        {["Shortlisted", "Screening - Pending", "Schedule 1st Round of Interview", "1st round of interview", "Schedule Manager Interview", "Manager Interview", "Offer Sent"].includes(c.status || "") && (
+                        {["Shortlisted", "Interview Email Sent - Waiting Reply", "1st Interview Scheduled", "HR Interview Done", "Waiting Manager Interview Confirm", "Manager Interview Scheduled", "Waiting Interview Result", "Waiting Offer Confirmation", "Offer Sent - Waiting Reply"].includes(c.status || "") && (
                           <button
                             type="button"
                             onClick={() => setJourneyCandidate(c)}

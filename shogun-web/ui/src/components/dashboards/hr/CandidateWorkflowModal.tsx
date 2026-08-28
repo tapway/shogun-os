@@ -62,10 +62,14 @@ export function CandidateWorkflowModal({ candidate, stats, department, onClose, 
   );
 
   const stage = (candidate.status || "").trim();
-  const is1stInterview = stage.toLowerCase() === "1st round of interview";
-  const isManagerInterview = stage.toLowerCase() === "manager interview";
-  const isSchedule1st = stage === "Schedule 1st Round of Interview";
-  const isScheduleManager = stage === "Schedule Manager Interview";
+  // decision stages (backend validates): continue from HR Interview Done,
+  // offer from Waiting Offer Confirmation
+  const is1stInterview = stage === "HR Interview Done";
+  const isManagerInterview = stage === "Waiting Offer Confirmation";
+  // scheduling stages: first round from the waiting-reply stage,
+  // manager round from the waiting-manager-confirm stage
+  const isSchedule1st = stage === "Interview Email Sent - Waiting Reply";
+  const isScheduleManager = stage === "Waiting Manager Interview Confirm";
 
   async function refresh() {
     await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });

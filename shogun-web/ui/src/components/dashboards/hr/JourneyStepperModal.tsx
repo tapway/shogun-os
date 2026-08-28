@@ -36,13 +36,15 @@ const inputStyle: React.CSSProperties = {
 const JOURNEY_STAGES = [
   { status: "Resume Received", label: "Resume Received" },
   { status: "Shortlisted", label: "Shortlisted" },
-  { status: "Screening - Pending", label: "Screening" },
-  { status: "Schedule 1st Round of Interview", label: "Schedule 1st Round" },
-  { status: "1st round of interview", label: "1st Interview" },
-  { status: "Schedule Manager Interview", label: "Schedule Manager" },
-  { status: "Manager Interview", label: "Manager Interview" },
-  { status: "Offer Sent", label: "Offer" },
-  { status: "Hired", label: "Hired 🎉" },
+  { status: "Interview Email Sent - Waiting Reply", label: "Interview Email Sent" },
+  { status: "1st Interview Scheduled", label: "1st Interview Scheduled" },
+  { status: "HR Interview Done", label: "HR Interview Done" },
+  { status: "Waiting Manager Interview Confirm", label: "Waiting Manager Confirm" },
+  { status: "Manager Interview Scheduled", label: "Manager Interview Scheduled" },
+  { status: "Waiting Interview Result", label: "Waiting Result" },
+  { status: "Waiting Offer Confirmation", label: "Waiting Offer Confirm" },
+  { status: "Offer Sent - Waiting Reply", label: "Offer Sent" },
+  { status: "Done", label: "Done 🎉" },
 ];
 
 /** Journey position for a status: 0-based step index, or -1 when outside the guided journey. */
@@ -159,6 +161,17 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
       .replaceAll("{screening_link}", formLink)
       .replaceAll("{hiring_manager}", job?.hiring_manager || "");
     window.location.href = `mailto:${candidate.email || ""}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+  };
+
+  const composeInterviewEmailAndAdvance = () => {
+    const subj = `Interview Invitation — ${candidate.role || job?.job_title || "the position"}`;
+    const body =
+      `Dear ${candidate.name || "Candidate"},\n\n` +
+      `Thank you for applying for the ${candidate.role || job?.job_title || "position"} role. We are pleased to invite you for an interview.\n\n` +
+      `Please reply to confirm your availability — we will share the date, time and location shortly.\n\n` +
+      `Best regards,\nHR Team${job?.hiring_manager ? `\nHiring Manager: ${job.hiring_manager}` : ""}`;
+    window.location.href = `mailto:${candidate.email || ""}?subject=${encodeURIComponent(subj)}&body=${encodeURIComponent(body)}`;
+    run(() => hrApi.candidateMove(department, candidate.id, "Interview Email Sent - Waiting Reply"), "Send interview email");
   };
 
   const confirmSchedule = (round: "first" | "manager") => {
@@ -305,7 +318,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Resume Received", "Move to Resume Received")} style={btnOutline}>→ Resume Received</button>
-                <button type="button" disabled={busy} onClick={() => move("Screening - Pending", "Move to Screening")} style={btnOutline}>→ Screening</button>
+                <button type="button" disabled={busy} onClick={() => move("Interview Email Sent - Waiting Reply", "Move to Interview Email Sent")} style={btnOutline}>→ Interview Email Sent</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
@@ -326,37 +339,22 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Shortlisted" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 2 — Send screening questions</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 2 — Send interview confirmation email</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
-                Send the Google Form screening link by email. When the candidate replies with answers, start recruitment.
-                {job && !job.screening_form_link && <strong style={{ color: WARNING }}> No screening form link set yet — open the job's Screening Setup.</strong>}
+                Email the candidate to confirm an interview slot. The candidate then enters "Waiting Reply" until they respond.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button type="button" onClick={composeScreeningEmail} style={btnOutline}>📧 Compose Screening Email</button>
-                <button type="button" disabled={busy} onClick={() => move("Screening - Pending", "Start recruitment")} style={btnPrimary}>Start Recruitment →</button>
-                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Mark Waiting</button>
-              </div>
-            </div>
-          )}
-
-          {stage === "Screening - Pending" && (
-            <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 3 — Screening answers received?</p>
-              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
-                Check the candidate's screening answers (Full details → Documents). Suitable? Schedule the 1st round of interview.
-              </p>
-              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button type="button" disabled={busy} onClick={() => move("Schedule 1st Round of Interview", "Advance")} style={btnPrimary}>Answers OK — Schedule 1st Round →</button>
+                <button type="button" disabled={busy} onClick={composeInterviewEmailAndAdvance} style={btnPrimary}>📧 Send Interview Email →</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
-                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Mark Waiting</button>
               </div>
             </div>
           )}
 
-          {(stage === "Schedule 1st Round of Interview" || stage === "Schedule Manager Interview") && (
+          {stage === "Interview Email Sent - Waiting Reply" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>
-                {stage === "Schedule 1st Round of Interview" ? "Step 4 — Schedule 1st round of interview" : "Step 6 — Schedule Manager Interview"}
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 3 — Waiting for candidate reply</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Once the candidate replies, schedule the 1st interview — this moves them to <strong>1st Interview Scheduled</strong>.
               </p>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
                 <div>
@@ -376,24 +374,16 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 </div>
               </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button
-                  type="button"
-                  disabled={busy}
-                  onClick={() => confirmSchedule(stage === "Schedule 1st Round of Interview" ? "first" : "manager")}
-                  style={btnPrimary}
-                >
-                  Confirm Schedule →
-                </button>
+                <button type="button" disabled={busy} onClick={() => confirmSchedule("first")} style={btnPrimary}>✓ Replied — Schedule 1st Interview →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
                 <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Mark Waiting</button>
               </div>
             </div>
           )}
 
-          {(stage === "1st round of interview" || stage === "Manager Interview") && (
+          {stage === "1st Interview Scheduled" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>
-                {stage === "1st round of interview" ? "Step 5 — 1st round interview result" : "Step 7 — Manager interview result"}
-              </p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 4 — 1st interview scheduled (HR round)</p>
               {nextInterview && (
                 <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
                   📅 {fmtDateTime(nextInterview.scheduled_at)}
@@ -401,6 +391,9 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   {nextInterview.location ? ` · ${nextInterview.location}` : ""}
                 </p>
               )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Once the HR interview is done, record the result.
+              </p>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
@@ -409,36 +402,122 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 style={{ ...inputStyle, resize: "vertical", marginBottom: "0.6rem" }}
               />
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                {stage === "1st round of interview" ? (
-                  <button type="button" disabled={busy} onClick={() => decision("continue")} style={btnPrimary}>✓ Continue — Schedule Manager Round</button>
-                ) : (
-                  <button type="button" disabled={busy} onClick={() => decision("offer")} style={btnPrimary}>✓ Offer — Send Offer</button>
-                )}
+                <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
                 <button type="button" disabled={busy} onClick={saveFeedback} style={btnOutline}>💾 Save feedback only</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "HR Interview Done" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 5 — HR interview done</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Candidate passed the HR round? Continue to ask the Manager for an interview slot, or reject.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => decision("continue")} style={btnPrimary}>✓ Continue — Request Manager Interview →</button>
                 <button type="button" disabled={busy} onClick={() => decision("reject")} style={btnDanger}>✗ Reject (reason required)</button>
               </div>
             </div>
           )}
 
-          {stage === "Offer Sent" && (
+          {stage === "Waiting Manager Interview Confirm" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Offer sent</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 6 — Waiting for Manager interview confirmation</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
-                Waiting for the candidate's answer. Once accepted, mark them hired — then close the job from Job Openings.
+                Waiting for the hiring manager to confirm a date/time. Once confirmed, schedule it below.
               </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>
+                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
+                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
+                  <datalist id="journey-interviewers">
+                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
+                  <input value={schedLocation} onChange={(e) => setSchedLocation(e.target.value)} placeholder="Office / Meet link" style={inputStyle} />
+                </div>
+              </div>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-                <button type="button" disabled={busy} onClick={() => move("Hired", "Mark hired")} style={btnPrimary}>🎉 Mark Hired</button>
-                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Declined / Reject</button>
-                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Mark Waiting</button>
+                <button type="button" disabled={busy} onClick={() => confirmSchedule("manager")} style={btnPrimary}>✓ Manager Confirmed — Schedule →</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
               </div>
             </div>
           )}
 
-          {stage === "Hired" && (
+          {stage === "Manager Interview Scheduled" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 7 — Manager interview scheduled</p>
+              {nextInterview && (
+                <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
+                  📅 {fmtDateTime(nextInterview.scheduled_at)}
+                  {nextInterview.interviewer_name ? ` · Interviewer: ${nextInterview.interviewer_name}` : ""}
+                  {nextInterview.location ? ` · ${nextInterview.location}` : ""}
+                </p>
+              )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Interview is set. When it happens, mark that you are waiting for the interviewer's result.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Waiting Interview Result" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for interview result</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Follow up with the interviewer. Once the result is in, confirm whether to proceed to offer.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Waiting Offer Confirmation", "Result received")} style={btnPrimary}>✓ Result Received — Confirm Offer →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Waiting Offer Confirmation" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for offer confirmation</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Confirm the offer details with management. Once confirmed, send the offer to the candidate.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => decision("offer")} style={btnPrimary}>✓ Confirmed — Send Offer →</button>
+                <button type="button" disabled={busy} onClick={() => decision("reject")} style={btnDanger}>✗ Reject (reason required)</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Offer Sent - Waiting Reply" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — Offer sent, waiting for reply</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Waiting for the candidate's answer. If they accept, mark Done — then close the job from Job Openings.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Done", "Offer accepted")} style={btnPrimary}>🎉 Offer Accepted — Done</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Declined / Reject</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Done" && (
             <div style={{ textAlign: "center", padding: "0.5rem 0" }}>
-              <p style={{ margin: "0 0 0.3rem", fontSize: "1.1rem", fontWeight: 700, color: OK }}>🎉 Hired — recruitment complete!</p>
+              <p style={{ margin: "0 0 0.3rem", fontSize: "1.1rem", fontWeight: 700, color: OK }}>🎉 Done — candidate hired!</p>
               <p style={{ margin: 0, fontSize: "0.78rem", color: MUTED }}>
-                Close the job from <strong>Job Openings → Close Job</strong>; remaining candidates will be soft-rejected and kept in the Talent Pool. Onboarding tasks are in the Onboarding tab.
+                Now go to <strong>Job Openings → Close Job</strong>; remaining candidates will be soft-rejected and kept in the Talent Pool. Onboarding tasks are in the Onboarding tab.
               </p>
             </div>
           )}

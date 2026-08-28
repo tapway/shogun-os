@@ -36,7 +36,7 @@ const tdStyle: React.CSSProperties = {
 
 function statusChipClass(status: string | null | undefined): "ok" | "warn" | "bad" | "muted" {
   const s = (status || "").toLowerCase();
-  if (s.includes("hired") || s.includes("offer") || s.includes("accepted")) return "ok";
+  if (s.includes("done")) return "ok";
   if (s.includes("shortlisted")) return "ok";
   if (s.includes("rejected") || s.includes("no response")) return "bad";
   if (s.includes("resume received") || s.includes("screening") || s.includes("pending") || s.includes("review")) return "muted";
@@ -81,14 +81,14 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
     });
   }, [allCandidates, search, statusFilter, typeFilter]);
 
-  const hiredCount = allCandidates.filter((c) => (c.status || "").toLowerCase().includes("hired")).length;
+  const hiredCount = allCandidates.filter((c) => (c.status || "").toLowerCase().includes("done")).length;
   const rejectedCount = allCandidates.filter((c) => (c.status || "").toLowerCase().includes("rejected")).length;
   const activeCount = allCandidates.length - hiredCount - rejectedCount;
 
   const KPIs = [
     { label: "Total Candidates", value: `${allCandidates.length}`, sub: "all saved — nothing deleted" },
     { label: "Active in Pipeline", value: `${activeCount}`, warn: false },
-    { label: "Hired", value: `${hiredCount}` },
+    { label: "Done (Hired)", value: `${hiredCount}` },
     { label: "Rejected / Keep", value: `${rejectedCount}` },
   ];
 

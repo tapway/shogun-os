@@ -23,25 +23,31 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
 
   // Pipeline funnel data — axis labels shortened to avoid overlap.
   const FUNNEL_SHORT: Record<string, string> = {
-    "Screening - Pending": "Screening",
-    "HR Review": "HR Review",
-    "Hiring Manager Pending Review": "Hiring Mgr Review",
-    "1st round of interview": "1st Interview",
-    "Manager Interview": "Mgr Interview",
-    "Assessment DONE": "Assessment",
-    "Offer Sent": "Offer Sent",
-    "Hired": "Hired",
+    "Resume Received": "Resume",
+    "Shortlisted": "Shortlisted",
+    "Interview Email Sent - Waiting Reply": "Email Sent",
+    "1st Interview Scheduled": "1st Scheduled",
+    "HR Interview Done": "HR Done",
+    "Waiting Manager Interview Confirm": "Mgr Confirm",
+    "Manager Interview Scheduled": "Mgr Scheduled",
+    "Waiting Interview Result": "Result",
+    "Waiting Offer Confirmation": "Offer Confirm",
+    "Offer Sent - Waiting Reply": "Offer Sent",
+    "Done": "Done",
   };
   const funnelData = useMemo(() => {
     const ordered = [
-      "Screening - Pending",
-      "HR Review",
-      "Hiring Manager Pending Review",
-      "1st round of interview",
-      "Manager Interview",
-      "Assessment DONE",
-      "Offer Sent",
-      "Hired",
+      "Resume Received",
+      "Shortlisted",
+      "Interview Email Sent - Waiting Reply",
+      "1st Interview Scheduled",
+      "HR Interview Done",
+      "Waiting Manager Interview Confirm",
+      "Manager Interview Scheduled",
+      "Waiting Interview Result",
+      "Waiting Offer Confirmation",
+      "Offer Sent - Waiting Reply",
+      "Done",
     ];
     return ordered
       .filter((s) => stats.pipeline_counts?.[s])

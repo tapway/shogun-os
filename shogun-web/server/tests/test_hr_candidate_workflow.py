@@ -53,7 +53,7 @@ def _candidate(db_session, tenant_id=1, **overrides):
     cand = HrCandidate(
         tenant_id=tenant_id, notion_page_id=f"n-{tenant_id}",
         name="Alice Tan", email="alice@example.com", phone_no="+6012",
-        role="Backend Engineer", status="Screening - Pending",
+        role="Backend Engineer", status="Interview Email Sent - Waiting Reply",
         source="LinkedIn", candidate_type="fulltime",
     )
     for k, v in overrides.items():
@@ -173,7 +173,7 @@ def test_move_candidate_wrong_tenant_404(db_session):
     cand = _candidate(db_session, tenant_id=2)
     with pytest.raises(HTTPException) as ei:
         asyncio.run(dashboard.move_hr_candidate(
-            candidate_id=cand.id, body=dashboard.HrCandidateMoveBody(status="Hired"),
+            candidate_id=cand.id, body=dashboard.HrCandidateMoveBody(status="Done"),
             name="hr", user=_user(db_session), db=db_session,
         ))
     assert ei.value.status_code == 404

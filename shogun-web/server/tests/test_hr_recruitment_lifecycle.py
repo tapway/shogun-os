@@ -129,17 +129,17 @@ def test_bulk_reject_keeps_reason(db_session):
 
 def test_shortlist_skips_terminal_candidates(db_session):
     _job(db_session)
-    hired = _candidate(db_session, status="Hired", name="Hired Person")
+    done = _candidate(db_session, status="Done", name="Done Person")
     rejected = _candidate(db_session, status="Rejected", name="Rejected Person")
     fresh = _candidate(db_session, name="Fresh Person")
     r = asyncio.run(dashboard.bulk_candidate_action(
         job_id=1,
-        body=dashboard.HrCandidateBulkBody(candidate_ids=[hired.id, rejected.id, fresh.id], action="shortlist"),
+        body=dashboard.HrCandidateBulkBody(candidate_ids=[done.id, rejected.id, fresh.id], action="shortlist"),
         name="hr", user=_user(db_session), db=db_session,
     ))
     assert r["updated"] == 1  # only the non-terminal candidate was changed
     db_session.expire_all()
-    assert db_session.get(HrCandidate, hired.id).status == "Hired"  # untouched
+    assert db_session.get(HrCandidate, done.id).status == "Done"  # untouched
     assert db_session.get(HrCandidate, rejected.id).status == "Rejected"  # untouched
     assert db_session.get(HrCandidate, fresh.id).status == "Shortlisted"
 
@@ -158,7 +158,7 @@ def test_invalid_action_rejected(db_session):
 def test_close_job_soft_rejects_remaining(db_session):
     job = _job(db_session)
     active = _candidate(db_session, status="Shortlisted", name="Active Person")
-    hired = _candidate(db_session, status="Hired", name="Hired Person")
+    done = _candidate(db_session, status="Done", name="Done Person")
     r = asyncio.run(dashboard.close_hr_job_opening(
         job_id=job.id,
         body=dashboard.HrCloseJobBody(reason="Filled", remaining_action="reject"),
@@ -171,7 +171,7 @@ def test_close_job_soft_rejects_remaining(db_session):
     db_session.expire_all()
     assert db_session.get(HrCandidate, active.id).status == "Rejected"
     assert "closed" in (db_session.get(HrCandidate, active.id).removed_reason or "").lower()
-    assert db_session.get(HrCandidate, hired.id).status == "Hired"  # untouched
+    assert db_session.get(HrCandidate, done.id).status == "Done"  # untouched
 
 
 def test_close_job_keep_remaining(db_session):

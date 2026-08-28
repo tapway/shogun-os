@@ -347,6 +347,30 @@ def init_db() -> None:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:
                 conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+        # Idempotent remap: legacy pipeline stage names → the restructured
+        # recruitment flow. Safe to re-run (UPDATE matches nothing once applied).
+        for old, new in [
+            ("Screening - Pending", "Interview Email Sent - Waiting Reply"),
+            ("Schedule 1st Round of Interview", "Interview Email Sent - Waiting Reply"),
+            # legacy Notion pre-interview review stages + aliases
+            ("HR Review", "Interview Email Sent - Waiting Reply"),
+            ("Hiring Manager Pending Review", "Interview Email Sent - Waiting Reply"),
+            ("Hiring Manager Review", "Interview Email Sent - Waiting Reply"),
+            ("Pending Review", "Interview Email Sent - Waiting Reply"),
+            ("1st round of interview", "1st Interview Scheduled"),
+            ("1st Interview", "1st Interview Scheduled"),
+            ("Schedule Manager Interview", "Waiting Manager Interview Confirm"),
+            ("Manager Interview", "Manager Interview Scheduled"),
+            ("Assessment DONE", "Waiting Offer Confirmation"),
+            ("Assessment Sent", "Waiting Offer Confirmation"),
+            ("Offer Sent", "Offer Sent - Waiting Reply"),
+            ("Offer Accepted", "Done"),
+            ("Hired", "Done"),
+            ("No response", "No Response"),
+        ]:
+            conn.execute(text(
+                "UPDATE hr_candidates SET status = :new WHERE status = :old"
+            ), {"new": new, "old": old})
         conn.commit()
     with session_scope() as db:
         tenant = _ensure_tenant(db)

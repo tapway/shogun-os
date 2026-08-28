@@ -3936,8 +3936,11 @@ async def add_hr_candidate_to_pipeline(
 
     old_status = cand.status
     cand.in_pipeline = True
-    if old_status not in ("1st round of interview", "Manager Interview", "Offer Sent", "Hired"):
-        cand.status = "Schedule 1st Round of Interview"
+    if old_status not in ("1st Interview Scheduled", "HR Interview Done",
+                          "Waiting Manager Interview Confirm", "Manager Interview Scheduled",
+                          "Waiting Interview Result", "Waiting Offer Confirmation",
+                          "Offer Sent - Waiting Reply", "Done"):
+        cand.status = "Interview Email Sent - Waiting Reply"
     _hr_event(db, tenant.id, candidate_id, "stage_move",
               note="Added into recruitment pipeline",
               from_status=old_status, to_status=cand.status, user=user)
@@ -3983,8 +3986,9 @@ async def move_hr_candidate(
 
     old_status = cand.status
     cand.status = status
-    if status in ("Schedule 1st Round of Interview", "Schedule Manager Interview",
-                  "1st round of interview", "Manager Interview", "Offer Sent", "Hired"):
+    if status in ("1st Interview Scheduled", "HR Interview Done",
+                  "Manager Interview Scheduled", "Waiting Interview Result",
+                  "Waiting Offer Confirmation", "Offer Sent - Waiting Reply", "Done"):
         cand.waiting_since = None
         cand.waiting_reason = None
     _hr_event(db, tenant.id, candidate_id, "stage_move",
@@ -4287,8 +4291,8 @@ async def decide_hr_candidate(
 ) -> dict:
     """Record an interview decision.
 
-    From "1st round of interview": continue → Schedule Manager Interview, reject → Rejected.
-    From "Manager Interview": offer → Offer Sent, reject → Rejected.
+    From "HR Interview Done": continue → Waiting Manager Interview Confirm, reject → Rejected.
+    From "Waiting Offer Confirmation": offer → Offer Sent - Waiting Reply, reject → Rejected.
     """
     from models import HrCandidate
 
@@ -4305,16 +4309,16 @@ async def decide_hr_candidate(
 
     cur = (cand.status or "").strip()
     if decision == "continue":
-        if cur.lower() != "1st round of interview":
-            raise HTTPException(status_code=422, detail="Continue is only valid after the 1st round of interview")
-        new_status = "Schedule Manager Interview"
+        if cur.lower() != "hr interview done":
+            raise HTTPException(status_code=422, detail="Continue is only valid after the HR interview is done")
+        new_status = "Waiting Manager Interview Confirm"
     elif decision == "offer":
-        if cur.lower() != "manager interview":
-            raise HTTPException(status_code=422, detail="Offer is only valid after the Manager Interview")
-        new_status = "Offer Sent"
-    else:  # reject — allowed from either interview stage
-        if cur.lower() not in ("1st round of interview", "manager interview"):
-            raise HTTPException(status_code=422, detail="Reject is only valid from an interview stage")
+        if cur.lower() != "waiting offer confirmation":
+            raise HTTPException(status_code=422, detail="Offer is only valid after the interview result is confirmed")
+        new_status = "Offer Sent - Waiting Reply"
+    else:  # reject — allowed from HR interview done, waiting result, or offer confirmation stages
+        if cur.lower() not in ("hr interview done", "waiting interview result", "waiting offer confirmation"):
+            raise HTTPException(status_code=422, detail="Reject is only valid after the HR interview or before the offer")
         new_status = "Rejected"
 
     old = cand.status
@@ -4376,7 +4380,7 @@ async def schedule_hr_interview(
             job_id = job.id
 
     old = cand.status
-    new_status = "1st round of interview" if rnd == "first" else "Manager Interview"
+    new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
     interview = HrInterview(
         tenant_id=tenant.id, candidate_id=candidate_id, job_id=job_id,
         round=rnd, scheduled_at=when,
@@ -5261,7 +5265,7 @@ async def bulk_candidate_action(
         if cand is None or cand.tenant_id != tenant.id:
             continue
         if body.action == "shortlist":
-            if cand.status in ("Rejected", "Hired"):
+            if cand.status in ("Rejected", "Done"):
                 continue  # terminal states are not shortlistable
             old = cand.status
             cand.status = "Shortlisted"
@@ -5323,7 +5327,7 @@ async def close_hr_job_opening(
         )).scalars().all()
         close_reason = f"Job closed — position {reason.lower()}"
         for cand in candidates:
-            if cand.status in ("Rejected", "Hired"):
+            if cand.status in ("Rejected", "Done"):
                 continue
             old = cand.status
             cand.status = "Rejected"

@@ -131,26 +131,26 @@ def test_comment_requires_text(db_session):
     assert ei.value.status_code == 422
 
 
-def test_decision_continue_after_1st_round(db_session):
-    cand = _candidate(db_session, status="1st round of interview")
+def test_decision_continue_after_hr_interview(db_session):
+    cand = _candidate(db_session, status="HR Interview Done")
     r = asyncio.run(dashboard.decide_hr_candidate(
         candidate_id=cand.id, body=dashboard.HrDecisionBody(decision="continue", comment="Good"),
         name="hr", user=_user(db_session), db=db_session,
     ))
-    assert r["candidate"]["status"] == "Schedule Manager Interview"
+    assert r["candidate"]["status"] == "Waiting Manager Interview Confirm"
 
 
-def test_decision_offer_after_manager_interview(db_session):
-    cand = _candidate(db_session, status="Manager Interview")
+def test_decision_offer_after_offer_confirmation(db_session):
+    cand = _candidate(db_session, status="Waiting Offer Confirmation")
     r = asyncio.run(dashboard.decide_hr_candidate(
         candidate_id=cand.id, body=dashboard.HrDecisionBody(decision="offer", comment="Hire"),
         name="hr", user=_user(db_session), db=db_session,
     ))
-    assert r["candidate"]["status"] == "Offer Sent"
+    assert r["candidate"]["status"] == "Offer Sent - Waiting Reply"
 
 
 def test_decision_reject_from_interview_stage(db_session):
-    cand = _candidate(db_session, status="Manager Interview")
+    cand = _candidate(db_session, status="Waiting Interview Result")
     r = asyncio.run(dashboard.decide_hr_candidate(
         candidate_id=cand.id, body=dashboard.HrDecisionBody(decision="reject", comment="No fit"),
         name="hr", user=_user(db_session), db=db_session,
@@ -159,7 +159,7 @@ def test_decision_reject_from_interview_stage(db_session):
 
 
 def test_decision_offer_rejected_from_wrong_stage(db_session):
-    cand = _candidate(db_session, status="1st round of interview")
+    cand = _candidate(db_session, status="HR Interview Done")
     with pytest.raises(HTTPException) as ei:
         asyncio.run(dashboard.decide_hr_candidate(
             candidate_id=cand.id, body=dashboard.HrDecisionBody(decision="offer", comment="x"),
@@ -169,7 +169,7 @@ def test_decision_offer_rejected_from_wrong_stage(db_session):
 
 
 def test_schedule_creates_interview_and_moves_stage(db_session):
-    cand = _candidate(db_session, status="Schedule 1st Round of Interview")
+    cand = _candidate(db_session, status="Interview Email Sent - Waiting Reply")
     r = asyncio.run(dashboard.schedule_hr_interview(
         candidate_id=cand.id,
         body=dashboard.HrScheduleBody(
@@ -178,7 +178,7 @@ def test_schedule_creates_interview_and_moves_stage(db_session):
         ),
         name="hr", user=_user(db_session), db=db_session,
     ))
-    assert r["candidate"]["status"] == "1st round of interview"
+    assert r["candidate"]["status"] == "1st Interview Scheduled"
     iv = r["interview"]
     assert iv["round"] == "first" and iv["scheduled_at"] == "2026-09-05T10:00"
     assert iv["interviewer_name"] == "Bob Manager"
@@ -214,17 +214,17 @@ def test_remove_soft_rejects_with_reason(db_session):
     assert db_session.get(HrCandidate, cand.id) is not None
 
 
-def test_add_to_pipeline_moves_into_schedule_stage(db_session):
-    cand = _candidate(db_session, status="HR Review")
+def test_add_to_pipeline_moves_into_waiting_reply_stage(db_session):
+    cand = _candidate(db_session, status="Shortlisted")
     r = asyncio.run(dashboard.add_hr_candidate_to_pipeline(
         candidate_id=cand.id, name="hr", user=_user(db_session), db=db_session,
     ))
     assert r["candidate"]["in_pipeline"] is True
-    assert r["candidate"]["status"] == "Schedule 1st Round of Interview"
+    assert r["candidate"]["status"] == "Interview Email Sent - Waiting Reply"
 
 
 def test_interview_status_update(db_session):
-    cand = _candidate(db_session, status="Schedule 1st Round of Interview")
+    cand = _candidate(db_session, status="Interview Email Sent - Waiting Reply")
     r = asyncio.run(dashboard.schedule_hr_interview(
         candidate_id=cand.id,
         body=dashboard.HrScheduleBody(round="first", scheduled_at="2026-09-05T10:00"),

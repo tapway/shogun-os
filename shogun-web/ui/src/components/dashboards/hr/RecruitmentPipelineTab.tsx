@@ -17,16 +17,15 @@ interface Props {
 const STATUS_ORDER = [
   "Resume Received",
   "Shortlisted",
-  "Screening - Pending",
-  "HR Review",
-  "Hiring Manager Pending Review",
-  "Schedule 1st Round of Interview",
-  "1st round of interview",
-  "Schedule Manager Interview",
-  "Manager Interview",
-  "Assessment DONE",
-  "Offer Sent",
-  "Hired",
+  "Interview Email Sent - Waiting Reply",
+  "1st Interview Scheduled",
+  "HR Interview Done",
+  "Waiting Manager Interview Confirm",
+  "Manager Interview Scheduled",
+  "Waiting Interview Result",
+  "Waiting Offer Confirmation",
+  "Offer Sent - Waiting Reply",
+  "Done",
   "Virtual Bench",
   "KIV",
   "On Hold",
@@ -35,12 +34,25 @@ const STATUS_ORDER = [
 ];
 
 const STATUS_ALIASES: Record<string, string> = {
-  "1st Interview": "1st round of interview",
-  "Hiring Manager Review": "Hiring Manager Pending Review",
-  "Pending Review": "Hiring Manager Pending Review",
+  // legacy / Notion-era spellings fold into the new pipeline stages
+  "Screening - Pending": "Interview Email Sent - Waiting Reply",
+  "Screening": "Interview Email Sent - Waiting Reply",
+  "Schedule 1st Round of Interview": "Interview Email Sent - Waiting Reply",
+  "1st round of interview": "1st Interview Scheduled",
+  "1st Interview": "1st Interview Scheduled",
+  "Schedule Manager Interview": "Waiting Manager Interview Confirm",
+  "Manager Interview": "Manager Interview Scheduled",
+  "Assessment DONE": "Waiting Offer Confirmation",
+  "Assessment Sent": "Waiting Offer Confirmation",
+  "Offer Sent": "Offer Sent - Waiting Reply",
+  "Offer Accepted": "Done",
+  "Hired": "Done",
+  // pre-interview review stages in the old Notion order
+  "HR Review": "Interview Email Sent - Waiting Reply",
+  "Hiring Manager Pending Review": "Interview Email Sent - Waiting Reply",
+  "Hiring Manager Review": "Interview Email Sent - Waiting Reply",
+  "Pending Review": "Interview Email Sent - Waiting Reply",
   "No response": "No Response",
-  "Offer Accepted": "Offer Sent",
-  "Assessment Sent": "Assessment DONE",
 };
 
 const NO_STATUS = "(No status)";
@@ -48,16 +60,15 @@ const NO_STATUS = "(No status)";
 const STATUS_CHIP: Record<string, string> = {
   "Resume Received": "muted",
   "Shortlisted": "ok",
-  "Screening - Pending": "muted",
-  "HR Review": "warn",
-  "Hiring Manager Pending Review": "warn",
-  "Schedule 1st Round of Interview": "warn",
-  "1st round of interview": "warn",
-  "Schedule Manager Interview": "warn",
-  "Manager Interview": "warn",
-  "Assessment DONE": "ok",
-  "Offer Sent": "ok",
-  "Hired": "ok",
+  "Interview Email Sent - Waiting Reply": "warn",
+  "1st Interview Scheduled": "warn",
+  "HR Interview Done": "warn",
+  "Waiting Manager Interview Confirm": "warn",
+  "Manager Interview Scheduled": "warn",
+  "Waiting Interview Result": "warn",
+  "Waiting Offer Confirmation": "warn",
+  "Offer Sent - Waiting Reply": "warn",
+  "Done": "ok",
   "Virtual Bench": "muted",
   "KIV": "muted",
   "On Hold": "muted",
@@ -115,7 +126,7 @@ function isOpenJob(j: HrJobOpening): boolean {
  * recruitment process (not Hired/Rejected) AND have at least one matching job
  * opening that is not Hired/Closed. Manually curated in_pipeline candidates
  * always stay visible. */
-const TERMINAL_STAGES = new Set(["Hired", "Rejected"]);
+const TERMINAL_STAGES = new Set(["Done", "Rejected"]);
 
 function isInActiveRecruitment(c: HrCandidate, jobOpenings: HrJobOpening[]): boolean {
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return false;
@@ -261,7 +272,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
 
   // KPI metrics (canonical)
   const totalCandidates = candidates.length;
-  const hiredCount = candidates.filter((c) => canonicalStatus(c.status) === "Hired").length;
+  const hiredCount = candidates.filter((c) => canonicalStatus(c.status) === "Done").length;
   const rejectedCount = candidates.filter((c) => canonicalStatus(c.status) === "Rejected").length;
   const activeCount = candidates.filter((c) => isInActiveRecruitment(c, jobOpenings)).length;
 
@@ -738,7 +749,7 @@ function KanbanBoard({
                   )}
                   {(() => {
                     const idx = journeyIndex(c.status);
-                    if (idx < 0 || c.status === "Hired") return null;
+                    if (idx < 0 || c.status === "Done") return null;
                     return (
                       <div style={{ display: "flex", alignItems: "center", gap: "0.35rem", marginTop: "0.35rem" }}>
                         <div style={{ height: "0.3rem", flex: 1, borderRadius: 999, overflow: "hidden", background: "var(--samurai-surface)" }}>
