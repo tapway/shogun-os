@@ -17,19 +17,42 @@ import { TrainingTab } from "./TrainingTab";
 import { TalentPoolPage } from "./TalentPoolPage";
 import { CandidateDetailPage } from "./CandidateDetailPage";
 
-const TABS: DashboardTab[] = [
+/** Top-level groups — similar functions live together. */
+const GROUPS: DashboardTab[] = [
   { id: "overview", label: "Overview", icon: "LayoutDashboard" },
-  { id: "directory", label: "Employee Directory", icon: "Users" },
-  { id: "openings", label: "Job Openings", icon: "Briefcase" },
-  { id: "pipeline", label: "Recruitment Pipeline", icon: "GitBranch" },
-  { id: "talentpool", label: "Talent Pool", icon: "Database" },
+  { id: "employees", label: "Employees", icon: "Users" },
+  { id: "recruitment", label: "Recruitment", icon: "Briefcase" },
   { id: "onboarding", label: "Onboarding", icon: "UserPlus" },
+];
+
+/** Second-level tabs inside the Employees group. */
+const EMPLOYEE_TABS: DashboardTab[] = [
+  { id: "directory", label: "Employee Directory", icon: "Users" },
   { id: "leave", label: "Leave Tracker", icon: "Calendar" },
   { id: "performance", label: "Performance Reviews", icon: "TrendingUp" },
   { id: "equipment", label: "Equipment Tracker", icon: "Monitor" },
   { id: "training", label: "Training & Development", icon: "GraduationCap" },
-
 ];
+
+/** Second-level tabs inside the Recruitment group. */
+const RECRUITMENT_TABS: DashboardTab[] = [
+  { id: "openings", label: "Job Openings", icon: "Briefcase" },
+  { id: "pipeline", label: "Recruitment Pipeline", icon: "GitBranch" },
+  { id: "talentpool", label: "Talent Pool", icon: "Database" },
+];
+
+/** Which group owns which sub-tab (keeps legacy tab ids resolvable). */
+const SUB_GROUP: Record<string, string> = {};
+for (const t of EMPLOYEE_TABS) SUB_GROUP[t.id] = "employees";
+for (const t of RECRUITMENT_TABS) SUB_GROUP[t.id] = "recruitment";
+
+/** Default sub-tab when opening a group. */
+const DEFAULT_SUB: Record<string, string> = {
+  overview: "overview",
+  employees: "directory",
+  recruitment: "openings",
+  onboarding: "onboarding",
+};
 
 interface HrDashboardProps {
   department: string;
@@ -38,6 +61,7 @@ interface HrDashboardProps {
 
 export function HrDashboard({ department, color }: HrDashboardProps) {
   const [activeTab, setActiveTab] = useState("overview");
+  const [activeGroup, setActiveGroup] = useState("overview");
   const [talentPool, setTalentPool] = useState<{ id: number; job: HrJobOpening } | null>(null);
   const [candidatePage, setCandidatePage] = useState<{ id: number; candidate: HrCandidate } | null>(null);
 
@@ -46,6 +70,19 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
     queryFn: () => hrApi.stats(department),
     refetchInterval: 120_000,
   });
+
+  /** Navigate by any legacy tab id — resolves the group automatically. */
+  function navigate(tabId: string) {
+    if (SUB_GROUP[tabId]) {
+      setActiveGroup(SUB_GROUP[tabId]);
+      setActiveTab(tabId);
+    } else if (DEFAULT_SUB[tabId]) {
+      setActiveGroup(tabId);
+      setActiveTab(DEFAULT_SUB[tabId]);
+    } else {
+      setActiveTab(tabId);
+    }
+  }
 
   if (statsQuery.isLoading) {
     return (
@@ -82,7 +119,7 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
         onAddedToPipeline={() => {
           setCandidatePage(null);
           setTalentPool(null);
-          setActiveTab("pipeline");
+          navigate("pipeline");
         }}
       />
     );
@@ -104,8 +141,14 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
 
   return (
     <div className="sd-stack">
-      <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
-      {activeTab === "overview" && <OverviewTab stats={stats} color={color} onNavigateTab={setActiveTab} />}
+      <DashboardSubNav tabs={GROUPS} active={activeGroup} onChange={navigate} />
+      {activeGroup === "employees" && (
+        <DashboardSubNav tabs={EMPLOYEE_TABS} active={activeTab} onChange={setActiveTab} compact />
+      )}
+      {activeGroup === "recruitment" && (
+        <DashboardSubNav tabs={RECRUITMENT_TABS} active={activeTab} onChange={setActiveTab} compact />
+      )}
+      {activeTab === "overview" && <OverviewTab stats={stats} color={color} onNavigateTab={navigate} />}
       {activeTab === "directory" && <EmployeeDirectoryTab stats={stats} color={color} />}
       {activeTab === "openings" && (
         <JobOpeningsTab
