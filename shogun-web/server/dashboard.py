@@ -4077,7 +4077,8 @@ async def hr_extract_resume(
         raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
     text = _extract_text_from_upload(content)
 
-    result = {"name": "", "email": "", "phone": "", "summary": "", "source": "empty"}
+    result = {"name": "", "email": "", "phone": "", "summary": "", "source": "empty",
+              "resume_text": text.strip()[:8000]}
 
     # regex fallback (also used to cross-check the LLM answer)
     import re as _re_local
@@ -4121,6 +4122,7 @@ async def add_hr_applicant(
     applicant_name: str = Form(...),
     email: str = Form(""),
     phone_no: str = Form(""),
+    source: str = Form(""),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -4152,7 +4154,7 @@ async def add_hr_applicant(
         phone_no=phone_no.strip() or None,
         role=job.job_title,
         status="Resume Received",
-        source="Portal",
+        source=((source if isinstance(source, str) else "").strip()[:128] or "Portal"),
         candidate_type=ctype,
         date_entry=now,
         job_opening_id=job.id,

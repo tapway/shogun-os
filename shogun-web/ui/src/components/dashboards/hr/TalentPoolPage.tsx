@@ -23,6 +23,7 @@ const DANGER = "var(--samurai-danger)";
 const SURFACE = "var(--samurai-surface)";
 const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
+const WARNING = "var(--samurai-warning)";
 
 function fmtDate(s: string | null | undefined): string {
   if (!s) return "—";
@@ -484,6 +485,13 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
   );
 }
 
+const APPLICANT_SOURCES = ["Email", "LinkedIn", "JobStreet", "Indeed", "WhatsApp", "Walk-in", "Referral", "Other"];
+
+/**
+ * Add Applicant — HR only picks the source; all other info is extracted from
+ * the resume. HR then reviews the raw resume content next to the extracted
+ * details, corrects anything, and clicks Confirm.
+ */
 function AddApplicantModal({
   job, department, onClose,
 }: {
@@ -492,40 +500,57 @@ function AddApplicantModal({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const [source, setSource] = useState<string>("Email");
   const [resume, setResume] = useState<File | null>(null);
   const [extracting, setExtracting] = useState(false);
+  const [extracted, setExtracted] = useState(false);
+  const [resumeText, setResumeText] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [form, setForm] = useState({ name: "", email: "", phone: "" });
+  const [summary, setSummary] = useState("");
 
   async function pickFile(f: File) {
     setResume(f);
     setError("");
     setExtracting(true);
+    setExtracted(false);
     try {
       const res = await hrApi.extractResume(department, f);
       const ex = res.extract;
-      setForm((prev) => ({
-        name: ex.name || prev.name,
-        email: ex.email || prev.email,
-        phone: ex.phone || prev.phone,
-      }));
+      setForm({ name: ex.name || "", email: ex.email || "", phone: ex.phone || "" });
+      setSummary(ex.summary || "");
+      setResumeText(ex.resume_text || "");
+      setExtracted(true);
     } catch (err) {
-      setError(err instanceof Error ? err.message : "Extraction failed — fill the fields manually.");
+      setError(err instanceof Error ? err.message : "Extraction failed — fill the fields manually after choosing the file.");
+      setResumeText("");
+      setExtracted(true); // allow manual entry + confirm anyway
     } finally {
       setExtracting(false);
     }
   }
 
+  function resetFile() {
+    setResume(null);
+    setExtracted(false);
+    setResumeText("");
+    setSummary("");
+    setForm({ name: "", email: "", phone: "" });
+    setError("");
+  }
+
   async function submit() {
-    if (!form.name.trim()) { setError("Applicant name is required."); return; }
+    if (!resume) { setError("Upload the resume first."); return; }
+    if (!form.name.trim()) { setError("Applicant name is required — check the extraction and correct it."); return; }
     setBusy(true);
     setError("");
     const fd = new FormData();
     fd.append("applicant_name", form.name.trim());
     if (form.email.trim()) fd.append("email", form.email.trim());
     if (form.phone.trim()) fd.append("phone_no", form.phone.trim());
-    if (resume) fd.append("file", resume);
+    fd.append("source", source);
+    fd.append("file", resume);
     try {
       await hrApi.addApplicant(department, job.id, fd);
       await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
@@ -543,14 +568,16 @@ function AddApplicantModal({
       <div onClick={onClose}
         style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}>
         <div onClick={(e) => e.stopPropagation()} className="sd-chart-card"
-          style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "28rem", padding: "1.25rem" }}>
+          style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: extracted ? "64rem" : "28rem", padding: "1.25rem", maxHeight: "92vh", overflowY: "auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.75rem", marginBottom: "0.75rem" }}>
             <div>
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
                 Add Applicant — {job.job_title}
               </h2>
               <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
-                Upload the resume — name, email and phone are extracted automatically. Date received is set to now.
+                {extracted
+                  ? "Step 2 — Compare the resume content with the extracted details. Correct anything wrong, then Confirm."
+                  : "Step 1 — Pick where this resume came from and upload it. Everything else is extracted automatically."}
               </p>
             </div>
             <button type="button" className="sd-icon-btn" onClick={onClose} aria-label="Close">
@@ -558,17 +585,83 @@ function AddApplicantModal({
             </button>
           </div>
 
-          <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: `1px dashed ${LIME}`, color: LIME, fontSize: "0.82rem", fontWeight: 600, cursor: "pointer", marginBottom: "0.75rem" }}>
-            <Upload size={14} /> {extracting ? "Extracting details…" : resume ? resume.name : "Choose resume file"}
-            <input type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp" style={{ display: "none" }}
-              onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
-          </label>
-
-          <div style={{ display: "grid", gap: "0.55rem" }}>
-            <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Full name *" style={appInputStyle} />
-            <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" style={appInputStyle} />
-            <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" style={appInputStyle} />
+          {/* Source */}
+          <div style={{ marginBottom: "0.75rem" }}>
+            <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+              Source * (where did this resume come from?)
+            </label>
+            <select value={source} onChange={(e) => setSource(e.target.value)} style={{ ...appInputStyle, maxWidth: "14rem" }}>
+              {APPLICANT_SOURCES.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </div>
+
+          {/* Resume upload */}
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: extracted ? "0.9rem" : "0" }}>
+            <label style={{ display: "inline-flex", alignItems: "center", gap: "0.4rem", padding: "0.5rem 0.9rem", borderRadius: "0.5rem", border: `1px dashed ${LIME}`, color: LIME, fontSize: "0.82rem", fontWeight: 600, cursor: "pointer" }}>
+              <Upload size={14} /> {extracting ? "Extracting details…" : resume ? resume.name : "Choose resume file"}
+              <input type="file" accept=".pdf,.doc,.docx,.txt,.md,.rtf,.png,.jpg,.jpeg,.webp" style={{ display: "none" }}
+                onChange={(e) => { const f = e.target.files?.[0]; if (f) pickFile(f); e.target.value = ""; }} />
+            </label>
+            {extracted && (
+              <button type="button" onClick={resetFile}
+                style={{ padding: "0.4rem 0.8rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.75rem", cursor: "pointer" }}>
+                Choose a different file
+              </button>
+            )}
+            {extracting && <span style={{ fontSize: "0.75rem", color: WARNING }}>Reading resume…</span>}
+          </div>
+
+          {/* Review: extracted details vs raw resume content */}
+          {extracted && (
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1.3fr", gap: "0.9rem" }}>
+              {/* Extracted — editable */}
+              <div style={{ border: `1px solid ${BORDER}`, borderRadius: "0.6rem", padding: "0.9rem", background: SURFACE_2 }}>
+                <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.85rem", color: TEXT }}>
+                  Extracted details {summary ? "" : ""}<span style={{ fontSize: "0.68rem", fontWeight: 400, color: MUTED }}>(correct anything wrong)</span>
+                </h3>
+                <div style={{ display: "grid", gap: "0.55rem" }}>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.2rem" }}>Full name *</label>
+                    <input value={form.name} onChange={(e) => setForm((f) => ({ ...f, name: e.target.value }))} placeholder="Full name *" style={appInputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.2rem" }}>Email</label>
+                    <input value={form.email} onChange={(e) => setForm((f) => ({ ...f, email: e.target.value }))} placeholder="Email" style={appInputStyle} />
+                  </div>
+                  <div>
+                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.2rem" }}>Phone</label>
+                    <input value={form.phone} onChange={(e) => setForm((f) => ({ ...f, phone: e.target.value }))} placeholder="Phone" style={appInputStyle} />
+                  </div>
+                </div>
+                {summary && (
+                  <div style={{ marginTop: "0.6rem", padding: "0.5rem 0.6rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "var(--samurai-bg)", fontSize: "0.75rem", color: TEXT }}>
+                    <span style={{ fontWeight: 600, color: MUTED }}>AI summary: </span>{summary}
+                  </div>
+                )}
+                {resumeText.trim() === "" && (
+                  <p style={{ fontSize: "0.72rem", color: WARNING, margin: "0.5rem 0 0" }}>
+                    No readable text in this file — fill the details manually.
+                  </p>
+                )}
+              </div>
+
+              {/* Raw resume content — read only */}
+              <div style={{ border: `1px solid ${BORDER}`, borderRadius: "0.6rem", padding: "0.9rem", display: "flex", flexDirection: "column", minHeight: 0 }}>
+                <h3 style={{ margin: "0 0 0.6rem", fontSize: "0.85rem", color: TEXT }}>
+                  Resume content <span style={{ fontSize: "0.68rem", fontWeight: 400, color: MUTED }}>(raw text — for verification)</span>
+                </h3>
+                <pre style={{
+                  flex: 1, margin: 0, overflowY: "auto", maxHeight: "18rem",
+                  whiteSpace: "pre-wrap", wordBreak: "break-word",
+                  fontSize: "0.72rem", lineHeight: 1.5, color: TEXT,
+                  padding: "0.5rem 0.6rem", borderRadius: "0.4rem",
+                  border: `1px solid ${BORDER}`, background: "var(--samurai-bg)",
+                }}>
+                  {resumeText.trim() || "(No readable text extracted — the file may be a scanned image.)"}
+                </pre>
+              </div>
+            </div>
+          )}
 
           {error && <p style={{ color: DANGER, fontSize: "0.78rem", margin: "0.6rem 0 0" }}>{error}</p>}
 
@@ -577,9 +670,9 @@ function AddApplicantModal({
               style={{ padding: "0.45rem 0.9rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontSize: "0.8rem", fontWeight: 600, cursor: "pointer" }}>
               Cancel
             </button>
-            <button type="button" onClick={submit} disabled={busy}
-              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.45rem 1rem", borderRadius: "0.5rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: busy ? "default" : "pointer", opacity: busy ? 0.6 : 1 }}>
-              <UserPlus size={14} /> {busy ? "Adding…" : "Add Applicant"}
+            <button type="button" onClick={submit} disabled={busy || extracting}
+              style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.45rem 1rem", borderRadius: "0.5rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: busy || extracting ? "default" : "pointer", opacity: busy || extracting ? 0.6 : 1 }}>
+              <UserPlus size={14} /> {busy ? "Adding…" : "Confirm & Add Applicant"}
             </button>
           </div>
         </div>

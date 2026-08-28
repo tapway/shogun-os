@@ -222,6 +222,60 @@ def test_attach_candidate_to_open_job(db_session):
     assert r["candidate"]["job_opening_id"] == job.id
 
 
+
+
+class FakeUpload:
+    """Minimal stand-in for a FastAPI UploadFile."""
+
+    def __init__(self, filename: str, data: bytes):
+        self.filename = filename
+        self._data = data
+
+    async def read(self):
+        return self._data
+
+
+def test_add_applicant_source_stored(db_session):
+    job = _job(db_session)
+    r = asyncio.run(dashboard.add_hr_applicant(
+        job_id=job.id, name="hr", file=FakeUpload("bob.pdf", b"%PDF-1.4 bob"),
+        applicant_name="Bob Tan", email="", phone_no="", source="LinkedIn",
+        user=_user(db_session), db=db_session,
+    ))
+    assert r["ok"] is True
+    assert r["candidate"]["source"] == "LinkedIn"
+    assert r["candidate"]["status"] == "Resume Received"
+
+
+def test_add_applicant_source_defaults_to_portal(db_session):
+    job = _job(db_session)
+    r = asyncio.run(dashboard.add_hr_applicant(
+        job_id=job.id, name="hr", file=None,
+        applicant_name="No Source Person", email="", phone_no="", source="",
+        user=_user(db_session), db=db_session,
+    ))
+    assert r["candidate"]["source"] == "Portal"
+
+
+def test_extract_resume_returns_text_and_contacts(db_session):
+    resume = (
+        "CURRICULUM VITAE\n"
+        "Ali bin Ahmad\n"
+        "Email: ali.ahmad@example.com\n"
+        "Phone: +60123456789\n"
+        "Experienced backend engineer."
+    ).encode()
+    r = asyncio.run(dashboard.hr_extract_resume(
+        name="hr", file=FakeUpload("ali.txt", resume),
+        user=_user(db_session), db=db_session,
+    ))
+    assert r["ok"] is True
+    ex = r["extract"]
+    assert ex["email"] == "ali.ahmad@example.com"
+    assert "CURRICULUM VITAE" in ex["resume_text"]
+    assert ex["source"] in ("fallback", "ai")
+
+
 def test_attach_to_closed_job_rejected(db_session):
     job = _job(db_session)
     old = _candidate(db_session, status="Rejected", name="Pool Person")

@@ -1692,6 +1692,7 @@ export interface HrResumeExtract {
   phone: string;
   summary: string;
   source: string;
+  resume_text?: string;
 }
 
 export interface HrCandidateExtract {
