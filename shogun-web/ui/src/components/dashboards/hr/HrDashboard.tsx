@@ -114,7 +114,7 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
         />
       )}
       {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} department={department} />}
-      {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} />}
+      {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
       {activeTab === "leave" && <LeaveTrackerTab stats={stats} color={color} />}
       {activeTab === "performance" && <PerformanceTab stats={stats} color={color} />}
       {activeTab === "equipment" && <EquipmentTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}

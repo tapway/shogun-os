@@ -1390,6 +1390,62 @@ class HrOnboardingTask(Base):
 
 
 
+class HrOnboardingChecklistItem(Base):
+
+    """HR-managed onboarding checklist template item."""
+
+    __tablename__ = "hr_onboarding_checklist_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    title: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    description: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    sort_order: Mapped[int] = mapped_column(Integer, nullable=False, default=0)
+    created_by: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "title": self.title,
+            "description": self.description,
+            "sort_order": self.sort_order,
+            "created_by": self.created_by,
+        }
+
+
+class HrOnboardingChecklistProgress(Base):
+
+    """Per-staff completion state for one checklist item."""
+
+    __tablename__ = "hr_onboarding_checklist_progress"
+    __table_args__ = (
+        UniqueConstraint("staff_name", "item_id", name="uq_ob_checklist_staff_item"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    staff_name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    item_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("hr_onboarding_checklist_items.id"), nullable=False
+    )
+    completed: Mapped[bool] = mapped_column(Boolean, nullable=False, default=False)
+    completed_at: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)
+    completed_by: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "staff_name": self.staff_name,
+            "item_id": self.item_id,
+            "completed": self.completed,
+            "completed_at": self.completed_at,
+            "completed_by": self.completed_by,
+        }
+
+
 class HrPerformanceReview(Base):
 
     """Performance review row (synced from Notion)."""

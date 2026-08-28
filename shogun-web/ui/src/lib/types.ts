@@ -1746,6 +1746,23 @@ export interface HrEquipment {
   is_overdue?: boolean;
 }
 
+export interface HrOnboardingChecklistItem {
+  id: number;
+  title: string;
+  description?: string | null;
+  sort_order: number;
+  created_by?: string | null;
+}
+
+export interface HrOnboardingChecklistProgress {
+  id: number;
+  staff_name: string;
+  item_id: number;
+  completed: boolean;
+  completed_at?: string | null;
+  completed_by?: string | null;
+}
+
 export interface HrEquipmentLog {
   id: number;
   equipment_id: number;
@@ -1845,5 +1862,7 @@ export interface HrDashboardStats {
   candidate_events: HrCandidateEvent[];
   interviews: HrInterview[];
   equipment_logs?: HrEquipmentLog[];
+  onboarding_checklist_items?: HrOnboardingChecklistItem[];
+  onboarding_checklist_progress?: HrOnboardingChecklistProgress[];
   source?: string;
 }

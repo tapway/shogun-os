@@ -17,7 +17,7 @@ from urllib.parse import quote as _url_quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form
 from pydantic import BaseModel, Field
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
 
 from auth import get_current_user
@@ -3558,7 +3558,9 @@ async def get_hr_stats(
     trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
     trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
     meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
-    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview
+    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview, HrOnboardingChecklistItem, HrOnboardingChecklistProgress
+    checklist_items = db.execute(select(HrOnboardingChecklistItem).where(HrOnboardingChecklistItem.tenant_id == tenant.id).order_by(HrOnboardingChecklistItem.sort_order, HrOnboardingChecklistItem.id)).scalars().all()
+    checklist_progress = db.execute(select(HrOnboardingChecklistProgress).where(HrOnboardingChecklistProgress.tenant_id == tenant.id)).scalars().all()
     candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
     equipment_logs = db.execute(select(HrEquipmentLog).where(HrEquipmentLog.tenant_id == tenant.id).order_by(HrEquipmentLog.id.desc())).scalars().all()
     candidate_events = db.execute(select(HrCandidateEvent).where(HrCandidateEvent.tenant_id == tenant.id).order_by(HrCandidateEvent.id.desc())).scalars().all()
@@ -3615,6 +3617,8 @@ async def get_hr_stats(
         "candidate_events": [e.to_dict() for e in candidate_events],
         "interviews": [i.to_dict() for i in interviews],
         "equipment_logs": [l.to_dict() for l in equipment_logs],
+        "onboarding_checklist_items": [i.to_dict() for i in checklist_items],
+        "onboarding_checklist_progress": [p.to_dict() for p in checklist_progress],
         "source": "notion_sync",
     }
 
@@ -4758,4 +4762,191 @@ async def upload_hr_equipment_file(
     db.commit()
     db.refresh(eq)
     return {"ok": True, "equipment": eq.to_dict()}
+
+
+# ---------------------------------------------------------------------------
+# Onboarding Checklist — HR-managed template, per-staff tick-off
+# ---------------------------------------------------------------------------
+
+class HrChecklistItemBody(BaseModel):
+    title: str
+    description: Optional[str] = None
+
+
+@router.post("/hr/onboarding-checklist")
+async def add_hr_checklist_item(
+    body: HrChecklistItemBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Add an item to the onboarding checklist template."""
+    from models import HrOnboardingChecklistItem
+
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Checklist item title is required")
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    max_order = db.execute(
+        select(HrOnboardingChecklistItem.sort_order).where(
+            HrOnboardingChecklistItem.tenant_id == tenant.id
+        ).order_by(HrOnboardingChecklistItem.sort_order.desc())
+    ).scalars().first() or 0
+
+    item = HrOnboardingChecklistItem(
+        tenant_id=tenant.id,
+        title=title[:256],
+        description=(body.description or "").strip()[:1024] or None,
+        sort_order=max_order + 1,
+        created_by=(user.name if user else "HR") or "HR",
+    )
+    db.add(item)
+    db.commit()
+    db.refresh(item)
+    return {"ok": True, "item": item.to_dict()}
+
+
+@router.put("/hr/onboarding-checklist/{item_id}")
+async def update_hr_checklist_item(
+    item_id: int,
+    body: HrChecklistItemBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Edit a checklist template item."""
+    from models import HrOnboardingChecklistItem
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    item = db.get(HrOnboardingChecklistItem, item_id)
+    if item is None or item.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+
+    title = (body.title or "").strip()
+    if not title:
+        raise HTTPException(status_code=422, detail="Checklist item title is required")
+    item.title = title[:256]
+    item.description = (body.description or "").strip()[:1024] or None
+    db.commit()
+    db.refresh(item)
+    return {"ok": True, "item": item.to_dict()}
+
+
+@router.delete("/hr/onboarding-checklist/{item_id}")
+async def delete_hr_checklist_item(
+    item_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Remove a checklist template item and all staff progress for it."""
+    from models import HrOnboardingChecklistItem, HrOnboardingChecklistProgress
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    item = db.get(HrOnboardingChecklistItem, item_id)
+    if item is None or item.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+
+    db.execute(delete(HrOnboardingChecklistProgress).where(
+        HrOnboardingChecklistProgress.item_id == item_id,
+        HrOnboardingChecklistProgress.tenant_id == tenant.id,
+    ))
+    db.delete(item)
+    db.commit()
+    return {"ok": True}
+
+
+class HrChecklistToggleBody(BaseModel):
+    staff_name: str
+    completed: bool
+
+
+@router.post("/hr/onboarding-checklist/{item_id}/toggle")
+async def toggle_hr_checklist_item(
+    item_id: int,
+    body: HrChecklistToggleBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Tick/untick one checklist item for one staff member.
+
+    When every checklist item is ticked, the staff's onboarding task is
+    marked Done (onboarding process complete); unticking after completion
+    reverts it to In progress.
+    """
+    from models import HrOnboardingChecklistItem, HrOnboardingChecklistProgress, HrOnboardingTask
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    item = db.get(HrOnboardingChecklistItem, item_id)
+    if item is None or item.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Checklist item not found")
+    staff = (body.staff_name or "").strip()
+    if not staff:
+        raise HTTPException(status_code=422, detail="staff_name is required")
+
+    progress = db.execute(select(HrOnboardingChecklistProgress).where(
+        HrOnboardingChecklistProgress.tenant_id == tenant.id,
+        HrOnboardingChecklistProgress.staff_name == staff,
+        HrOnboardingChecklistProgress.item_id == item_id,
+    )).scalars().first()
+
+    now = datetime.utcnow().isoformat(timespec="seconds")
+    if progress is None:
+        progress = HrOnboardingChecklistProgress(
+            tenant_id=tenant.id, staff_name=staff, item_id=item_id,
+            completed=body.completed,
+            completed_at=now if body.completed else None,
+            completed_by=(user.name if user else "HR") if body.completed else None,
+        )
+        db.add(progress)
+    else:
+        progress.completed = body.completed
+        progress.completed_at = now if body.completed else None
+        progress.completed_by = (user.name if user else "HR") if body.completed else None
+
+    # Flush so the recompute below sees the row we just added/changed
+    # (production session factory runs with autoflush=False).
+    db.flush()
+
+    # Recompute completion for this staff member
+    total_items = db.execute(select(HrOnboardingChecklistItem.id).where(
+        HrOnboardingChecklistItem.tenant_id == tenant.id
+    )).all()
+    done_items = db.execute(select(HrOnboardingChecklistProgress.item_id).where(
+        HrOnboardingChecklistProgress.tenant_id == tenant.id,
+        HrOnboardingChecklistProgress.staff_name == staff,
+        HrOnboardingChecklistProgress.completed == True,  # noqa: E712
+    )).all()
+    all_done = len(total_items) > 0 and len(done_items) >= len(total_items)
+
+    # Reflect on the onboarding task row (synced from Notion) if present
+    task = db.execute(select(HrOnboardingTask).where(
+        HrOnboardingTask.tenant_id == tenant.id,
+        HrOnboardingTask.staff_name == staff,
+    )).scalars().first()
+    if task is not None:
+        if all_done and task.status != "Done":
+            task.status = "Done"
+        elif not all_done and task.status == "Done":
+            task.status = "In progress"
+
+    db.commit()
+    db.refresh(progress)
+    return {
+        "ok": True,
+        "progress": progress.to_dict(),
+        "all_done": all_done,
+        "done_count": len(done_items),
+        "total_items": len(total_items),
+    }
 

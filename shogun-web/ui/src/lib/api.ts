@@ -41,6 +41,7 @@ import type {
   HrEquipment,
   HrInterview,
   HrJobOpening,
+  HrOnboardingChecklistItem,
   HrResumeExtract,
   GeneratedSkill,
   LoginPayload,
@@ -933,6 +934,26 @@ export const hrApi = {
     apiFetch<{ ok: boolean; equipment: HrEquipment }>(
       `/api/departments/${dept}/dashboard/hr/equipment/${id}`,
       { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  checklistAdd: (dept: string, payload: { title: string; description?: string }) =>
+    apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  checklistUpdate: (dept: string, itemId: number, payload: { title: string; description?: string }) =>
+    apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  checklistDelete: (dept: string, itemId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}`,
+      { method: 'DELETE' },
+    ),
+  checklistToggle: (dept: string, itemId: number, staffName: string, completed: boolean) =>
+    apiFetch<{ ok: boolean; done_count: number; total_items: number; all_done: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}/toggle`,
+      { method: 'POST', body: JSON.stringify({ staff_name: staffName, completed }) },
     ),
   equipmentFileUpload: (dept: string, id: number, file: File, kind: 'image' | 'signature_doc') => {
     const form = new FormData();
