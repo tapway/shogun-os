@@ -11,7 +11,7 @@ import re as _re
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote as _url_quote
 
@@ -126,6 +126,26 @@ def _now() -> datetime:
     return datetime.now()
 
 
+def _parse_iso_utc(raw: str) -> Optional[datetime]:
+    """Parse an ISO date/datetime from brain frontmatter to an aware UTC value.
+
+    Brain pages mix date-only strings ("2026-06-01"), naive datetimes, and
+    Z-suffixed stamps. Normalising every operand to UTC keeps created→close
+    arithmetic total-order safe: a naive/aware mix would raise TypeError and
+    take down the whole aggregation (the endpoint must degrade per-row, never
+    500). Returns None on unparseable input.
+    """
+    if not raw:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _run_ceo_aggregation(pages: List[dict]) -> dict:
     """Port of crm-dashboard/app/api/deals/ceo-stats/route.ts aggregation logic."""
     # Filter to deals
@@ -225,12 +245,12 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             created = str(fm.get("created", ""))
             if created and close_date:
                 try:
-                    cd = datetime.fromisoformat(close_date.replace("Z", "+00:00"))
-                    cr = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                    if cd >= cr:
+                    cd = _parse_iso_utc(close_date)
+                    cr = _parse_iso_utc(created)
+                    if cd is not None and cr is not None and cd >= cr:
                         cycle_days_sum += (cd - cr).days
                         cycle_days_n += 1
-                except ValueError:
+                except (ValueError, TypeError):
                     pass
             if amount > 0 and close_date and _is_this_year(close_date):
                 salesYTD += amount

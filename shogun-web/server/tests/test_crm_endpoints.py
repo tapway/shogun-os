@@ -530,3 +530,17 @@ def test_ceo_aggregation_never_serves_mock_numbers(monkeypatch) -> None:
     assert result["slaCompliancePct"] == 0.0
     # Sales cycle comes from won-deal created/close dates, not a constant
     assert result["salesCycleDays"] == 0  # no close_date in fixtures -> empty state, not the old constant 47
+
+def test_sales_cycle_handles_mixed_naive_and_aware_dates(monkeypatch) -> None:
+    """Regression (MoA round-10): naive + tz-aware frontmatter dates must not
+    raise TypeError and 500 the aggregation — they are normalised to UTC."""
+    monkeypatch.delenv("SHOGUN_WEB_CRM_MOCK", raising=False)
+    pages = [
+        {"slug": "deals/mixed-tz", "title": "Mixed TZ",
+         "frontmatter": {"stage": "Won", "amount": 1000,
+                         "created": "2026-06-01",              # naive date-only
+                         "close_date": "2026-08-28T00:00:00Z"},  # tz-aware
+         "compiled_truth": "# deal"},
+    ]
+    result = dashboard._run_ceo_aggregation(pages)  # must not raise
+    assert result["salesCycleDays"] == 88  # 2026-06-01 -> 2026-08-28
