@@ -166,6 +166,8 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
 
     # Accumulators
     salesMTD = salesQTD = salesYTD = 0
+    cycle_days_sum = 0.0
+    cycle_days_n = 0
     totalPipelineValue = weightedPipelineValue = 0
     totalActiveDeals = hotDeals = warmDeals = coldDeals = wonDeals = 0
 
@@ -220,6 +222,16 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         if won:
             wonDeals += 1
             om.wonDeals += 1
+            created = str(fm.get("created", ""))
+            if created and close_date:
+                try:
+                    cd = datetime.fromisoformat(close_date.replace("Z", "+00:00"))
+                    cr = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                    if cd >= cr:
+                        cycle_days_sum += (cd - cr).days
+                        cycle_days_n += 1
+                except ValueError:
+                    pass
             if amount > 0 and close_date and _is_this_year(close_date):
                 salesYTD += amount
                 om.salesYTD += amount
@@ -426,19 +438,9 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     total_win_num = sum(om.winNum for om in owner_map.values())
     total_win_den = sum(om.winDen for om in owner_map.values())
     avg_deal_size = round(totalPipelineValue / totalActiveDeals) if totalActiveDeals > 0 else 0
+    sales_cycle_days = round(cycle_days_sum / cycle_days_n) if cycle_days_n > 0 else 0
     pipeline_coverage = round(totalPipelineValue / salesYTD * 10) / 10 if salesYTD > 0 else 0
     top15 = sorted(top_deals, key=lambda x: -x["amount"])[:15]
-
-    # ── Omnichannel: derive from deals where possible, fall back to examples/crm-mock.json ──
-    # Inbox + weekly trend are net-new data with no deal source (Concern 2); always load from mock.
-    crm_mock: Dict[str, Any] = {}
-    mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "crm-mock.json"
-    if mock_json_path.exists():
-        try:
-            with open(mock_json_path, "r", encoding="utf-8") as f:
-                crm_mock = json.load(f).get("dashboard_mock", {})
-        except Exception as e:
-            logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
     if totalActiveDeals == 0 and not wonDeals and _crm_mock_enabled():
         # Demo mode: serve the full mock payload so every Overview panel renders.
@@ -488,18 +490,20 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             "chatInbox": [],
         }
 
-    # Real deals exist — derive channel volume + SLA from frontmatter; inbox + trend still mock
+    # Real deals exist — every omnichannel figure comes from deal frontmatter
+    # or stays empty. No fabricated numbers: inbox/trend/AI-resolution have no
+    # brain source yet, so they render as empty states until real data lands.
     channel_volume_out = channel_volume
     if response_minutes:
         avg_response = round(sum(response_minutes) / len(response_minutes), 1)
         sla_pct = round(sla_compliant / len(response_minutes) * 100, 1)
     else:
-        avg_response = _safe_float(crm_mock.get("avgResponseMinutes"))
-        sla_pct = _safe_float(crm_mock.get("slaCompliancePct"))
-    ai_pct = _safe_float(crm_mock.get("aiResolutionPct"))
-    c2o_pct = _safe_float(crm_mock.get("chatToOrderPct"))
-    c2o_trend = crm_mock.get("chatToOrderTrend", [])
-    chat_inbox_out = crm_mock.get("chatInbox", [])
+        avg_response = 0.0
+        sla_pct = 0.0
+    ai_pct = 0.0
+    c2o_pct = 0.0
+    c2o_trend: List[Dict[str, Any]] = []
+    chat_inbox_out: List[Dict[str, Any]] = []
 
     return {
         "salesMTD": salesMTD,
@@ -510,7 +514,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         "pipelineCoverage": pipeline_coverage,
         "winRate": round(total_win_num / total_win_den * 100) if total_win_den > 0 else 0,
         "avgDealSize": avg_deal_size,
-        "salesCycleDays": 47,
+        "salesCycleDays": sales_cycle_days,
         "totalActiveDeals": totalActiveDeals,
         "hotDeals": hotDeals,
         "warmDeals": warmDeals,
