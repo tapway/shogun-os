@@ -705,7 +705,7 @@ def _load_crm_mock() -> dict:
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
-# regardless and enriches at most _MCP_ENRICH_CAP rows.
+# regardless and enriches every row by default (GBRAIN_MCP_ENRICH_CAP=0).
 CRM_LIST_LIMIT = 10000
 
 
@@ -723,7 +723,9 @@ async def get_crm_ceo_stats(
     Reads CRM pages directly from the brain (source ``crm``) via gbrain.
     Returns empty state when the brain has no CRM pages yet or is down.
     """
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
+    # Aggregation consumes deals/ pages only — scope the fetch so a large
+    # source does not pay full enrichment for subtrees it never reads.
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
     return _run_ceo_aggregation(pages)
 
 
@@ -767,7 +769,7 @@ def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
 
 
-async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: str) -> list:
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix) -> list:
     """Graceful fetching: never let a gbrain failure 500 a CRM listing.
 
     Returns the raw pages list; an MCP failure (server down, timeout) or any
@@ -914,7 +916,7 @@ async def get_partner_sphere(
         "pricing": None,
         "mock": False,
     }
-    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
 
     if partners:
         # Narrow meta filter keeps a partners/readme page from inflating the
@@ -995,7 +997,7 @@ async def list_crm_partners(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
 
     items = []
     for p in pages:
@@ -1128,7 +1130,7 @@ async def crm_search(
                 row["category"] = "deals"
             elif slug.startswith("companies/"):
                 row["category"] = "companies"
-            elif slug.startswith("partners/"):
+            elif slug.startswith(("partners/", "partner/")):
                 row["category"] = "partners"
             elif slug.startswith("persons/"):
                 row["category"] = "persons"
