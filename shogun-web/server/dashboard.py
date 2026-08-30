@@ -3584,6 +3584,21 @@ async def get_hr_stats(
     overdue_openings = sum(1 for j in job_openings if j.to_dict().get("overdue") == "Overdue")
     training_total_charges = sum(t.training_charges or 0 for t in trainings)
 
+    # Normalize legacy statuses to new convention
+    STATUS_MAP = {
+        "Not Initiated": "Draft",
+        "Test Ongoing": "Active",
+        "Hired": "Closed - Hired",
+        "Ongoing": "Active",
+        "Open": "Active",
+    }
+    def normalize_status(s: str | None) -> str:
+        if not s:
+            return "Draft"
+        if s.startswith("Closed"):
+            return s
+        return STATUS_MAP.get(s, s)
+
     open_action_items = sum(1 for a in action_items if a.status in ("Open", "In progress", "Not Started"))
 
     return {
@@ -3604,7 +3619,7 @@ async def get_hr_stats(
         "open_action_items": open_action_items,
         "dept_counts": dept_counts,
         "employees": [e.to_dict() for e in employees],
-        "job_openings": [j.to_dict() for j in job_openings],
+        "job_openings": [{**j.to_dict(), "job_status": normalize_status(j.job_status)} for j in job_openings],
         "candidates": [c.to_dict() for c in candidates],
         "onboarding_tasks": [t.to_dict() for t in onboarding],
         "performance_reviews": [r.to_dict() for r in reviews],
