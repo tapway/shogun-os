@@ -26,11 +26,14 @@ interface BarChartProps {
   name?: string;
   labels?: Record<string, string>;
   interval?: number | 'preserveStart' | 'preserveEnd' | 'preserveStartEnd';
+  /** Rotate x-axis tick labels (negative = slanted up-left) to avoid overlap. */
+  xAngle?: number;
 }
 
 export function BarChart({
   data, xKey, yKey, color = '#6366f1', colors, unit = '',
   height = 250, stacked = false, onClick, dataKeys, name, labels, interval = 0,
+  xAngle = 0,
 }: BarChartProps) {
   if (!data || data.length === 0) {
     return <ChartEmpty />;
@@ -51,7 +54,16 @@ export function BarChart({
         }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--samurai-border)" />
-        <XAxis dataKey={xKey} interval={interval} tick={CHART_TICK_SMALL} axisLine={false} tickLine={false} />
+        <XAxis
+          dataKey={xKey}
+          interval={interval}
+          tick={xAngle ? { ...CHART_TICK_SMALL, fontSize: 9 } : CHART_TICK_SMALL}
+          angle={xAngle || undefined}
+          textAnchor={xAngle ? 'end' : undefined}
+          height={xAngle ? 60 : 30}
+          axisLine={false}
+          tickLine={false}
+        />
         <YAxis
           tick={CHART_TICK} axisLine={false} tickLine={false}
           tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}

@@ -22,6 +22,12 @@ def _run(coro):
     return asyncio.run(coro)
 
 
+def _async_res(value):
+    async def _inner():
+        return value
+    return _inner()
+
+
 def _make_user():
     u = MagicMock()
     u.id = 1
@@ -39,13 +45,28 @@ DEAL_PAGES = [
     {
         "slug": "deals/bni-poc",
         "title": "BNI PoC",
-        "frontmatter": {"customer": "Bank Negara", "owner": "Anwar", "stage": "Won", "created": "2026-06-01", "amount": 120000},
+        "frontmatter": {
+            "customer": "Bank Negara",
+            "owner": "Anwar",
+            "stage": "Won",
+            "created": "2026-06-01",
+            "amount": 120000,
+            "priority": "High",
+            "source": "Partner Referral",
+        },
         "compiled_truth": "# Deal body",
     },
     {
         "slug": "deals/market-tender",
         "title": "Market Tender",
-        "frontmatter": {"customer": "Market Co", "owner": "Anwar", "stage": "Tender", "created": "2026-07-02"},
+        "frontmatter": {
+            "customer": "Market Co",
+            "owner": "Anwar",
+            "stage": "Tender",
+            "created": "2026-07-02",
+            "priority": "Medium",
+            "source": "Cold Call",
+        },
         "compiled_truth": "# Tender body",
     },
     {
@@ -71,6 +92,85 @@ def test_deals_normal_mapping(monkeypatch) -> None:
     titles = {d["title"] for d in result["deals"]}
     assert titles == {"BNI PoC", "Market Tender"}
     assert result["deals"][0]["slug"] == "deals/market-tender"  # newest first
+
+
+def test_deals_priority_and_source_mapped(monkeypatch) -> None:
+    """frontmatter.priority/source flow through _extract_deal_list_item."""
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return DEAL_PAGES
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", priority="", source="", user=USER, db=DB))
+    by_slug = {d["slug"]: d for d in result["deals"]}
+    assert by_slug["deals/bni-poc"]["priority"] == "High"
+    assert by_slug["deals/bni-poc"]["source"] == "Partner Referral"
+    assert by_slug["deals/market-tender"]["priority"] == "Medium"
+    assert by_slug["deals/market-tender"]["source"] == "Cold Call"
+
+
+def test_deals_priority_filter(monkeypatch) -> None:
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return DEAL_PAGES
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", priority="High", source="", user=USER, db=DB))
+    assert [d["slug"] for d in result["deals"]] == ["deals/bni-poc"]
+
+
+def test_deals_source_filter(monkeypatch) -> None:
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return DEAL_PAGES
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="", owner="", priority="", source="cold", user=USER, db=DB))
+    assert [d["slug"] for d in result["deals"]] == ["deals/market-tender"]
+
+
+def test_mock_never_serves_when_live_source_has_data(monkeypatch) -> None:
+    """Critical: mock fires only when the live source is empty, not when a
+    filter empties the result set."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(dashboard, "_load_crm_mock", lambda: {
+        "deals": [
+            {"slug": "deals/fake-1", "title": "Fake Deal", "customer": "Nobody",
+             "owner": "Anwar", "stage": "Won", "created": "2026-01-01", "source": "",
+             "amount": 1, "priority": "", "compiled_truth": ""},
+        ]
+    })
+
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return DEAL_PAGES
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_deals(name="crm", search="does-not-exist", stage="", owner="", priority="", source="", user=USER, db=DB))
+    assert result == {"deals": [], "total": 0}  # no fabricated demo records
+
+
+def test_mock_serves_when_live_source_empty_and_filters_reapplied(monkeypatch) -> None:
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(dashboard, "_load_crm_mock", lambda: {
+        "deals": [
+            {"slug": "deals/fake-1", "title": "Fake Deal", "customer": "Nobody",
+             "owner": "Anwar", "stage": "Won", "created": "2026-01-01", "source": "Email",
+             "amount": 1, "priority": "High", "compiled_truth": ""},
+            {"slug": "deals/fake-2", "title": "Second Fake", "customer": "Nobody",
+             "owner": "Liyana", "stage": "Lead", "created": "2026-02-01", "source": "Email",
+             "amount": 2, "priority": "Low", "compiled_truth": ""},
+        ]
+    })
+
+    async def fake_fetch(source, *, limit, slug_prefix):
+        return []
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_pages", fake_fetch)
+
+    result = _run(dashboard.list_crm_deals(name="crm", search="", stage="Won", owner="", priority="", source="", user=USER, db=DB))
+    assert result["mock"] is True
+    assert [d["slug"] for d in result["deals"]] == ["deals/fake-1"]  # stage filter reapplied
 
 
 def test_deals_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
@@ -153,6 +253,33 @@ def test_partners_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     result = _run(dashboard.list_crm_partners(name="crm", search="", user=USER, db=DB))
 
     assert result == {"partners": [], "total": 0}
+
+
+# ─── Tasks: deal filter must survive mock fallback (round-4 critical) ──────
+
+MOCK_TASKS = [
+    {"description": "Renew protection", "assignee": "Anwar", "completed": False,
+     "deal_slug": "deals/ioi", "deal_title": "IOI Properties"},
+    {"description": "Send quote", "assignee": "Liyana", "completed": False,
+     "deal_slug": "deals/sunway", "deal_title": "Sunway Retail"},
+]
+
+
+def test_tasks_mock_fallback_honours_deal_filter(monkeypatch) -> None:
+    """The final mock fallback must apply the deal filter (it previously
+    leaked tasks from unrelated deals when a deal filter emptied the set)."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(dashboard, "_load_crm_mock", lambda: {"tasks": MOCK_TASKS})
+
+    async def boom(source, slug):
+        raise RuntimeError("MCP down")
+
+    monkeypatch.setattr(dashboard, "gbrain_fetch_page", boom)
+
+    result = _run(dashboard.list_crm_tasks(
+        name="crm", completed=None, assignee="", deal="sunway", user=USER, db=DB))
+    assert result["mock"] is True
+    assert [t["deal_slug"] for t in result["tasks"]] == ["deals/sunway"]
 
 
 # ─── Tasks ───────────────────────────────────────────────────────────────
@@ -250,8 +377,134 @@ def test_search_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     assert result == {"results": []}
 
 
+
+
+def test_partner_sphere_mock_keeps_live_rows_when_source_nonempty(monkeypatch) -> None:
+    """Mock overlay fills only empty sections; live partner rows win."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"partner_sphere": {"masterList": [{"name": "Mock Row"}],
+                                     "profile": {"name": "Mock Profile"}}})
+    live = [
+        {"slug": "partners/acme", "title": "ACME Distribution",
+         "frontmatter": {"tier": "Silver", "am": "Anwar", "status": "Active",
+                         "country": "Malaysia"}},
+    ]
+    monkeypatch.setattr(
+        dashboard, "_fetch_brain_pages_safe",
+        MagicMock(return_value=_async_res(live)))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    rows = res["masterList"]
+    assert len(rows) == 1 and rows[0]["name"] == "ACME Distribution", rows
+    assert res["overview"]["kpis"][0]["value"] == "1"
+    # sections the live path cannot derive are still mock-filled
+    assert res["profile"] == {"name": "Mock Profile"}
+
+
+def test_partner_sphere_mock_fills_when_source_empty(monkeypatch) -> None:
+    """Section-empty (source down) -> mock overlay fills every section."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    fake_sphere = {
+        "masterList": [{"name": "P1"}, {"name": "P2"}, {"name": "P3"},
+                        {"name": "P4"}, {"name": "P5"}],
+        "overview": {"kpis": [{"label": "Active Partners", "value": "5"}]},
+        "profile": {"name": "P1"},
+    }
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock", lambda: {"partner_sphere": fake_sphere})
+    monkeypatch.setattr(
+        dashboard, "_fetch_brain_pages_safe",
+        MagicMock(return_value=_async_res([])))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    assert res.get("mock") is True
+    assert len(res["masterList"]) == 5
+    assert res["profile"] == {"name": "P1"}
+
+
 def test_search_empty_query_returns_empty(monkeypatch) -> None:
     result = _run(dashboard.crm_search(
         dashboard.SearchBody(query="   "), name="crm", user=USER, db=DB,
     ))
     assert result == {"results": []}
+
+# ─── Review round-6: mock gating + partner sphere accounting ──────────
+
+def test_search_empty_match_never_serves_mock(monkeypatch) -> None:
+    """Populated-brain zero-match search must NOT fabricate demo rows."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"search_results": [{"title": "Demo Deal", "slug": "deals/demo"}]})
+
+    async def empty(source, query, limit=20):
+        return []
+
+    monkeypatch.setattr(dashboard, "gbrain_search", empty)
+
+    result = _run(dashboard.crm_search(
+        dashboard.SearchBody(query="zebra"), name="crm", user=USER, db=DB,
+    ))
+    assert result == {"results": []}
+
+
+def test_search_mock_served_only_when_source_unavailable(monkeypatch) -> None:
+    """gbrain outage + demo flag → mock rows; empty results are NOT a trigger."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setattr(
+        dashboard, "_load_crm_mock",
+        lambda: {"search_results": [{"title": "Demo Deal", "slug": "deals/demo"}]})
+
+    async def boom(source, query, limit=20):
+        raise RuntimeError("MCP down")
+
+    monkeypatch.setattr(dashboard, "gbrain_search", boom)
+
+    result = _run(dashboard.crm_search(
+        dashboard.SearchBody(query="demo"), name="crm", user=USER, db=DB,
+    ))
+    assert result.get("mock") is True
+    assert result["results"] == [{"title": "Demo Deal", "slug": "deals/demo"}]
+
+
+def test_partner_sphere_kpi_counts_only_active_and_wires_fields(monkeypatch) -> None:
+    """Active Partners KPI excludes Inactive rows; business fields wire from fm."""
+    monkeypatch.delenv("SHOGUN_WEB_CRM_MOCK", raising=False)
+    live = [
+        {"slug": "partners/acme", "title": "ACME Distribution",
+         "frontmatter": {"tier": "Gold", "am": "Anwar", "status": "Active",
+                         "country": "Malaysia", "tags": ["hw", "video"],
+                         "open_deals": 3, "pipeline": "RM 1.2M", "score": 87,
+                         "last_activity": "2026-08-20"}},
+        {"slug": "partners/oldco", "title": "OldCo",
+         "frontmatter": {"status": "Inactive"}},
+    ]
+    monkeypatch.setattr(dashboard, "_fetch_brain_pages_safe",
+                        MagicMock(return_value=_async_res(live)))
+    res = _run(dashboard.get_partner_sphere(name="crm", user=_make_user(), db=MagicMock()))
+    assert res["overview"]["kpis"][0]["value"] == "1"
+    rows = {r["name"]: r for r in res["masterList"]}
+    assert len(rows) == 2
+    acme = rows["ACME Distribution"]
+    assert acme["tags"] == ["hw", "video"]
+    assert acme["openDeals"] == 3
+    assert acme["pipeline"] == "RM 1.2M"
+    assert acme["score"] == 87
+    assert acme["lastActivity"] == "2026-08-20"
+    assert res["mock"] is False
+
+
+def test_bev_mock_explicit_flag_overrides_crm(monkeypatch) -> None:
+    """SHOGUN_WEB_BEV_MOCK set explicitly must win over the CRM demo flag."""
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    monkeypatch.setenv("SHOGUN_WEB_BEV_MOCK", "0")
+    assert dashboard._bev_mock_enabled() is False
+
+
+def test_bev_mock_falls_back_to_crm_flag(monkeypatch) -> None:
+    """BEV flag unset -> CRM demo flag drives BEV mock (legacy demo setups)."""
+    monkeypatch.delenv("SHOGUN_WEB_BEV_MOCK", raising=False)
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "1")
+    assert dashboard._bev_mock_enabled() is True
+    monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "0")
+    assert dashboard._bev_mock_enabled() is False

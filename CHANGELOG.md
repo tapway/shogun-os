@@ -1,5 +1,20 @@
 # Changelog
 
+## [3.17.0] — 2026-08-26
+
+### CRM Data from the Brain
+
+CRM dashboard now reads its data directly from gbrain (source `crm`), replacing the external CRM
+HTTP proxy — the external site can be decommissioned.
+
+- **Direct brain reads** — deals (`deals/*`), companies (`companies/*`), and `tasks-index` now come
+  straight from gbrain instead of the external CRM proxy.
+- **`gbrain_put_page()`** — new page-ingestion helper for writing CRM pages into the brain.
+- **7th CRM section: Partners** — adds the Partners tab to the CRM dashboard.
+- **MoA review hardening** — several rounds of fixes: fresh-mirror zero-match never falls through to
+  MCP, search-mock gating, partner-sphere KPIs, fs-staleness defaults, symlink-safe scan, mock-fills
+  only when a section is empty (never overlaying live data), and pagination boundary-warning.
+
 ## [3.16.0] — 2026-08-19
 
 ### CI & Test Infrastructure

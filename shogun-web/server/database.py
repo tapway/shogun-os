@@ -323,6 +323,54 @@ def init_db() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        # Defensive ALTERs for HR workflow columns added after the tables
+        # already existed (create_all cannot ALTER existing tables).
+        for table, col, ddl in [
+            ("hr_candidates", "waiting_since", "VARCHAR(32)"),
+            ("hr_candidates", "waiting_reason", "VARCHAR(256)"),
+            ("hr_candidates", "removed_reason", "TEXT"),
+            ("hr_employees", "user_id", "INTEGER"),
+            ("hr_job_openings", "jd_template_subject", "VARCHAR(256)"),
+            ("hr_equipment", "item_number", "VARCHAR(128)"),
+            ("hr_equipment", "amount", "FLOAT"),
+            ("hr_equipment", "image_url", "VARCHAR(1024)"),
+            ("hr_equipment", "signature_doc_url", "VARCHAR(1024)"),
+            ("hr_equipment", "returned", "BOOLEAN NOT NULL DEFAULT 0"),
+            ("hr_equipment", "return_date", "VARCHAR(32)"),
+            ("hr_training", "approval_doc_url", "VARCHAR(1024)"),
+            ("hr_job_openings", "screening_form_link", "VARCHAR(1024)"),
+            ("hr_job_openings", "screening_email_subject", "VARCHAR(256)"),
+            ("hr_job_openings", "screening_email_body", "TEXT"),
+            ("hr_job_openings", "closed_at", "VARCHAR(32)"),
+            ("hr_candidates", "job_opening_id", "INTEGER"),
+        ]:
+            cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
+            if cols and col not in cols:
+                conn.execute(text(f"ALTER TABLE {table} ADD COLUMN {col} {ddl}"))
+        # Idempotent remap: legacy pipeline stage names → the restructured
+        # recruitment flow. Safe to re-run (UPDATE matches nothing once applied).
+        for old, new in [
+            ("Screening - Pending", "Interview Email Sent - Waiting Reply"),
+            ("Schedule 1st Round of Interview", "Interview Email Sent - Waiting Reply"),
+            # legacy Notion pre-interview review stages + aliases
+            ("HR Review", "Interview Email Sent - Waiting Reply"),
+            ("Hiring Manager Pending Review", "Interview Email Sent - Waiting Reply"),
+            ("Hiring Manager Review", "Interview Email Sent - Waiting Reply"),
+            ("Pending Review", "Interview Email Sent - Waiting Reply"),
+            ("1st round of interview", "1st Interview Scheduled"),
+            ("1st Interview", "1st Interview Scheduled"),
+            ("Schedule Manager Interview", "Waiting Manager Interview Confirm"),
+            ("Manager Interview", "Manager Interview Scheduled"),
+            ("Assessment DONE", "Waiting Offer Confirmation"),
+            ("Assessment Sent", "Waiting Offer Confirmation"),
+            ("Offer Sent", "Offer Sent - Waiting Reply"),
+            ("Offer Accepted", "Done"),
+            ("Hired", "Done"),
+            ("No response", "No Response"),
+        ]:
+            conn.execute(text(
+                "UPDATE hr_candidates SET status = :new WHERE status = :old"
+            ), {"new": new, "old": old})
         conn.commit()
     with session_scope() as db:
         tenant = _ensure_tenant(db)

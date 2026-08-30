@@ -206,7 +206,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
                   <div key={f.stage} style={{ display: 'grid', gridTemplateColumns: '104px 1fr 104px', alignItems: 'center', gap: 10, fontSize: '0.78rem' }}>
                     <span style={{ color: MUTED, textAlign: 'right' }}>{f.stage}</span>
                     <div style={{ background: SURFACE_2, borderRadius: 6, height: 26, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${Math.max((f.count / max) * 100, 7)}%`, borderRadius: 6, display: 'flex', alignItems: 'center', paddingLeft: 10, color: '#fff', fontWeight: 600, fontSize: '0.72rem', minWidth: 34, background: `linear-gradient(90deg, ${color}, ${color}b3)` }}>
+                      <div style={{ height: '100%', width: `${Math.max((f.count / max) * 100, 7)}%`, borderRadius: 6, display: 'flex', alignItems: 'center', paddingLeft: 10, color: '#fff', fontWeight: 600, fontSize: '0.72rem', minWidth: 34, background: `linear-gradient(90deg, ${color}, color-mix(in srgb, ${color} 72%, transparent))` }}>
                         {f.count}{f.pct ? ` · ${f.pct}` : ''}
                       </div>
                     </div>

@@ -185,3 +185,66 @@ def test_send_email_no_channel_configured_returns_400(tmp_path):
                         name="finance", user=user, db=db,
                     ))
     assert exc_info.value.status_code == 400
+
+
+# ─── HR recruitment template seeding ────────────────────────────────────
+
+
+def test_hr_department_seeds_recruitment_templates(tmp_path):
+    """HR department gets recruitment-workflow templates on first access."""
+    with _patch_templates_file(tmp_path):
+        templates = et._get_dept_templates("hr")
+    ids = [t["id"] for t in templates]
+    assert "recruitment-screening-questions" in ids
+    assert "recruitment-interview-schedule" in ids
+    assert "recruitment-interview-feedback" in ids
+    assert "recruitment-offer-letter" in ids
+    assert "recruitment-welcome-new-hire" in ids
+    assert "recruitment-rejection" in ids
+
+
+def test_non_hr_department_gets_no_recruitment_templates(tmp_path):
+    """Finance (and others) do NOT get recruitment templates."""
+    with _patch_templates_file(tmp_path):
+        templates = et._get_dept_templates("finance")
+    ids = [t["id"] for t in templates]
+    assert "recruitment-screening-questions" not in ids
+    assert "dunning-reminder-1" in ids
+
+
+def test_hr_seeding_is_idempotent(tmp_path):
+    """Calling _get_dept_templates('hr') twice does not duplicate templates."""
+    with _patch_templates_file(tmp_path):
+        first = et._get_dept_templates("hr")
+        second = et._get_dept_templates("hr")
+    assert len(first) == len(second)
+
+
+def test_hr_seeding_skipped_if_user_already_has_one(tmp_path):
+    """If user created/deleted templates leaving any recruitment id, no re-seed."""
+    with _patch_templates_file(tmp_path):
+        et._get_dept_templates("hr")  # seed
+        # Simulate user deleting all but one recruitment template
+        all_t = et._load_templates()
+        all_t["hr"] = [t for t in all_t["hr"] if t["id"] != "recruitment-rejection"]
+        et._save_templates(all_t)
+        again = et._get_dept_templates("hr")
+    ids = [t["id"] for t in again]
+    assert "recruitment-rejection" not in ids  # stays deleted
+
+
+def test_recruitment_fallback_draft_substitutes_placeholders():
+    """Screening template placeholders substitute via fallback draft."""
+    template = next(t for t in et._HR_RECRUITMENT_TEMPLATES if t["id"] == "recruitment-screening-questions")
+    context = {
+        "candidate_name": "Alice Tan",
+        "job_title": "Backend Engineer",
+        "screening_link": "https://drive.example/screening.pdf",
+        "hr_name": "HR Team",
+        "company_name": "Test Co",
+    }
+    result = _fallback_draft(template, context)
+    assert "Alice Tan" in result["body"]
+    assert "Backend Engineer" in result["subject"]
+    assert "https://drive.example/screening.pdf" in result["body"]
+    assert "{candidate_name}" not in result["body"]

@@ -34,6 +34,17 @@ import type {
   EmailDraft,
   EmailTemplate,
   FinanceDashboardStats,
+  HrCandidate,
+  HrCandidateExtract,
+  HrCandidateFile,
+  HrDashboardStats,
+  HrEquipment,
+  HrInterview,
+  HrJobOpening,
+  HrOnboardingChecklistItem,
+  HrResumeExtract,
+  HrTraining,
+  HrTrainingParticipant,
   GeneratedSkill,
   LoginPayload,
   OnboardingState,
@@ -831,4 +842,190 @@ export const emailTemplatesApi = {
       method: 'POST',
       body: JSON.stringify(data),
     }),
+};
+export const hrApi = {
+  stats: (dept: string) =>
+    apiFetch<HrDashboardStats>(`/api/departments/${dept}/dashboard/hr-stats`),
+  createJobOpening: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(`/api/departments/${dept}/dashboard/hr/job-openings`, {
+      method: 'POST',
+      body: form,
+      headers: {},
+    }),
+  updateJobOpening: (dept: string, jobId: number, form: FormData) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(`/api/departments/${dept}/dashboard/hr/job-openings/${jobId}`, {
+      method: 'PUT',
+      body: form,
+      headers: {},
+    }),
+  candidateExtract: (dept: string, id: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate; extract: HrCandidateExtract }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/extract`,
+      { method: 'POST' },
+    ),
+  candidateReview: (dept: string, id: number, kind: 'hr' | 'manager') =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/review`,
+      { method: 'POST', body: JSON.stringify({ kind }) },
+    ),
+  candidateAddToPipeline: (dept: string, id: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/add-to-pipeline`,
+      { method: 'POST' },
+    ),
+  candidateMove: (dept: string, id: number, status: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/move`,
+      { method: 'POST', body: JSON.stringify({ status }) },
+    ),
+  extractResume: (dept: string, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<{ ok: boolean; extract: HrResumeExtract }>(
+      `/api/departments/${dept}/dashboard/hr/extract-resume`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  addApplicant: (dept: string, jobId: number, form: FormData) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/applicants`,
+      { method: 'POST', body: form, headers: {} },
+    ),
+  candidateFileUpload: (dept: string, id: number, file: File, kind: string) => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('kind', kind);
+    return apiFetch<{ ok: boolean; file_url: string; filename: string }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/file`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  candidateComment: (dept: string, id: number, note: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/comment`,
+      { method: 'POST', body: JSON.stringify({ note }) },
+    ),
+  candidateDecision: (dept: string, id: number, decision: string, comment: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/decision`,
+      { method: 'POST', body: JSON.stringify({ decision, comment }) },
+    ),
+  candidateSchedule: (dept: string, id: number, payload: {
+    round: string; scheduled_at: string; interviewer_name: string;
+    interviewer_employee_id?: number; location: string;
+  }) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/schedule`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  interviewStatus: (dept: string, interviewId: number, status: string) =>
+    apiFetch<{ ok: boolean; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/status`,
+      { method: 'POST', body: JSON.stringify({ status }) },
+    ),
+  candidateWaiting: (dept: string, id: number, note: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/waiting`,
+      { method: 'POST', body: JSON.stringify({ note }) },
+    ),
+  jobScreeningSetup: (dept: string, jobId: number, payload: { screening_form_link?: string; screening_email_subject?: string; screening_email_body?: string }) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/screening`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  jobClose: (dept: string, jobId: number, payload: { reason?: string; remaining_action?: string }) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening; rejected_candidates: number }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/close`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  candidateBulkAction: (dept: string, jobId: number, payload: { candidate_ids: number[]; action: 'shortlist' | 'reject'; reason?: string }) =>
+    apiFetch<{ ok: boolean; updated: number }>(
+      `/api/departments/${dept}/dashboard/hr/job-openings/${jobId}/candidates/bulk`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  candidateAttachJob: (dept: string, candidateId: number, jobId: number) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${candidateId}/attach-job`,
+      { method: 'POST', body: JSON.stringify({ job_id: jobId }) },
+    ),
+  candidateRemove: (dept: string, id: number, note: string) =>
+    apiFetch<{ ok: boolean; candidate: HrCandidate }>(
+      `/api/departments/${dept}/dashboard/hr/candidates/${id}/remove`,
+      { method: 'POST', body: JSON.stringify({ note }) },
+    ),
+  equipmentCreate: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment`,
+      { method: 'POST', body: form, headers: {} },
+    ),
+  equipmentUpdate: (dept: string, id: number, payload: Record<string, string | null>) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  trainingCreate: (dept: string, form: FormData) =>
+    apiFetch<{ ok: boolean; training: HrTraining }>(
+      `/api/departments/${dept}/dashboard/hr/trainings`,
+      { method: 'POST', body: form, headers: {} },
+    ),
+  trainingApprovalDoc: (dept: string, trainingId: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<{ ok: boolean; training: HrTraining }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/approval-doc`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  trainingAddParticipant: (dept: string, trainingId: number, payload: { staff_name: string; department?: string }) =>
+    apiFetch<{ ok: boolean; participant: HrTrainingParticipant }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  trainingRemoveParticipant: (dept: string, trainingId: number, participantId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants/${participantId}`,
+      { method: 'DELETE' },
+    ),
+  trainingUploadCert: (dept: string, trainingId: number, participantId: number, file: File) => {
+    const form = new FormData();
+    form.append('file', file);
+    return apiFetch<{ ok: boolean; participant: HrTrainingParticipant }>(
+      `/api/departments/${dept}/dashboard/hr/trainings/${trainingId}/participants/${participantId}/certificate`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  checklistAdd: (dept: string, payload: { title: string; description?: string; section?: string }) =>
+    apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  checklistUpdate: (dept: string, itemId: number, payload: { title: string; description?: string; section?: string }) =>
+    apiFetch<{ ok: boolean; item: HrOnboardingChecklistItem }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  checklistDelete: (dept: string, itemId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}`,
+      { method: 'DELETE' },
+    ),
+  checklistToggle: (dept: string, itemId: number, staffName: string, completed: boolean) =>
+    apiFetch<{ ok: boolean; done_count: number; total_items: number; all_done: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/onboarding-checklist/${itemId}/toggle`,
+      { method: 'POST', body: JSON.stringify({ staff_name: staffName, completed }) },
+    ),
+  equipmentFileUpload: (dept: string, id: number, file: File, kind: 'image' | 'signature_doc') => {
+    const form = new FormData();
+    form.append('file', file);
+    form.append('kind', kind);
+    return apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}/file`,
+      { method: 'POST', body: form, headers: {} },
+    );
+  },
+  equipmentReturn: (dept: string, id: number, payload: { return_date?: string; condition?: string; note?: string }) =>
+    apiFetch<{ ok: boolean; equipment: HrEquipment }>(
+      `/api/departments/${dept}/dashboard/hr/equipment/${id}/return`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
 };
