@@ -1261,6 +1261,8 @@ export interface ClientConcentrationItem {
 export interface FinanceDashboardStats {
   // Mock flag — true when data loaded from examples/*.json (demo mode)
   mock?: boolean;
+  // Where the numbers came from: "qbo" | "gbrain" | "empty"
+  dataSource?: 'qbo' | 'gbrain' | 'empty';
   // Tab 1 — Executive Pulse
   totalLiquidCash: number;
   netMonthlyBurn: number;

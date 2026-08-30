@@ -2196,19 +2196,109 @@ def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
     }
 
 
-async def _run_finance_aggregation(pages: List[dict]) -> dict:
-    """Aggregate gbrain finance pages into structured dashboard stats.
+# ─── Finance snapshot fetch — gbrain-first, targeted reads ─────────────
+# The Finance dashboard reads snapshot pages written by the finance
+# snapshot-writer on the server (see recipes/DASHBOARD_SNAPSHOT_CONTRACT.md).
+# Slugs are fetched by TARGETED get_page calls (plus a direct read of the
+# JSON mirror on disk) because the portal's gbrain shim does not support
+# tools/list for the finance source. QBO live fetch is OFF by default —
+# set SHOGUN_FINANCE_QBO=1 to re-enable it as a data source.
 
-    Data source: gbrain snapshots only. When no snapshots are available,
-    returns an empty-state payload (zeros + empty lists) so the UI shows
-    "no data yet" — does NOT load mock/example data.
+_FIN_SNAPSHOT_NAMES = (
+    "cash", "pl", "balance-sheet", "ar", "ap", "bva", "concentration", "compliance",
+)
+_FIN_SNAP_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_FIN_SNAP_TTL = 60.0  # seconds — the dashboard refetches every 120s
+
+
+def _load_fin_snapshots_from_fs() -> Dict[str, dict]:
+    """Read snapshot .json files straight from the brain mirror.
+
+    Works regardless of gbrain_read_preference — a plain path read of
+    ``<brain_root>/finance/snapshots/<name>.json``. Never raises.
+    """
+    out: Dict[str, dict] = {}
+    try:
+        brain_root = pathlib.Path(get_config().brain_root)
+    except Exception:
+        return out
+    for name in _FIN_SNAPSHOT_NAMES:
+        for rel in (f"finance/snapshots/{name}.json", f"snapshots/{name}.json"):
+            path = brain_root / rel
+            if not path.is_file():
+                continue
+            try:
+                data = json.loads(path.read_text(encoding="utf-8"))
+            except (OSError, json.JSONDecodeError):
+                continue
+            if isinstance(data, dict) and data:
+                out[rel[:-5]] = data  # strip ".json" from the cache key
+                break
+    return out
+
+
+async def _fetch_finance_snapshots() -> Dict[str, dict]:
+    """Fetch the 8 finance snapshot pages (60s cache). Never raises.
+
+    Per snapshot: filesystem JSON mirror first, then gbrain MCP ``get_page``
+    (both slug spellings — with and without the ``.json`` suffix). Returns a
+    map keyed like ``finance/snapshots/cash`` / ``snapshots/cash``.
+    """
+    if _FIN_SNAP_CACHE["data"] and (time.time() - _FIN_SNAP_CACHE["ts"]) < _FIN_SNAP_TTL:
+        return dict(_FIN_SNAP_CACHE["data"])
+
+    snaps = await asyncio.to_thread(_load_fin_snapshots_from_fs)
+
+    for name in _FIN_SNAPSHOT_NAMES:
+        candidates = (
+            f"finance/snapshots/{name}", f"finance/snapshots/{name}.json",
+            f"snapshots/{name}", f"snapshots/{name}.json",
+        )
+        for slug in candidates:
+            key = slug[:-5] if slug.endswith(".json") else slug
+            if key in snaps or slug in snaps:
+                break
+            try:
+                page = await gbrain_fetch_page("finance", slug)
+            except Exception:
+                page = None
+            if not page:
+                continue
+            fm = _parse_frontmatter(page.get("frontmatter", {}))
+            if not fm:
+                body = (page.get("content") or page.get("body")
+                        or page.get("compiled_truth") or "")
+                try:
+                    fm = json.loads(body) if body.strip().startswith("{") else {}
+                except (json.JSONDecodeError, TypeError):
+                    fm = {}
+            if fm:
+                snaps[key] = fm
+                break
+
+    _FIN_SNAP_CACHE["data"] = snaps
+    _FIN_SNAP_CACHE["ts"] = time.time()
+    return dict(snaps)
+
+
+async def _run_finance_aggregation(pages: List[dict]) -> dict:
+    """Aggregate Finance dashboard stats — gbrain snapshots FIRST.
+
+    Data source order:
+      1. gbrain snapshot pages (finance/snapshots/*) — written by the
+         finance snapshot-writer on the server. Targeted get_page reads,
+         no list_pages (the shim maps finance→data/% for listings).
+      2. Live QBO — OFF by default; enable with SHOGUN_FINANCE_QBO=1.
+      3. Empty-state payload (zeros + empty lists) — UI shows a
+         "waiting for snapshots" banner. Never loads mock/example data.
     """
     now = _now()
     cy, cm = now.year, now.month
 
-    # ── Pull snapshot pages (finance agent writes these) ──
-    snapshot_map: Dict[str, dict] = {}
-    for p in pages:
+    # ── Pull snapshot pages — targeted gbrain reads (no list_pages) ──
+    snapshot_map = await _fetch_finance_snapshots()
+    # Fold in any snapshot pages handed over via `pages` (legacy callers)
+    for p in pages or []:
         slug = str(p.get("slug", ""))
         fm = _parse_frontmatter(p.get("frontmatter", {}))
         if not fm:
@@ -2217,7 +2307,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
                 fm = json.loads(body) if body else {}
             except (json.JSONDecodeError, TypeError):
                 fm = {}
-        if fm:
+        if fm and slug not in snapshot_map:
             snapshot_map[slug] = fm
 
     # Check if we have real snapshot data
@@ -2225,17 +2315,22 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     pl_snap = snapshot_map.get("snapshots/pl", snapshot_map.get("finance/snapshots/pl", {}))
     has_real_data = bool(cash_snap or pl_snap)
 
-    # ── Fetch live QBO data (5-min cache) ──
-    today_str = now.strftime("%Y-%m-%d")
-    ytd_start = f"{cy}-01-01"
-    mtd_start = f"{cy}-{cm:02d}-01"
-    live_bs = _fetch_qbo_balance_sheet(today_str)
-    live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
-    live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
-    has_live_qbo = ("error" not in live_bs
+    # ── Live QBO fetch — DISABLED by default (gbrain-first) ──
+    qbo_enabled = os.environ.get("SHOGUN_FINANCE_QBO", "").lower() in ("1", "true", "yes")
+    live_bs: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
+    live_pl_ytd: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
+    live_pl_mtd: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
+    if qbo_enabled:
+        today_str = now.strftime("%Y-%m-%d")
+        ytd_start = f"{cy}-01-01"
+        mtd_start = f"{cy}-{cm:02d}-01"
+        live_bs = _fetch_qbo_balance_sheet(today_str)
+        live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
+        live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
+    has_live_qbo = (qbo_enabled
+                    and "error" not in live_bs
                     and "error" not in live_pl_ytd
                     and "error" not in live_pl_mtd)
-
     # Default asset + overview fields (overridden by live/snapshot/mock branches)
     current_assets: List[dict] = []
     non_current_assets: List[dict] = []
@@ -2521,7 +2616,12 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         else:
             runway_status = "healthy"
 
-        bank_accounts: List[dict] = cash_snap.get("bank_accounts", [])
+        bank_accounts: List[dict] = []
+        for row in cash_snap.get("bank_accounts", []):
+            if not isinstance(row, dict):
+                continue
+            bal = _safe_float(row.get("balance_myr", row.get("balance", 0)))
+            bank_accounts.append({**row, "balance_myr": bal})
         fx_positions: List[dict] = cash_snap.get("fx_positions", [])
         forecast_13w: dict = cash_snap.get("forecast_13w", {"conservative": [], "expected": [], "optimistic": []})
         fixed_opex = _safe_float(cash_snap.get("fixed_opex"))
@@ -2536,14 +2636,61 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
             "bucket_61_90": _safe_float(ar_snap.get("bucket_61_90")),
             "bucket_90_plus": _safe_float(ar_snap.get("bucket_90_plus")),
         }
-        dunning_queue: List[dict] = ar_snap.get("dunning_queue", [])
-        ar_invoices_list: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
+        raw_dunning: List[dict] = ar_snap.get("dunning_queue", [])
+        # Normalize to the UI dunning shape (invoice_no/customer/amount/bucket)
+        dunning_queue: List[dict] = []
+        for row in raw_dunning:
+            if not isinstance(row, dict):
+                continue
+            dunning_queue.append({
+                "invoice_no": row.get("invoice_no", row.get("invoice", "")),
+                "customer": row.get("customer", row.get("client", "")),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "aging_days": _safe_int(row.get("aging_days", row.get("days_overdue", 0))),
+                "bucket": row.get("bucket", "90+"),
+                "dunning_status": row.get("dunning_status", "Overdue"),
+            })
+        raw_ar_items: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
+        # Normalize snapshot rows to the UI item shape (invoice_no/customer/
+        # bucket/aging_days/dunning_status) — the contract allows the shorter
+        # invoice/client/days_overdue keys, the frontend needs the long ones.
+        ar_invoices_list: List[dict] = []
+        for row in raw_ar_items:
+            if not isinstance(row, dict):
+                continue
+            bucket = str(row.get("bucket") or "")
+            if not bucket:
+                days = _safe_float(row.get("aging_days", row.get("days_overdue", 0)))
+                bucket = ("0-30" if days <= 30 else "31-60" if days <= 60
+                          else "61-90" if days <= 90 else "90+")
+            ar_invoices_list.append({
+                "invoice_no": row.get("invoice_no", row.get("invoice", "")),
+                "customer": row.get("customer", row.get("client", "")),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "aging_days": _safe_int(row.get("aging_days", row.get("days_overdue", 0))),
+                "bucket": bucket,
+                "dunning_status": row.get("dunning_status",
+                                          "Overdue" if _safe_float(row.get("days_overdue", 0)) > 0 else "Current"),
+            })
 
         ap_snap = snapshot_map.get("snapshots/ap", snapshot_map.get("finance/snapshots/ap", {}))
         total_ap = _safe_float(ap_snap.get("total_ap"))
         ap_overdue = _safe_float(ap_snap.get("ap_overdue"))
         dpo = _safe_float(ap_snap.get("dpo"))
-        ap_bills: List[dict] = ap_snap.get("bills", [])
+        ap_bills: List[dict] = []
+        for row in ap_snap.get("bills", []):
+            if not isinstance(row, dict):
+                continue
+            ap_bills.append({
+                "bill_no": row.get("bill_no", row.get("bill", "")),
+                "vendor": row.get("vendor", ""),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "match_status": row.get("match_status", "Matched"),
+                "approval_status": row.get("approval_status", "Pending"),
+            })
 
         bva_departments: List[dict] = bva_snap.get("departments", [])
         unit_economics: dict = bva_snap.get("unit_economics", {"gross_margin_pct": gross_margin, "contribution_margin_pct": 0, "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
@@ -2654,9 +2801,13 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         burn_trend = mock_data.get("burnTrend", [])
         cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
 
+    data_source = "qbo" if has_live_qbo else ("gbrain" if has_real_data else "empty")
+
     return {
         # Mock flag — true when data loaded from examples/*.json (demo mode)
         "mock": mock,
+        # Where the numbers came from: "qbo" | "gbrain" | "empty"
+        "dataSource": data_source,
         # Tab 1 — Executive Pulse
         "totalLiquidCash": total_liquid_cash,
         "netMonthlyBurn": net_monthly_burn,

@@ -70,20 +70,85 @@ def test_safe_int_passes_valid_integer():
 def test_finance_aggregation_empty_pages_returns_safe_defaults():
     """Finance aggregation with no snapshots must not crash and return zeros.
 
-    Mocks QBO fetches so no subprocess/network call runs. Tests the aggregation
-    logic, not the live QBO integration. assert_called_once verifies the mocks
-    are actually used -- prevents silent false-pass if imports change.
+    QBO is OFF by default (gbrain-first), so no subprocess/network call runs
+    at all. The empty-state payload carries dataSource="empty" and mock=False
+    (never fabricated demo data).
     """
-    fake_qbo = {"error": "no data"}
-    with patch("dashboard._fetch_qbo_balance_sheet", return_value=fake_qbo) as mock_bs, \
-         patch("dashboard._fetch_qbo_profit_loss", return_value=fake_qbo) as mock_pl:
+    with patch("dashboard._fetch_finance_snapshots", return_value={}):
         result = asyncio.run(dashboard._run_finance_aggregation([]))
-    # Verify mocks were actually called -- prevents false-pass if patch target drifts
-    mock_bs.assert_called_once()
-    mock_pl.assert_called()
     assert isinstance(result, dict)
     # Must have keys, even if all zero/empty
     assert len(result) > 0
+    assert result["mock"] is False
+    assert result["dataSource"] == "empty"
+
+
+def test_finance_aggregation_reads_gbrain_snapshots():
+    """Snapshot pages (contract keys) flow through to the camelCase payload."""
+    snaps = {
+        "finance/snapshots/cash": {
+            "total_liquid_cash": 1240000.0,
+            "net_monthly_burn": 95000.0,
+            "cash_runway_months": 13.0,
+            "bank_accounts": [{"name": "Maybank Current", "balance": 820000.0, "currency": "MYR"}],
+        },
+        "finance/snapshots/pl": {
+            "revenue_mtd": 410000.0,
+            "revenue_ytd": 2980000.0,
+            "gross_margin_pct": 42.0,
+            "ebitda_margin_pct": 18.0,
+        },
+        "finance/snapshots/ar": {
+            "total_ar": 612000.0,
+            "bucket_0_30": 340000.0,
+            "bucket_31_60": 180000.0,
+            "bucket_61_90": 68000.0,
+            "bucket_90_plus": 24000.0,
+            "dso": 41.0,
+            "ar_invoices": [{
+                "invoice": "INV-2026-0888", "client": "Acme Corp",
+                "amount": 18000.0, "days_overdue": 96,
+            }],
+        },
+        "finance/snapshots/ap": {
+            "total_ap": 248000.0,
+            "ap_overdue": 32000.0,
+            "dpo": 38.0,
+            "bills": [{
+                "bill": "BILL-2026-0421", "vendor": "NexTech Distribution",
+                "amount": 12400.0, "due_date": "2026-08-12",
+            }],
+        },
+    }
+    with patch("dashboard._fetch_finance_snapshots", return_value=snaps):
+        result = asyncio.run(dashboard._run_finance_aggregation([]))
+    assert result["dataSource"] == "gbrain"
+    assert result["mock"] is False
+    assert result["totalLiquidCash"] == 1240000.0
+    assert result["revenueYTD"] == 2980000.0
+    assert result["cashRunwayMonths"] == 13.0
+    # bank balance normalized to balance_myr for the UI
+    assert result["bankAccounts"][0]["balance_myr"] == 820000.0
+    # short contract keys normalized to the UI item shape
+    inv = result["arInvoices"][0]
+    assert inv["invoice_no"] == "INV-2026-0888"
+    assert inv["customer"] == "Acme Corp"
+    assert inv["bucket"] == "90+"
+    bill = result["apBills"][0]
+    assert bill["bill_no"] == "BILL-2026-0421"
+    assert bill["match_status"] == "Matched"
+
+
+def test_finance_aggregation_qbo_disabled_by_default():
+    """With SHOGUN_FINANCE_QBO unset, QBO fetchers are never invoked."""
+    import os
+    os.environ.pop("SHOGUN_FINANCE_QBO", None)
+    with patch("dashboard._fetch_finance_snapshots", return_value={}), \
+         patch("dashboard._fetch_qbo_balance_sheet") as mock_bs, \
+         patch("dashboard._fetch_qbo_profit_loss") as mock_pl:
+        asyncio.run(dashboard._run_finance_aggregation([]))
+    mock_bs.assert_not_called()
+    mock_pl.assert_not_called()
 
 
 def test_procurement_aggregation_empty_pages_no_crash():
