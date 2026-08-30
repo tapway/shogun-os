@@ -158,10 +158,7 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                   <th style={thStyle}>Hiring Manager</th>
                   <th style={thStyle}>App Start</th>
                   <th style={thStyle}>Status</th>
-                  <th style={thStyle}>Deadline</th>
-                  <th style={thStyle}>Days Left</th>
                   <th style={thStyle}>Candidates</th>
-                  <th style={thStyle}>Talent Pool</th>
                   <th style={thStyle}>Actions</th>
                 </tr>
               </thead>
@@ -199,12 +196,6 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                       <td style={tdStyle}>
                         <span className={`sd-chip ${statusChipClass(j.job_status)}`}>{j.job_status || "—"}</span>
                       </td>
-                      <td style={{ ...tdStyle, color: isOverdue ? DANGER : MUTED, fontSize: "0.78rem" }}>
-                        {fmtDate(j.deadline)}
-                      </td>
-                      <td style={{ ...tdStyle, fontWeight: 600, color: isOverdue ? DANGER : TEXT }}>
-                        {j.days_left != null ? `${j.days_left}d` : "—"}
-                      </td>
                       <td style={tdStyle}>
                         <span
                           style={{
@@ -222,9 +213,6 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                           <Users size={12} />
                           {count}
                         </span>
-                      </td>
-                      <td style={tdStyle}>
-                        <span style={{ color: LIME, fontSize: "0.75rem", fontWeight: 600 }}>Open →</span>
                       </td>
                       <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
                         {!(j.job_status || "").startsWith("Closed") ? (
@@ -247,7 +235,7 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                     </tr>
                     {isExpanded && (
                       <tr>
-                        <td colSpan={14} style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}`, background: "color-mix(in srgb, var(--samurai-surface) 55%, transparent)" }}>
+                        <td colSpan={11} style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}`, background: "color-mix(in srgb, var(--samurai-surface) 55%, transparent)" }}>
                           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
                             <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT }}>
                               📋 Candidate Pool — {j.job_title} <span style={{ color: MUTED, fontWeight: 400 }}>({jobCandidates.length} candidate{jobCandidates.length === 1 ? "" : "s"})</span>
