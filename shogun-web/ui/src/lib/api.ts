@@ -852,6 +852,12 @@ export const hrApi = {
       body: form,
       headers: {},
     }),
+  updateJobOpening: (dept: string, jobId: number, form: FormData) =>
+    apiFetch<{ ok: boolean; job: HrJobOpening }>(`/api/departments/${dept}/dashboard/hr/job-openings/${jobId}`, {
+      method: 'PUT',
+      body: form,
+      headers: {},
+    }),
   candidateExtract: (dept: string, id: number) =>
     apiFetch<{ ok: boolean; candidate: HrCandidate; extract: HrCandidateExtract }>(
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/extract`,

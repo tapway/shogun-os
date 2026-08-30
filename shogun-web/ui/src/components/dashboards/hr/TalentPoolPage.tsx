@@ -6,6 +6,7 @@ import {
   ChevronRight,
   ExternalLink,
   FileText,
+  Pencil,
   Search,
   Upload,
   UserPlus,
@@ -93,6 +94,7 @@ export function TalentPoolPage({
   const [search, setSearch] = useState("");
   const [showAddApplicant, setShowAddApplicant] = useState(false);
   const [showScreeningSetup, setShowScreeningSetup] = useState(false);
+  const [showEditJob, setShowEditJob] = useState(false);
   const [journeyCandidate, setJourneyCandidate] = useState<HrCandidate | null>(
     null,
   );
@@ -307,6 +309,25 @@ export function TalentPoolPage({
             }}
           >
             <FileText size={14} /> Screening Setup
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowEditJob(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.4rem 0.85rem",
+              borderRadius: "0.5rem",
+              border: `1px solid ${BORDER}`,
+              background: "transparent",
+              color: TEXT,
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <Pencil size={14} /> Edit Job
           </button>
           <span className={`sd-chip ${statusChipClass(job.job_status)}`}>
             {job.job_status || "—"}
@@ -911,6 +932,15 @@ export function TalentPoolPage({
         />
       )}
 
+      {showEditJob && (
+        <EditJobOpeningModal
+          job={job}
+          stats={stats}
+          department={department}
+          onClose={() => setShowEditJob(false)}
+        />
+      )}
+
       {journeyCandidate && (
         <JourneyStepperModal
           candidate={journeyCandidate}
@@ -933,6 +963,231 @@ const APPLICANT_SOURCES = [
   "Referral",
   "Other",
 ];
+
+/* ── Edit Job Opening Modal ─────────────────────────────────────────────── */
+
+const _editInputStyle: React.CSSProperties = {
+  width: "100%",
+  borderRadius: "0.5rem",
+  border: `1px solid ${BORDER}`,
+  background: SURFACE,
+  color: TEXT,
+  padding: "0.45rem 0.5rem",
+  fontSize: "0.82rem",
+  boxSizing: "border-box",
+};
+
+function _EditField({ label, span, children }: { label: string; span?: 1 | 2; children: React.ReactNode }) {
+  return (
+    <div style={{ gridColumn: span === 2 ? "span 2" : "span 1" }}>
+      <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+        {label}
+      </label>
+      {children}
+    </div>
+  );
+}
+
+function EditJobOpeningModal({
+  job,
+  stats,
+  department,
+  onClose,
+}: {
+  job: HrJobOpening;
+  stats: HrDashboardStats;
+  department: string;
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [jdFile, setJdFile] = useState<File | null>(null);
+  const [form, setForm] = useState({
+    job_title: job.job_title || "",
+    department: job.department || "",
+    employment_type: job.employment_type || "Full Time",
+    experience: job.experience || "",
+    budget_max: job.budget_max != null ? String(job.budget_max) : "",
+    hiring_manager: job.hiring_manager || "",
+    application_start: job.application_start || "",
+    job_status: job.job_status || "Active",
+    job_description: job.job_description || "",
+    jd_link: job.jd_link || "",
+  });
+
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
+    setForm((f) => ({ ...f, [key]: e.target.value }));
+
+  const typeOptions = useMemo(() => {
+    const s = new Set((stats.job_openings || []).map((j) => j.employment_type).filter(Boolean));
+    ["Full Time", "Contract", "Internship"].forEach((x) => s.add(x));
+    return Array.from(s);
+  }, [stats.job_openings]);
+
+  const deptOptions = useMemo(
+    () => Array.from(new Set((stats.job_openings || []).map((j) => j.department).filter(Boolean))),
+    [stats.job_openings],
+  );
+
+  async function doSave() {
+    if (!form.job_title.trim()) {
+      setError("Job title is required.");
+      return;
+    }
+    setBusy(true);
+    setError("");
+    const fd = new FormData();
+    fd.append("job_title", form.job_title.trim());
+    if (form.department.trim()) fd.append("department", form.department.trim());
+    if (form.employment_type.trim()) fd.append("employment_type", form.employment_type);
+    if (form.experience.trim()) fd.append("experience", form.experience.trim());
+    if (form.budget_max.trim()) fd.append("budget_max", form.budget_max.trim());
+    if (form.hiring_manager.trim()) fd.append("hiring_manager", form.hiring_manager.trim());
+    if (form.application_start) fd.append("application_start", form.application_start);
+    if (form.job_status.trim()) fd.append("job_status", form.job_status.trim());
+    if (form.job_description.trim()) fd.append("job_description", form.job_description);
+    if (form.jd_link.trim()) fd.append("jd_link", form.jd_link.trim());
+    if (jdFile) fd.append("file", jdFile);
+    try {
+      await hrApi.updateJobOpening(department, job.id, fd);
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      onClose();
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Failed to update job opening.");
+      setBusy(false);
+    }
+  }
+
+  return (
+    <>
+      <button
+        type="button"
+        style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)", border: "none", cursor: "default" }}
+        onClick={onClose}
+        aria-label="Close"
+      />
+      <div
+        style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+        onClick={onClose}
+      >
+        <div
+          className="sd-chart-card"
+          onClick={(e) => e.stopPropagation()}
+          style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "40rem", maxHeight: "88vh", overflowY: "auto", padding: "1.25rem" }}
+        >
+          <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.75rem", marginBottom: "0.75rem" }}>
+            <div>
+              <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
+                Edit Job Opening
+              </h2>
+              <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
+                Update any field below. Deadline is auto-computed from App Start + 90 days.
+              </p>
+            </div>
+            <button type="button" className="sd-icon-btn" onClick={onClose} aria-label="Close">
+              <X className="h-5 w-5" />
+            </button>
+          </div>
+
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.65rem" }}>
+            <_EditField label="Job Title *" span={2}>
+              <input value={form.job_title} onChange={set("job_title")} style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Department" span={1}>
+              <input value={form.department} onChange={set("department")} list="ej-depts" style={_editInputStyle} />
+              <datalist id="ej-depts">
+                {deptOptions.map((d) => (<option key={d} value={d} />))}
+              </datalist>
+            </_EditField>
+            <_EditField label="Employment Type" span={1}>
+              <select value={form.employment_type} onChange={set("employment_type")} style={_editInputStyle}>
+                {typeOptions.map((t) => (<option key={t} value={t}>{t}</option>))}
+              </select>
+            </_EditField>
+            <_EditField label="Experience" span={1}>
+              <input value={form.experience} onChange={set("experience")} placeholder="e.g. 3+ years" style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Budget Max (RM)" span={1}>
+              <input value={form.budget_max} onChange={set("budget_max")} placeholder="e.g. 9000" inputMode="decimal" style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Hiring Manager" span={1}>
+              <input value={form.hiring_manager} onChange={set("hiring_manager")} style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Application Start" span={1}>
+              <input type="date" value={form.application_start} onChange={set("application_start")} style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Status" span={1}>
+              <select value={form.job_status} onChange={set("job_status")} style={_editInputStyle}>
+                <option value="Draft">Draft</option>
+                <option value="Active">Active</option>
+                <option value="Closed - Hired">Closed — Hired</option>
+                <option value="Closed - Cancelled">Closed — Cancelled</option>
+              </select>
+            </_EditField>
+            <_EditField label="Job Description" span={2}>
+              <textarea value={form.job_description} onChange={set("job_description")} rows={4} style={{ ..._editInputStyle, resize: "vertical" }} />
+            </_EditField>
+            <_EditField label="Job Description Link" span={2}>
+              <input value={form.jd_link} onChange={set("jd_link")} placeholder="https://…" style={_editInputStyle} />
+            </_EditField>
+            <_EditField label="Upload New JD File (optional, replaces existing)" span={2}>
+              <input
+                type="file"
+                accept=".pdf,.doc,.docx,.txt,.md,.rtf"
+                onChange={(e) => setJdFile(e.target.files?.[0] ?? null)}
+                style={{ ..._editInputStyle, padding: "0.4rem", fontSize: "0.78rem" }}
+              />
+            </_EditField>
+          </div>
+
+          {error && (
+            <p style={{ color: DANGER, fontSize: "0.8rem", margin: "0.6rem 0 0" }}>{error}</p>
+          )}
+
+          <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", marginTop: "1rem" }}>
+            <button
+              type="button"
+              onClick={onClose}
+              disabled={busy}
+              style={{
+                borderRadius: "0.5rem",
+                border: `1px solid ${BORDER}`,
+                background: "transparent",
+                color: TEXT,
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.4rem 0.8rem",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              onClick={doSave}
+              disabled={busy}
+              style={{
+                borderRadius: "0.5rem",
+                border: "none",
+                background: LIME,
+                color: "#0a0a0a",
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.4rem 1rem",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              {busy ? "Saving..." : "Save Changes"}
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
 
 /**
  * Add Applicant — HR only picks the source; all other info is extracted from

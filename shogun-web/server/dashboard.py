@@ -3736,6 +3736,108 @@ async def create_hr_job_opening(
     return {"ok": True, "job": opening.to_dict()}
 
 
+@router.put("/hr/job-openings/{job_id}")
+async def update_hr_job_opening(
+    name: str = Path(...),
+    job_id: int = Path(...),
+    file: UploadFile = File(None),
+    job_title: str = Form(""),
+    department: str = Form(""),
+    employment_type: str = Form(""),
+    experience: str = Form(""),
+    budget_max: str = Form(""),
+    hiring_manager: str = Form(""),
+    application_start: str = Form(""),
+    job_status: str = Form(""),
+    job_description: str = Form(""),
+    jd_link: str = Form(""),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update an existing job opening. Same fields as create; only non-empty
+    form values overwrite the existing row."""
+    from models import HrJobOpening
+
+    opening = db.get(HrJobOpening, job_id)
+    if opening is None:
+        raise HTTPException(status_code=404, detail="Job opening not found")
+
+    title = (job_title or "").strip()
+    if title:
+        opening.job_title = title
+
+    dept = (department or "").strip()
+    if dept:
+        opening.department = dept
+
+    etype = (employment_type or "").strip()
+    if etype:
+        opening.employment_type = etype
+
+    exp = (experience or "").strip()
+    if exp:
+        opening.experience = exp
+
+    raw_budget = (budget_max or "").strip().replace(",", "")
+    if raw_budget:
+        try:
+            opening.budget_max = float(raw_budget)
+        except ValueError:
+            raise HTTPException(status_code=422, detail="Budget must be a number")
+
+    hm = (hiring_manager or "").strip()
+    if hm:
+        opening.hiring_manager = hm
+
+    app_start = (application_start or "").strip()
+    if app_start:
+        opening.application_start = app_start
+
+    status = (job_status or "").strip()
+    if status:
+        opening.job_status = status
+
+    desc = job_description
+    if desc is not None and desc != "":
+        opening.job_description = desc if desc.strip() else None
+
+    link = (jd_link or "").strip()
+    if link:
+        opening.jd_link = link
+
+    # Optional JD file upload — replaces previous file
+    if file is not None and file.filename:
+        safe_name = pathlib.Path(file.filename or "document").name
+        ext = pathlib.Path(safe_name).suffix.lower().lstrip(".")
+        if ext not in _ALLOWED_JD_EXTS:
+            raise HTTPException(status_code=422, detail=f"Unsupported file type (.{ext}). Allowed: pdf, doc, docx, txt, md, rtf")
+        content = await file.read()
+        if len(content) > 10 * 1024 * 1024:
+            raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        import uuid as _uuid
+        unique_name = f"{_uuid.uuid4().hex[:8]}_{safe_name}"
+        (upload_dir / unique_name).write_bytes(content)
+        opening.jd_file_url = f"/api/doc-uploads/{unique_name}"
+
+    db.commit()
+    db.refresh(opening)
+
+    try:
+        import audit
+        audit.log_action(
+            db, None, user, "hr", "hr.job_opening.update", "job_opening",
+            str(opening.id),
+            detail={"job_title": opening.job_title, "department": opening.department},
+        )
+    except Exception:
+        pass
+
+    return {"ok": True, "job": opening.to_dict()}
+
+
 class HrCandidateReviewBody(BaseModel):
     kind: str = "hr"
 
