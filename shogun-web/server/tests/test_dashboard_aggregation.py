@@ -139,10 +139,8 @@ def test_finance_aggregation_reads_gbrain_snapshots():
     assert bill["match_status"] == "Matched"
 
 
-def test_finance_aggregation_qbo_disabled_by_default():
-    """With SHOGUN_FINANCE_QBO unset, QBO fetchers are never invoked."""
-    import os
-    os.environ.pop("SHOGUN_FINANCE_QBO", None)
+def test_finance_aggregation_never_calls_qbo():
+    """gbrain-only data path: QBO fetchers must never be invoked."""
     with patch("dashboard._fetch_finance_snapshots", return_value={}), \
          patch("dashboard._fetch_qbo_balance_sheet") as mock_bs, \
          patch("dashboard._fetch_qbo_profit_loss") as mock_pl:

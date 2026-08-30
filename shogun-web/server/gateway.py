@@ -183,7 +183,7 @@ async def _fetch_department_context_data(dept_name: str, prompt: str) -> dict:
 
     try:
         if key in ("finance", "koku"):
-            data["stats"] = dashboard._run_finance_aggregation([])
+            data["stats"] = await dashboard._run_finance_aggregation([])
         elif key in ("crm", "sales", "eigyo"):
             data["stats"] = dashboard._run_ceo_aggregation([])
         elif key in ("procurement", "chotatsu"):

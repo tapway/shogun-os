@@ -1,7 +1,7 @@
 # Finance Snapshot Writer — Server-Side Spec (for Gozen)
 
 Companion to `recipes/DASHBOARD_SNAPSHOT_CONTRACT.md`. The **portal side is
-already done and tested** (gbrain-first, QBO off). This file is everything the
+already done and tested** (gbrain-only — QBO deleted). This file is everything the
 server-side writer + shim needs.
 
 ## 1. What the portal now does (no further portal changes needed)
@@ -16,9 +16,9 @@ server-side writer + shim needs.
   local data files, no filesystem mirror reads. The 8 fetches run
   concurrently (one round-trip batch when the cache is cold).
 - Cache: 60 s in-process. UI refetches every 120 s.
-- QBO branch is OFF by default (`SHOGUN_FINANCE_QBO=1` to re-enable). No
-  snapshots → `dataSource: "empty"`, UI shows a "waiting for snapshots"
-  banner. Never mock figures.
+- **No QBO, ever** — the QBO branch was deleted, not gated. No snapshots →
+  `dataSource: "empty"`, UI shows a "waiting for snapshots" banner. Never
+  mock figures.
 
 ## 2. What the writer must emit
 
@@ -54,19 +54,24 @@ Non-negotiables:
   - `balance-sheet.asset_trend`: `{month, current, non_current}`
 - Empty/missing source data → write zeros/empty arrays (never crash, never skip a page).
 
-## 3. Data source on the server — what's DERIVED vs what's UPLOADED
+## 3. Data source on the server — portal never sees it
 
-QBO creds are already on the server. **gbrain holds only computed snapshots**
-— no raw bank feeds or client lists exist there, and none are needed:
+**Hard requirement: the portal talks to gbrain ONLY.** The snapshot writer's
+upstream source is the server agent's choice — use whatever finance data
+exists on the server (Gozen: `qb.py` / accounting bridge is available there;
+manual pages, ingested reports, or any other source work equally well). The
+portal contract ends at `get_page` — it never calls the upstream directly.
 
-| Snapshot | Source | How |
-|---|---|---|
-| `cash` | QBO | bank/cash-type Balance Sheet accounts → `total_liquid_cash` + `bank_accounts[]`; monthly inflow/outflow from P&L (trailing 6 mo); burn = avg monthly expenses (trailing 3 mo) |
-| `pl` / `monthly_pl_trend` / `burn_trend` | QBO | P&L YTD + MTD, monthly split |
-| `balance-sheet` | QBO | BS accounts classified current/non-current |
-| `ar` / `ap` | QBO | outstanding invoices/bills; aging buckets from due dates vs today; `dso`/`dpo` from revenue/COGS proxies |
-| `concentration` | QBO | invoices grouped by customer → revenue YTD per client ÷ total → `revenue_pct` |
-| `bva` | **Budget Excel + QBO** | see budget flow below |
+What the writer must produce, per snapshot:
+
+| Snapshot | Content |
+|---|---|
+| `cash` | `total_liquid_cash` + `bank_accounts[]`; monthly inflow/outflow (`cash_flow_trend`); burn = avg monthly expenses |
+| `pl` | revenue MTD/YTD, margins, `monthly_pl_trend` (6 months) |
+| `balance-sheet` | assets classified current/non-current + totals + `asset_trend` |
+| `ar` / `ap` | outstanding invoices/bills; aging buckets from due dates vs today |
+| `concentration` | revenue per client ÷ total → `revenue_pct` |
+| `bva` | budget (from yearly Excel) vs actuals |
 
 ### Budget flow — Excel uploaded ONCE per year
 
@@ -77,10 +82,10 @@ QBO creds are already on the server. **gbrain holds only computed snapshots**
    (`{account_code, account_name, section, budget_amount, monthly_budget[12]}`).
    This page persists all year; re-upload only next year.
 3. The snapshot writer reads `finance/budget/<current_year>`, pro-rates
-   `budget_ytd` to the current month, matches QBO P&L actuals per account,
-   and writes `finance/snapshots/bva` (`line_items[]` + per-dept `departments[]`).
+   `budget_ytd` to the current month, matches actuals per account, and writes
+   `finance/snapshots/bva` (`line_items[]` + per-dept `departments[]`).
 
-Derivation rules for the rest:
+Derivation rules:
 - `dso`/`dpo`: revenue/COGS proxies are fine (60-day windows).
 - `forecast_13w` / `cash_flow_forecast`: simple projection from burn + inflow
   trend (±15% fan) — no ML needed.

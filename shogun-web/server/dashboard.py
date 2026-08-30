@@ -2266,15 +2266,14 @@ async def _fetch_finance_snapshots() -> Dict[str, dict]:
 
 
 async def _run_finance_aggregation(pages: List[dict]) -> dict:
-    """Aggregate Finance dashboard stats — gbrain snapshots FIRST.
+    """Aggregate Finance dashboard stats — gbrain ONLY.
 
-    Data source order:
-      1. gbrain snapshot pages (finance/snapshots/*) — written by the
-         finance snapshot-writer on the server. Targeted get_page reads,
-         no list_pages (the shim maps finance→data/% for listings).
-      2. Live QBO — OFF by default; enable with SHOGUN_FINANCE_QBO=1.
-      3. Empty-state payload (zeros + empty lists) — UI shows a
-         "waiting for snapshots" banner. Never loads mock/example data.
+    The portal links to gbrain and reads snapshot pages written there by
+    the finance snapshot-writer on the server (finance/snapshots/*).
+    Targeted get_page reads — no list_pages (the shim maps finance→data/%
+    for listings), no QBO, no local data files. When no snapshots exist
+    yet the payload is an empty state (zeros + empty lists) and the UI
+    shows a "waiting for gbrain snapshots" banner. Never mock data.
     """
     now = _now()
     cy, cm = now.year, now.month
@@ -2299,23 +2298,8 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     pl_snap = snapshot_map.get("snapshots/pl", snapshot_map.get("finance/snapshots/pl", {}))
     has_real_data = bool(cash_snap or pl_snap)
 
-    # ── Live QBO fetch — DISABLED by default (gbrain-first) ──
-    qbo_enabled = os.environ.get("SHOGUN_FINANCE_QBO", "").lower() in ("1", "true", "yes")
-    live_bs: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
-    live_pl_ytd: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
-    live_pl_mtd: Dict[str, Any] = {"error": "qbo disabled (set SHOGUN_FINANCE_QBO=1)"}
-    if qbo_enabled:
-        today_str = now.strftime("%Y-%m-%d")
-        ytd_start = f"{cy}-01-01"
-        mtd_start = f"{cy}-{cm:02d}-01"
-        live_bs = _fetch_qbo_balance_sheet(today_str)
-        live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
-        live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
-    has_live_qbo = (qbo_enabled
-                    and "error" not in live_bs
-                    and "error" not in live_pl_ytd
-                    and "error" not in live_pl_mtd)
-    # Default asset + overview fields (overridden by live/snapshot/mock branches)
+    # gbrain-only data path — no QBO, no local data files.
+    # Default asset + overview fields (overridden by snapshot branch)
     current_assets: List[dict] = []
     non_current_assets: List[dict] = []
     total_current_assets = 0.0
@@ -2341,213 +2325,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     dunning_queue: List[dict] = []
     ar_invoices_list: List[dict] = []
 
-    if has_live_qbo:
-        # ── LIVE QBO DATA — primary path ──
-        mock = False  # live data, not mock
-        # Assets + bank accounts from live BS via _build_live_assets
-        live_assets = _build_live_assets(live_bs)
-        current_assets = live_assets["currentAssets"]
-        non_current_assets = live_assets["nonCurrentAssets"]
-        total_current_assets = live_assets["totalCurrentAssets"]
-        total_non_current_assets = live_assets["totalNonCurrentAssets"]
-        total_assets_val = live_assets["totalAssets"]
-        bank_accounts: List[dict] = live_assets["bankAccounts"]
-        asset_trend = await _build_asset_trend_async()  # may be [] on fetch failure
-
-        # Cash: sum of bank/cash accounts from live BS
-        total_liquid_cash = sum(
-            _safe_float(b.get("balance_myr", b.get("balance", 0))) for b in bank_accounts
-        )
-        if total_liquid_cash == 0:
-            total_liquid_cash = _safe_float(live_bs.get("total_assets", 0))
-
-        # Revenue/expenses from live PL
-        revenue_mtd = _safe_float(live_pl_mtd.get("total_revenue"))
-        revenue_ytd = _safe_float(live_pl_ytd.get("total_revenue"))
-        total_expenses_ytd = _safe_float(live_pl_ytd.get("total_expenses"))
-        net_profit_ytd = _safe_float(live_pl_ytd.get("net_profit"))
-
-        # Margins (rough proxies from PL)
-        gross_margin = ((revenue_ytd - total_expenses_ytd) / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        ebitda_margin = (net_profit_ytd / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        gross_profit_margin = gross_margin
-
-        # Burn rate + runway
-        months_elapsed = cm
-        net_monthly_burn = (total_expenses_ytd / months_elapsed) if months_elapsed > 0 else 0.0
-        cash_runway_months = (total_liquid_cash / net_monthly_burn) if net_monthly_burn > 0 else 0.0
-
-        if cash_runway_months == 0:
-            runway_status = "unknown"
-        elif cash_runway_months < 3:
-            runway_status = "critical"
-        elif cash_runway_months < 6:
-            runway_status = "caution"
-        else:
-            runway_status = "healthy"
-
-        unpaid_statutory = 0.0
-
-        # Balance sheet overview KPIs from live BS
-        total_liabilities = _safe_float(live_bs.get("total_liabilities"))
-        total_equity = _safe_float(live_bs.get("total_equity"))
-        total_assets_bs = _safe_float(live_bs.get("total_assets"))
-        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
-        equity_ratio = (total_equity / total_assets_bs) if total_assets_bs else 0.0
-        gross_working_capital = total_current_assets
-        total_current_liabilities = 0.0  # QBO bridge doesn't split current/non-current liabilities
-        net_working_capital = total_current_assets - total_current_liabilities
-
-        # AR/AP from live QBO invoices/bills
-        ar_data = _fetch_qbo_ar_invoices()
-        ap_data = _fetch_qbo_ap_bills()
-        ar_invoices = ar_data.get("invoices", []) if "error" not in ar_data else []
-        ap_bills_list = ap_data.get("bills", []) if "error" not in ap_data else []
-        total_ar = sum(_safe_float(inv.get("balance_due", inv.get("total", 0))) for inv in ar_invoices)
-        total_ap = sum(_safe_float(bill.get("balance_due", bill.get("total", 0))) for bill in ap_bills_list)
-        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
-
-        # AR aging from invoice due dates
-        ar_overdue_30 = 0.0
-        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
-        dunning_queue: List[dict] = []
-        ar_invoices_list: List[dict] = []  # all outstanding invoices tagged with bucket, for popout
-        for inv in ar_invoices:
-            due_str = inv.get("due_date", "")
-            balance = _safe_float(inv.get("balance_due", 0))
-            if balance <= 0 or not due_str:
-                continue
-            try:
-                due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
-                age_days = (now - due_dt).days
-            except (ValueError, TypeError):
-                age_days = 0
-            if age_days <= 30:
-                bucket = "0-30"
-                ar_aging["bucket_0_30"] += balance
-            elif age_days <= 60:
-                bucket = "31-60"
-                ar_aging["bucket_31_60"] += balance
-            elif age_days <= 90:
-                bucket = "61-90"
-                ar_aging["bucket_61_90"] += balance
-            else:
-                bucket = "90+"
-                ar_aging["bucket_90_plus"] += balance
-                ar_overdue_30 += balance
-                dunning_queue.append({
-                    "invoice_no": inv.get("number", ""),
-                    "customer": inv.get("contact_name", ""),
-                    "due_date": due_str,
-                    "amount": balance,
-                    "aging_days": age_days,
-                    "bucket": "90+",
-                    "dunning_status": "Overdue",
-                })
-            # Build the popout entry for every outstanding invoice
-            ar_invoices_list.append({
-                "invoice_no": inv.get("number", ""),
-                "customer": inv.get("contact_name", ""),
-                "due_date": due_str,
-                "amount": balance,
-                "aging_days": max(0, age_days),
-                "bucket": bucket,
-                "dunning_status": "Overdue" if age_days > 0 else "Current",
-            })
-
-        dso = 0.0
-        dpo = 0.0
-        ap_overdue = 0.0
-
-        # Format AP bills for frontend
-        ap_bills = []
-        for bill in ap_bills_list:
-            ap_bills.append({
-                "bill_no": bill.get("number", ""),
-                "vendor": bill.get("contact_name", ""),
-                "due_date": bill.get("due_date", ""),
-                "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
-                "match_status": "Matched",
-                "approval_status": "Pending",
-            })
-
-        # Cash Flow tab — live QBO-derived series
-        # AR/AP aging-by-target (1-30/31-60/61-90/90+ DPD) from invoices/bills
-        ar_aging_by_target = _build_aging_by_target(ar_invoices)
-        ap_aging_by_target = _build_aging_by_target(ap_bills_list)
-        # 6-month P&L trend (revenue/expenses/net_profit) — each month cached
-        monthly_pl_trend = _build_monthly_pl_trend(6)
-        # Monthly burn trend (expenses per month) — reuses P&L cache
-        burn_trend = _build_burn_trend(6)
-        # 6-month cash flow forecast with fan range (total/low/high)
-        cash_flow_forecast = _build_cash_flow_forecast(6)
-        # Cash flow breakdown by P&L account (income + expenses, YTD + MTD)
-        cash_flow_breakdown = _build_cash_flow_breakdown(live_pl_ytd, live_pl_mtd)
-
-        # fx_positions, forecast_13w, fixed/variable opex: not available from QBO
-        fx_positions: List[dict] = []
-        forecast_13w = {"conservative": [], "expected": [], "optimistic": []}
-        fixed_opex = 0.0
-        variable_opex = 0.0
-
-        # Risk alerts from live data
-        risk_alerts: List[dict] = []
-        if net_working_capital < 0:
-            risk_alerts.append({
-                "type": "working_capital",
-                "level": "critical",
-                "message": f"Negative working capital: RM {net_working_capital:,.0f}",
-            })
-        if ar_aging["bucket_90_plus"] > 0:
-            risk_alerts.append({
-                "type": "ar_overdue",
-                "level": "critical" if ar_aging["bucket_90_plus"] > 50000 else "warning",
-                "message": f"RM {ar_aging['bucket_90_plus']:,.0f} in receivables overdue >90 days",
-            })
-
-        # Trends: use mock if available, else empty
-        revenue_opex_trend: List[dict] = []
-        cash_flow_trend: List[dict] = []
-
-        # BvA: load budget items from mock JSON, match QBO actuals
-        # NOTE: budget items are real (from Budget Excel), but unit economics,
-        # client concentration, and compliance are fabricated demo data.
-        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
-        mock_data = {}
-        mock = True  # BvA/concentration/compliance loaded from demo JSON
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    mock_data = json.load(f).get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data for BvA budgets: %s", e)
-        budget_items = mock_data.get("bvaLineItems", [])
-        bva_line_items = _match_qbo_actuals_to_budget(budget_items, live_pl_ytd)
-        bva_departments: List[dict] = bva_line_items  # alias for backward compat
-
-        # Unit economics, concentration, compliance: from mock/snapshot
-        unit_economics: dict = mock_data.get("unitEconomics", {
-            "gross_margin_pct": gross_margin, "contribution_margin_pct": 0,
-            "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
-        raw_client_concentration: List[dict] = mock_data.get("clientConcentration", [])
-        # Compute revenue_pct from revenue_ytd relative to total YTD revenue
-        total_client_revenue = sum(_safe_float(c.get("revenue_ytd", 0)) for c in raw_client_concentration)
-        if total_client_revenue > 0 and revenue_ytd > 0:
-            client_concentration: List[dict] = [
-                {**c, "revenue_pct": round((_safe_float(c.get("revenue_ytd", 0)) / revenue_ytd * 100), 1)}
-                for c in raw_client_concentration
-            ]
-        else:
-            client_concentration = raw_client_concentration
-        close_checklist: List[dict] = mock_data.get("closeChecklist", [])
-        statutory_schedule: List[dict] = mock_data.get("statutorySchedule", [])
-        sst_readiness: dict = mock_data.get("sstReadiness", {
-            "draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
-        cp58_register: List[dict] = mock_data.get("cp58Register", [])
-        wht_queue: List[dict] = mock_data.get("whtQueue", [])
-        expense_claim_audit: List[dict] = mock_data.get("expenseClaimAudit", [])
-
-    elif has_real_data:
+    if has_real_data:
         mock = False  # gbrain snapshot data, not mock
         total_liquid_cash = _safe_float(cash_snap.get("total_liquid_cash"))
         net_monthly_burn = _safe_float(cash_snap.get("net_monthly_burn"))
@@ -2785,7 +2563,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         burn_trend = mock_data.get("burnTrend", [])
         cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
 
-    data_source = "qbo" if has_live_qbo else ("gbrain" if has_real_data else "empty")
+    data_source = "gbrain" if has_real_data else "empty"
 
     return {
         # Mock flag — true when data loaded from examples/*.json (demo mode)

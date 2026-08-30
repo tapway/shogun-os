@@ -142,9 +142,9 @@ Backend reads at `dashboard.py` `_run_procurement_aggregation`
 
 Backend reads at `dashboard.py` `_run_finance_aggregation`
 (`snapshots/<name>` or `finance/snapshots/<name>`, with or without the
-`.json` suffix). **gbrain-first**: live QBO is OFF by default
-(`SHOGUN_FINANCE_QBO=1` re-enables it); no snapshots → empty-state payload
-with `dataSource: "empty"` (never mock figures).
+`.json` suffix). **gbrain-only** — the portal links to gbrain and reads
+nothing else (no QBO, no local data files). No snapshots → empty-state
+payload with `dataSource: "empty"` (never mock figures).
 
 **Item-shape tolerance** — the backend normalizes these before serving the
 UI, so writers may use either spelling:
