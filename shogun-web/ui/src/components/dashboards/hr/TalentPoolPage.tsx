@@ -205,7 +205,7 @@ export function TalentPoolPage({ jobId, fallbackJob, stats, color, department, o
           {job.overdue === "Overdue" && <span className="sd-chip bad">Overdue</span>}
         </div>
         <div style={{ display: "flex", flexWrap: "wrap", gap: "0.4rem 1.25rem", marginTop: "0.75rem", fontSize: "0.82rem", color: MUTED }}>
-          <span><strong style={{ color: TEXT, fontWeight: 600 }}>{job.department || "—"}</strong> department</span>
+          <span>Department <strong style={{ color: TEXT, fontWeight: 600 }}>{job.department || "—"}</strong></span>
           <span>Type <strong style={{ color: TEXT, fontWeight: 600 }}>{job.employment_type || "—"}</strong></span>
           <span>Experience <strong style={{ color: TEXT, fontWeight: 600 }}>{job.experience || "—"}</strong></span>
           <span>Budget <strong style={{ color: TEXT, fontWeight: 600 }}>{fmtMyr(job.budget_max)}</strong></span>
