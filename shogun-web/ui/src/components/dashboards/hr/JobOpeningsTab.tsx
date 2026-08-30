@@ -422,19 +422,12 @@ function CreateJobOpeningModal({
     budget_max: "",
     hiring_manager: "",
     application_start: "",
-    job_status: "Draft",
     job_description: "",
     jd_link: "",
   });
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) =>
     setForm((f) => ({ ...f, [key]: e.target.value }));
-
-  const statusOptions = useMemo(() => {
-    const s = new Set((stats.job_openings || []).map((j) => j.job_status).filter(Boolean));
-    ["Draft", "Active", "Closed - Hired", "Closed - Cancelled"].forEach((x) => s.add(x));
-    return Array.from(s);
-  }, [stats.job_openings]);
 
   const typeOptions = useMemo(() => {
     const s = new Set((stats.job_openings || []).map((j) => j.employment_type).filter(Boolean));
@@ -447,8 +440,7 @@ function CreateJobOpeningModal({
     [stats.job_openings],
   );
 
-  async function submit(e: React.FormEvent) {
-    e.preventDefault();
+  async function doSubmit(isDraft: boolean) {
     if (!form.job_title.trim()) {
       setError("Job title is required.");
       return;
@@ -463,7 +455,7 @@ function CreateJobOpeningModal({
     if (form.budget_max.trim()) fd.append("budget_max", form.budget_max.trim());
     if (form.hiring_manager.trim()) fd.append("hiring_manager", form.hiring_manager.trim());
     if (form.application_start) fd.append("application_start", form.application_start);
-    if (form.job_status.trim()) fd.append("job_status", form.job_status.trim());
+    fd.append("job_status", isDraft ? "Draft" : "Active");
     if (form.job_description.trim()) fd.append("job_description", form.job_description);
     if (form.jd_link.trim()) fd.append("jd_link", form.jd_link.trim());
     if (jdFile) fd.append("file", jdFile);
@@ -475,6 +467,11 @@ function CreateJobOpeningModal({
       setError(err instanceof Error ? err.message : "Failed to create job opening.");
       setBusy(false);
     }
+  }
+
+  function handleSubmit(e: React.FormEvent) {
+    e.preventDefault();
+    doSubmit(false);
   }
 
   return (
@@ -491,7 +488,7 @@ function CreateJobOpeningModal({
       >
         <form
           className="sd-chart-card"
-          onSubmit={submit}
+          onSubmit={handleSubmit}
           onClick={(e) => e.stopPropagation()}
           style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "40rem", maxHeight: "88vh", overflowY: "auto", padding: "1.25rem" }}
         >
@@ -540,13 +537,6 @@ function CreateJobOpeningModal({
             <Field label="Application Start" span={1}>
               <input type="date" value={form.application_start} onChange={set("application_start")} style={inputStyle} />
             </Field>
-            <Field label="Status" span={2}>
-              <select value={form.job_status} onChange={set("job_status")} style={inputStyle}>
-                {statusOptions.map((s) => (
-                  <option key={s} value={s}>{s}</option>
-                ))}
-              </select>
-            </Field>
             <Field label="Job Description" span={2}>
               <textarea value={form.job_description} onChange={set("job_description")} rows={4} placeholder="Responsibilities, requirements…" style={{ ...inputStyle, resize: "vertical" }} />
             </Field>
@@ -587,7 +577,26 @@ function CreateJobOpeningModal({
               Cancel
             </button>
             <button
-              type="submit"
+              type="button"
+              onClick={() => doSubmit(true)}
+              disabled={busy}
+              style={{
+                borderRadius: "0.5rem",
+                border: `1px solid ${BORDER}`,
+                background: SURFACE,
+                color: TEXT,
+                fontSize: "0.8rem",
+                fontWeight: 600,
+                padding: "0.4rem 0.8rem",
+                cursor: busy ? "not-allowed" : "pointer",
+                opacity: busy ? 0.6 : 1,
+              }}
+            >
+              {busy ? "Saving..." : "Save as Draft"}
+            </button>
+            <button
+              type="button"
+              onClick={() => doSubmit(false)}
               disabled={busy}
               style={{
                 borderRadius: "0.5rem",
