@@ -61,7 +61,7 @@ export function FinanceDashboard({ department, color }: FinanceDashboardProps) {
     <div className="sd-stack">
       {stats.mock && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-          ⚠️ DEMO DATA — some figures loaded from sample data. Connect QBO + gbrain snapshots for live financials.
+          ⚠️ DEMO DATA — all figures are from a fictional demo ledger (no live accounting connection).
         </div>
       )}
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />

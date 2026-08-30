@@ -2,10 +2,8 @@
 and finance/procurement/CRM aggregation with empty pages (no crash).
 """
 
-import asyncio
 import sys
 from pathlib import Path
-from unittest.mock import patch
 
 _SERVER = Path(__file__).resolve().parents[1]
 if str(_SERVER) not in sys.path:
@@ -67,23 +65,28 @@ def test_safe_int_passes_valid_integer():
 # ─── Aggregation: empty pages ─────────────────────────────────────────────
 
 
-def test_finance_aggregation_empty_pages_returns_safe_defaults():
-    """Finance aggregation with no snapshots must not crash and return zeros.
+def test_finance_aggregation_returns_mock_ledger():
+    """Finance aggregation serves the aligned mock ledger (no QBO, no snapshots).
 
-    Mocks QBO fetches so no subprocess/network call runs. Tests the aggregation
-    logic, not the live QBO integration. assert_called_once verifies the mocks
-    are actually used -- prevents silent false-pass if imports change.
+    Every figure must come from examples/finance-budget.json and reconcile:
+    mock flag set, non-zero KPIs, aging buckets sum to totals, BS identity.
     """
-    fake_qbo = {"error": "no data"}
-    with patch("dashboard._fetch_qbo_balance_sheet", return_value=fake_qbo) as mock_bs, \
-         patch("dashboard._fetch_qbo_profit_loss", return_value=fake_qbo) as mock_pl:
-        result = asyncio.run(dashboard._run_finance_aggregation([]))
-    # Verify mocks were actually called -- prevents false-pass if patch target drifts
-    mock_bs.assert_called_once()
-    mock_pl.assert_called()
+    result = dashboard._run_finance_aggregation([])
     assert isinstance(result, dict)
-    # Must have keys, even if all zero/empty
-    assert len(result) > 0
+    assert result["mock"] is True
+    # Headline KPIs populated from the mock ledger
+    assert result["totalLiquidCash"] > 0
+    assert result["revenueYTD"] > 0
+    assert result["totalAR"] > 0
+    assert result["totalAP"] > 0
+    # Internal consistency: AR aging buckets sum to totalAR
+    aging = result["arAging"]
+    assert sum(aging.values()) == result["totalAR"]
+    # Balance-sheet identity: assets = liabilities + equity
+    assert round(result["totalCurrentAssets"] + result["totalNonCurrentAssets"]) == round(result["totalAssets"])
+    assert round(result["totalLiabilities"] + result["totalEquity"]) == round(result["totalAssets"])
+    # Bank balances reconcile with liquid cash
+    assert sum(b["balance_myr"] for b in result["bankAccounts"]) == result["totalLiquidCash"]
 
 
 def test_procurement_aggregation_empty_pages_no_crash():

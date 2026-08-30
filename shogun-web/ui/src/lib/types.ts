@@ -1093,6 +1093,7 @@ export interface FinanceTrendPoint {
   net?: number;
   cash?: number;
   netFlow?: number;
+  otherIncome?: number;
 }
 
 export interface BankAccount {
@@ -1274,7 +1275,7 @@ export interface FinanceDashboardStats {
   riskAlerts: FinanceRiskAlert[];
   revenueOpexTrend: FinanceTrendPoint[];
   cashFlowTrend: FinanceTrendPoint[];
-  // Overview tab — additional QBO-live KPIs
+  // Overview tab — additional balance-sheet KPIs
   totalLiabilities: number;
   totalEquity: number;
   debtToEquity: number;

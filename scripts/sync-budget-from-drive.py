@@ -6,7 +6,7 @@ sync-budget-from-drive.py — Sync budget Excel from Google Drive → finance/bu
 Watches a Google Drive folder for the latest budget Excel file, downloads it,
 parses it via parse-budget-excel.py, and writes:
   - finance/budget.json (canonical budget for bva-variance-analysis skill)
-  - examples/finance-budget.json (dashboard mock data with bvaLineItems)
+  - examples/finance-budget.json (budget lines + aligned demo dashboard_mock)
 
 Designed to run as a cron job (e.g. daily or weekly). The budget is annual —
 re-uploading a new Excel to Drive each year is all that's needed; this script
