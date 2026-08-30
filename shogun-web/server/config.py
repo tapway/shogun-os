@@ -56,12 +56,17 @@ def _env_int(name: str, default: int) -> int:
 def _env_float(name: str, default: float) -> float:
     """Parse a float env var — garbage values degrade to the default instead of a boot crash.
 
-    Same contract as _env_int (see its docstring)."""
+    Same contract as _env_int (see its docstring). NaN and inf are rejected — they would
+    silently defeat cache expiration semantics."""
+    import math
     raw = os.environ.get(name)
     if raw is None or not raw.strip():
         return default
     try:
-        return float(raw)
+        val = float(raw)
+        if not math.isfinite(val):
+            return default
+        return val
     except ValueError:
         return default
 

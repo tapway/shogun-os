@@ -244,14 +244,11 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             om.wonDeals += 1
             created = str(fm.get("created", ""))
             if created and close_date:
-                try:
-                    cd = _parse_iso_utc(close_date)
-                    cr = _parse_iso_utc(created)
-                    if cd is not None and cr is not None and cd >= cr:
-                        cycle_days_sum += (cd - cr).days
-                        cycle_days_n += 1
-                except (ValueError, TypeError):
-                    pass
+                cd = _parse_iso_utc(close_date)
+                cr = _parse_iso_utc(created)
+                if cd is not None and cr is not None and cd >= cr:
+                    cycle_days_sum += (cd - cr).days
+                    cycle_days_n += 1
             if amount > 0 and close_date and _is_this_year(close_date):
                 salesYTD += amount
                 om.salesYTD += amount
@@ -793,7 +790,7 @@ def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
 
 
-async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix) -> list:
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: "SlugPrefix") -> list:
     """Graceful fetching: never let a gbrain failure 500 a CRM listing.
 
     Returns the raw pages list; an MCP failure (server down, timeout) or any

@@ -69,18 +69,17 @@ def _slug_matches(slug: str, prefix: "SlugPrefix") -> bool:
 def _enrich_cap() -> int:
     """Enrichment cap for metadata-only list_pages rows.
 
-    ``0`` (default) = enrich EVERY row — the CRM dashboards show one row per
-    page, so metadata-only rows (no frontmatter) render as blank columns.
-    Full enrichment is bounded by ``_ENRICH_CONCURRENCY`` and served from a
-    TTL page cache (``gbrain_page_cache_ttl``) so repeated tab loads hit
-    gbrain at most once per slug per TTL window. Set a positive value to
-    cap enrichment for pathological sources.
+    Default ``500`` = enrich up to 500 rows on cold start, then serve metadata-only
+    for the rest. This prevents N+1 explosion on large brains (10k+ pages) while
+    still providing full enrichment for typical CRM deployments. Set to ``0`` to
+    enrich EVERY row (bounded by ``_ENRICH_CONCURRENCY``), or a positive value to
+    cap enrichment for pathological sources. Cached with TTL from ``gbrain_page_cache_ttl``.
     """
-    cap = getattr(get_config(), "gbrain_mcp_enrich_cap", 0)
+    cap = getattr(get_config(), "gbrain_mcp_enrich_cap", 500)
     try:
         return max(0, int(cap))
     except (TypeError, ValueError):
-        return 0
+        return 500  # Degrade to sane default on malformed config
 
 
 def _enrich_concurrency() -> int:
@@ -110,14 +109,17 @@ def _page_cache_ttl() -> float:
 
 
 def _page_cache_get(source: str, slug: str) -> Optional[Dict[str, Any]]:
+    """Get page from cache — returns a SHALLOW COPY to prevent cache pollution."""
     entry = _PAGE_CACHE.get((source, slug))
     if not entry:
         return None
     fetched_at, page = entry
-    if _page_cache_ttl() > 0 and (time.time() - fetched_at) > _page_cache_ttl():
+    ttl = _page_cache_ttl()
+    # TTL=0 means "cache forever"; positive TTL is expiry window in seconds
+    if ttl > 0 and (time.time() - fetched_at) > ttl:
         _PAGE_CACHE.pop((source, slug), None)
         return None
-    return page
+    return page.copy()  # Return shallow copy to prevent mutation of cached value
 
 
 def _page_cache_put(source: str, slug: str, page: Dict[str, Any]) -> None:
