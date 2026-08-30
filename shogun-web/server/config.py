@@ -53,6 +53,19 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    """Parse a float env var — garbage values degrade to the default instead of a boot crash.
+
+    Same contract as _env_int (see its docstring)."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        return float(raw)
+    except ValueError:
+        return default
+
+
 @dataclass
 class WebConfig:
     """Typed configuration for the per-tenant web portal."""
@@ -82,7 +95,7 @@ class WebConfig:
     # Raise above the source size for large remote brains (each enrich = 1 get_page).
     gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 0)
     gbrain_mcp_enrich_concurrency: int = _env_int("GBRAIN_MCP_ENRICH_CONCURRENCY", 16)
-    gbrain_page_cache_ttl: float = float(os.environ.get("GBRAIN_PAGE_CACHE_TTL", "300") or 300)
+    gbrain_page_cache_ttl: float = _env_float("GBRAIN_PAGE_CACHE_TTL", 300.0)
     # Filesystem mirror staleness guard (minutes, default 60 = ON). When the
     # newest markdown is older than this the mirror defers to MCP (guards
     # against a failed put_page sync mirror serving stale data indefinitely).
