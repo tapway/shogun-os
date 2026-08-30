@@ -22,10 +22,18 @@ server-side writer + shim needs.
 
 ## 2. What the writer must emit
 
-8 pages, slug `finance/snapshots/<name>.json` (or `<name>`), body = JSON
-object with the **exact snake_case keys** in `DASHBOARD_SNAPSHOT_CONTRACT.md`
-(Finance slugs section — updated today with `balance-sheet`, chart series, and
-item-shape tolerance). Summary of the non-negotiables:
+**Required** — 7 pages, slug `finance/snapshots/<name>.json` (or `<name>`),
+body = JSON object with the **exact snake_case keys** in
+`DASHBOARD_SNAPSHOT_CONTRACT.md` (Finance slugs section — updated today with
+`balance-sheet`, chart series, and item-shape tolerance):
+
+`cash`, `pl`, `balance-sheet`, `ar`, `ap`, `bva`, `concentration`
+
+**Optional (skip for now):** `compliance` — the portal renders empty
+checklist/schedule/SST sections when the page is absent. Add later when
+needed.
+
+Non-negotiables:
 
 - Numbers are floats (MYR), no string formatting, no commas.
 - Arrays of objects use snake_case keys; the portal normalizes the short
@@ -46,17 +54,38 @@ item-shape tolerance). Summary of the non-negotiables:
   - `balance-sheet.asset_trend`: `{month, current, non_current}`
 - Empty/missing source data → write zeros/empty arrays (never crash, never skip a page).
 
-## 3. Data source on the server
+## 3. Data source on the server — what's DERIVED vs what's UPLOADED
 
-QBO creds are already on the server — pull P&L, balance sheet, AR invoices,
-AP bills via the existing `qb.py` / acct bridge, same as the old local
-`write_snapshots.py`. Derivations:
+QBO creds are already on the server. **gbrain holds only computed snapshots**
+— no raw bank feeds or client lists exist there, and none are needed:
 
-- `cash`: sum bank/cash-type BS accounts → `total_liquid_cash`; burn = avg
-  monthly expenses (trailing 3 mo).
-- `ar`/`ap` aging buckets from due dates vs today; `dso`/`dpo` from revenue/COGS proxies.
-- `bva` budgets: from the budget JSON (the writer's existing `examples/finance-budget.json` shape).
-- `concentration`/`compliance`: from gbrain pages if available, else empty arrays.
+| Snapshot | Source | How |
+|---|---|---|
+| `cash` | QBO | bank/cash-type Balance Sheet accounts → `total_liquid_cash` + `bank_accounts[]`; monthly inflow/outflow from P&L (trailing 6 mo); burn = avg monthly expenses (trailing 3 mo) |
+| `pl` / `monthly_pl_trend` / `burn_trend` | QBO | P&L YTD + MTD, monthly split |
+| `balance-sheet` | QBO | BS accounts classified current/non-current |
+| `ar` / `ap` | QBO | outstanding invoices/bills; aging buckets from due dates vs today; `dso`/`dpo` from revenue/COGS proxies |
+| `concentration` | QBO | invoices grouped by customer → revenue YTD per client ÷ total → `revenue_pct` |
+| `bva` | **Budget Excel + QBO** | see budget flow below |
+
+### Budget flow — Excel uploaded ONCE per year
+
+1. User uploads the annual Budget Excel (existing format: account_code,
+   account_name, section Revenue/Expenses, budget_amount, monthly split —
+   see `scripts/parse-budget-excel.py` + `examples/finance-budget.json`).
+2. Parse once → `put_page finance/budget/<year>` with the raw lines
+   (`{account_code, account_name, section, budget_amount, monthly_budget[12]}`).
+   This page persists all year; re-upload only next year.
+3. The snapshot writer reads `finance/budget/<current_year>`, pro-rates
+   `budget_ytd` to the current month, matches QBO P&L actuals per account,
+   and writes `finance/snapshots/bva` (`line_items[]` + per-dept `departments[]`).
+
+Derivation rules for the rest:
+- `dso`/`dpo`: revenue/COGS proxies are fine (60-day windows).
+- `forecast_13w` / `cash_flow_forecast`: simple projection from burn + inflow
+  trend (±15% fan) — no ML needed.
+- `bva.departments[]`: group budget lines by department tag if present, else
+  one "All Departments" row.
 
 ## 4. Two server tasks
 
