@@ -200,16 +200,43 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                 <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 700, color: TEXT }}>
                   📄 Job Details — {j.job_title}
                 </h4>
-                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", fontSize: "0.8rem" }}>
-                  <div><strong style={{ color: MUTED }}>Department:</strong> <span style={{ color: TEXT }}>{j.department || "—"}</span></div>
-                  <div><strong style={{ color: MUTED }}>Type:</strong> <span style={{ color: TEXT }}>{j.employment_type || "—"}</span></div>
-                  <div><strong style={{ color: MUTED }}>Experience:</strong> <span style={{ color: TEXT }}>{j.experience || "—"}</span></div>
-                  <div><strong style={{ color: MUTED }}>Budget:</strong> <span style={{ color: TEXT }}>{fmtMyr(j.budget_max)}</span></div>
-                  <div><strong style={{ color: MUTED }}>Hiring Manager:</strong> <span style={{ color: TEXT }}>{j.hiring_manager || "—"}</span></div>
-                  <div><strong style={{ color: MUTED }}>Status:</strong> <span className={`sd-chip ${statusChipClass(j.job_status)}`} style={{ display: "inline-block", padding: "0.1rem 0.4rem", fontSize: "0.7rem" }}>{j.job_status || "—"}</span></div>
-                  <div><strong style={{ color: MUTED }}>Application Start:</strong> <span style={{ color: TEXT }}>{fmtDate(j.application_start)}</span></div>
-                  <div><strong style={{ color: MUTED }}>Deadline:</strong> <span style={{ color: isOverdue ? DANGER : TEXT }}>{fmtDate(j.deadline)}</span></div>
-                  <div><strong style={{ color: MUTED }}>Days Left:</strong> <span style={{ color: isOverdue ? DANGER : TEXT }}>{j.days_left != null ? `${j.days_left}d` : "—"}</span></div>
+                <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.75rem 1rem", fontSize: "0.82rem", marginBottom: "0.5rem" }}>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Department:</strong>
+                    <span style={{ color: TEXT }}>{j.department || "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Type:</strong>
+                    <span style={{ color: TEXT }}>{j.employment_type || "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Experience:</strong>
+                    <span style={{ color: TEXT }}>{j.experience || "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Budget:</strong>
+                    <span style={{ color: TEXT, fontWeight: 600 }}>{fmtMyr(j.budget_max)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Hiring Manager:</strong>
+                    <span style={{ color: TEXT }}>{j.hiring_manager || "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Status:</strong>
+                    <span className={`sd-chip ${statusChipClass(j.job_status)}`} style={{ display: "inline-block", padding: "0.1rem 0.4rem", fontSize: "0.7rem", marginTop: "2px" }}>{j.job_status || "—"}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>App Start:</strong>
+                    <span style={{ color: TEXT }}>{fmtDate(j.application_start)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Deadline:</strong>
+                    <span style={{ color: isOverdue ? DANGER : TEXT }}>{fmtDate(j.deadline)}</span>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.4rem" }}>
+                    <strong style={{ color: MUTED, minWidth: "90px" }}>Days Left:</strong>
+                    <span style={{ color: isOverdue ? DANGER : TEXT, fontWeight: 600 }}>{j.days_left != null ? `${j.days_left} days` : "—"}</span>
+                  </div>
                 </div>
                 {j.jd_link || j.jd_file_url ? (
                   <div style={{ marginTop: "0.6rem", fontSize: "0.78rem" }}>
