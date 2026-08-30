@@ -59,7 +59,10 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
   );
 
   const filtered = useMemo(() => {
-    return jobOpenings.filter((j) => statusFilter === "all" || j.job_status === statusFilter);
+    // Only show active (non-closed) job openings in this tab
+    return jobOpenings
+      .filter((j) => !(j.job_status || "").startsWith("Closed"))
+      .filter((j) => statusFilter === "all" || j.job_status === statusFilter);
   }, [jobOpenings, statusFilter]);
 
   // Pre-compute candidate counts per job
