@@ -434,14 +434,27 @@ export function TalentPoolPage({
         </h3>
         {(() => {
           const raw = job.job_description || "";
-          // Extract @url: links from description body
-          const urlRegex = /@url:`([^`]+)`/g;
+          // Extract @url:`...` links AND bare http(s) URLs from description body
           const extractedUrls: string[] = [];
-          let match: RegExpExecArray | null;
-          while ((match = urlRegex.exec(raw)) !== null) {
-            extractedUrls.push(match[1]);
+          // 1. @url:`...` pattern (Notion-style)
+          const notionUrlRegex = /@url:`([^`]+)`/g;
+          let m: RegExpExecArray | null;
+          while ((m = notionUrlRegex.exec(raw)) !== null) {
+            extractedUrls.push(m[1]);
           }
-          const cleanDesc = raw.replace(/@url:`[^`]+`\s*/g, "").trim();
+          // 2. Bare URLs (https://... or http://...)
+          const bareUrlRegex = /https?:\/\/[^\s<>"')\]]+/g;
+          while ((m = bareUrlRegex.exec(raw)) !== null) {
+            // Avoid duplicates with @url: extracted ones
+            if (!extractedUrls.includes(m[0])) {
+              extractedUrls.push(m[0]);
+            }
+          }
+          // Strip both patterns from displayed text
+          const cleanDesc = raw
+            .replace(/@url:`[^`]+`\s*/g, "")
+            .replace(/https?:\/\/[^\s<>"')\]]+\s*/g, "")
+            .trim();
           return (
             <>
               {cleanDesc && (
