@@ -186,7 +186,13 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                           {expandedJobId === j.id ? <ChevronDown size={14} /> : <ChevronRight size={14} />}
                         </span>
                       </td>
-                      <td style={tdBold}>{j.job_title || "—"}</td>
+                      <td
+                        style={{ ...tdBold, color: LIME, cursor: "pointer", textDecoration: "underline" }}
+                        onClick={(e) => { e.stopPropagation(); onOpenTalentPool(j); }}
+                        title="Click to view full job details and candidates"
+                      >
+                        {j.job_title || "—"}
+                      </td>
                       <td style={tdStyle}>{j.department || "—"}</td>
                       <td style={tdStyle}>{j.employment_type || "—"}</td>
                       <td style={tdStyle}>{j.experience || "—"}</td>
@@ -236,36 +242,45 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                     {isExpanded && (
                       <tr>
                         <td colSpan={11} style={{ padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}`, background: "color-mix(in srgb, var(--samurai-surface) 55%, transparent)" }}>
-                          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.6rem" }}>
-                            <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT }}>
-                              📋 Candidate Pool — {j.job_title} <span style={{ color: MUTED, fontWeight: 400 }}>({jobCandidates.length} candidate{jobCandidates.length === 1 ? "" : "s"})</span>
+                          <div style={{ marginBottom: "0.75rem" }}>
+                            <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 700, color: TEXT }}>
+                              📄 Job Details — {j.job_title}
+                            </h4>
+                            <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "0.5rem", fontSize: "0.8rem" }}>
+                              <div><strong style={{ color: MUTED }}>Department:</strong> <span style={{ color: TEXT }}>{j.department || "—"}</span></div>
+                              <div><strong style={{ color: MUTED }}>Type:</strong> <span style={{ color: TEXT }}>{j.employment_type || "—"}</span></div>
+                              <div><strong style={{ color: MUTED }}>Experience:</strong> <span style={{ color: TEXT }}>{j.experience || "—"}</span></div>
+                              <div><strong style={{ color: MUTED }}>Budget:</strong> <span style={{ color: TEXT }}>{fmtMyr(j.budget_max)}</span></div>
+                              <div><strong style={{ color: MUTED }}>Hiring Manager:</strong> <span style={{ color: TEXT }}>{j.hiring_manager || "—"}</span></div>
+                              <div><strong style={{ color: MUTED }}>Status:</strong> <span className={`sd-chip ${statusChipClass(j.job_status)}`} style={{ display: "inline-block", padding: "0.1rem 0.4rem", fontSize: "0.7rem" }}>{j.job_status || "—"}</span></div>
+                              <div><strong style={{ color: MUTED }}>Application Start:</strong> <span style={{ color: TEXT }}>{fmtDate(j.application_start)}</span></div>
+                              <div><strong style={{ color: MUTED }}>Deadline:</strong> <span style={{ color: isOverdue ? DANGER : TEXT }}>{fmtDate(j.deadline)}</span></div>
+                              <div><strong style={{ color: MUTED }}>Days Left:</strong> <span style={{ color: isOverdue ? DANGER : TEXT }}>{j.days_left != null ? `${j.days_left}d` : "—"}</span></div>
                             </div>
-                            <button type="button" onClick={(e) => { e.stopPropagation(); onOpenTalentPool(j); }} style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem", cursor: "pointer" }}>
-                              Open Full Talent Pool →
-                            </button>
+                            {j.jd_link || j.jd_file_url ? (
+                              <div style={{ marginTop: "0.6rem", fontSize: "0.78rem" }}>
+                                <strong style={{ color: MUTED }}>Job Description:</strong>{" "}
+                                {j.jd_link && (
+                                  <a href={j.jd_link} target="_blank" rel="noopener noreferrer" style={{ color: LIME, marginRight: "0.75rem" }}>View JD Link ↗</a>
+                                )}
+                                {j.jd_file_url && (
+                                  <a href={j.jd_file_url} target="_blank" rel="noopener noreferrer" style={{ color: LIME }}>Download JD Document ↗</a>
+                                )}
+                              </div>
+                            ) : null}
+                            <div style={{ marginTop: "0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                              📊 {jobCandidates.length} candidate{jobCandidates.length === 1 ? "" : "s"} linked to this job
+                              {jobCandidates.length > 0 && (
+                                <button
+                                  type="button"
+                                  onClick={(e) => { e.stopPropagation(); onOpenTalentPool(j); }}
+                                  style={{ marginLeft: "0.75rem", borderRadius: "0.4rem", border: `1px solid ${LIME}`, background: "transparent", color: LIME, fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem", cursor: "pointer" }}
+                                >
+                                  View All Candidates →
+                                </button>
+                              )}
+                            </div>
                           </div>
-                          {jobCandidates.length === 0 ? (
-                            <p style={{ margin: 0, fontSize: "0.78rem", color: MUTED }}>No candidates linked to this job yet.</p>
-                          ) : (
-                            <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem", maxHeight: "22rem", overflowY: "auto" }}>
-                              {jobCandidates.map((c) => {
-                                const nReviews = reviewEvents(allEvents, c.id).length;
-                                return (
-                                  <div key={c.id} style={{ border: `1px solid ${BORDER}`, borderRadius: "0.5rem", padding: "0.6rem 0.75rem", background: "var(--samurai-surface)" }}>
-                                    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", flexWrap: "wrap", marginBottom: nReviews > 0 ? "0.45rem" : 0 }}>
-                                      <span style={{ fontWeight: 700, fontSize: "0.85rem", color: TEXT }}>{c.name || "—"}</span>
-                                      <span className={`sd-chip ${c.status === "Done" ? "ok" : c.status === "Rejected" || c.status === "No Response" ? "bad" : c.status === "Shortlisted" ? "ok" : c.status === "Resume Received" ? "muted" : "warn"}`}>{c.status || "—"}</span>
-                                      <span style={{ fontSize: "0.72rem", color: MUTED }}>{c.role || ""}</span>
-                                      <span style={{ fontSize: "0.72rem", color: MUTED, marginLeft: "auto" }}>
-                                        💬 {nReviews} review{nReviews === 1 ? "" : "s"}
-                                      </span>
-                                    </div>
-                                    {nReviews > 0 && <CandidateReviewsPanel events={allEvents} candidateId={c.id} compact />}
-                                  </div>
-                                );
-                              })}
-                            </div>
-                          )}
                         </td>
                       </tr>
                     )}
