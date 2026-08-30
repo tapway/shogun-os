@@ -432,44 +432,76 @@ export function TalentPoolPage({
         >
           <FileText size={15} /> Job Description
         </h3>
-        <p
-          style={{
-            whiteSpace: "pre-wrap",
-            fontSize: "0.85rem",
-            color: job.job_description ? TEXT : MUTED,
-            margin: "0.5rem 0",
-          }}
-        >
-          {job.job_description || "No description provided."}
-        </p>
-        {(job.jd_file_url || job.jd_link) && (
-          <div style={{ display: "flex", gap: "0.75rem", marginTop: "0.5rem" }}>
-            {job.jd_file_url && (
-              <a
-                href={job.jd_file_url}
-                target="_blank"
-                rel="noreferrer"
-                title="View job description file"
-                style={jdBtnStyle}
-              >
-                <FileText size={14} /> Job Description
-                {job.jd_link ? " (File)" : ""}
-              </a>
-            )}
-            {job.jd_link && (
-              <a
-                href={job.jd_link}
-                target="_blank"
-                rel="noreferrer"
-                title="View job description"
-                style={jdBtnStyle}
-              >
-                <FileText size={14} /> Job Description
-                {job.jd_file_url ? " (Link)" : ""}
-              </a>
-            )}
-          </div>
-        )}
+        {(() => {
+          const raw = job.job_description || "";
+          // Extract @url: links from description body
+          const urlRegex = /@url:`([^`]+)`/g;
+          const extractedUrls: string[] = [];
+          let match: RegExpExecArray | null;
+          while ((match = urlRegex.exec(raw)) !== null) {
+            extractedUrls.push(match[1]);
+          }
+          const cleanDesc = raw.replace(/@url:`[^`]+`\s*/g, "").trim();
+          return (
+            <>
+              {cleanDesc && (
+                <p
+                  style={{
+                    whiteSpace: "pre-wrap",
+                    fontSize: "0.85rem",
+                    color: TEXT,
+                    margin: "0.5rem 0",
+                  }}
+                >
+                  {cleanDesc}
+                </p>
+              )}
+              {!cleanDesc && !job.jd_file_url && !job.jd_link && extractedUrls.length === 0 && (
+                <p style={{ fontSize: "0.85rem", color: MUTED, margin: "0.5rem 0" }}>
+                  No description provided.
+                </p>
+              )}
+              {(extractedUrls.length > 0 || job.jd_file_url || job.jd_link) && (
+                <div style={{ display: "flex", flexWrap: "wrap", gap: "0.75rem", marginTop: "0.5rem" }}>
+                  {job.jd_file_url && (
+                    <a
+                      href={job.jd_file_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="View job description file"
+                      style={jdBtnStyle}
+                    >
+                      <FileText size={14} /> JD Document
+                    </a>
+                  )}
+                  {job.jd_link && (
+                    <a
+                      href={job.jd_link}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="View job description link"
+                      style={jdBtnStyle}
+                    >
+                      <ExternalLink size={14} /> JD Link
+                    </a>
+                  )}
+                  {extractedUrls.map((u, i) => (
+                    <a
+                      key={i}
+                      href={u}
+                      target="_blank"
+                      rel="noreferrer"
+                      title="Open linked document"
+                      style={jdBtnStyle}
+                    >
+                      <ExternalLink size={14} /> View Document{i > 0 ? ` ${i + 1}` : ""}
+                    </a>
+                  ))}
+                </div>
+              )}
+            </>
+          );
+        })()}
       </div>
 
       {/* Candidates */}
