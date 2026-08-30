@@ -12,7 +12,7 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, Tuple
 from urllib.parse import quote as _url_quote
 
 from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
@@ -2196,13 +2196,13 @@ def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
     }
 
 
-# ─── Finance snapshot fetch — gbrain-first, targeted reads ─────────────
+# ─── Finance snapshot fetch — gbrain-only, targeted reads ──────────────
 # The Finance dashboard reads snapshot pages written by the finance
 # snapshot-writer on the server (see recipes/DASHBOARD_SNAPSHOT_CONTRACT.md).
-# Slugs are fetched by TARGETED get_page calls (plus a direct read of the
-# JSON mirror on disk) because the portal's gbrain shim does not support
-# tools/list for the finance source. QBO live fetch is OFF by default —
-# set SHOGUN_FINANCE_QBO=1 to re-enable it as a data source.
+# ALL data comes from gbrain via targeted get_page calls — no list_pages,
+# no tools/list (the portal's gbrain shim implements tools/call only), and
+# no local data files. QBO live fetch is OFF by default — set
+# SHOGUN_FINANCE_QBO=1 to re-enable it as a data source.
 
 _FIN_SNAPSHOT_NAMES = (
     "cash", "pl", "balance-sheet", "ar", "ap", "bva", "concentration", "compliance",
@@ -2211,70 +2211,54 @@ _FIN_SNAP_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
 _FIN_SNAP_TTL = 60.0  # seconds — the dashboard refetches every 120s
 
 
-def _load_fin_snapshots_from_fs() -> Dict[str, dict]:
-    """Read snapshot .json files straight from the brain mirror.
+async def _fetch_one_snapshot(name: str) -> Optional[Tuple[str, dict]]:
+    """Fetch one finance snapshot page from gbrain (try all slug spellings).
 
-    Works regardless of gbrain_read_preference — a plain path read of
-    ``<brain_root>/finance/snapshots/<name>.json``. Never raises.
+    Returns ``(cache_key, frontmatter_or_body_dict)`` or None when the page
+    is missing/empty. Never raises — a failed page simply yields None.
     """
-    out: Dict[str, dict] = {}
-    try:
-        brain_root = pathlib.Path(get_config().brain_root)
-    except Exception:
-        return out
-    for name in _FIN_SNAPSHOT_NAMES:
-        for rel in (f"finance/snapshots/{name}.json", f"snapshots/{name}.json"):
-            path = brain_root / rel
-            if not path.is_file():
-                continue
+    for slug in (
+        f"finance/snapshots/{name}", f"finance/snapshots/{name}.json",
+        f"snapshots/{name}", f"snapshots/{name}.json",
+    ):
+        try:
+            page = await gbrain_fetch_page("finance", slug)
+        except Exception:
+            page = None
+        if not page:
+            continue
+        fm = _parse_frontmatter(page.get("frontmatter", {}))
+        if not fm:
+            body = (page.get("content") or page.get("body")
+                    or page.get("compiled_truth") or "")
             try:
-                data = json.loads(path.read_text(encoding="utf-8"))
-            except (OSError, json.JSONDecodeError):
-                continue
-            if isinstance(data, dict) and data:
-                out[rel[:-5]] = data  # strip ".json" from the cache key
-                break
-    return out
+                fm = json.loads(body) if body.strip().startswith("{") else {}
+            except (json.JSONDecodeError, TypeError):
+                fm = {}
+        if fm:
+            key = slug[:-5] if slug.endswith(".json") else slug
+            return key, fm
+    return None
 
 
 async def _fetch_finance_snapshots() -> Dict[str, dict]:
-    """Fetch the 8 finance snapshot pages (60s cache). Never raises.
+    """Fetch the 8 finance snapshot pages from gbrain (60s cache).
 
-    Per snapshot: filesystem JSON mirror first, then gbrain MCP ``get_page``
-    (both slug spellings — with and without the ``.json`` suffix). Returns a
-    map keyed like ``finance/snapshots/cash`` / ``snapshots/cash``.
+    All 8 fetches run concurrently so a cold cache costs one round-trip
+    batch, not eight sequential ones. Never raises — missing pages degrade
+    to the empty-state dashboard.
     """
-    if _FIN_SNAP_CACHE["data"] and (time.time() - _FIN_SNAP_CACHE["ts"]) < _FIN_SNAP_TTL:
+    if _FIN_SNAP_CACHE["ts"] and (time.time() - _FIN_SNAP_CACHE["ts"]) < _FIN_SNAP_TTL:
         return dict(_FIN_SNAP_CACHE["data"])
 
-    snaps = await asyncio.to_thread(_load_fin_snapshots_from_fs)
-
-    for name in _FIN_SNAPSHOT_NAMES:
-        candidates = (
-            f"finance/snapshots/{name}", f"finance/snapshots/{name}.json",
-            f"snapshots/{name}", f"snapshots/{name}.json",
-        )
-        for slug in candidates:
-            key = slug[:-5] if slug.endswith(".json") else slug
-            if key in snaps or slug in snaps:
-                break
-            try:
-                page = await gbrain_fetch_page("finance", slug)
-            except Exception:
-                page = None
-            if not page:
-                continue
-            fm = _parse_frontmatter(page.get("frontmatter", {}))
-            if not fm:
-                body = (page.get("content") or page.get("body")
-                        or page.get("compiled_truth") or "")
-                try:
-                    fm = json.loads(body) if body.strip().startswith("{") else {}
-                except (json.JSONDecodeError, TypeError):
-                    fm = {}
-            if fm:
-                snaps[key] = fm
-                break
+    results = await asyncio.gather(
+        *(_fetch_one_snapshot(n) for n in _FIN_SNAPSHOT_NAMES),
+        return_exceptions=True,
+    )
+    snaps: Dict[str, dict] = {}
+    for r in results:
+        if isinstance(r, tuple) and len(r) == 2:
+            snaps[r[0]] = r[1]
 
     _FIN_SNAP_CACHE["data"] = snaps
     _FIN_SNAP_CACHE["ts"] = time.time()

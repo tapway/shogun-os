@@ -12,10 +12,9 @@ server-side writer + shim needs.
   `cash`, `pl`, `balance-sheet`, `ar`, `ap`, `bva`, `concentration`, `compliance`
 - For each, tries slugs in order (first hit wins):
   `finance/snapshots/<name>` → `finance/snapshots/<name>.json` → `snapshots/<name>` → `snapshots/<name>.json`
-- **Before MCP it reads the filesystem mirror directly** (regardless of read
-  preference): `<brain_root>/finance/snapshots/<name>.json`. So if the writer
-  ALSO writes a plain JSON file to `~/brain/finance/snapshots/<name>.json` on
-  the portal host, zero shim work is needed.
+- **gbrain-only**: every read goes through `get_page` on the MCP link — no
+  local data files, no filesystem mirror reads. The 8 fetches run
+  concurrently (one round-trip batch when the cache is cold).
 - Cache: 60 s in-process. UI refetches every 120 s.
 - QBO branch is OFF by default (`SHOGUN_FINANCE_QBO=1` to re-enable). No
   snapshots → `dataSource: "empty"`, UI shows a "waiting for snapshots"
@@ -68,11 +67,6 @@ AP bills via the existing `qb.py` / acct bridge, same as the old local
    `tools/list` NOT required.
 2. **Cron the writer** — nightly (or alongside the management report on the
    10th). Command: `python write_snapshots.py` (idempotent overwrite).
-
-Optional but recommended: also write the 8 `.json` files to
-`~/brain/finance/snapshots/` on the portal host — that bypasses the shim
-entirely (portal's direct filesystem read) and keeps working if the shim is
-restarted/down.
 
 ## 5. Verify after first write
 
