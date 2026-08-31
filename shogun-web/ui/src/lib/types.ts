@@ -1260,6 +1260,8 @@ export interface ClientConcentrationItem {
 }
 
 export interface FinanceDashboardStats {
+  // Data source indicator
+  dataSource?: 'gbrain' | 'mock' | 'empty';
   // Mock flag — true when data loaded from examples/*.json (demo mode)
   mock?: boolean;
   // Tab 1 — Executive Pulse

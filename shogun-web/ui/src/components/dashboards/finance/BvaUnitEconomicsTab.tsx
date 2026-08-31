@@ -51,7 +51,7 @@ function sectionTotals(items: BvaLineItem[]) {
 }
 
 // Build monthly trend from bva_line_items' monthly_budget (budget) + derived actual
-// For the BvA tab, budget comes from Excel (monthly_budget), actuals from the demo ledger.
+// For the BvA tab, budget comes from Excel (monthly_budget), actual comes from gbrain snapshots.
 // Since we don't have monthly actuals per line, we distribute actual_ytd evenly across YTD months.
 const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 
@@ -157,7 +157,7 @@ export function BvaUnitEconomicsTab({ stats, color }: Props) {
       {activeLine && (
         <FinanceDetailModal
           title={activeLine.account_name}
-          subtitle={`${activeLine.section} — Monthly Budget Breakdown (Budget from Excel, Actuals from demo ledger)`}
+          subtitle={`${activeLine.section} — Monthly Budget Breakdown (Budget from Excel, Actuals from gbrain)`}
           onClose={() => setActiveLine(null)}
           maxWidth="36rem"
         >
@@ -252,7 +252,7 @@ function BvaSection({
   return (
     <div className="sd-chart-card" style={{ padding: '1.1rem' }}>
       <h3 className="sd-chart-title" style={{ fontSize: '1rem', letterSpacing: '0.05em' }}>{title}</h3>
-      <p className="sd-chart-sub">Budget from 2026 Budget Excel · Actuals from demo ledger</p>
+      <p className="sd-chart-sub">Budget from Budget Excel · Actuals from gbrain snapshots</p>
 
       {/* Top row: 2 columns (Metrics + Trend Chart) */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1.4fr', gap: '1rem', alignItems: 'start', marginBottom: '1rem' }}>

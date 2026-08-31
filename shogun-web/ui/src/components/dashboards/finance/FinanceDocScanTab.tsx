@@ -21,6 +21,7 @@ interface ScanResult {
   id: number;
   filename: string;
   file_url: string;
+  output_excel_url?: string;
   source_id: string;
   source_title: string;
   document_type: string;
@@ -118,14 +119,21 @@ export function FinanceDocScanTab({ department, color }: FinanceDocScanTabProps)
     }
   };
 
+  const [lastRunExcelUrl, setLastRunExcelUrl] = useState<string | null>(null);
+
   const handleRunSource = async (id: string) => {
     setLoading(true);
     setError(null);
+    setLastRunExcelUrl(null);
     try {
       const res = await fetch(`/api/departments/${department}/dashboard/doc-scan/sources/${id}/run`, { method: 'POST' });
       if (!res.ok) {
         const err = await res.json().catch(() => ({ detail: 'Run failed' }));
         throw new Error(err.detail || `HTTP ${res.status}`);
+      }
+      const data = await res.json();
+      if (data.output_excel_url) {
+        setLastRunExcelUrl(data.output_excel_url);
       }
       loadResults();
       setActiveView('results');
@@ -374,9 +382,17 @@ export function FinanceDocScanTab({ department, color }: FinanceDocScanTabProps)
       {/* RESULTS VIEW */}
       {activeView === 'results' && (
         <div>
-          <h3 className="text-sm font-semibold mb-3" style={{ color: 'var(--samurai-text)' }}>
-            Scan Results ({results.length})
-          </h3>
+          <div className="flex items-center justify-between mb-3">
+            <h3 className="text-sm font-semibold" style={{ color: 'var(--samurai-text)' }}>
+              Scan Results ({results.length})
+            </h3>
+            {lastRunExcelUrl && (
+              <a href={lastRunExcelUrl} download className="sd-btn sd-btn-primary text-xs inline-flex items-center px-3 py-1.5">
+                <FileText className="h-3 w-3 mr-1.5" />
+                Download Excel
+              </a>
+            )}
+          </div>
           {results.length === 0 ? (
             <div className="text-center py-8" style={{ color: 'var(--samurai-muted)' }}>
               <FileScan className="h-12 w-12 mx-auto mb-2" style={{ opacity: 0.3 }} />
@@ -492,7 +508,7 @@ export function FinanceDocScanTab({ department, color }: FinanceDocScanTabProps)
               </div>
 
               {/* Manual verification controls */}
-              <div className="flex gap-2">
+              <div className="flex gap-2 flex-wrap">
                 <button className="sd-btn sd-btn-primary flex-1" onClick={async () => {
                   const res = await fetch(`/api/departments/${department}/dashboard/doc-scan/results/${viewResult.id}/verify`, { method: 'POST' });
                   if (res.ok) {
