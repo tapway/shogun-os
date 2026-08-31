@@ -93,14 +93,23 @@ AR_INVOICES = [
 
 AP_BILLS = [
     # (bill_no, vendor, due_date, amount)
+    # Current (not yet due)
     ("BILL-2026-0781", "Master Textile & Apparel Ltd",                "2026-09-12", 312_000),
-    ("BILL-2026-0776", "Apex Tech OEM Corporation",                   "2026-08-18", 198_500),
-    ("BILL-2026-0769", "PackPro Logistics & Packaging",               "2026-08-05",  68_500),
     ("BILL-2026-0758", "Telekom Malaysia Berhad (Unifi Biz)",         "2026-09-05",   4_200),
     ("BILL-2026-0760", "Tenaga Nasional Berhad",                      "2026-09-07",   9_800),
-    ("BILL-2026-0731", "Syarikat Air Selangor",                       "2026-07-27",   2_100),
     ("BILL-2026-0745", "Menara Sentosa Property (Office Rent)",       "2026-09-01",   6_100),
+    # 1-30 DPD (slightly overdue - pending approval)
+    ("BILL-2026-0776", "Apex Tech OEM Corporation",                   "2026-08-18", 198_500),
+    ("BILL-2026-0769", "PackPro Logistics & Packaging",               "2026-08-05",  68_500),
+    # 31-60 DPD (moderately overdue - PO mismatch)
+    ("BILL-2026-0731", "Syarikat Air Selangor",                       "2026-07-27",   2_100),
+    ("BILL-2026-0720", "Nadi Holdings (Logistics Services)",         "2026-07-15",  28_000),
+    # 61-90 DPD (severely overdue - missing GRN, on hold)
     ("BILL-2026-0702", "Crowe Audit & Assurance (FY26 Interim Fee)",  "2026-06-30",   7_040),
+    ("BILL-2026-0695", "Pelabuhan Timur Berhad (Port Charges)",      "2026-06-15",  45_000),
+    # 90+ DPD (critical - legal action risk)
+    ("BILL-2026-0651", "Teras Elektronik Sdn Bhd (IT Equipment)",     "2026-05-01",  38_500),
+    ("BILL-2026-0638", "Meridian Retail Group (Inventory Deposit)",   "2026-04-15",  52_000),
 ]
 
 CLIENT_CONCENTRATION = [

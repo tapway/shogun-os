@@ -913,9 +913,9 @@
         "netFlow": 278875
       }
     ],
-    "totalLiabilities": 1595840,
-    "totalEquity": 5389751,
-    "totalCurrentLiabilities": 827840,
+    "totalLiabilities": 1759340,
+    "totalEquity": 5226251,
+    "totalCurrentLiabilities": 991340,
     "apAgingByTarget": [
       {
         "label": "1-30 DPD",
@@ -923,15 +923,15 @@
       },
       {
         "label": "31-60 DPD",
-        "amount": 2100
+        "amount": 30100
       },
       {
         "label": "61-90 DPD",
-        "amount": 7040
+        "amount": 52040
       },
       {
         "label": "90+ DPD",
-        "amount": 0
+        "amount": 90500
       }
     ],
     "monthlyPlTrend": [
@@ -1780,9 +1780,9 @@
     "totalAR": 1041000,
     "arOverdue30": 467000,
     "dso": 53.5,
-    "totalAP": 608240,
-    "apOverdue": 276140,
-    "dpo": 32.3,
+    "totalAP": 771740,
+    "apOverdue": 439640,
+    "dpo": 41.0,
     "arAging": {
       "bucket_0_30": 574000,
       "bucket_31_60": 285000,
@@ -1956,22 +1956,6 @@
         "approval_status": "Approved"
       },
       {
-        "bill_no": "BILL-2026-0776",
-        "vendor": "Apex Tech OEM Corporation",
-        "due_date": "2026-08-18",
-        "amount": 198500,
-        "match_status": "Matched",
-        "approval_status": "Pending"
-      },
-      {
-        "bill_no": "BILL-2026-0769",
-        "vendor": "PackPro Logistics & Packaging",
-        "due_date": "2026-08-05",
-        "amount": 68500,
-        "match_status": "PO Mismatch",
-        "approval_status": "Pending"
-      },
-      {
         "bill_no": "BILL-2026-0758",
         "vendor": "Telekom Malaysia Berhad (Unifi Biz)",
         "due_date": "2026-09-05",
@@ -1988,14 +1972,6 @@
         "approval_status": "Approved"
       },
       {
-        "bill_no": "BILL-2026-0731",
-        "vendor": "Syarikat Air Selangor",
-        "due_date": "2026-07-27",
-        "amount": 2100,
-        "match_status": "Matched",
-        "approval_status": "Pending"
-      },
-      {
         "bill_no": "BILL-2026-0745",
         "vendor": "Menara Sentosa Property (Office Rent)",
         "due_date": "2026-09-01",
@@ -2004,11 +1980,67 @@
         "approval_status": "Approved"
       },
       {
+        "bill_no": "BILL-2026-0776",
+        "vendor": "Apex Tech OEM Corporation",
+        "due_date": "2026-08-18",
+        "amount": 198500,
+        "match_status": "Matched",
+        "approval_status": "Pending"
+      },
+      {
+        "bill_no": "BILL-2026-0769",
+        "vendor": "PackPro Logistics & Packaging",
+        "due_date": "2026-08-05",
+        "amount": 68500,
+        "match_status": "PO Mismatch",
+        "approval_status": "Pending"
+      },
+      {
+        "bill_no": "BILL-2026-0731",
+        "vendor": "Syarikat Air Selangor",
+        "due_date": "2026-07-27",
+        "amount": 2100,
+        "match_status": "Matched",
+        "approval_status": "Pending"
+      },
+      {
+        "bill_no": "BILL-2026-0720",
+        "vendor": "Nadi Holdings (Logistics Services)",
+        "due_date": "2026-07-15",
+        "amount": 28000,
+        "match_status": "Matched",
+        "approval_status": "Pending"
+      },
+      {
         "bill_no": "BILL-2026-0702",
         "vendor": "Crowe Audit & Assurance (FY26 Interim Fee)",
         "due_date": "2026-06-30",
         "amount": 7040,
         "match_status": "Missing GRN",
+        "approval_status": "On Hold"
+      },
+      {
+        "bill_no": "BILL-2026-0695",
+        "vendor": "Pelabuhan Timur Berhad (Port Charges)",
+        "due_date": "2026-06-15",
+        "amount": 45000,
+        "match_status": "Missing GRN",
+        "approval_status": "On Hold"
+      },
+      {
+        "bill_no": "BILL-2026-0651",
+        "vendor": "Teras Elektronik Sdn Bhd (IT Equipment)",
+        "due_date": "2026-05-01",
+        "amount": 38500,
+        "match_status": "Matched",
+        "approval_status": "On Hold"
+      },
+      {
+        "bill_no": "BILL-2026-0638",
+        "vendor": "Meridian Retail Group (Inventory Deposit)",
+        "due_date": "2026-04-15",
+        "amount": 52000,
+        "match_status": "Matched",
         "approval_status": "On Hold"
       }
     ],
