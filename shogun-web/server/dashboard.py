@@ -12,10 +12,9 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote as _url_quote
-
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form, Body
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,6 +28,35 @@ from models import Tenant, Department, User
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source configuration & results
+# ---------------------------------------------------------------------------
+
+class DocScanSource(BaseModel):
+    """Configuration for a document scan source."""
+    title: str
+    drive_url: str
+    schedule: str = "manual"  # daily, weekly, manual
+    document_type: str = "invoice"
+    template_path: Optional[str] = None
+
+class DocScanResult(BaseModel):
+    """Result from a document scan run."""
+    filename: str
+    file_url: str
+    source_id: str
+    source_title: str
+    document_type: str
+    ocr_summary: str
+    interpretation: Dict[str, Any] = Field(default_factory=dict)
+    status: str = "pending"  # pending, processed, verified, rejected
+
+# In-memory storage for demo (replace with DB table in production)
+_DOC_SCAN_SOURCES: Dict[str, Dict[str, Any]] = {}  # key = department:id
+_DOC_SCAN_RESULTS: Dict[str, List[Dict[str, Any]]] = {}  # key = department
+
 
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
@@ -3066,6 +3094,463 @@ async def list_scanned_documents(
     ).scalars().all()
     return {"documents": [d.to_dict() for d in docs]}
 
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source CRUD & execution
+# ---------------------------------------------------------------------------
+
+@router.get("/doc-scan/sources")
+async def list_doc_scan_sources(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all configured scan sources for this department."""
+    sources = [
+        {**s, "id": k.split(":")[1]} 
+        for k, s in _DOC_SCAN_SOURCES.items() 
+        if k.startswith(f"{name}:")
+    ]
+    return {"sources": sources}
+
+
+@router.post("/doc-scan/sources")
+async def create_doc_scan_source(
+    name: str = Path(...),
+    title: str = Form(...),
+    drive_url: str = Form(...),
+    schedule: str = Form("manual"),
+    document_type: str = Form("invoice"),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Create a new scan source configuration."""
+    import uuid
+    source_id = str(uuid.uuid4())[:8]
+    
+    template_path = None
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+    
+    source_key = f"{name}:{source_id}"
+    _DOC_SCAN_SOURCES[source_key] = {
+        "title": title,
+        "drive_url": drive_url,
+        "schedule": schedule,
+        "document_type": document_type,
+        "template_path": template_path,
+        "last_run": None,
+        "next_run": None,
+    }
+    
+    return {"id": source_id, "status": "created"}
+
+
+@router.put("/doc-scan/sources/{source_id}")
+async def update_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    title: str = Form(None),
+    drive_url: str = Form(None),
+    schedule: str = Form(None),
+    document_type: str = Form(None),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Update an existing scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    if title:
+        source["title"] = title
+    if drive_url:
+        source["drive_url"] = drive_url
+    if schedule:
+        source["schedule"] = schedule
+    if document_type:
+        source["document_type"] = document_type
+    
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+        source["template_path"] = template_path
+    
+    return {"id": source_id, "status": "updated"}
+
+
+@router.delete("/doc-scan/sources/{source_id}")
+async def delete_doc_scan_source(name: str = Path(...), source_id: str = Path(...), user: User = Depends(get_current_user)):
+    """Delete a scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key in _DOC_SCAN_SOURCES:
+        del _DOC_SCAN_SOURCES[source_key]
+    return {"status": "deleted"}
+
+
+@router.put("/doc-scan/sources/{source_id}/schedule")
+async def update_source_schedule(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    schedule: str = Body(...),
+    user: User = Depends(get_current_user),
+):
+    """Update the schedule for a scan source."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    _DOC_SCAN_SOURCES[source_key]["schedule"] = schedule
+    return {"status": "updated", "schedule": schedule}
+
+
+@router.post("/doc-scan/sources/{source_id}/run")
+async def run_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run a scan source immediately - fetch from Drive, OCR all images, extract to Excel template."""
+    import subprocess
+    from pathlib import Path as FileSystemPath
+    
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    drive_url = source.get("drive_url", "")
+    document_type = source.get("document_type", "invoice")
+    
+    # Extract folder ID from Drive URL (https://drive.google.com/drive/folders/FILE_ID)
+    folder_id = None
+    if "/folders/" in drive_url:
+        folder_id = drive_url.split("/folders/")[-1].split("?")[0].split("/")[0]
+    
+    if not folder_id:
+        raise HTTPException(status_code=400, detail="Invalid Google Drive URL - could not extract folder ID")
+    
+    # Step 1: List image files in Drive folder using google_api.py (gws CLI fallback)
+    REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+    GOOGLE_API_SCRIPT = REPO_ROOT / "skills" / "google-workspace" / "scripts" / "google_api.py"
+    
+    query = f"'{folder_id}' in parents and trashed=false and (mimeType contains 'image/' or mimeType='application/pdf')"
+    cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "search", "--raw-query", query, "--max", "50"]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or result.stdout.strip()
+            if "Not authenticated" in err_msg:
+                raise HTTPException(status_code=503, detail="Google Drive API not authenticated. Run: python skills/google-workspace/scripts/setup.py")
+            raise HTTPException(status_code=500, detail=f"Drive API error: {err_msg}")
+        files = json.loads(result.stdout)
+        if not isinstance(files, list):
+            files = []
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"google_api.py not found at {GOOGLE_API_SCRIPT}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse Drive response: {str(e)}")
+    
+    if not files:
+        return {"status": "completed", "results_count": 0, "message": "No images found in Drive folder"}
+    
+    # Step 2: Download and OCR each image
+    results = []
+    upload_dir = FileSystemPath(get_config().db_path).parent / "dashboard_uploads" / "scans" / name / source_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    for i, file_info in enumerate(files):
+        file_id = file_info.get("id")
+        file_name = file_info.get("name", f"doc_{i}.png")
+        
+        # Download file using google_api.py
+        temp_path = upload_dir / file_name
+        download_cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "download", file_id, "--output", str(temp_path)]
+        try:
+            dl_result = subprocess.run(download_cmd, capture_output=True, text=True, timeout=60)
+            if dl_result.returncode != 0 or not temp_path.exists():
+                err_msg = dl_result.stderr.strip() or dl_result.stdout.strip()
+                logger.warning(f"Failed to download {file_name}: {err_msg}")
+                continue
+        except Exception as e:
+            logger.warning(f"Download error for {file_name}: {str(e)}")
+            continue
+        
+        # Step 3: OCR inline — add venv site-packages to sys.path so easyocr/pymupdf are available
+        logger.info(f"OCR: file={file_name}, temp_path={temp_path}, exists={temp_path.exists()}")
+        
+        try:
+            if not temp_path.exists():
+                extracted = {"error": f"Downloaded file not found at {temp_path}"}
+            else:
+                # Add venv site-packages to sys.path for this process
+                import sys as _sys
+                venv_site = str(REPO_ROOT / "venv" / "Lib" / "site-packages")
+                if venv_site not in _sys.path:
+                    _sys.path.insert(0, venv_site)
+                
+                # Convert PDF to image if needed
+                ocr_input = str(temp_path)
+                if file_name.lower().endswith('.pdf'):
+                    try:
+                        import pymupdf
+                    except ImportError:
+                        import fitz as pymupdf
+                    doc = pymupdf.open(str(temp_path))
+                    page = doc[0]
+                    pix = page.get_pixmap(dpi=200)
+                    img_path = upload_dir / f"{file_name}.png"
+                    pix.save(str(img_path))
+                    doc.close()
+                    ocr_input = str(img_path)
+                
+                # Run easyocr
+                import easyocr
+                reader = easyocr.Reader(['en'], gpu=False)
+                ocr_result = reader.readtext(ocr_input)
+                ocr_text = " ".join([r[1] for r in ocr_result])
+                
+                # Clean up converted image if PDF
+                if file_name.lower().endswith('.pdf'):
+                    try:
+                        FileSystemPath(ocr_input).unlink()
+                    except OSError:
+                        pass
+                
+                # Field extraction from OCR text (regex-based, invoice-optimized)
+                extracted = {}
+                if document_type == "invoice":
+                    import re
+                    
+                    # Invoice number: look for "Invoice No" or "Inv No" followed by alphanumeric code
+                    inv_match = re.search(r"(?:Invoice|Inv)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    
+                    # Date: look for DD-MMM-YYYY or DD/MM/YYYY patterns (prefer full dates)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    if not date_match:
+                        date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{2,4})", ocr_text)
+                    
+                    # Total amount: look for "Total RM" or just "RM" near end of text
+                    total_match = re.search(r"Total\s*(?:RM)?\s*([\d,]+\.?\d*)", ocr_text, re.IGNORECASE)
+                    if not total_match:
+                        total_match = re.search(r"RM\s*([\d,]+\.\d{2})", ocr_text)
+                    
+                    # Vendor name: first line or before "INVOICE" keyword
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    
+                    # Service Tax / SST number
+                    tax_match = re.search(r"(?:Service\s*Tax|SST|Tax)\s*No\.?\s*:?\s*([A-Z0-9\-]+)", ocr_text, re.IGNORECASE)
+                    
+                    # PO Number
+                    po_match = re.search(r"(?:PO|P\.O\.)\s*(?:No\.?)?\s*:?\s*(\d+)", ocr_text, re.IGNORECASE)
+                    
+                    # Customer / Invoice To
+                    customer_match = re.search(r"(?:Invoice\s*To|Delivered\s*To|Bill\s*To)\s*:?\s*([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE)
+                    
+                    # e-Invoice UIN
+                    uin_match = re.search(r"UIN:\s*([A-Z0-9]+)", ocr_text, re.IGNORECASE)
+                    
+                    extracted = {
+                        "vendor_name": vendor_match.group(1).strip() if vendor_match else None,
+                        "invoice_number": inv_match.group(1).strip() if inv_match else None,
+                        "invoice_date": date_match.group(1).strip() if date_match else None,
+                        "total_amount": f"RM {total_match.group(1)}" if total_match else None,
+                        "service_tax_no": tax_match.group(1).strip() if tax_match else None,
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "customer_name": customer_match.group(1).strip() if customer_match else None,
+                        "uin": uin_match.group(1).strip() if uin_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "delivery_order":
+                    import re
+                    do_match = re.search(r"(?:DO|Delivery\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    supplier_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "do_number": do_match.group(1).strip() if do_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "supplier": supplier_match.group(1).strip() if supplier_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "purchase_order":
+                    import re
+                    po_match = re.search(r"(?:PO|Purchase\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "vendor": vendor_match.group(1).strip() if vendor_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                else:
+                    extracted = {"raw_ocr": ocr_text[:800], "note": f"Field extraction not configured for '{document_type}'"}
+            
+        except Exception as e:
+            logger.error(f"OCR exception for {file_name}: {type(e).__name__}: {e}")
+            extracted = {"error": f"{type(e).__name__}: {str(e)}"}
+        
+        # Build result object (no raw_ocr in displayed fields)
+        display_fields = {k: v for k, v in extracted.items() if k != "raw_ocr"}
+        
+        result_entry = {
+            "id": len(_DOC_SCAN_RESULTS.get(name, [])) + i + 1,
+            "filename": file_name,
+            "file_url": f"/api/doc-uploads/scans/{name}/{source_id}/{file_name}",
+            "source_id": source_id,
+            "source_title": source["title"],
+            "document_type": document_type,
+            "ocr_summary": f"Extracted {len(display_fields)} fields from {file_name}",
+            "interpretation": {
+                "fields": display_fields,
+                "validation": {"valid": "error" not in extracted, "message": "Extraction complete" if "error" not in extracted else extracted.get("error")}
+            },
+            "status": "processed" if "error" not in extracted else "failed",
+            "scan_date": datetime.now().isoformat(),
+        }
+        results.append(result_entry)
+        
+        # Keep downloaded files for viewing (don't delete)
+    
+    # Generate ONE combined Excel with all scanned docs
+    output_excel_url = None
+    template_path = source.get("template_path")
+    if template_path and FileSystemPath(template_path).exists() and results:
+        try:
+            import openpyxl
+            
+            wb = openpyxl.load_workbook(template_path)
+            ws = wb.active
+            
+            # Read header names from row 1
+            excel_headers = []
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    excel_headers.append({"col": col_idx, "name": str(cell.value).strip()})
+            
+            if not excel_headers:
+                logger.warning("Excel template has no headers in row 1")
+            else:
+                # Collect all unique extracted field keys across all results
+                all_field_keys = set()
+                for result in results:
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    all_field_keys.update(k for k in fields.keys() if k != "raw_ocr")
+                all_field_keys.add("filename")
+                
+                # Use LLM to map extracted fields → Excel headers by meaning
+                from gateway import _call_deepseek
+                
+                header_names = [h["name"] for h in excel_headers]
+                field_list = list(all_field_keys)
+                
+                mapping_prompt = (
+                    f"I have an Excel template with these column headers: {header_names}\n"
+                    f"And OCR-extracted fields with these keys: {field_list}\n\n"
+                    "Map each extracted field key to the MOST SEMANTICALLY SIMILAR Excel header. "
+                    "Return ONLY a JSON object where keys are the extracted field names and values are the matching Excel header names. "
+                    "If a field has no matching header, omit it. Do NOT add explanations.\n"
+                    "Example: {{\"invoice_number\": \"Doc No\", \"vendor_name\": \"Creditor Name\"}}"
+                )
+                
+                mapping_response = await _call_deepseek(
+                    mapping_prompt,
+                    system_prompt="You are a data mapping assistant. Return ONLY valid JSON. No markdown, no explanation.",
+                    max_tokens=512,
+                )
+                
+                # Parse the mapping
+                field_to_header = {}
+                if mapping_response:
+                    try:
+                        # Strip markdown fences if present
+                        clean = mapping_response.strip()
+                        if clean.startswith("```"):
+                            clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                        field_to_header = json.loads(clean)
+                        logger.info(f"LLM field mapping: {field_to_header}")
+                    except (json.JSONDecodeError, IndexError) as e:
+                        logger.warning(f"Failed to parse LLM mapping response: {e}")
+                
+                # Build header name → col index lookup
+                header_col_map = {h["name"]: h["col"] for h in excel_headers}
+                
+                # Fill each scanned doc as a row
+                for row_idx, result in enumerate(results, 2):
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    fields["filename"] = result.get("filename", "")
+                    
+                    for field_key, field_value in fields.items():
+                        if field_value is None or field_key == "raw_ocr":
+                            continue
+                        
+                        # Look up which Excel header this field maps to
+                        matched_header = field_to_header.get(field_key)
+                        if matched_header and matched_header in header_col_map:
+                            col = header_col_map[matched_header]
+                            ws.cell(row=row_idx, column=col, value=str(field_value))
+            
+            # Save combined Excel (preserve original formatting)
+            output_dir = upload_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"{source['title'].replace(' ', '_')}_{timestamp}.xlsx"
+            output_path = output_dir / output_filename
+            wb.save(str(output_path))
+            output_excel_url = f"/api/doc-uploads/scans/{name}/{source_id}/output/{output_filename}"
+            logger.info(f"Combined Excel saved: {output_path} ({len(results)} rows)")
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate combined Excel: {e}")
+    
+    # Store results
+    if name not in _DOC_SCAN_RESULTS:
+        _DOC_SCAN_RESULTS[name] = []
+    _DOC_SCAN_RESULTS[name].extend(results)
+    
+    # Update last_run
+    source["last_run"] = datetime.now().isoformat()
+    
+    return {"status": "completed", "results_count": len(results), "results": results, "output_excel_url": output_excel_url}
+
+
+@router.get("/doc-scan/results")
+async def list_doc_scan_results(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all scan results for this department."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    return {"results": results}
+
+
+@router.post("/doc-scan/results/{result_id}/verify")
+async def verify_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as verified."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "verified"
+            return {"status": "verified"}
+    raise HTTPException(status_code=404, detail="Result not found")
+
+
+@router.post("/doc-scan/results/{result_id}/reject")
+async def reject_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as rejected."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "rejected"
+            return {"status": "rejected"}
+    raise HTTPException(status_code=404, detail="Result not found")
 
 @router.post("/inspect-site")
 async def inspect_site(
