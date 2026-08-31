@@ -379,6 +379,68 @@ def test_page_cache_collapses_repeat_enrichment(monkeypatch, tmp_path) -> None:
     assert fetched == ["deals/a"], "second fetch must be served from the page cache"
     gbrain_client._PAGE_CACHE.clear()
 
+
+def test_page_cache_expires_after_ttl(monkeypatch, tmp_path) -> None:
+    """Cache entries should expire after TTL and trigger re-fetch."""
+    import time
+    gbrain_client._PAGE_CACHE.clear()
+    
+    # Set a very short TTL (1 second)
+    monkeypatch.setenv("GBRAIN_PAGE_CACHE_TTL", "1")
+    # Force config reload
+    if hasattr(gbrain_client, '_config'):
+        delattr(gbrain_client, '_config')
+    
+    monkeypatch.setattr(
+        gbrain_client, "get_config",
+        lambda: type('C', (), {
+            'gbrain_base_url': 'http://localhost:7432',
+            'gbrain_api_key': '',
+            'brain_root': str(tmp_path / "brain"),
+            'gbrain_read_preference': 'mcp',
+            'gbrain_mcp_enrich_cap': 0,
+            'gbrain_mcp_enrich_concurrency': 16,
+            'gbrain_page_cache_ttl': 1.0,
+            'gbrain_fs_max_age_minutes': 60,
+        })(),
+    )
+
+    async def fake_mcp_call(tool, arguments, source_id=""):
+        if tool != "list_pages":
+            return None
+        return [{"slug": "deals/a", "updated_at": "2026-08-26T00:00:00Z"}]
+
+    fetched = []
+
+    async def fake_fetch_page(source, slug):
+        fetched.append(slug)
+        return {"slug": slug, "compiled_truth": f"# v{len(fetched)}"}
+
+    monkeypatch.setattr(gbrain_client, "_mcp_call", fake_mcp_call)
+    monkeypatch.setattr(gbrain_client, "gbrain_fetch_page", fake_fetch_page)
+
+    # First fetch - should enrich
+    first = _run(gbrain_client.gbrain_fetch_pages("crm", limit=10, slug_prefix="deals/"))
+    assert first[0]["compiled_truth"] == "# v1"
+    assert fetched == ["deals/a"]
+    
+    # Second fetch within TTL - should use cache
+    second = _run(gbrain_client.gbrain_fetch_pages("crm", limit=10, slug_prefix="deals/"))
+    assert second[0]["compiled_truth"] == "# v1"
+    assert fetched == ["deals/a"]  # Still only one fetch
+    
+    # Wait for TTL to expire
+    time.sleep(1.1)
+    
+    # Third fetch after TTL - should re-enrich
+    third = _run(gbrain_client.gbrain_fetch_pages("crm", limit=10, slug_prefix="deals/"))
+    assert third[0]["compiled_truth"] == "# v2"
+    assert fetched == ["deals/a", "deals/a"]  # Now two fetches
+    
+    gbrain_client._PAGE_CACHE.clear()
+    monkeypatch.delenv("GBRAIN_PAGE_CACHE_TTL", raising=False)
+
+
 def test_fetch_page_rejects_traversal_slug(monkeypatch, tmp_path) -> None:
     """gbrain_fetch_page must reject .. slugs before any filesystem/MCP work."""
     monkeypatch.setattr(gbrain_client, "get_config",
@@ -402,6 +464,23 @@ def test_safe_slug_and_source_units() -> None:
     assert gbrain_client._safe_slug("deals/nested/slug") == "deals/nested/slug"
     assert gbrain_client._safe_source("../crm") is None
     assert gbrain_client._safe_source("crm") == "crm"
+
+
+def test_slug_matches_empty_prefix_rejects_all() -> None:
+    """Empty string/tuple/list prefix should match NOTHING (explicit empty filter)."""
+    from gbrain_client import _slug_matches
+    # None = match all
+    assert _slug_matches("deals/acme", None) is True
+    assert _slug_matches("", None) is True
+    # Empty string = no match
+    assert _slug_matches("deals/acme", "") is False
+    assert _slug_matches("", "") is False
+    # Empty tuple/list = no match
+    assert _slug_matches("deals/acme", ()) is False
+    assert _slug_matches("partners/x", []) is False
+    # Non-empty works as before
+    assert _slug_matches("deals/acme", "deals/") is True
+    assert _slug_matches("partners/acme", ["partners/", "partner/"]) is True
 
 
 def test_mcp_pagination_recovers_equal_timestamp_boundary(monkeypatch) -> None:

@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
+from gbrain_client import SlugPrefix, gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
 
 import httpx
@@ -138,7 +138,13 @@ def _parse_iso_utc(raw: str) -> Optional[datetime]:
     if not raw:
         return None
     try:
-        dt = datetime.fromisoformat(str(raw).replace("Z", "+00:00"))
+        # Use removesuffix to avoid replacing Z in the middle of the string
+        s = str(raw)
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        elif s.endswith("z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
     except ValueError:
         return None
     if dt.tzinfo is None:
@@ -790,7 +796,7 @@ def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
 
 
-async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: "SlugPrefix") -> list:
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: SlugPrefix) -> list:
     """Graceful fetching: never let a gbrain failure 500 a CRM listing.
 
     Returns the raw pages list; an MCP failure (server down, timeout) or any

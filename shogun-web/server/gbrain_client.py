@@ -33,6 +33,7 @@ dashboard.py and the guarded callers in gateway.py).
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
@@ -58,12 +59,17 @@ SlugPrefix = Union[str, Tuple[str, ...], List[str], None]
 
 
 def _slug_matches(slug: str, prefix: "SlugPrefix") -> bool:
-    """True when ``slug`` is allowed by the prefix filter (no prefix = all)."""
-    if not prefix:
+    """True when ``slug`` is allowed by the prefix filter.
+
+    ``None`` = match all (no filter). Empty string/tuple/list = match NOTHING
+    (explicit empty filter). This distinguishes "no filter" from "empty filter".
+    """
+    if prefix is None:
         return True
     if isinstance(prefix, str):
-        return slug.startswith(prefix)
-    return any(slug.startswith(p) for p in prefix)
+        return slug.startswith(prefix) if prefix else False
+    # Non-empty sequence: check any match; empty sequence = no match
+    return len(prefix) > 0 and any(slug.startswith(p) for p in prefix)
 
 
 def _enrich_cap() -> int:
@@ -109,7 +115,7 @@ def _page_cache_ttl() -> float:
 
 
 def _page_cache_get(source: str, slug: str) -> Optional[Dict[str, Any]]:
-    """Get page from cache — returns a SHALLOW COPY to prevent cache pollution."""
+    """Get page from cache — returns a DEEP COPY to prevent cache pollution."""
     entry = _PAGE_CACHE.get((source, slug))
     if not entry:
         return None
@@ -119,7 +125,7 @@ def _page_cache_get(source: str, slug: str) -> Optional[Dict[str, Any]]:
     if ttl > 0 and (time.time() - fetched_at) > ttl:
         _PAGE_CACHE.pop((source, slug), None)
         return None
-    return page.copy()  # Return shallow copy to prevent mutation of cached value
+    return copy.deepcopy(page)  # Return deep copy to prevent nested mutation
 
 
 def _page_cache_put(source: str, slug: str, page: Dict[str, Any]) -> None:
