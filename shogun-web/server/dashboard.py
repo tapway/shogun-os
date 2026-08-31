@@ -12,7 +12,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote as _url_quote
 
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form, Body
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -26,6 +26,35 @@ from models import Tenant, Department, User
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source configuration & results
+# ---------------------------------------------------------------------------
+
+class DocScanSource(BaseModel):
+    """Configuration for a document scan source."""
+    title: str
+    drive_url: str
+    schedule: str = "manual"  # daily, weekly, manual
+    document_type: str = "invoice"
+    template_path: Optional[str] = None
+
+class DocScanResult(BaseModel):
+    """Result from a document scan run."""
+    filename: str
+    file_url: str
+    source_id: str
+    source_title: str
+    document_type: str
+    ocr_summary: str
+    interpretation: Dict[str, Any] = Field(default_factory=dict)
+    status: str = "pending"  # pending, processed, verified, rejected
+
+# In-memory storage for demo (replace with DB table in production)
+_DOC_SCAN_SOURCES: Dict[str, Dict[str, Any]] = {}  # key = department:id
+_DOC_SCAN_RESULTS: Dict[str, List[Dict[str, Any]]] = {}  # key = department
+
 
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
@@ -1852,6 +1881,198 @@ async def list_scanned_documents(
     ).scalars().all()
     return {"documents": [d.to_dict() for d in docs]}
 
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source CRUD & execution
+# ---------------------------------------------------------------------------
+
+@router.get("/doc-scan/sources")
+async def list_doc_scan_sources(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all configured scan sources for this department."""
+    sources = [
+        {**s, "id": k.split(":")[1]} 
+        for k, s in _DOC_SCAN_SOURCES.items() 
+        if k.startswith(f"{name}:")
+    ]
+    return {"sources": sources}
+
+
+@router.post("/doc-scan/sources")
+async def create_doc_scan_source(
+    name: str = Path(...),
+    title: str = Form(...),
+    drive_url: str = Form(...),
+    schedule: str = Form("manual"),
+    document_type: str = Form("invoice"),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Create a new scan source configuration."""
+    import uuid
+    source_id = str(uuid.uuid4())[:8]
+    
+    template_path = None
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+    
+    source_key = f"{name}:{source_id}"
+    _DOC_SCAN_SOURCES[source_key] = {
+        "title": title,
+        "drive_url": drive_url,
+        "schedule": schedule,
+        "document_type": document_type,
+        "template_path": template_path,
+        "last_run": None,
+        "next_run": None,
+    }
+    
+    return {"id": source_id, "status": "created"}
+
+
+@router.put("/doc-scan/sources/{source_id}")
+async def update_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    title: str = Form(None),
+    drive_url: str = Form(None),
+    schedule: str = Form(None),
+    document_type: str = Form(None),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Update an existing scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    if title:
+        source["title"] = title
+    if drive_url:
+        source["drive_url"] = drive_url
+    if schedule:
+        source["schedule"] = schedule
+    if document_type:
+        source["document_type"] = document_type
+    
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+        source["template_path"] = template_path
+    
+    return {"id": source_id, "status": "updated"}
+
+
+@router.delete("/doc-scan/sources/{source_id}")
+async def delete_doc_scan_source(name: str = Path(...), source_id: str = Path(...), user: User = Depends(get_current_user)):
+    """Delete a scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key in _DOC_SCAN_SOURCES:
+        del _DOC_SCAN_SOURCES[source_key]
+    return {"status": "deleted"}
+
+
+@router.put("/doc-scan/sources/{source_id}/schedule")
+async def update_source_schedule(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    schedule: str = Body(...),
+    user: User = Depends(get_current_user),
+):
+    """Update the schedule for a scan source."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    _DOC_SCAN_SOURCES[source_key]["schedule"] = schedule
+    return {"status": "updated", "schedule": schedule}
+
+
+@router.post("/doc-scan/sources/{source_id}/run")
+async def run_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run a scan source immediately - fetch from Drive, OCR all images, extract to Excel template."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    
+    # TODO: Implement Google Drive folder listing
+    # TODO: Download images from Drive
+    # TODO: OCR each image (use existing OCR logic from scan-document)
+    # TODO: Extract fields using the Excel template as schema
+    # TODO: Save results to _DOC_SCAN_RESULTS
+    
+    # Mock result for now
+    result = {
+        "id": len(_DOC_SCAN_RESULTS.get(name, [])) + 1,
+        "filename": "mock_invoice_001.png",
+        "file_url": "/api/doc-uploads/mock.png",
+        "source_id": source_id,
+        "source_title": source["title"],
+        "document_type": source["document_type"],
+        "ocr_summary": "Mock scan result - implement Drive integration",
+        "interpretation": {
+            "fields": {"amount": "RM 1,234.56", "vendor": "Mock Supplier", "date": "2026-08-31"},
+            "validation": {"valid": True, "message": "Fields extracted successfully"}
+        },
+        "status": "processed",
+        "scan_date": datetime.now().isoformat(),
+    }
+    
+    if name not in _DOC_SCAN_RESULTS:
+        _DOC_SCAN_RESULTS[name] = []
+    _DOC_SCAN_RESULTS[name].append(result)
+    
+    # Update last_run
+    source["last_run"] = datetime.now().isoformat()
+    
+    return {"status": "completed", "results_count": 1}
+
+
+@router.get("/doc-scan/results")
+async def list_doc_scan_results(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all scan results for this department."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    return {"results": results}
+
+
+@router.post("/doc-scan/results/{result_id}/verify")
+async def verify_doc_result(name: str = Path(...), result_id: int = Path(...), user: User = Depends(get_current_user)):
+    """Mark a scan result as verified."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "verified"
+            return {"status": "verified"}
+    raise HTTPException(status_code=404, detail="Result not found")
+
+
+@router.post("/doc-scan/results/{result_id}/reject")
+async def reject_doc_result(name: str = Path(...), result_id: int = Path(...), user: User = Depends(get_current_user)):
+    """Mark a scan result as rejected."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "rejected"
+            return {"status": "rejected"}
+    raise HTTPException(status_code=404, detail="Result not found")
 
 @router.post("/inspect-site")
 async def inspect_site(
