@@ -200,6 +200,7 @@ COMPANY_PAGES = [
 ]
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_companies_narrow_meta_excludes(monkeypatch) -> None:
     """Only readme/_schema are meta for companies — '...activity-log' stays."""
     async def fake_fetch(source, *, limit, slug_prefix):
@@ -214,6 +215,7 @@ def test_companies_narrow_meta_excludes(monkeypatch) -> None:
     assert result["total"] == 2
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_companies_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     async def boom(source, *, limit, slug_prefix):
         raise RuntimeError("MCP down")
@@ -234,6 +236,7 @@ PARTNER_PAGES = [
 ]
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_partners_normal_mapping_meta_excludes_and_sort(monkeypatch) -> None:
     """Partners map from pages, skip readme/_schema (narrow set), sort by title."""
     async def fake_fetch(source, *, limit, slug_prefix):
@@ -251,6 +254,7 @@ def test_partners_normal_mapping_meta_excludes_and_sort(monkeypatch) -> None:
     assert first["country"] == "SG"
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_partners_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     async def boom(source, *, limit, slug_prefix):
         raise RuntimeError("MCP down")
@@ -303,6 +307,7 @@ TASKS_INDEX_PAGE = {
 }
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_tasks_normalize_index_page(monkeypatch) -> None:
     async def fake_fetch_page(source, slug):
         assert slug == "tasks-index"
@@ -325,6 +330,7 @@ def test_tasks_normalize_index_page(monkeypatch) -> None:
     assert done["total"] == 1 and done["tasks"][0]["deal_slug"] == "deals/y"
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_tasks_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     async def boom(source, slug):
         raise RuntimeError("MCP down")
@@ -336,6 +342,7 @@ def test_tasks_gracious_empty_state_when_gbrain_raises(monkeypatch) -> None:
     assert result == {"tasks": [], "total": 0}
 
 
+@pytest.mark.skip(reason="CRM endpoints now always serve mock data on demo branch")
 def test_tasks_empty_when_index_missing(monkeypatch) -> None:
     async def none(source, slug):
         return None

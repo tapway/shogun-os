@@ -881,44 +881,22 @@ async def list_crm_companies(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM companies direct from the brain (source ``crm``, slug ``companies/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="companies/")
+    """List CRM companies — 100% mock data (demo mode)."""
+    mock_data = _load_crm_mock()
+    if not mock_data:
+        return {"companies": [], "total": 0, "mock": False}
 
-    items = []
-    for p in pages:
-        if not isinstance(p, dict):
-            continue
-        if _is_meta_slug(str(p.get("slug", "")), broad=False):
-            continue
-        fm = _parse_frontmatter(p.get("frontmatter") or {})
-        items.append({
-            "slug": p.get("slug", ""),
-            "title": p.get("title") or "",
-            "industry": fm.get("industry", ""),
-            "website": fm.get("website", ""),
-            "source": fm.get("source", ""),
-            "first_seen": fm.get("first_seen", ""),
-        })
+    items = list(mock_data.get("companies", []))
 
     if search:
         s = search.lower()
-        items = [c for c in items if s in c["title"].lower()]
+        items = [c for c in items if s in str(c.get("title", "")).lower()]
     if industry:
         items = [c for c in items if c.get("industry", "").lower() == industry.lower()]
 
-    items.sort(key=lambda c: c["title"].lower())
+    items.sort(key=lambda c: str(c.get("title", "")).lower())
 
-    if not pages and _crm_mock_enabled():
-        mock = _load_crm_mock().get("companies", [])
-        if search:
-            s = search.lower()
-            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
-        if industry:
-            mock = [x for x in mock if x.get("industry", "").lower() == industry.lower()]
-        mock = sorted(mock, key=lambda x: str(x.get("title", "")).lower())
-        return {"companies": mock, "total": len(mock), "mock": True}
-
-    return {"companies": items, "total": len(items)}
+    return {"companies": items, "total": len(items), "mock": True}
 
 
 @router.get("/partner-sphere")
@@ -1025,39 +1003,20 @@ async def list_crm_partners(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    """List CRM partners — 100% mock data (demo mode)."""
+    mock_data = _load_crm_mock()
+    if not mock_data:
+        return {"partners": [], "total": 0, "mock": False}
 
-    items = []
-    for p in pages:
-        if not isinstance(p, dict):
-            continue
-        if _is_meta_slug(str(p.get("slug", "")), broad=False):
-            continue
-        fm = _parse_frontmatter(p.get("frontmatter") or {})
-        items.append({
-            "slug": p.get("slug", ""),
-            "title": p.get("title") or "",
-            "type": fm.get("type", ""),
-            "website": fm.get("website", ""),
-            "country": fm.get("country", ""),
-            "source": fm.get("source", ""),
-        })
+    items = list(mock_data.get("partners", []))
 
     if search:
         s = search.lower()
-        items = [c for c in items if s in c["title"].lower()]
+        items = [c for c in items if s in str(c.get("title", "")).lower()]
 
-    items.sort(key=lambda c: c["title"].lower())
+    items.sort(key=lambda c: str(c.get("title", "")).lower())
 
-    if not pages and _crm_mock_enabled():
-        mock = _load_crm_mock().get("partners", [])
-        if search:
-            s = search.lower()
-            mock = [x for x in mock if s in str(x.get("title", "")).lower()]
-        return {"partners": mock, "total": len(mock), "mock": True}
-
-    return {"partners": items, "total": len(items)}
+    return {"partners": items, "total": len(items), "mock": True}
 
 
 @router.get("/tasks")
@@ -1069,55 +1028,13 @@ async def list_crm_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM tasks direct from the brain (``crm/tasks-index`` page)."""
-    try:
-        index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
-    except Exception as exc:  # pragma: no cover - transport/protocol failures
-        logger.warning("gbrain fetch failed for %s/tasks-index: %s", CRM_SOURCE, exc)
-        if _crm_mock_enabled():
-            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
-            return {"tasks": mock, "total": len(mock), "mock": True}
-        return {"tasks": [], "total": 0}
-    if not index:
-        if _crm_mock_enabled():
-            mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
-            return {"tasks": mock, "total": len(mock), "mock": True}
-        return {"tasks": [], "total": 0}
+    """List CRM tasks — 100% mock data (demo mode)."""
+    mock_data = _load_crm_mock()
+    if not mock_data:
+        return {"tasks": [], "total": 0, "mock": False}
 
-    fm = _parse_frontmatter(index.get("frontmatter") or {})
-    tasks_raw = fm.get("tasks")
-    if not isinstance(tasks_raw, list):
-        # No task list in frontmatter — nothing to list (empty state).
-        tasks_raw = []
-
-    tasks: List[dict] = []
-    for t in tasks_raw:
-        if not isinstance(t, dict):
-            continue
-        tasks.append({
-            "description": str(t.get("description", "")),
-            "assignee": str(t.get("assignee", "")),
-            "completed": bool(t.get("completed", False)),
-            "deal_slug": str(t.get("deal_slug", "")),
-            "deal_title": str(t.get("deal_title", "")),
-        })
-
-    if completed is not None:
-        tasks = [t for t in tasks if t["completed"] == completed]
-    if assignee:
-        ca = _canonical_owner(assignee)
-        tasks = [t for t in tasks if _canonical_owner(t.get("assignee", "")) == ca]
-    if deal:
-        dd = deal.strip().lower()
-        tasks = [t for t in tasks if dd in str(t.get("deal_slug", "")).lower() or dd in str(t.get("deal_title", "")).lower()]
-
-    if not tasks_raw and _crm_mock_enabled():
-        # Live index has no task list at all — serve the demo payload.
-        # (A non-empty source that filters down to zero returns [], NOT mock.)
-        mock = _filter_mock_tasks(_load_crm_mock().get("tasks", []), completed, assignee, deal)
-        return {"tasks": mock, "total": len(mock), "mock": True}
-
-    return {"tasks": tasks, "total": len(tasks)}
+    mock = _filter_mock_tasks(mock_data.get("tasks", []), completed, assignee, deal)
+    return {"tasks": mock, "total": len(mock), "mock": True}
 
 
 class SearchBody(BaseModel):
