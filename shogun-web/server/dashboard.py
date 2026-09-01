@@ -11,7 +11,7 @@ import re as _re
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Any, Dict, List, Optional
 from urllib.parse import quote as _url_quote
 
@@ -23,7 +23,7 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
+from gbrain_client import SlugPrefix, gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
 
 import httpx
@@ -126,6 +126,32 @@ def _now() -> datetime:
     return datetime.now()
 
 
+def _parse_iso_utc(raw: str) -> Optional[datetime]:
+    """Parse an ISO date/datetime from brain frontmatter to an aware UTC value.
+
+    Brain pages mix date-only strings ("2026-06-01"), naive datetimes, and
+    Z-suffixed stamps. Normalising every operand to UTC keeps created→close
+    arithmetic total-order safe: a naive/aware mix would raise TypeError and
+    take down the whole aggregation (the endpoint must degrade per-row, never
+    500). Returns None on unparseable input.
+    """
+    if not raw:
+        return None
+    try:
+        # Use removesuffix to avoid replacing Z in the middle of the string
+        s = str(raw)
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        elif s.endswith("z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _run_ceo_aggregation(pages: List[dict]) -> dict:
     """Port of crm-dashboard/app/api/deals/ceo-stats/route.ts aggregation logic."""
     # Filter to deals
@@ -166,6 +192,8 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
 
     # Accumulators
     salesMTD = salesQTD = salesYTD = 0
+    cycle_days_sum = 0.0
+    cycle_days_n = 0
     totalPipelineValue = weightedPipelineValue = 0
     totalActiveDeals = hotDeals = warmDeals = coldDeals = wonDeals = 0
 
@@ -220,6 +248,13 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         if won:
             wonDeals += 1
             om.wonDeals += 1
+            created = str(fm.get("created", ""))
+            if created and close_date:
+                cd = _parse_iso_utc(close_date)
+                cr = _parse_iso_utc(created)
+                if cd is not None and cr is not None and cd >= cr:
+                    cycle_days_sum += (cd - cr).days
+                    cycle_days_n += 1
             if amount > 0 and close_date and _is_this_year(close_date):
                 salesYTD += amount
                 om.salesYTD += amount
@@ -426,19 +461,9 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     total_win_num = sum(om.winNum for om in owner_map.values())
     total_win_den = sum(om.winDen for om in owner_map.values())
     avg_deal_size = round(totalPipelineValue / totalActiveDeals) if totalActiveDeals > 0 else 0
+    sales_cycle_days = round(cycle_days_sum / cycle_days_n) if cycle_days_n > 0 else 0
     pipeline_coverage = round(totalPipelineValue / salesYTD * 10) / 10 if salesYTD > 0 else 0
     top15 = sorted(top_deals, key=lambda x: -x["amount"])[:15]
-
-    # ── Omnichannel: derive from deals where possible, fall back to examples/crm-mock.json ──
-    # Inbox + weekly trend are net-new data with no deal source (Concern 2); always load from mock.
-    crm_mock: Dict[str, Any] = {}
-    mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "crm-mock.json"
-    if mock_json_path.exists():
-        try:
-            with open(mock_json_path, "r", encoding="utf-8") as f:
-                crm_mock = json.load(f).get("dashboard_mock", {})
-        except Exception as e:
-            logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
     if totalActiveDeals == 0 and not wonDeals and _crm_mock_enabled():
         # Demo mode: serve the full mock payload so every Overview panel renders.
@@ -488,18 +513,20 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             "chatInbox": [],
         }
 
-    # Real deals exist — derive channel volume + SLA from frontmatter; inbox + trend still mock
+    # Real deals exist — every omnichannel figure comes from deal frontmatter
+    # or stays empty. No fabricated numbers: inbox/trend/AI-resolution have no
+    # brain source yet, so they render as empty states until real data lands.
     channel_volume_out = channel_volume
     if response_minutes:
         avg_response = round(sum(response_minutes) / len(response_minutes), 1)
         sla_pct = round(sla_compliant / len(response_minutes) * 100, 1)
     else:
-        avg_response = _safe_float(crm_mock.get("avgResponseMinutes"))
-        sla_pct = _safe_float(crm_mock.get("slaCompliancePct"))
-    ai_pct = _safe_float(crm_mock.get("aiResolutionPct"))
-    c2o_pct = _safe_float(crm_mock.get("chatToOrderPct"))
-    c2o_trend = crm_mock.get("chatToOrderTrend", [])
-    chat_inbox_out = crm_mock.get("chatInbox", [])
+        avg_response = 0.0
+        sla_pct = 0.0
+    ai_pct = 0.0
+    c2o_pct = 0.0
+    c2o_trend: List[Dict[str, Any]] = []
+    chat_inbox_out: List[Dict[str, Any]] = []
 
     return {
         "salesMTD": salesMTD,
@@ -510,7 +537,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         "pipelineCoverage": pipeline_coverage,
         "winRate": round(total_win_num / total_win_den * 100) if total_win_den > 0 else 0,
         "avgDealSize": avg_deal_size,
-        "salesCycleDays": 47,
+        "salesCycleDays": sales_cycle_days,
         "totalActiveDeals": totalActiveDeals,
         "hotDeals": hotDeals,
         "warmDeals": warmDeals,
@@ -705,7 +732,7 @@ def _load_crm_mock() -> dict:
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
-# regardless and enriches at most _MCP_ENRICH_CAP rows.
+# regardless and caps enrichment at 500 rows by default (set GBRAIN_MCP_ENRICH_CAP=0 for full coverage).
 CRM_LIST_LIMIT = 10000
 
 
@@ -723,7 +750,9 @@ async def get_crm_ceo_stats(
     Reads CRM pages directly from the brain (source ``crm``) via gbrain.
     Returns empty state when the brain has no CRM pages yet or is down.
     """
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
+    # Aggregation consumes deals/ pages only — scope the fetch so a large
+    # source does not pay full enrichment for subtrees it never reads.
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
     return _run_ceo_aggregation(pages)
 
 
@@ -767,7 +796,7 @@ def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
 
 
-async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: str) -> list:
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: SlugPrefix) -> list:
     """Graceful fetching: never let a gbrain failure 500 a CRM listing.
 
     Returns the raw pages list; an MCP failure (server down, timeout) or any
@@ -914,7 +943,7 @@ async def get_partner_sphere(
         "pricing": None,
         "mock": False,
     }
-    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
 
     if partners:
         # Narrow meta filter keeps a partners/readme page from inflating the
@@ -995,7 +1024,7 @@ async def list_crm_partners(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
 
     items = []
     for p in pages:
@@ -1128,7 +1157,7 @@ async def crm_search(
                 row["category"] = "deals"
             elif slug.startswith("companies/"):
                 row["category"] = "companies"
-            elif slug.startswith("partners/"):
+            elif slug.startswith(("partners/", "partner/")):
                 row["category"] = "partners"
             elif slug.startswith("persons/"):
                 row["category"] = "persons"
@@ -2704,7 +2733,7 @@ async def get_finance_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Finance dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix="")
+    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix=None)
     return await _run_finance_aggregation(pages)
 
 
@@ -2881,7 +2910,7 @@ async def get_procurement_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Procurement dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
+    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix=None)
     return _run_procurement_aggregation(pages)
 
 

@@ -1,8 +1,10 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
+import { CrmIcon, StatusDot } from './CrmIcons';
 import { departmentsApi } from '../../../lib/api';
 import type {
+  CrmDealListItem,
   PartnerSphereData,
   PartnerSphereOverview,
   PartnerSphereProfile,
@@ -138,7 +140,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
   return (
     <div className="sd-stack">
       {data.aiBrief && (
-        <Card title="🤖 AI Daily Brief — TPS" subtitle={data.aiBrief.date}>
+        <Card title="AI Daily Brief — TPS" subtitle={data.aiBrief.date}>
           <div className="sd-kpi-grid" style={{ marginBottom: 12 }}>
             {data.aiBrief.kpis.map((k) => (
               <Kpi key={k.label} label={k.label} value={k.value} note={k.delta} accent={color} />
@@ -155,7 +157,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         {data.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.note} accent={color} />)}
       </div>
 
-      <Card title="🧭 Account Manager Coverage">
+      <Card title="Account Manager Coverage">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
           {data.amCoverage.map((am) => (
             <div key={am.am} style={{ background: SURFACE_2, borderRadius: 10, padding: 14 }}>
@@ -171,7 +173,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         </div>
       </Card>
 
-      <Card title="🏅 Tier Board" subtitle="Referral · Silver · Gold · Platinum (per Partner Tiering framework)">
+      <Card title="Tier Board" subtitle="Referral · Silver · Gold · Platinum (per Partner Tiering framework)">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
           {data.tierBoard.map((group) => {
             const tone = TIER_TONES[group.tier] ?? color;
@@ -197,7 +199,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        <Card title="🔻 Lifecycle Funnel" subtitle="All Partners (YTD 2026)">
+        <Card title="Lifecycle Funnel" subtitle="All Partners (YTD 2026)">
           {(() => {
             const max = Math.max(...data.funnel.map((f) => f.count), 1);
             return (
@@ -218,7 +220,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
           })()}
         </Card>
 
-        <Card title="⚗️ Per-partner leak points">
+        <Card title="Per-partner leak points">
           {data.leakPoints.map((l) => (
             <div key={l.partner} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
               <div style={{ fontWeight: 500, fontSize: '0.82rem', color: TEXT }}>{l.partner}</div>
@@ -228,7 +230,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         </Card>
       </div>
 
-      <Card title="🥁 Battle Log" subtitle="recent partner activity">
+      <Card title="Battle Log" subtitle="recent partner activity">
         <div className="sd-stack" style={{ gap: 6 }}>
           {data.battleLog.map((b) => (
             <div key={b.day + b.action} style={{ display: 'flex', gap: 10, fontSize: '0.8rem', alignItems: 'baseline' }}>
@@ -244,7 +246,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         const g = data.cohortGrid;
         const maxQ = Math.max(...g.rows.flatMap((r) => r.quarters), 1);
         return (
-          <Card title="📈 Quarterly Cohort Grid" subtitle="deals won per quarter since onboarding (Q1 = first quarter of life)">
+          <Card title="Quarterly Cohort Grid" subtitle="deals won per quarter since onboarding (Q1 = first quarter of life)">
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'separate', borderSpacing: 3, width: '100%', minWidth: 520, fontSize: '0.72rem' }}>
                 <thead>
@@ -274,7 +276,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         );
       })()}
 
-      <Card title="📦 Open Partner Pipeline" subtitle="stall detection & next-step coverage">
+      <Card title="Open Partner Pipeline" subtitle="stall detection & next-step coverage">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640, fontSize: '0.8rem' }}>
             <thead><tr>{['Partner', 'Open Deals', 'Open Value', 'Weighted', 'Stalled >21d', 'Next-step coverage', 'Status'].map((h) => (
@@ -300,7 +302,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
       </Card>
 
       {data.hygiene && (
-        <Card title="🧾 Registration Hygiene" subtitle="since form automation went live (24 Aug)">
+        <Card title="Registration Hygiene" subtitle="since form automation went live (24 Aug)">
           <div className="sd-kpi-grid">
             <Kpi label="Via Form (auto)" value={String(data.hygiene.viaForm)} note={data.hygiene.viaFormNote} />
             <Kpi label="Via Chat (manual)" value={String(data.hygiene.viaChat)} note={data.hygiene.viaChatNote} />
@@ -331,11 +333,13 @@ function regionOf(regions: string): string[] {
     .map(([label]) => label);
 }
 
-function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList']; color: string }) {
+function SphereMasterList({ data, profileData, color }: { data: PartnerSphereData['masterList']; profileData: PartnerSphereProfile | null; color: string }) {
   const [tier, setTier] = useState('All');
   const [am, setAm] = useState('All');
   const [status, setStatus] = useState('All');
   const [region, setRegion] = useState('All');
+  const [search, setSearch] = useState('');
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
 
   const tiers = ['All', ...Array.from(new Set(data.map((p) => p.tier)))];
   const ams = ['All', ...Array.from(new Set(data.map((p) => p.am)))];
@@ -345,12 +349,53 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
     (tier === 'All' || p.tier === tier) &&
     (am === 'All' || p.am === am) &&
     (status === 'All' || p.status === status) &&
-    (region === 'All' || regionOf(p.regions).includes(region)),
+    (region === 'All' || regionOf(p.regions).includes(region)) &&
+    (!search || p.name.toLowerCase().includes(search.toLowerCase()) || p.tier.toLowerCase().includes(search.toLowerCase())),
   );
+
+  // If a partner is selected, show their profile inline
+  if (selectedPartner) {
+    const partnerInfo = data.find(p => p.name === selectedPartner);
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedPartner}</h2>
+            {partnerInfo && (
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+                {partnerInfo.regions} · AM: {partnerInfo.am} · {partnerInfo.openDeals} deals · {partnerInfo.lastActivity}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {partnerInfo && <Pill text={partnerInfo.tier} tone={partnerInfo.tier === 'Platinum' ? 'accent' : 'neutral'} />}
+              {partnerInfo && <Pill text={partnerInfo.status} tone="good" />}
+            </div>
+          </div>
+          <button onClick={() => setSelectedPartner(null)}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer' }}>
+            ← Back to Partners List
+          </button>
+        </div>
+        {profileData ? <SphereProfile data={profileData} color={color} /> : (
+          <Card><div style={{ padding: 20, textAlign: 'center', color: MUTED }}>Profile data not available for this partner</div></Card>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="sd-stack">
-      <Card title="📇 Partner Master List" subtitle={`The directory of every partner — tags drive the filters · showing ${rows.length} of ${data.length} partners`}>
+      <Card title="Partner Master List" subtitle={`The directory of every partner — tags drive the filters · showing ${rows.length} of ${data.length} partners`}>
+        {/* Search bar */}
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search partners by name or tier..."
+            style={{ width: '100%', padding: '10px 36px 10px 14px', fontSize: '0.88rem', borderRadius: 8, border: `1px solid ${BORDER}`, outline: 'none', color: TEXT }} />
+          {search && (
+            <button onClick={() => setSearch('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '1rem' }}><CrmIcon name="X" size={14} /></button>
+          )}
+        </div>
         <div className="sd-stack" style={{ gap: 10 }}>
           {[{ label: 'Tier', opts: tiers, val: tier, set: setTier },
             { label: 'AM', opts: ams, val: am, set: setAm },
@@ -379,7 +424,11 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
               {rows.map((p) => (
                 <tr key={p.name} style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <td style={{ padding: '8px 10px', color: TEXT }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.84rem' }}>{p.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color, cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => setSelectedPartner(p.name)}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                    >{p.name}</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED }}>{p.regions} {p.since}</div>
                   </td>
                   <td style={{ padding: '8px 10px' }}><Pill text={p.tier} tone={p.tier === 'Platinum' ? 'accent' : p.tier === 'Onboarding' ? 'warn' : 'neutral'} /></td>
@@ -403,21 +452,181 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
           </table>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn>📞 Log call</Btn><Btn>➕ Task</Btn>
+          <Btn>Log Call</Btn><Btn>Add Task</Btn>
         </div>
       </Card>
     </div>
   );
-}
+  }
 
-/* ------------------------------------------------------------------ */
-/* 3. Partner Profile (Syspex)                                         */
-/* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  /* Partner Profile Selector (search + select, then show profile)       */
+  /* ------------------------------------------------------------------ */
 
-function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: string }) {
-  return (
-    <div className="sd-stack">
-      <Card>
+  function PartnerProfileSelector({ 
+    masterList, 
+    profileData, 
+    color 
+  }: { 
+    masterList: PartnerSphereData['masterList']; 
+    profileData: PartnerSphereProfile | null; 
+    color: string;
+  }) {
+    const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+
+    // Filter partners by search
+    const filteredPartners = masterList.filter(p =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.tier.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // If no partner selected, show the selector
+    if (!selectedPartner) {
+      return (
+        <div className="sd-stack" style={{ gap: 16 }}>
+          <Card title="Partner Profile" subtitle="Look up any partner's live profile, deals and AI assessment.">
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginBottom: 8 }}>
+                Select a partner · {masterList.length} partners · searchable
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search partners…"
+                  style={{
+                    width: '100%',
+                    padding: '10px 36px 10px 14px',
+                    fontSize: '0.9rem',
+                    borderRadius: 8,
+                    border: `1px solid ${BORDER}`,
+                    outline: 'none',
+                    color: TEXT,
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: MUTED,
+                      fontSize: '1rem',
+                    }}
+                  >
+                    <CrmIcon name="X" size={14} />
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Partner list */}
+            <div style={{ 
+              maxHeight: 500, 
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}>
+              {filteredPartners.map((partner) => (
+                <div
+                  key={partner.name}
+                  onClick={() => setSelectedPartner(partner.name)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    border: `1px solid ${BORDER}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = color}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
+                >
+                  <span style={{ fontWeight: 500, color: TEXT }}>{partner.name}</span>
+                  <Pill text={partner.tier} tone={partner.tier === 'Platinum' ? 'accent' : 'neutral'} />
+                </div>
+              ))}
+              {filteredPartners.length === 0 && (
+                <div style={{ padding: 20, textAlign: 'center', color: MUTED }}>
+                  No partners found matching "{search}"
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Find the selected partner in masterList
+    const partnerInfo = masterList.find(p => p.name === selectedPartner);
+
+    // Show the profile with change partner option
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        {/* Header with change partner button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: TEXT, margin: 0 }}>
+              {selectedPartner}
+            </h2>
+            {partnerInfo && (
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+                {partnerInfo.regions} · AM: {partnerInfo.am} · {partnerInfo.openDeals} deals all-time · {partnerInfo.lastActivity}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {partnerInfo && <Pill text={partnerInfo.tier} tone={partnerInfo.tier === 'Platinum' ? 'accent' : 'neutral'} />}
+              {partnerInfo && <Pill text={partnerInfo.status} tone="good" />}
+            </div>
+          </div>
+          <button
+            onClick={() => setSelectedPartner(null)}
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.8rem',
+              color: color,
+              background: 'transparent',
+              border: `1px solid ${color}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            ⇄ Change partner
+          </button>
+        </div>
+
+        {/* Show the existing SphereProfile component if we have data */}
+        {profileData ? (
+          <SphereProfile data={profileData} color={color} />
+        ) : (
+          <Card>
+            <div style={{ padding: 20, textAlign: 'center', color: MUTED }}>
+              Profile data not available for this partner
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 3. Partner Profile (Syspex)                                         */
+  /* ------------------------------------------------------------------ */
+
+  function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: string }) {
+    return (
+      <div className="sd-stack">
+        <Card>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Pill text={data.header.tier} tone="accent" />
           <Pill text={data.header.discount} tone="good" />
@@ -435,7 +644,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
         </div>
       </Card>
 
-      <Card title="🤖 AI Daily Brief — Syspex" subtitle="auto-refreshed daily 06:00">
+      <Card title="AI Daily Brief — Syspex" subtitle="auto-refreshed daily 06:00">
         <div className="sd-kpi-grid" style={{ marginBottom: 12 }}>
           {data.brief.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.note} accent={color} />)}
         </div>
@@ -454,7 +663,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
         </div>
       </Card>
 
-      <Card title="📸 Active camera licences">
+      <Card title="Active Camera Licences">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: '1.6rem', fontWeight: 700, color }}>{data.licenceMilestones.active}</span>
           <span style={{ fontSize: '0.8rem', color: MUTED }}>{data.licenceMilestones.goal} · {data.licenceMilestones.next} · {data.licenceMilestones.credits}</span>
@@ -466,7 +675,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        <Card title="🏛️ Score Pillars" subtitle="Activity 20 / Pipeline 25 / POC 20 / Close 35">
+        <Card title="Score Pillars" subtitle="Activity 20 / Pipeline 25 / POC 20 / Close 35">
           {data.pillars.map((p) => (
             <PillarRow key={p.name} label={p.name} value={p.score} max={p.max} color={color} />
           ))}
@@ -474,7 +683,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
             Archetype: <span style={{ color: TEXT, fontWeight: 600 }}>{data.archetype}</span>
           </div>
         </Card>
-        <Card title="🔻 Their Funnel (all-time)">
+        <Card title="Their Funnel (All-Time)">
           {(() => {
             const max = Math.max(...data.funnel.map((f) => f.count), 1);
             return (
@@ -494,7 +703,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
             );
           })()}
         </Card>
-        <Card title="📈 Ramp Cohort Grid" subtitle="deals won per quarter since onboarding">
+        <Card title="Ramp Cohort Grid" subtitle="deals won per quarter since onboarding">
           <div style={{ overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
               <thead>
@@ -543,7 +752,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
         </div>
       </Card>
 
-      <Card title="🕘 Recent Activity">
+      <Card title="Recent Activity">
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {data.recentActivity.map((a) => (
             <li key={a.date + a.text} style={{ position: 'relative', paddingLeft: 22, paddingBottom: 14, borderLeft: `2px solid ${BORDER}`, marginLeft: 5 }}>
@@ -556,7 +765,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🎖️ Platinum retention requirements" subtitle="Tier Status & Commitments — per Partner Tiering framework · quarterly review">
+        <Card title="Platinum Retention Requirements" subtitle="Tier Status & Commitments — per Partner Tiering framework · quarterly review">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.commitments.requirements.map((r) => (
@@ -571,7 +780,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
             </tbody>
           </table>
         </Card>
-        <Card title="🎁 Entitlements in effect">
+        <Card title="Entitlements in Effect">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.commitments.entitlements.map((e) => (
@@ -583,7 +792,7 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
             </tbody>
           </table>
         </Card>
-        <Card title="🛡️ Deal protection register">
+        <Card title="Deal Protection Register">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.protectionRegister.map((p) => (
@@ -608,6 +817,18 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
 /* ------------------------------------------------------------------ */
 
 function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter; color: string }) {
+  const [selectedPartner, setSelectedPartner] = useState<string>('');
+
+  // Get unique partners from overdue + today + upcoming + rituals
+  const allPartners = useMemo(() => {
+    const set = new Set<string>();
+    data.overdue.forEach(o => { if (o.owner) set.add(o.owner); });
+    data.today.forEach(t => { if (t.owner) set.add(t.owner); });
+    data.upcoming.forEach(u => { if (u.owner) set.add(u.owner); });
+    data.rituals.forEach(r => { if (r.owner) set.add(r.owner); });
+    return [''].concat([...set].sort());
+  }, [data]);
+
   const ActionCard = ({ item, tone }: { item: { title: string; detail: string; owner: string; due?: string; ttl?: string; done?: boolean }; tone: 'bad' | 'neutral' | 'good' }) => (
     <div style={{ background: SURFACE_2, borderRadius: 10, padding: '10px 14px', borderLeft: `3px solid ${tone === 'bad' ? '#ff453a' : tone === 'good' ? '#34c77b' : color}`, opacity: item.done ? 0.55 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -618,9 +839,83 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
     </div>
   );
 
+  // Filter items by selected partner
+  const filterByPartner = (items: any[]) => {
+    if (!selectedPartner) return items;
+    return items.filter(i => i.owner === selectedPartner || i.title.includes(selectedPartner));
+  };
+
+  const filteredOverdue = filterByPartner(data.overdue);
+  const filteredToday = filterByPartner(data.today);
+  const filteredUpcoming = filterByPartner(data.upcoming);
+  const filteredRituals = filterByPartner(data.rituals);
+
   return (
     <div className="sd-stack">
-      <Card title={`🎯 Focus for today — ${data.date}`}>
+      {/* Partner Care Routine Header */}
+      <Card title="Partner Care Routine" subtitle={`${data.date} · tailored · live`}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            value={selectedPartner}
+            onChange={(e) => setSelectedPartner(e.target.value)}
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.9rem',
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: 'var(--samurai-surface)',
+              color: TEXT,
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: 250,
+            }}
+          >
+            <option value="">— Choose a partner —</option>
+            {allPartners.filter(Boolean).map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {!selectedPartner && (
+            <span style={{ fontSize: '0.8rem', color: MUTED }}>Select a partner to see their tailored care routine.</span>
+          )}
+        </div>
+
+        {/* Per-partner AI recommendation */}
+        {selectedPartner && (
+          <div style={{
+            marginTop: 14,
+            padding: 14,
+            borderRadius: 10,
+            background: 'rgba(0,122,255,0.06)',
+            border: `1px solid ${color}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>AI Recommendation · confidence medium</span>
+            </div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: TEXT, marginBottom: 6 }}>
+              {selectedPartner}: act this week — steady state — protect the rhythm
+            </div>
+            <div style={{ fontSize: '0.82rem', color: MUTED, lineHeight: 1.5 }}>
+              Maintain cadence: share one insight per fortnight and confirm the next QBR date.
+            </div>
+            <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 6 }}>
+              Based on: {filteredOverdue.length > 0 ? `overdue ${filteredOverdue.length} action(s)` : 'regular cadence'}
+            </div>
+
+            {/* Quick actions for selected partner */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {filteredOverdue.length > 0 && (
+                <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: 'none', background: '#ff453a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+                  Re-engage Now
+                </button>
+              )}
+              <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${color}`, background: 'transparent', color: color, cursor: 'pointer' }}>
+                Quarterly Business Review
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+
+      <Card title={`Focus for Today — ${data.date}`}>
         <p style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.6 }}>{data.focus}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {Object.entries(data.amFilter).map(([k, v]) => (
@@ -632,7 +927,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
         </div>
       </Card>
 
-      <Card title="🗓 This week">
+      <Card title="This Week">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {data.weekStrip.map((w) => (
             <div key={w.day} style={{
@@ -647,21 +942,24 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
         </div>
       </Card>
 
-      <Card title="🔴 Overdue — handle first" subtitle="clear these before anything else">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.overdue.map((o) => <ActionCard key={o.title} item={o} tone="bad" />)}</div>
+      <Card title="Overdue — Handle First" subtitle="clear these before anything else">
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredOverdue.map((o) => <ActionCard key={o.title} item={o} tone="bad" />)}</div>
+        {filteredOverdue.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No overdue items{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
-      <Card title="🟢 Today's actions" subtitle="tap ✓ when done — logs to CRM automatically">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.today.map((o) => <ActionCard key={o.title} item={o} tone={o.done ? 'good' : 'neutral'} />)}</div>
+      <Card title="Today's Actions" subtitle="Tap check when done — logs to CRM automatically">
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredToday.map((o) => <ActionCard key={o.title} item={o} tone={o.done ? 'good' : 'neutral'} />)}</div>
+        {filteredToday.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No actions today{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
-      <Card title="🟡 Coming up this week" subtitle="no need to look at these until their day">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.upcoming.map((o) => <ActionCard key={o.title} item={o} tone="neutral" />)}</div>
+      <Card title="Coming Up This Week" subtitle="no need to look at these until their day">
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredUpcoming.map((o) => <ActionCard key={o.title} item={o} tone="neutral" />)}</div>
+        {filteredUpcoming.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>Nothing upcoming{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🔁 Partner rituals — scheduling status">
-          {data.rituals.map((r) => (
+        <Card title="Partner Rituals — Scheduling Status">
+          {filteredRituals.map((r) => (
             <div key={r.title} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>{r.title}</span>
@@ -671,9 +969,10 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
               <div style={{ fontSize: '0.72rem', color, marginTop: 2 }}>{r.owner}</div>
             </div>
           ))}
+          {filteredRituals.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No rituals{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
         </Card>
         <div className="sd-stack">
-          <Card title="🎫 Open partner tickets" subtitle={`${data.tickets.length} open`}>
+          <Card title="Open Partner Tickets" subtitle={`${data.tickets.length} open`}>
             {data.tickets.map((t) => (
               <div key={t.title} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
                 <div>
@@ -684,7 +983,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
               </div>
             ))}
           </Card>
-          <Card title="📆 Reviews ahead" subtitle="next 90 days">
+          <Card title="Reviews Ahead" subtitle="next 90 days">
             {data.reviews.map((r) => (
               <div key={r.title} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
                 <div>
@@ -713,7 +1012,7 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
         <Kpi label="Conflicts detected" value={String(data.stats.conflicts)} note="needs arbitration" accent={data.stats.conflicts > 0 ? '#ff453a' : '#34c77b'} />
       </div>
 
-      <Card title="🛡️ Deal Registration & Protection Register" subtitle={data.policy}>
+      <Card title="Deal Registration & Protection Register" subtitle={data.policy}>
         <div className="sd-stack" style={{ gap: 8 }}>
           {data.alerts.map((a) => (
             <div key={a.text} style={{
@@ -770,7 +1069,7 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
                   <div style={{ fontWeight: 600, fontSize: '0.84rem', color: TEXT }}>{p.deal}</div>
                   <div style={{ fontSize: '0.72rem', color: MUTED }}>{p.value} · {p.stage} · {p.partner} ({p.tier}) · {p.am} · {p.submitted}</div>
                 </div>
-                <Btn primary>✓ {p.action}</Btn>
+                <Btn primary><CrmIcon name="Check" size={14} style={{ marginRight: 4 }} />{p.action}</Btn>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                 {p.checks.map((c) => <Pill key={c} text={c} tone={c.includes('✓') ? 'good' : 'warn'} />)}
@@ -788,14 +1087,114 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
 /* ------------------------------------------------------------------ */
 
 function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; color: string }) {
+  const [draggedCard, setDraggedCard] = useState<{ name: string; fromStage: string } | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+
+  // Find partner in masterList for detail view (we'll use onboarding card data as fallback)
+  const handleCardClick = (cardName: string) => {
+    setSelectedPartner(cardName);
+  };
+
+  const handleDragStart = (e: React.DragEvent, cardName: string, stageKey: string) => {
+    setDraggedCard({ name: cardName, fromStage: stageKey });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', cardName);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStageKey: string) => {
+    e.preventDefault();
+    if (draggedCard && draggedCard.fromStage !== targetStageKey) {
+      // In a real app, this would call an API to update the partner's stage
+      // For now, just log it
+      console.log(`Moving ${draggedCard.name} from ${draggedCard.fromStage} to ${targetStageKey}`);
+    }
+    setDraggedCard(null);
+  };
+
+  // If a partner is selected, show their detail (reuse PartnerProfileSelector pattern)
+  if (selectedPartner) {
+    // Find the card data
+    let cardData: any = null;
+    for (const stage of data.stages) {
+      const found = stage.cards.find(c => c.name === selectedPartner);
+      if (found) { cardData = found; break; }
+    }
+
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <button onClick={() => setSelectedPartner(null)} style={{ padding: '8px 16px', fontSize: '0.85rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>← Back to Onboarding Board</button>
+        
+        {/* Partner header */}
+        <div>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedPartner}</h2>
+          {cardData && (
+            <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+              {cardData.org || '—'} · AM: {cardData.am || '—'}{cardData.age ? ` · ${cardData.age} since last activity` : ''}
+            </div>
+          )}
+          {cardData && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {cardData.health && <Pill text={cardData.health === 'danger' ? 'At Risk' : cardData.health === 'warn' ? 'In progress' : 'Active'} tone={cardData.health === 'danger' ? 'bad' : cardData.health === 'warn' ? 'warn' : 'good'} />}
+            </div>
+          )}
+        </div>
+
+        {/* KPIs */}
+        <div className="sd-chart-card" style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
+            <DetailField label="Open deals" value={cardData?.detail?.match(/(\d+)\s*open/)?.[1] || '—'} />
+            <DetailField label="Pipeline" value={cardData?.detail?.match(/RM\s*([\d,.]+[KMG]?)/)?.[1] ? `RM ${cardData.detail.match(/RM\s*([\d,.]+[KMG]?)/)[1]}` : '—'} />
+            <DetailField label="Stage" value={data.stages.find(s => s.cards.some(c => c.name === selectedPartner))?.label || '—'} />
+          </div>
+        </div>
+
+        {/* Checklist */}
+        {cardData?.checklist && cardData.checklist.length > 0 && (
+          <div className="sd-chart-card" style={{ padding: 16 }}>
+            <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>Onboarding Checklist</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {cardData.checklist.map((item: any) => (
+                <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
+                  <span style={{ color: item.state === 'done' ? '#34c77b' : item.state === 'today' ? color : MUTED, fontWeight: 700 }}>
+                    {item.state === 'done' ? <CrmIcon name="Check" size={14} /> : item.state === 'today' ? <CrmIcon name="CircleDot" size={14} /> : <CrmIcon name="Circle" size={14} />}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: item.state === 'done' ? MUTED : TEXT, textDecoration: item.state === 'done' ? 'line-through' : 'none' }}>
+                    {item.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Note */}
+        {cardData?.note && (
+          <div className="sd-chart-card" style={{ padding: 16, borderColor: color }}>
+            <div style={{ fontSize: '0.85rem', color: TEXT }}>{cardData.note}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="sd-stack">
-      <Card title="📥 Partner Onboarding Pipeline" subtitle={`${data.pipelineSummary} · stage-age turns amber at benchmark, red at 2×`}>
+      <Card title="Partner Onboarding — Drag a Partner to the Next Stage" subtitle={`${data.pipelineSummary} · Move each partner through the onboarding journey. Drag a card left-to-right as each step is completed.`}>
         {/* Status columns: left → right (one per stage, no wrapping); cards stack top → down within each column */}
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${data.stages.length}, minmax(215px, 1fr))`, gap: 12 }}>
             {data.stages.map((s) => (
-              <div key={s.key} style={{ background: SURFACE_2, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column' }}>
+              <div 
+                key={s.key} 
+                style={{ background: SURFACE_2, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 200 }}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, s.key)}
+              >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{s.label}</span>
                 <span style={{
@@ -806,10 +1205,20 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
               <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: 2 }}>benchmark: {s.benchmark}</div>
               <div className="sd-stack" style={{ gap: 8, marginTop: 8 }}>
                 {s.cards.map((c) => (
-                  <div key={c.name} style={{
-                    background: SURFACE, borderRadius: 8, padding: 10,
-                    borderLeft: `3px solid ${c.health === 'danger' ? '#ff453a' : c.health === 'warn' ? '#ffb340' : '#34c77b'}`,
-                  }}>
+                  <div 
+                    key={c.name} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, c.name, s.key)}
+                    onClick={() => handleCardClick(c.name)}
+                    style={{
+                      background: SURFACE, borderRadius: 8, padding: 10, cursor: 'grab',
+                      borderLeft: `3px solid ${c.health === 'danger' ? '#ff453a' : c.health === 'warn' ? '#ffb340' : '#34c77b'}`,
+                      opacity: draggedCard?.name === c.name ? 0.5 : 1,
+                      transition: 'opacity 0.15s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 2px 8px rgba(0,0,0,0.1)`}
+                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                  >
                     <div style={{ fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{c.name}</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED }}>{c.org} · {c.am}{c.age ? ` · ⏱ ${c.age}` : ''}</div>
                     {c.detail && <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 3 }}>{c.detail}</div>}
@@ -817,7 +1226,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
                       <ul style={{ marginTop: 6, paddingLeft: 14, fontSize: '0.72rem', color: MUTED, listStyle: 'none' }}>
                         {(c.checklist ?? []).map((x) => (
                           <li key={x.text} style={{ margin: '2px 0', color: x.state === 'done' ? '#34c77b' : x.state === 'today' ? color : MUTED }}>
-                            {x.state === 'done' ? '✓' : x.state === 'today' ? '▸' : '◻'} {x.text}
+                            {x.state === 'done' ? <CrmIcon name="Check" size={14} /> : x.state === 'today' ? <CrmIcon name="CircleDot" size={14} /> : <CrmIcon name="Circle" size={14} />} {x.text}
                           </li>
                         ))}
                       </ul>
@@ -846,7 +1255,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
 function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
   return (
     <div className="sd-stack">
-      <Card title="📈 QBR Auto-Pack Generator" subtitle="One click per partner: a complete Quarterly Business Review pack compiled from live CRM data — funnel, scores, licences vs commitments, wins/losses, and next-quarter plan template">
+      <Card title="QBR Auto-Pack Generator" subtitle="One click per partner: a complete Quarterly Business Review pack compiled from live CRM data — funnel, scores, licences vs commitments, wins/losses, and next-quarter plan template">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {data.quarters.map((q) => (
             <button key={q} style={{
@@ -857,7 +1266,7 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
             }}>{q}</button>
           ))}
           <span style={{ flex: 1 }} />
-          {data.generateAll && <Btn primary>⚡ Generate All Packs</Btn>}
+          {data.generateAll && <Btn primary>Generate All Packs</Btn>}
         </div>
       </Card>
 
@@ -888,7 +1297,7 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
                 {p.cadence && <div style={{ color: MUTED, fontSize: '0.72rem', marginTop: 2 }}>cadence {p.cadence}</div>}
               </div>
               <div style={{ textAlign: 'right', minWidth: 150 }}>
-                <Btn primary>📄 Generate Pack</Btn>
+                <Btn primary>Generate Pack</Btn>
                 <div style={{ fontSize: '0.68rem', color: MUTED, marginTop: 4 }}>{p.slides} · {p.formats} · est. {p.est}</div>
               </div>
             </div>
@@ -899,19 +1308,19 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
       <Card title="Pack Preview" subtitle={`${data.preview.title} · ${data.preview.meta}`}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>📈 Performance</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="TrendingUp" size={14} style={{ marginRight: 4 }} />Performance</div>
             {data.preview.performance.map((p) => (
               <StatLine key={p.label} label={p.label} value={`${p.value}${p.delta ? ` · ${p.delta}` : ''}`} />
             ))}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>🎯 Commitments</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="Target" size={14} style={{ marginRight: 4 }} />Commitments</div>
             {data.preview.commitments.map((p) => (
               <StatLine key={p.label} label={p.label} value={`${p.value}${p.delta ? ` · ${p.delta}` : ''}`} />
             ))}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>💬 Talking Points (auto-drafted)</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="Activity" size={14} style={{ marginRight: 4 }} />Talking Points (Auto-Drafted)</div>
             <ul style={{ paddingLeft: 16, fontSize: '0.78rem', color: TEXT }}>
               {data.preview.talkingPoints.map((t) => <li key={t} style={{ margin: '4px 0' }}>{t}</li>)}
             </ul>
@@ -930,69 +1339,85 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
 /* ------------------------------------------------------------------ */
 
 function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color: string }) {
-  const delivery = data.deliverySettings ?? data.delivery2 ?? [];
   return (
     <div className="sd-stack">
-      <Card title={`📮 TPS Weekly Digest — Partner Sphere`} subtitle={`${data.week} · ${data.delivery}`}>
-        <div className="sd-kpi-grid">
-          {data.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.delta} accent={color} />)}
+      {/* Board Brief */}
+      <Card title={`Board Brief — Decisions & Exceptions Only`} subtitle={`week of ${data.week}`}>
+        <div style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.7, marginBottom: 12 }}>
+          <strong>The week in one paragraph.</strong><br />
+          {data.kpis && data.kpis.length > 0 && (
+            <>Channel stands at {data.kpis.find(k => k.label.includes('Pipeline'))?.value || 'RM 15.9M'} across active partners. </>
+          )}
+          {data.decisions && data.decisions.length > 0 && (
+            <>{data.decisions.length} items need your decision this week.</>
+          )}
         </div>
       </Card>
 
-      <Card title="🔴 Needs your decision">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.decisions.map((d) => (
-            <div key={d.title} style={{ background: 'rgba(255,69,58,0.08)', borderRadius: 10, padding: '10px 14px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{d.title}</div>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{d.detail}</div>
-              <div style={{ fontSize: '0.74rem', color: '#ff453a', marginTop: 4 }}>owner: {d.owner} · {d.due}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="🟢 Wins of the week">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.wins.map((w) => (
-            <div key={w.title} style={{ background: 'rgba(52,199,123,0.08)', borderRadius: 10, padding: '10px 14px' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.74rem', color: '#34c77b', marginRight: 8 }}>{w.emoji}</span>
-              <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{w.title}</span>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{w.detail}</div>
-              <div style={{ fontSize: '0.74rem', color: '#34c77b', marginTop: 4 }}>{w.owner}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="🟡 Watch list">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.watch.map((w) => (
-            <div key={w.title} style={{ background: SURFACE_2, borderRadius: 10, padding: '10px 14px' }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Pill text={w.tag || ''} tone="warn" />
-                <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{w.title}</span>
+      {/* Exceptions requiring decision */}
+      {data.decisions && data.decisions.length > 0 && (
+        <Card title="Exceptions requiring decision">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {data.decisions.map((d) => (
+              <div key={d.title} style={{ fontSize: '0.85rem', color: TEXT, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
+                <span style={{ color: '#ff453a', marginRight: 6 }}>•</span>
+                <strong>{d.title}</strong> — {d.detail}
               </div>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{w.detail}</div>
-              <div style={{ fontSize: '0.74rem', color, marginTop: 4 }}>{w.owner}</div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Funnel health */}
+      <Card title="Funnel Health">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          {data.watch && data.watch.map((w) => (
+            <div key={w.title} style={{ padding: 12, background: SURFACE_2, borderRadius: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: MUTED }}>{w.title}</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{w.tag || w.detail}</div>
             </div>
           ))}
         </div>
       </Card>
 
-      <Card title="📆 Rituals & protection health">
-        <StatLine label="🛡️ Deal protections" value={data.rituals.protections} />
-        <StatLine label="🔁 Cadence calls" value={data.rituals.cadence} />
-        <StatLine label="📊 Q3 review cycle" value={data.rituals.q3} />
-      </Card>
+      {/* AM Scorecard — disabled until per-manager KPI data available from API */}
 
-      {delivery.length > 0 && (
-        <Card title="⚙️ Delivery settings">
-          {delivery.map((d) => (
-            <div key={d.channel} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT }}>{d.channel}: </span>
-              <span style={{ fontSize: '0.78rem', color: MUTED }}>{d.detail}</span>
+      {/* Dormancy Radar */}
+      <Card title="Dormancy Radar — Cooling Toward Dormant" subtitle={`${data.watch ? data.watch.length : 0} partners`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+          {data.watch && data.watch.map((w) => (
+            <div key={w.title} style={{
+              padding: 14,
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: 'rgba(255,179,64,0.04)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: TEXT }}>{w.title}</div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#ffb340', background: 'rgba(255,179,64,0.15)', padding: '2px 8px', borderRadius: 4 }}>
+                  DormantScore {w.tag?.replace(/[^0-9]/g, '') || '0'}
+                </div>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
+                {w.detail}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#ff453a', marginTop: 6, fontWeight: 600 }}>
+                AT RISK of dormancy - intervene
+              </div>
             </div>
           ))}
+          {(!data.watch || data.watch.length === 0) && (
+            <div style={{ padding: 20, textAlign: 'center', color: MUTED, gridColumn: '1 / -1' }}>No partners at dormancy risk</div>
+          )}
+        </div>
+      </Card>
+
+      {/* Rituals & protection health */}
+      {data.rituals && (
+        <Card title="Rituals & Protection Health">
+          <StatLine label="Deal Protections" value={data.rituals.protections} />
+          <StatLine label="Cadence Calls" value={data.rituals.cadence} />
+          <StatLine label="Q3 Review Cycle" value={data.rituals.q3} />
         </Card>
       )}
     </div>
@@ -1006,18 +1431,165 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
 function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: string }) {
   const [currency, setCurrency] = useState(data.currencies[0] ?? 'MYR');
   const [tier, setTier] = useState(data.tiers[0]?.name ?? 'List');
-  const [bundle, setBundle] = useState(data.bundles.find((b) => b.name === 'Base') ?? data.bundles[0]);
+  const [selectedBundle, setSelectedBundle] = useState<string>('Base');
 
+  // One-Time Setup
+  const [outlets, setOutlets] = useState(1);
+
+  // Add-on Cameras
+  const [extraCams, setExtraCams] = useState(0);
+
+  // Professional Services — toggled on/off + man days
+  const [pmOn, setPmOn] = useState(false);
+  const [pmDays, setPmDays] = useState(1);
+  const [custOn, setCustOn] = useState(false);
+  const [custDays, setCustDays] = useState(1);
+  const [consultOn, setConsultOn] = useState(false);
+  const [consultDays, setConsultDays] = useState(1);
+
+  // Outstation
+  const [nsTrips, setNsTrips] = useState(0);
+  const [nsNights, setNsNights] = useState(0);
+  const [emTrips, setEmTrips] = useState(0);
+  const [emNights, setEmNights] = useState(0);
+
+
+  // Spread view toggle
+  const [showSpread, setShowSpread] = useState(false);
   const tierDiscount = data.tiers.find((t) => t.name === tier)?.discount ?? '';
   const pct = tierDiscount ? parseInt(tierDiscount.replace(/[^0-9]/g, ''), 10) : 0;
-  const show = (price: number) => {
-    const adj = Math.round(price * (1 - pct / 100));
-    return `${currency === 'MYR' ? 'RM' : currency === 'SGD' ? 'S$' : 'US$'} ${adj.toLocaleString()}`;
+
+  const sym = currency === 'MYR' ? 'RM' : currency === 'SGD' ? 'S$' : 'US$';
+  const fmt = (n: number) => `${sym} ${Math.round(n).toLocaleString()}`;
+  const adj = (price: number) => Math.round(price * (1 - pct / 100));
+
+  // Bundle prices (adjusted for tier discount)
+  const bundleMap: Record<string, number> = {};
+  data.bundles.forEach((b) => { bundleMap[b.name] = adj(b.price); });
+  const bundleMonthly = bundleMap[selectedBundle] ?? 0;
+
+  // Tier feature lists
+  const TIER_FEATURES: Record<string, string[]> = {
+    Lite: [
+      'Basic AI video analytics dashboard',
+      'Up to 4 camera feeds per outlet',
+      'Daily automated reports via email',
+      'Standard support (email)',
+      'Community forum access',
+    ],
+    Base: [...(data.baseFeatures || [])],
+    'Base+': [
+      ...(data.baseFeatures || []),
+      'Advanced people counting & heatmaps',
+      'Queue length monitoring & alerts',
+      'Multi-outlet unified dashboard',
+      'Priority support (chat + email)',
+      'Custom report scheduling',
+    ],
+    Advanced: [
+      ...(data.baseFeatures || []),
+      'Advanced people counting & heatmaps',
+      'Queue length monitoring & alerts',
+      'Multi-outlet unified dashboard',
+      'AI-powered anomaly detection',
+      'Real-time POS integration',
+      'Dedicated account manager',
+      '24/7 premium support',
+      'Custom AI model training',
+    ],
   };
 
+  const BUNDLE_COLORS: Record<string, string> = {
+    Lite: '#34c77b',
+    Base: '#0a84ff',
+    'Base+': '#ffd60a',
+    Advanced: '#ff453a',
+  };
+
+  // Cost calculations
+  const setupOneTime = outlets * adj(data.setup.price);
+  const camsMonthly = extraCams * outlets * adj(data.addonCameras.price);
+
+  const pmCost = pmOn ? pmDays * adj(1200) : 0;
+  const custCost = custOn ? custDays * adj(1500) : 0;
+  const consultCost = consultOn ? consultDays * adj(1500) : 0;
+  const profServicesTotal = pmCost + custCost + consultCost;
+
+  const nsCost = nsTrips * adj(350) + nsNights * adj(450);
+  const emCost = emTrips * adj(1350) + emNights * adj(450);
+  const outstationTotal = nsCost + emCost;
+
+  const monthlyRecurring = bundleMonthly + camsMonthly;
+  const oneTimeCharges = setupOneTime + profServicesTotal + outstationTotal;
+  const totalFirstMonth = monthlyRecurring + oneTimeCharges;
+  const perOutletMonth = outlets > 0 ? Math.round(monthlyRecurring / outlets) : 0;
+  const spread36 = outlets > 0 ? Math.round((monthlyRecurring * 36 + oneTimeCharges) / 36 / outlets) : 0;
+
+  
+  const summaryText = [
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `  SamurAI V2 — Retail Pricing Summary`,
+    `  Currency: ${currency} (converted from MYR, rounded up)`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    ``,
+    `Bundle: ${selectedBundle}`,
+    `   ${fmt(bundleMonthly)}/month × ${outlets} outlet(s)`,
+    ``,
+    `One-Time Setup: ${fmt(adj(data.setup.price))} × ${outlets} = ${fmt(setupOneTime)}`,
+    ...(pmOn ? [``, `Project Management: ${fmt(adj(1200))} × ${pmDays} days = ${fmt(pmCost)}`] : []),
+    ...(custOn ? [``, `Software Customisation: ${fmt(adj(1500))} × ${custDays} days = ${fmt(custCost)}`] : []),
+    ...(consultOn ? [``, `AI Expert Consulting: ${fmt(adj(1500))} × ${consultDays} days = ${fmt(consultCost)}`] : []),
+    ...((nsTrips > 0 || nsNights > 0 || emTrips > 0 || emNights > 0) ? [``, `Outstation: ${fmt(outstationTotal)}`] : []),
+    ``,
+    `ALL-IN SaaS (36 mo, costs amortised): ${fmt(spread36)}/mo`,
+    `   Full 36-month value: ${fmt(spread36 * 36 * outlets)}`,
+    ``,
+    '──────────────────────────────────',
+    `Monthly Recurring: ${fmt(monthlyRecurring)}/mo`,
+    `One-Time Charges: ${fmt(oneTimeCharges)}`,
+    `Total (1st Month): ${fmt(totalFirstMonth)}`,
+    `Per Outlet/Month: ${fmt(perOutletMonth)}`,
+    '──────────────────────────────────',
+    ``,
+    `Generated by Tapway SamurAI V2 Pricing Simulator`,
+    `sales@gotapway.com · www.gotapway.com`,
+  ].join('\n');
+
+  const [copied, setCopied] = useState(false);
+  const copySummary = () => {
+    navigator.clipboard.writeText(summaryText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for non-HTTPS contexts
+      const ta = document.createElement('textarea');
+      ta.value = summaryText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
+
+  // Stepper helper
+  const Stepper = ({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>−</button>
+      <span style={{ minWidth: 28, textAlign: 'center', fontSize: '0.88rem', fontWeight: 600, color }}>{value}</span>
+      <button onClick={() => onChange(value + 1)}
+        style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>+</button>
+    </div>
+  );
+
   return (
-    <div className="sd-stack">
-      <Card title="💰 SamurAI V2 · Retail Pricing Simulator">
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
+      {/* LEFT COLUMN */}
+      <div className="sd-stack">
+      {/* Currency / Tier selector bar */}
+      <Card title="SamurAI V2 · Retail Pricing Simulator">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="sd-kpi-label">Currency</span>
           {data.currencies.map((c) => (
@@ -1040,23 +1612,30 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
                 color: tier === t.name ? color : MUTED,
               }}>{t.name}{t.discount ? ` ${t.discount}` : ''}</button>
           ))}
-          <Btn>📄 Download Brochure PDF</Btn>
+          <Btn>Download Brochure PDF</Btn>
         </div>
       </Card>
 
-      <Card title="📦 Choose Your Bundle" subtitle={data.bundleNote}>
+      {/* Bundle Selector Cards */}
+      <Card title="Choose Your Bundle" subtitle={data.bundleNote}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
           {data.bundles.map((b) => {
-            const active = bundle?.name === b.name;
+            const active = selectedBundle === b.name;
+            const indicatorColor = b.name === 'Lite' ? 'green' : b.name === 'Base' ? 'blue' : b.name === 'Base+' ? 'yellow' : 'red';
+            const borderColor = active ? (BUNDLE_COLORS[b.name] || color) : BORDER;
             return (
-              <button key={b.name} onClick={() => setBundle(b)}
+              <button key={b.name} onClick={() => setSelectedBundle(b.name)}
                 style={{
-                  textAlign: 'left', background: active ? 'rgba(0,122,255,0.12)' : SURFACE_2,
-                  border: `1px solid ${active ? color : BORDER}`, borderRadius: 12, padding: 16, cursor: 'pointer',
+                  textAlign: 'left',
+                  background: active ? `color-mix(in srgb, ${BUNDLE_COLORS[b.name] || color} 12%, transparent)` : SURFACE_2,
+                  border: `2px solid ${borderColor}`, borderRadius: 12, padding: 16, cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{b.name}</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? color : TEXT, marginTop: 4 }}>
-                  {show(b.price)}<span style={{ fontSize: '0.75rem', color: MUTED }}>{b.per}</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
+                  <StatusDot color={indicatorColor} /> {b.name}
+                </div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? (BUNDLE_COLORS[b.name] || color) : TEXT, marginTop: 4 }}>
+                  {fmt(adj(b.price))}<span style={{ fontSize: '0.75rem', color: MUTED }}>{b.per}</span>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 4 }}>{b.tagline}</div>
               </button>
@@ -1065,70 +1644,408 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
       </Card>
 
+      {/* Bundle Detail Panel */}
+      <Card title={`What You Can Do With ${selectedBundle}:`}>
+        <ul style={{ paddingLeft: 20, fontSize: '0.8rem', color: TEXT, listStyleType: 'disc' }}>
+          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '5px 0', lineHeight: 1.5 }}>{f}</li>)}
+        </ul>
+        <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
+      </Card>
+
+      {/* One-Time Setup + Add-on Cameras */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🔵 What you can do with Base:">
-          <ul style={{ paddingLeft: 16, fontSize: '0.8rem', color: TEXT }}>
-            {data.baseFeatures.map((f) => <li key={f} style={{ margin: '4px 0' }}>{f}</li>)}
-          </ul>
-          <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
-        </Card>
-        <Card title="🏪 One-Time Setup" subtitle={data.setup.note}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ fontSize: '0.8rem', color: TEXT }}>Number of outlets · {show(data.setup.price)}/{data.setup.unit}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, color }}>{data.setup.count}</span>
+        <Card title="One-Time Setup" subtitle={data.setup.note}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.8rem', color: TEXT }}>Number of outlets · {fmt(adj(data.setup.price))}/{data.setup.unit}</span>
+            <Stepper value={outlets} onChange={setOutlets} min={1} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ fontSize: '0.8rem', color: TEXT }}>Extra cameras per outlet · {show(data.addonCameras.price)}/{data.addonCameras.unit}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, color }}>{data.addonCameras.count}</span>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 8, textAlign: 'right' }}>
+            Setup subtotal: <span style={{ color, fontWeight: 600 }}>{fmt(setupOneTime)}</span>
+          </div>
+        </Card>
+
+        <Card title="Add-on Cameras" subtitle={data.addonCameras.note}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.8rem', color: TEXT }}>Extra cameras per outlet · {fmt(adj(data.addonCameras.price))}/{data.addonCameras.unit}</span>
+            <Stepper value={extraCams} onChange={setExtraCams} min={0} />
+          </div>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 8, textAlign: 'right' }}>
+            Camera subtotal: <span style={{ color, fontWeight: 600 }}>{fmt(camsMonthly)}</span>/mo
           </div>
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🛠️ Professional Services" subtitle="charged per man day">
-          {data.services.map((s) => (
-            <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.8rem', color: TEXT }}>{s.name}</span>
-              <span style={{ fontSize: '0.8rem', color: MUTED }}>{show(s.price)}/{s.unit} · <span style={{ color }}>{s.count}</span></span>
-            </div>
-          ))}
-        </Card>
-        <Card title="📍 Outstation" subtitle="outside Klang Valley">
-          {data.outstation.map((o) => (
-            <div key={o.name} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '0.8rem', color: TEXT, fontWeight: 500 }}>{o.name}</div>
-              <div style={{ fontSize: '0.76rem', color: MUTED }}>
-                {show(o.trip)}/trip + {show(o.night)}/night · Trips: {o.trips} · Nights: {o.nights}
+      {/* Professional Services */}
+      <Card title="Professional Services" subtitle="Toggle on and set man days">
+        {[
+          { label: 'Project Management', rate: 1200, on: pmOn, setOn: setPmOn, days: pmDays, setDays: setPmDays },
+          { label: 'Software Customisation', rate: 1500, on: custOn, setOn: setCustOn, days: custDays, setDays: setCustDays },
+          { label: 'AI Expert Consulting', rate: 1500, on: consultOn, setOn: setConsultOn, days: consultDays, setDays: setConsultDays },
+        ].map((svc) => (
+          <div key={svc.label} style={{ padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{svc.label}</span>
+                <span style={{ fontSize: '0.74rem', color: MUTED, marginLeft: 8 }}>{fmt(adj(svc.rate))}/man day</span>
+              </div>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => svc.setOn(true)}
+                  style={{
+                    padding: '4px 12px', borderRadius: '6px 0 0 6px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${svc.on ? color : BORDER}`,
+                    background: svc.on ? `${color}22` : 'transparent',
+                    color: svc.on ? color : MUTED,
+                  }}>ON</button>
+                <button onClick={() => svc.setOn(false)}
+                  style={{
+                    padding: '4px 12px', borderRadius: '0 6px 6px 0', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${!svc.on ? '#ef4444' : BORDER}`,
+                    background: !svc.on ? 'rgba(239,68,68,0.12)' : 'transparent',
+                    color: !svc.on ? '#ef4444' : MUTED,
+                  }}>OFF</button>
               </div>
             </div>
-          ))}
-        </Card>
-      </div>
+            {svc.on && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingLeft: 12 }}>
+                <span style={{ fontSize: '0.78rem', color: MUTED }}>Man days</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Stepper value={svc.days} onChange={svc.setDays} min={1} />
+                  <span style={{ fontSize: '0.78rem', color, fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
+                    {fmt(svc.days * adj(svc.rate))}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
 
-      <Card title="💰 Pricing Summary" subtitle="Monthly + one-time costs">
-        <div className="sd-stack" style={{ gap: 0 }}>
-          {[data.summary.bundle, data.summary.setup, data.summary.addonCameras, data.summary.pm,
-            data.summary.customisation, data.summary.consulting, data.summary.outstation].map((row) => (
-            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.82rem', color: row.monthly ? TEXT : MUTED }}>
-                {row.label} {row.monthly ? <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span> : <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span>}
-              </span>
-              <span style={{ fontSize: '0.82rem', color: row.monthly ? color : TEXT, fontWeight: 600 }}>{row.value}</span>
+      {/* Outstation */}
+      <Card title="Outstation" subtitle="outside Klang Valley">
+        {/* Northern & Southern */}
+        <div style={{ padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500, marginBottom: 8 }}>Northern & Southern</div>
+          <div style={{ fontSize: '0.74rem', color: MUTED, marginBottom: 6 }}>{fmt(adj(350))}/trip + {fmt(adj(450))}/night</div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Trips</span>
+              <Stepper value={nsTrips} onChange={setNsTrips} min={0} />
             </div>
-          ))}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Nights</span>
+              <Stepper value={nsNights} onChange={setNsNights} min={0} />
+            </div>
+            <span style={{ fontSize: '0.78rem', color, fontWeight: 600, marginLeft: 'auto' }}>{fmt(nsCost)}</span>
+          </div>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
-          <Kpi label="Monthly recurring" value={data.summary.monthlyRecurring} accent={color} />
-          <Kpi label="One-time charges" value={data.summary.oneTime} />
-          <Kpi label="Total (1st month)" value={data.summary.totalFirstMonth} accent={color} />
-          <Kpi label="Per outlet per month" value={data.summary.perOutletMonth} />
-        </div>
-        <div style={{ marginTop: 12, fontSize: '0.74rem', color: MUTED }}>{data.summary.spread36}</div>
-        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn primary>📅 Spread All Costs Over 36 Months</Btn>
-          <Btn>📋 Copy Summary to Clipboard</Btn>
+        {/* East Malaysia */}
+        <div style={{ padding: '10px 0' }}>
+          <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500, marginBottom: 8 }}>East Malaysia</div>
+          <div style={{ fontSize: '0.74rem', color: MUTED, marginBottom: 6 }}>{fmt(adj(1350))}/trip + {fmt(adj(450))}/night</div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Trips</span>
+              <Stepper value={emTrips} onChange={setEmTrips} min={0} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Nights</span>
+              <Stepper value={emNights} onChange={setEmNights} min={0} />
+            </div>
+            <span style={{ fontSize: '0.78rem', color, fontWeight: 600, marginLeft: 'auto' }}>{fmt(emCost)}</span>
+          </div>
         </div>
       </Card>
+
+      </div>{/* END LEFT COLUMN */}
+
+      {/* RIGHT COLUMN: Sticky Pricing Summary */}
+      <div style={{ position: 'sticky', top: 16 }}>
+      {/* Dynamic Pricing Summary */}
+      <Card title="Pricing Summary" subtitle={showSpread ? 'All-in SaaS subscription' : 'Monthly + one-time costs'}>
+        <div className="sd-stack" style={{ gap: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: TEXT }}>Bundle ({selectedBundle}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
+            <span style={{ fontSize: '0.82rem', color, fontWeight: 600 }}>{fmt(bundleMonthly)}/mo</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: MUTED }}>Setup ({outlets} outlets) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+            <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(setupOneTime)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: TEXT }}>Extra cameras ({extraCams} × {outlets}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
+            <span style={{ fontSize: '0.82rem', color, fontWeight: 600 }}>{fmt(camsMonthly)}/mo</span>
+          </div>
+          {pmOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Project Management ({pmDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(pmCost)}</span>
+            </div>
+          )}
+          {custOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Software Customisation ({custDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(custCost)}</span>
+            </div>
+          )}
+          {consultOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>AI Expert Consulting ({consultDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(consultCost)}</span>
+            </div>
+          )}
+          {(nsTrips > 0 || nsNights > 0 || emTrips > 0 || emNights > 0) && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Outstation <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(outstationTotal)}</span>
+            </div>
+          )}
+        </div>
+
+        {/* Conditional KPIs based on showSpread */}
+        <div style={{ display: 'grid', gridTemplateColumns: showSpread ? '1fr 1fr' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
+          {showSpread ? (
+            <>
+              <Kpi label="All-in SaaS" value={fmt(spread36)} accent={color} />
+              <Kpi label="Total contract value (36 mo)" value={fmt(spread36 * 36 * outlets)} />
+            </>
+          ) : (
+            <>
+              <Kpi label="Monthly recurring" value={fmt(monthlyRecurring)} accent={color} />
+              <Kpi label="One-time charges" value={fmt(oneTimeCharges)} />
+              <Kpi label="Total (1st month)" value={fmt(totalFirstMonth)} accent={color} />
+              <Kpi label="Per outlet per month" value={fmt(perOutletMonth)} />
+            </>
+          )}
+        </div>
+
+        <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
+          <button
+            onClick={() => setShowSpread(!showSpread)}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${color}`, background: color, color: '#0a0a0a',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+          >
+            {showSpread ? 'Show Standard View (Upfront Costs)' : 'Spread All Costs Over 36 Months'}
+          </button>
+          <button
+            onClick={copySummary}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${BORDER}`, background: 'transparent', color: TEXT,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; e.currentTarget.style.color = color; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT; e.currentTarget.style.transform = 'none'; }}
+          >
+            {copied ? 'Copied!' : 'Copy Summary to Clipboard'}
+          </button>
+        </div>
+      </Card>
+      </div>{/* END RIGHT COLUMN */}
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Partner Deals Section                                               */
+/* ------------------------------------------------------------------ */
+
+function PartnerDealsSection({ 
+  dept, 
+  color, 
+  masterList 
+}: { 
+  dept: string; 
+  color: string; 
+  masterList: PartnerSphereData['masterList'];
+}) {
+  const [search, setSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState('All');
+  const [tierFilter, setTierFilter] = useState('All');
+  const [stageFilter, setStageFilter] = useState('All');
+  const [sortField, setSortField] = useState<'value' | 'registered' | 'close'>('value');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selectedDeal, setSelectedDeal] = useState<CrmDealListItem | null>(null);
+
+  // Fetch all deals
+  const query = useQuery({
+    queryKey: ['crm-deals', dept],
+    queryFn: () => departmentsApi.crmDealsList(dept, '', '', '', '', ''),
+    refetchInterval: 120_000,
+  });
+
+  const deals = query.data?.deals ?? [];
+
+  // Build partner map from masterList for attribution
+  const partnerMap = useMemo(() => {
+    const map = new Map<string, { tier: string; am: string }>();
+    for (const p of masterList) {
+      map.set(p.name, { tier: p.tier, am: p.am });
+    }
+    return map;
+  }, [masterList]);
+
+  // Enrich deals with partner info and filter
+  const enrichedDeals = useMemo(() => {
+    let result = deals.map(d => {
+      const partnerInfo = d.source ? partnerMap.get(d.source) : null;
+      return {
+        ...d,
+        partnerName: d.source || '— Unassigned —',
+        partnerTier: partnerInfo?.tier || '',
+        partnerAm: partnerInfo?.am || '',
+      };
+    });
+
+    // Apply filters
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(d =>
+        d.title.toLowerCase().includes(s) ||
+        (d.customer || '').toLowerCase().includes(s) ||
+        d.partnerName.toLowerCase().includes(s) ||
+        (d.owner || '').toLowerCase().includes(s)
+      );
+    }
+    if (partnerFilter !== 'All') {
+      result = result.filter(d => d.partnerName === partnerFilter);
+    }
+    if (tierFilter !== 'All') {
+      result = result.filter(d => d.partnerTier === tierFilter);
+    }
+    if (stageFilter !== 'All') {
+      result = result.filter(d => d.stage === stageFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'value') cmp = (a.amount || 0) - (b.amount || 0);
+      else if (sortField === 'registered') cmp = (a.created || '').localeCompare(b.created || '');
+      else if (sortField === 'close') cmp = 0; // close date not in CrmDealListItem
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+
+    return result;
+  }, [deals, search, partnerFilter, tierFilter, stageFilter, sortField, sortDir, partnerMap]);
+
+  // Unique filter options
+  const partners = useMemo(() => ['All', ...Array.from(new Set(enrichedDeals.map(d => d.partnerName))).sort()], [enrichedDeals]);
+  const tiers = useMemo(() => ['All', ...Array.from(new Set(masterList.map(p => p.tier))).sort()], [masterList]);
+  const stages = useMemo(() => ['All', ...Array.from(new Set(deals.map(d => d.stage).filter(Boolean) as string[])).sort()], [deals]);
+
+  if (query.isLoading) {
+    return <div className="sd-empty"><div className="h-7 w-7 animate-spin rounded-full" style={{ border: `2px solid ${color}`, borderTopColor: 'transparent' }} /><p>Loading deals…</p></div>;
+  }
+
+  // Deal detail view
+  if (selectedDeal) {
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <button onClick={() => setSelectedDeal(null)} style={{ padding: '8px 16px', fontSize: '0.85rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>← Back to deals</button>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedDeal.title}</h2>
+        {selectedDeal.customer && <div style={{ fontSize: '0.9rem', color: MUTED }}>{selectedDeal.customer} · {selectedDeal.source || 'No partner'}</div>}
+        <div className="sd-chart-card" style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            <DetailField label="Stage" value={selectedDeal.stage || '—'} />
+            <DetailField label="Owner (AM)" value={selectedDeal.owner || '—'} />
+            <DetailField label="Value" value={selectedDeal.amount ? `RM ${selectedDeal.amount.toLocaleString()}` : '—'} />
+            <DetailField label="Priority" value={selectedDeal.priority || '—'} />
+            <DetailField label="Created" value={selectedDeal.created || '—'} />
+            <DetailField label="Partner channel" value={selectedDeal.source || '—'} />
+          </div>
+        </div>
+        {selectedDeal.compiled_truth && (
+          <div className="sd-chart-card" style={{ padding: 16 }}>
+            <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>Raw Content</h3>
+            <div style={{ fontSize: '0.85rem', color: TEXT, whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto' }}>{selectedDeal.compiled_truth}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="sd-stack" style={{ gap: 16 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: TEXT, margin: 0 }}>Partner Deals — {enrichedDeals.length} of {deals.length} deals</h2>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 4 }}>Every deal in the CRM, attributed to its partner — live from the pipeline. Click any row for full detail.</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: '#34c77b' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34c77b', display: 'inline-block' }} />
+          LIVE · auto-refresh
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="sd-chart-card" style={{ padding: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deal, customer, partner, owner…" style={{ flex: 1, minWidth: 200, padding: '8px 12px', fontSize: '0.85rem', borderRadius: 6, border: `1px solid ${BORDER}`, outline: 'none', color: TEXT }} />
+        <select value={partnerFilter} onChange={(e) => setPartnerFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {partners.map(p => <option key={p} value={p}>{p === 'All' ? 'All partners' : p}</option>)}
+        </select>
+        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {tiers.map(t => <option key={t} value={t}>{t === 'All' ? 'All tiers' : t}</option>)}
+        </select>
+        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {stages.map(s => <option key={s} value={s}>{s === 'All' ? 'All stages' : s}</option>)}
+        </select>
+        <select value={`${sortField}-${sortDir}`} onChange={(e) => { const [f, d] = e.target.value.split('-'); setSortField(f as any); setSortDir(d as any); }} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          <option value="value-desc">Value · high→low</option>
+          <option value="value-asc">Value · low→high</option>
+          <option value="registered-desc">Registered · newest</option>
+          <option value="registered-asc">Registered · oldest</option>
+        </select>
+        {(search || partnerFilter !== 'All' || tierFilter !== 'All' || stageFilter !== 'All') && (
+          <button onClick={() => { setSearch(''); setPartnerFilter('All'); setTierFilter('All'); setStageFilter('All'); }} style={{ padding: '6px 12px', fontSize: '0.8rem', color: MUTED, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }}>Clear</button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="sd-chart-card" style={{ padding: 0, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: 900 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+              {['Deal', 'Partner', 'Customer', 'Stage', 'Registered', 'Product', 'Value', 'Pri'].map(h => (
+                <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {enrichedDeals.slice(0, 100).map((deal) => (
+              <tr key={deal.slug} onClick={() => setSelectedDeal(deal)} style={{ borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <td style={{ padding: '8px 10px', fontWeight: 500, color: TEXT, maxWidth: 250 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.title}</div></td>
+                <td style={{ padding: '8px 10px', color: TEXT }}>
+                  <div>{deal.partnerName}</div>
+                  {deal.partnerTier && <div style={{ fontSize: '0.7rem', color: MUTED }}>{deal.partnerTier}{deal.partnerAm ? ` · AM: ${deal.partnerAm}` : ''}</div>}
+                </td>
+                <td style={{ padding: '8px 10px', color: MUTED, maxWidth: 180 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.customer || '—'}</div></td>
+                <td style={{ padding: '8px 10px', color: TEXT }}>{deal.stage || '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.created || '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>—</td>
+                <td style={{ padding: '8px 10px', color: TEXT, whiteSpace: 'nowrap' }}>{deal.amount ? `RM ${deal.amount >= 1_000_000 ? `${(deal.amount / 1_000_000).toFixed(1)}M` : `${(deal.amount / 1000).toFixed(0)}K`}` : '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.priority === 'High' ? <CrmIcon name="Flame" size={14} style={{ color: '#ff453a' }} /> : deal.priority === 'Medium' ? <CrmIcon name="Zap" size={14} style={{ color: '#ffb340' }} /> : <CrmIcon name="CircleDot" size={14} />}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {enrichedDeals.length > 100 && <div style={{ padding: 12, textAlign: 'center', color: MUTED, fontSize: '0.8rem' }}>Showing first 100 of {enrichedDeals.length} deals</div>}
+        {enrichedDeals.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: MUTED }}>No deals found matching filters</div>}
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: '0.95rem', fontWeight: 500, color: TEXT }}>{value}</div>
     </div>
   );
 }
@@ -1138,15 +2055,15 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
 /* ------------------------------------------------------------------ */
 
 const SECTIONS = [
-  { id: 'overview', label: '📊 Overview' },
-  { id: 'masterList', label: '📇 Partners' },
-  { id: 'profile', label: '🏢 Syspex Profile' },
-  { id: 'commandCenter', label: '🎯 Command Center' },
-  { id: 'protection', label: '🛡️ Protection' },
-  { id: 'onboarding', label: '📥 Onboarding' },
-  { id: 'qbr', label: '📈 QBR Packs' },
-  { id: 'ceoDigest', label: '📮 CEO Digest' },
-  { id: 'pricing', label: '💰 Pricing Simulator' },
+  { id: 'overview', label: 'Overview', icon: 'BarChart3' as const },
+  { id: 'masterList', label: 'Partners', icon: 'Contact' as const },
+  { id: 'deals', label: 'Partner Deals', icon: 'Briefcase' as const },
+  { id: 'commandCenter', label: 'Command Center', icon: 'Target' as const },
+  { id: 'protection', label: 'Protection', icon: 'Shield' as const },
+  { id: 'onboarding', label: 'Onboarding', icon: 'Download' as const },
+  { id: 'qbr', label: 'QBR Packs', icon: 'TrendingUp' as const },
+  { id: 'ceoDigest', label: 'CEO Digest', icon: 'Mailbox' as const },
+  { id: 'pricing', label: 'Pricing Simulator', icon: 'Coins' as const },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -1194,17 +2111,18 @@ export function PartnersTab({ dept, color }: Props) {
               border: `1px solid ${section === s.id ? color : BORDER}`,
               background: section === s.id ? 'rgba(0,122,255,0.12)' : 'transparent',
               color: section === s.id ? color : MUTED,
+              display: 'flex', alignItems: 'center', gap: 5,
             }}
           >
+            {'icon' in s && <CrmIcon name={s.icon as any} size={13} />}
             {s.label}
           </button>
         ))}
-        {sphere.mock && <Pill text="MOCK DATA" tone="warn" />}
       </div>
 
       {section === 'overview' && sphere.overview && <SphereOverview data={sphere.overview} color={color} />}
-      {section === 'masterList' && <SphereMasterList data={sphere.masterList} color={color} />}
-      {section === 'profile' && sphere.profile && <SphereProfile data={sphere.profile} color={color} />}
+      {section === 'masterList' && <SphereMasterList data={sphere.masterList} profileData={sphere.profile} color={color} />}
+      {section === 'deals' && <PartnerDealsSection dept={dept} color={color} masterList={sphere.masterList} />}
       {section === 'commandCenter' && sphere.commandCenter && <SphereCommandCenter data={sphere.commandCenter} color={color} />}
       {section === 'protection' && sphere.protection && <SphereProtection data={sphere.protection} color={color} />}
       {section === 'onboarding' && sphere.onboarding && <SphereOnboarding data={sphere.onboarding} color={color} />}

@@ -1,27 +1,22 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { departmentsApi } from '../../../lib/api';
 import type { CeoDashboardStats } from '../../../lib/types';
-import { SphereOverview } from './PartnersTab';
 import { SalesPulseTab } from './SalesPulseTab';
 import { PipelineForecastTab } from './PipelineForecastTab';
 import { PartnerPerformanceTab } from './PartnerPerformanceTab';
 import { ManagerPerformanceTab } from './ManagerPerformanceTab';
 import { DealsDeepDiveTab } from './DealsDeepDiveTab';
-import { OmnichannelChatTab } from './OmnichannelChatTab';
+import { CrmIcon } from './CrmIcons';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 
 const VIEWS = [
-  { id: 'overview', label: '📊 Overview' },
-  { id: 'sales', label: 'Sales Booking' },
-  { id: 'pipeline', label: 'Pipeline & Forecast' },
-  { id: 'partnerperf', label: 'Partner Performance' },
-  { id: 'managers', label: 'Manager Performance' },
-  { id: 'deepdive', label: 'Deals Deep-Dive' },
-  { id: 'omnichannel', label: 'Omnichannel' },
+  { id: 'sales', label: 'Sales Booking', icon: 'BarChart3' as const },
+  { id: 'pipeline', label: 'Pipeline & Forecast', icon: 'TrendingUp' as const },
+  { id: 'partnerperf', label: 'Partner Performance', icon: 'Handshake' as const },
+  { id: 'managers', label: 'Manager Performance', icon: 'Users' as const },
+  { id: 'deepdive', label: 'Deals Deep-Dive', icon: 'Target' as const },
 ] as const;
 
 type ViewId = (typeof VIEWS)[number]['id'];
@@ -34,16 +29,7 @@ interface Props {
 }
 
 export function OverviewTab({ dept, color, stats, onDrillDown }: Props) {
-  const [view, setView] = useState<ViewId>('overview');
-
-  // Partner-sphere snapshot feeds the 📊 Overview view (same layout as the
-  // reference partner dashboard).
-  const sphereQuery = useQuery({
-    queryKey: ['dashboard-partner-sphere', dept],
-    queryFn: () => departmentsApi.crmPartnerSphere(dept),
-    refetchInterval: 120_000,
-  });
-  const overview = sphereQuery.data?.overview ?? null;
+  const [view, setView] = useState<ViewId>('sales');
 
   return (
     <div className="sd-stack" style={{ gap: 14 }}>
@@ -62,26 +48,19 @@ export function OverviewTab({ dept, color, stats, onDrillDown }: Props) {
               color: view === v.id ? color : MUTED,
             }}
           >
-            {v.label}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <CrmIcon name={v.icon} size={13} />
+              {v.label}
+            </span>
           </button>
         ))}
       </div>
-
-      {view === 'overview' &&
-        (overview ? (
-          <SphereOverview data={overview} color={color} />
-        ) : (
-          <div className="sd-empty">
-            <p style={{ color: MUTED, fontSize: '0.85rem' }}>Awaiting partner-sphere snapshot…</p>
-          </div>
-        ))}
 
       {view === 'sales' && <SalesPulseTab stats={stats} color={color} />}
       {view === 'pipeline' && <PipelineForecastTab stats={stats} color={color} />}
       {view === 'partnerperf' && <PartnerPerformanceTab stats={stats} color={color} />}
       {view === 'managers' && <ManagerPerformanceTab stats={stats} color={color} onDrillDown={onDrillDown} />}
       {view === 'deepdive' && <DealsDeepDiveTab stats={stats} color={color} />}
-      {view === 'omnichannel' && <OmnichannelChatTab stats={stats} color={color} />}
     </div>
   );
 }

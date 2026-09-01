@@ -508,3 +508,39 @@ def test_bev_mock_falls_back_to_crm_flag(monkeypatch) -> None:
     assert dashboard._bev_mock_enabled() is True
     monkeypatch.setenv("SHOGUN_WEB_CRM_MOCK", "0")
     assert dashboard._bev_mock_enabled() is False
+
+def test_ceo_aggregation_never_serves_mock_numbers(monkeypatch) -> None:
+    """Production aggregation must be 100% gbrain-derived.
+
+    Regression: omnichannel fields (AI resolution %, chat-to-order %, inbox,
+    trend) used to leak from examples/crm-mock.json even when real deals
+    existed. With live deals present they must now be empty-state values —
+    never fabricated figures.
+    """
+    monkeypatch.delenv("SHOGUN_WEB_CRM_MOCK", raising=False)
+    result = dashboard._run_ceo_aggregation(DEAL_PAGES)
+
+    # Omnichannel panel: empty states, not mock numbers
+    assert result["aiResolutionPct"] == 0.0
+    assert result["chatToOrderPct"] == 0.0
+    assert result["chatToOrderTrend"] == []
+    assert result["chatInbox"] == []
+    # No SLA frontmatter in the fixtures -> 0, not the old mock 4.5/94.2
+    assert result["avgResponseMinutes"] == 0.0
+    assert result["slaCompliancePct"] == 0.0
+    # Sales cycle comes from won-deal created/close dates, not a constant
+    assert result["salesCycleDays"] == 0  # no close_date in fixtures -> empty state, not the old constant 47
+
+def test_sales_cycle_handles_mixed_naive_and_aware_dates(monkeypatch) -> None:
+    """Regression (MoA round-10): naive + tz-aware frontmatter dates must not
+    raise TypeError and 500 the aggregation — they are normalised to UTC."""
+    monkeypatch.delenv("SHOGUN_WEB_CRM_MOCK", raising=False)
+    pages = [
+        {"slug": "deals/mixed-tz", "title": "Mixed TZ",
+         "frontmatter": {"stage": "Won", "amount": 1000,
+                         "created": "2026-06-01",              # naive date-only
+                         "close_date": "2026-08-28T00:00:00Z"},  # tz-aware
+         "compiled_truth": "# deal"},
+    ]
+    result = dashboard._run_ceo_aggregation(pages)  # must not raise
+    assert result["salesCycleDays"] == 88  # 2026-06-01 -> 2026-08-28

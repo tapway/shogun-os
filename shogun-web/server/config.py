@@ -6,6 +6,7 @@ Loads settings from ``~/.shogun-os/web.json`` and overlays environment variables
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 from dataclasses import asdict, dataclass, field
@@ -53,6 +54,23 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    """Parse a float env var — garbage values degrade to the default instead of a boot crash.
+
+    Same contract as _env_int (see its docstring). NaN and inf are rejected — they would
+    silently defeat cache expiration semantics."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        val = float(raw)
+        if not math.isfinite(val):
+            return default
+        return val
+    except ValueError:
+        return default
+
+
 @dataclass
 class WebConfig:
     """Typed configuration for the per-tenant web portal."""
@@ -79,8 +97,11 @@ class WebConfig:
     brain_root: str = str(Path.home() / "brain")
     gbrain_read_preference: str = os.environ.get("GBRAIN_READ_PREFERENCE", "filesystem")
     # MCP-only sources: cap per-fetch enrichment of metadata-only list_pages rows.
-    # Raise above the source size for large remote brains (each enrich = 1 get_page).
-    gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 50)
+    # Default 500 prevents N+1 explosion on large brains (10k+ pages). Set to 0 for
+    # unbounded enrichment (small deployments only), or a positive value to cap.
+    gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 500)
+    gbrain_mcp_enrich_concurrency: int = _env_int("GBRAIN_MCP_ENRICH_CONCURRENCY", 16)
+    gbrain_page_cache_ttl: float = _env_float("GBRAIN_PAGE_CACHE_TTL", 300.0)
     # Filesystem mirror staleness guard (minutes, default 60 = ON). When the
     # newest markdown is older than this the mirror defers to MCP (guards
     # against a failed put_page sync mirror serving stale data indefinitely).
