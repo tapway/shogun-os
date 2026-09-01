@@ -1561,7 +1561,9 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
   );
 
   return (
-    <div className="sd-stack">
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
+      {/* LEFT COLUMN */}
+      <div className="sd-stack">
       {/* Currency / Tier selector bar */}
       <Card title="💰 SamurAI V2 · Retail Pricing Simulator">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
@@ -1730,8 +1732,12 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
       </Card>
 
+      </div>{/* END LEFT COLUMN */}
+
+      {/* RIGHT COLUMN: Sticky Pricing Summary */}
+      <div style={{ position: 'sticky', top: 16 }}>
       {/* Dynamic Pricing Summary */}
-      <Card title="💰 Pricing Summary" subtitle="Monthly + one-time costs">
+      <Card title="💰 Pricing Summary" subtitle={showSpread ? 'All-in SaaS subscription' : 'Monthly + one-time costs'}>
         <div className="sd-stack" style={{ gap: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: '0.82rem', color: TEXT }}>Bundle ({selectedBundle}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
@@ -1795,6 +1801,7 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
           <Btn onClick={copySummary}>{copied ? '✅ Copied!' : '📋 Copy Summary to Clipboard'}</Btn>
         </div>
       </Card>
+      </div>{/* END RIGHT COLUMN */}
     </div>
   );
 }
