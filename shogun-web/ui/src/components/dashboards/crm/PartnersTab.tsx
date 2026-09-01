@@ -1407,17 +1407,136 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
 function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: string }) {
   const [currency, setCurrency] = useState(data.currencies[0] ?? 'MYR');
   const [tier, setTier] = useState(data.tiers[0]?.name ?? 'List');
-  const [bundle, setBundle] = useState(data.bundles.find((b) => b.name === 'Base') ?? data.bundles[0]);
+  const [selectedBundle, setSelectedBundle] = useState<string>('Base');
+
+  // One-Time Setup
+  const [outlets, setOutlets] = useState(1);
+
+  // Add-on Cameras
+  const [extraCams, setExtraCams] = useState(0);
+
+  // Professional Services — toggled on/off + man days
+  const [pmOn, setPmOn] = useState(false);
+  const [pmDays, setPmDays] = useState(1);
+  const [custOn, setCustOn] = useState(false);
+  const [custDays, setCustDays] = useState(1);
+  const [consultOn, setConsultOn] = useState(false);
+  const [consultDays, setConsultDays] = useState(1);
+
+  // Outstation
+  const [nsTrips, setNsTrips] = useState(0);
+  const [nsNights, setNsNights] = useState(0);
+  const [emTrips, setEmTrips] = useState(0);
+  const [emNights, setEmNights] = useState(0);
 
   const tierDiscount = data.tiers.find((t) => t.name === tier)?.discount ?? '';
   const pct = tierDiscount ? parseInt(tierDiscount.replace(/[^0-9]/g, ''), 10) : 0;
-  const show = (price: number) => {
-    const adj = Math.round(price * (1 - pct / 100));
-    return `${currency === 'MYR' ? 'RM' : currency === 'SGD' ? 'S$' : 'US$'} ${adj.toLocaleString()}`;
+
+  const sym = currency === 'MYR' ? 'RM' : currency === 'SGD' ? 'S$' : 'US$';
+  const fmt = (n: number) => `${sym} ${Math.round(n).toLocaleString()}`;
+  const adj = (price: number) => Math.round(price * (1 - pct / 100));
+
+  // Bundle prices (adjusted for tier discount)
+  const bundleMap: Record<string, number> = {};
+  data.bundles.forEach((b) => { bundleMap[b.name] = adj(b.price); });
+  const bundleMonthly = bundleMap[selectedBundle] ?? 0;
+
+  // Tier feature lists
+  const TIER_FEATURES: Record<string, string[]> = {
+    Lite: [
+      'Basic AI video analytics dashboard',
+      'Up to 4 camera feeds per outlet',
+      'Daily automated reports via email',
+      'Standard support (email)',
+      'Community forum access',
+    ],
+    Base: [...(data.baseFeatures || [])],
+    'Base+': [
+      ...(data.baseFeatures || []),
+      'Advanced people counting & heatmaps',
+      'Queue length monitoring & alerts',
+      'Multi-outlet unified dashboard',
+      'Priority support (chat + email)',
+      'Custom report scheduling',
+    ],
+    Advanced: [
+      ...(data.baseFeatures || []),
+      'Advanced people counting & heatmaps',
+      'Queue length monitoring & alerts',
+      'Multi-outlet unified dashboard',
+      'AI-powered anomaly detection',
+      'Real-time POS integration',
+      'Dedicated account manager',
+      '24/7 premium support',
+      'Custom AI model training',
+    ],
   };
+
+  const BUNDLE_COLORS: Record<string, string> = {
+    Lite: '#34c77b',
+    Base: '#0a84ff',
+    'Base+': '#ffd60a',
+    Advanced: '#ff453a',
+  };
+
+  // Cost calculations
+  const setupOneTime = outlets * adj(data.setup.price);
+  const camsMonthly = extraCams * outlets * adj(data.addonCameras.price);
+
+  const pmCost = pmOn ? pmDays * adj(1200) : 0;
+  const custCost = custOn ? custDays * adj(1500) : 0;
+  const consultCost = consultOn ? consultDays * adj(1500) : 0;
+  const profServicesTotal = pmCost + custCost + consultCost;
+
+  const nsCost = nsTrips * adj(350) + nsNights * adj(450);
+  const emCost = emTrips * adj(1350) + emNights * adj(450);
+  const outstationTotal = nsCost + emCost;
+
+  const monthlyRecurring = bundleMonthly + camsMonthly;
+  const oneTimeCharges = setupOneTime + profServicesTotal + outstationTotal;
+  const totalFirstMonth = monthlyRecurring + oneTimeCharges;
+  const perOutletMonth = outlets > 0 ? Math.round(monthlyRecurring / outlets) : 0;
+  const spread36 = outlets > 0 ? Math.round((monthlyRecurring * 36 + oneTimeCharges) / 36 / outlets) : 0;
+
+  const summaryText = [
+    `SamurAI V2 Pricing · ${selectedBundle} · ${currency}`,
+    `Partner Tier: ${tier}${tierDiscount ? ` (${tierDiscount})` : ''}`,
+    ``,
+    `Monthly:`,
+    `  Bundle (${selectedBundle}): ${fmt(bundleMonthly)}/mo`,
+    `  Extra Cameras (${extraCams} × ${outlets} outlets): ${fmt(camsMonthly)}/mo`,
+    `  Monthly Recurring: ${fmt(monthlyRecurring)}/mo`,
+    ``,
+    `One-Time:`,
+    `  Setup (${outlets} outlets): ${fmt(setupOneTime)}`,
+    ...(pmOn ? [`  Project Management (${pmDays} days): ${fmt(pmCost)}`] : []),
+    ...(custOn ? [`  Software Customisation (${custDays} days): ${fmt(custCost)}`] : []),
+    ...(consultOn ? [`  AI Expert Consulting (${consultDays} days): ${fmt(consultCost)}`] : []),
+    ...(nsTrips > 0 || nsNights > 0 ? [`  Outstation N&S (${nsTrips} trips, ${nsNights} nights): ${fmt(nsCost)}`] : []),
+    ...(emTrips > 0 || emNights > 0 ? [`  Outstation East MY (${emTrips} trips, ${emNights} nights): ${fmt(emCost)}`] : []),
+    `  One-Time Total: ${fmt(oneTimeCharges)}`,
+    ``,
+    `Total First Month: ${fmt(totalFirstMonth)}`,
+    `Per Outlet/Month: ${fmt(perOutletMonth)}`,
+    `Spread Over 36 Months: ${fmt(spread36)}/outlet/mo`,
+  ].join('\n');
+
+  const copySummary = () => { navigator.clipboard.writeText(summaryText); };
+
+  // Stepper helper
+  const Stepper = ({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) => (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <button onClick={() => onChange(Math.max(min, value - 1))}
+        style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>−</button>
+      <span style={{ minWidth: 28, textAlign: 'center', fontSize: '0.88rem', fontWeight: 600, color }}>{value}</span>
+      <button onClick={() => onChange(value + 1)}
+        style={{ width: 28, height: 28, borderRadius: 6, border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, cursor: 'pointer', fontSize: '1rem', lineHeight: 1 }}>+</button>
+    </div>
+  );
 
   return (
     <div className="sd-stack">
+      {/* Currency / Tier selector bar */}
       <Card title="💰 SamurAI V2 · Retail Pricing Simulator">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="sd-kpi-label">Currency</span>
@@ -1445,19 +1564,26 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
       </Card>
 
+      {/* Bundle Selector Cards */}
       <Card title="📦 Choose Your Bundle" subtitle={data.bundleNote}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
           {data.bundles.map((b) => {
-            const active = bundle?.name === b.name;
+            const active = selectedBundle === b.name;
+            const indicator = b.name === 'Lite' ? '🟢' : b.name === 'Base' ? '🔵' : b.name === 'Base+' ? '🟡' : '🔴';
+            const borderColor = active ? (BUNDLE_COLORS[b.name] || color) : BORDER;
             return (
-              <button key={b.name} onClick={() => setBundle(b)}
+              <button key={b.name} onClick={() => setSelectedBundle(b.name)}
                 style={{
-                  textAlign: 'left', background: active ? 'rgba(0,122,255,0.12)' : SURFACE_2,
-                  border: `1px solid ${active ? color : BORDER}`, borderRadius: 12, padding: 16, cursor: 'pointer',
+                  textAlign: 'left',
+                  background: active ? `color-mix(in srgb, ${BUNDLE_COLORS[b.name] || color} 12%, transparent)` : SURFACE_2,
+                  border: `2px solid ${borderColor}`, borderRadius: 12, padding: 16, cursor: 'pointer',
+                  transition: 'all 0.15s ease',
                 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{b.name}</div>
-                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? color : TEXT, marginTop: 4 }}>
-                  {show(b.price)}<span style={{ fontSize: '0.75rem', color: MUTED }}>{b.per}</span>
+                <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
+                  {indicator} {b.name}
+                </div>
+                <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? (BUNDLE_COLORS[b.name] || color) : TEXT, marginTop: 4 }}>
+                  {fmt(adj(b.price))}<span style={{ fontSize: '0.75rem', color: MUTED }}>{b.per}</span>
                 </div>
                 <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 4 }}>{b.tagline}</div>
               </button>
@@ -1466,68 +1592,165 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
       </Card>
 
+      {/* Bundle Detail Panel */}
+      <Card title={`${selectedBundle === 'Lite' ? '🟢' : selectedBundle === 'Base' ? '🔵' : selectedBundle === 'Base+' ? '🟡' : '🔴'} What you can do with ${selectedBundle}:`}>
+        <ul style={{ paddingLeft: 16, fontSize: '0.8rem', color: TEXT }}>
+          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '4px 0' }}>{f}</li>)}
+        </ul>
+        <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
+      </Card>
+
+      {/* One-Time Setup + Add-on Cameras */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🔵 What you can do with Base:">
-          <ul style={{ paddingLeft: 16, fontSize: '0.8rem', color: TEXT }}>
-            {data.baseFeatures.map((f) => <li key={f} style={{ margin: '4px 0' }}>{f}</li>)}
-          </ul>
-          <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
-        </Card>
         <Card title="🏪 One-Time Setup" subtitle={data.setup.note}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ fontSize: '0.8rem', color: TEXT }}>Number of outlets · {show(data.setup.price)}/{data.setup.unit}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, color }}>{data.setup.count}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.8rem', color: TEXT }}>Number of outlets · {fmt(adj(data.setup.price))}/{data.setup.unit}</span>
+            <Stepper value={outlets} onChange={setOutlets} min={1} />
           </div>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-            <span style={{ fontSize: '0.8rem', color: TEXT }}>Extra cameras per outlet · {show(data.addonCameras.price)}/{data.addonCameras.unit}</span>
-            <span style={{ fontSize: '0.9rem', fontWeight: 600, color }}>{data.addonCameras.count}</span>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 8, textAlign: 'right' }}>
+            Setup subtotal: <span style={{ color, fontWeight: 600 }}>{fmt(setupOneTime)}</span>
+          </div>
+        </Card>
+
+        <Card title="📷 Add-on Cameras" subtitle={data.addonCameras.note}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.8rem', color: TEXT }}>Extra cameras per outlet · {fmt(adj(data.addonCameras.price))}/{data.addonCameras.unit}</span>
+            <Stepper value={extraCams} onChange={setExtraCams} min={0} />
+          </div>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 8, textAlign: 'right' }}>
+            Camera subtotal: <span style={{ color, fontWeight: 600 }}>{fmt(camsMonthly)}</span>/mo
           </div>
         </Card>
       </div>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🛠️ Professional Services" subtitle="charged per man day">
-          {data.services.map((s) => (
-            <div key={s.name} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.8rem', color: TEXT }}>{s.name}</span>
-              <span style={{ fontSize: '0.8rem', color: MUTED }}>{show(s.price)}/{s.unit} · <span style={{ color }}>{s.count}</span></span>
-            </div>
-          ))}
-        </Card>
-        <Card title="📍 Outstation" subtitle="outside Klang Valley">
-          {data.outstation.map((o) => (
-            <div key={o.name} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <div style={{ fontSize: '0.8rem', color: TEXT, fontWeight: 500 }}>{o.name}</div>
-              <div style={{ fontSize: '0.76rem', color: MUTED }}>
-                {show(o.trip)}/trip + {show(o.night)}/night · Trips: {o.trips} · Nights: {o.nights}
+      {/* Professional Services */}
+      <Card title="🛠️ Professional Services" subtitle="Toggle on and set man days">
+        {[
+          { label: 'Project Management', rate: 1200, on: pmOn, setOn: setPmOn, days: pmDays, setDays: setPmDays },
+          { label: 'Software Customisation', rate: 1500, on: custOn, setOn: setCustOn, days: custDays, setDays: setCustDays },
+          { label: 'AI Expert Consulting', rate: 1500, on: consultOn, setOn: setConsultOn, days: consultDays, setDays: setConsultDays },
+        ].map((svc) => (
+          <div key={svc.label} style={{ padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <div>
+                <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{svc.label}</span>
+                <span style={{ fontSize: '0.74rem', color: MUTED, marginLeft: 8 }}>{fmt(adj(svc.rate))}/man day</span>
               </div>
+              <button onClick={() => svc.setOn(!svc.on)}
+                style={{
+                  padding: '4px 14px', borderRadius: 999, fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                  border: `1px solid ${svc.on ? color : BORDER}`,
+                  background: svc.on ? `${color}22` : 'transparent',
+                  color: svc.on ? color : MUTED,
+                }}>{svc.on ? 'ON' : 'OFF'}</button>
             </div>
-          ))}
-        </Card>
-      </div>
+            {svc.on && (
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingLeft: 12 }}>
+                <span style={{ fontSize: '0.78rem', color: MUTED }}>Man days</span>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <Stepper value={svc.days} onChange={svc.setDays} min={1} />
+                  <span style={{ fontSize: '0.78rem', color, fontWeight: 600, minWidth: 80, textAlign: 'right' }}>
+                    {fmt(svc.days * adj(svc.rate))}
+                  </span>
+                </div>
+              </div>
+            )}
+          </div>
+        ))}
+      </Card>
 
+      {/* Outstation */}
+      <Card title="📍 Outstation" subtitle="outside Klang Valley">
+        {/* Northern & Southern */}
+        <div style={{ padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500, marginBottom: 8 }}>Northern & Southern</div>
+          <div style={{ fontSize: '0.74rem', color: MUTED, marginBottom: 6 }}>{fmt(adj(350))}/trip + {fmt(adj(450))}/night</div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Trips</span>
+              <Stepper value={nsTrips} onChange={setNsTrips} min={0} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Nights</span>
+              <Stepper value={nsNights} onChange={setNsNights} min={0} />
+            </div>
+            <span style={{ fontSize: '0.78rem', color, fontWeight: 600, marginLeft: 'auto' }}>{fmt(nsCost)}</span>
+          </div>
+        </div>
+        {/* East Malaysia */}
+        <div style={{ padding: '10px 0' }}>
+          <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500, marginBottom: 8 }}>East Malaysia</div>
+          <div style={{ fontSize: '0.74rem', color: MUTED, marginBottom: 6 }}>{fmt(adj(1350))}/trip + {fmt(adj(450))}/night</div>
+          <div style={{ display: 'flex', gap: 24, flexWrap: 'wrap', alignItems: 'center' }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Trips</span>
+              <Stepper value={emTrips} onChange={setEmTrips} min={0} />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>Nights</span>
+              <Stepper value={emNights} onChange={setEmNights} min={0} />
+            </div>
+            <span style={{ fontSize: '0.78rem', color, fontWeight: 600, marginLeft: 'auto' }}>{fmt(emCost)}</span>
+          </div>
+        </div>
+      </Card>
+
+      {/* Dynamic Pricing Summary */}
       <Card title="💰 Pricing Summary" subtitle="Monthly + one-time costs">
         <div className="sd-stack" style={{ gap: 0 }}>
-          {[data.summary.bundle, data.summary.setup, data.summary.addonCameras, data.summary.pm,
-            data.summary.customisation, data.summary.consulting, data.summary.outstation].map((row) => (
-            <div key={row.label} style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.82rem', color: row.monthly ? TEXT : MUTED }}>
-                {row.label} {row.monthly ? <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span> : <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span>}
-              </span>
-              <span style={{ fontSize: '0.82rem', color: row.monthly ? color : TEXT, fontWeight: 600 }}>{row.value}</span>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: TEXT }}>Bundle ({selectedBundle}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
+            <span style={{ fontSize: '0.82rem', color, fontWeight: 600 }}>{fmt(bundleMonthly)}/mo</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: MUTED }}>Setup ({outlets} outlets) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+            <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(setupOneTime)}</span>
+          </div>
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+            <span style={{ fontSize: '0.82rem', color: TEXT }}>Extra cameras ({extraCams} × {outlets}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
+            <span style={{ fontSize: '0.82rem', color, fontWeight: 600 }}>{fmt(camsMonthly)}/mo</span>
+          </div>
+          {pmOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Project Management ({pmDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(pmCost)}</span>
             </div>
-          ))}
+          )}
+          {custOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Software Customisation ({custDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(custCost)}</span>
+            </div>
+          )}
+          {consultOn && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>AI Expert Consulting ({consultDays} days) <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(consultCost)}</span>
+            </div>
+          )}
+          {(nsTrips > 0 || nsNights > 0 || emTrips > 0 || emNights > 0) && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
+              <span style={{ fontSize: '0.82rem', color: MUTED }}>Outstation <span style={{ fontSize: '0.7rem', color: MUTED }}>(one-time)</span></span>
+              <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 600 }}>{fmt(outstationTotal)}</span>
+            </div>
+          )}
         </div>
+
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
-          <Kpi label="Monthly recurring" value={data.summary.monthlyRecurring} accent={color} />
-          <Kpi label="One-time charges" value={data.summary.oneTime} />
-          <Kpi label="Total (1st month)" value={data.summary.totalFirstMonth} accent={color} />
-          <Kpi label="Per outlet per month" value={data.summary.perOutletMonth} />
+          <Kpi label="Monthly recurring" value={fmt(monthlyRecurring)} accent={color} />
+          <Kpi label="One-time charges" value={fmt(oneTimeCharges)} />
+          <Kpi label="Total (1st month)" value={fmt(totalFirstMonth)} accent={color} />
+          <Kpi label="Per outlet per month" value={fmt(perOutletMonth)} />
         </div>
-        <div style={{ marginTop: 12, fontSize: '0.74rem', color: MUTED }}>{data.summary.spread36}</div>
+
+        <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+          <div style={{ fontSize: '0.78rem', color: MUTED }}>Spread All Costs Over 36 Months</div>
+          <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginTop: 4 }}>{fmt(spread36)}<span style={{ fontSize: '0.75rem', color: MUTED, fontWeight: 400 }}>/outlet/mo</span></div>
+        </div>
+
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
           <Btn primary>📅 Spread All Costs Over 36 Months</Btn>
-          <Btn>📋 Copy Summary to Clipboard</Btn>
+          <Btn onClick={copySummary}>📋 Copy Summary to Clipboard</Btn>
         </div>
       </Card>
     </div>
@@ -1801,7 +2024,6 @@ export function PartnersTab({ dept, color }: Props) {
             {s.label}
           </button>
         ))}
-        {sphere.mock && <Pill text="MOCK DATA" tone="warn" />}
       </div>
 
       {section === 'overview' && sphere.overview && <SphereOverview data={sphere.overview} color={color} />}
