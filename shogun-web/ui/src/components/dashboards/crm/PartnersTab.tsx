@@ -1063,7 +1063,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
     if (draggedCard && draggedCard.fromStage !== targetStageKey) {
       // In a real app, this would call an API to update the partner's stage
       // For now, just log it
-      console.log(`Moving ${draggedCard.name} from ${draggedCard.fromStage} to ${targetStageKey}`);
+      // TODO: Call API to persist stage change when backend supports it
     }
     setDraggedCard(null);
   };
