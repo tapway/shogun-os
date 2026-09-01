@@ -1521,7 +1521,23 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
     `Spread Over 36 Months: ${fmt(spread36)}/outlet/mo`,
   ].join('\n');
 
-  const copySummary = () => { navigator.clipboard.writeText(summaryText); };
+  const [copied, setCopied] = useState(false);
+  const copySummary = () => {
+    navigator.clipboard.writeText(summaryText).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    }).catch(() => {
+      // Fallback for non-HTTPS contexts
+      const ta = document.createElement('textarea');
+      ta.value = summaryText;
+      document.body.appendChild(ta);
+      ta.select();
+      document.execCommand('copy');
+      document.body.removeChild(ta);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  };
 
   // Stepper helper
   const Stepper = ({ value, onChange, min = 0 }: { value: number; onChange: (v: number) => void; min?: number }) => (
@@ -1636,13 +1652,22 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
                 <span style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{svc.label}</span>
                 <span style={{ fontSize: '0.74rem', color: MUTED, marginLeft: 8 }}>{fmt(adj(svc.rate))}/man day</span>
               </div>
-              <button onClick={() => svc.setOn(!svc.on)}
-                style={{
-                  padding: '4px 14px', borderRadius: 999, fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
-                  border: `1px solid ${svc.on ? color : BORDER}`,
-                  background: svc.on ? `${color}22` : 'transparent',
-                  color: svc.on ? color : MUTED,
-                }}>{svc.on ? 'ON' : 'OFF'}</button>
+              <div style={{ display: 'flex', gap: 4 }}>
+                <button onClick={() => svc.setOn(true)}
+                  style={{
+                    padding: '4px 12px', borderRadius: '6px 0 0 6px', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${svc.on ? color : BORDER}`,
+                    background: svc.on ? `${color}22` : 'transparent',
+                    color: svc.on ? color : MUTED,
+                  }}>ON</button>
+                <button onClick={() => svc.setOn(false)}
+                  style={{
+                    padding: '4px 12px', borderRadius: '0 6px 6px 0', fontSize: '0.74rem', fontWeight: 600, cursor: 'pointer',
+                    border: `1px solid ${!svc.on ? '#ef4444' : BORDER}`,
+                    background: !svc.on ? 'rgba(239,68,68,0.12)' : 'transparent',
+                    color: !svc.on ? '#ef4444' : MUTED,
+                  }}>OFF</button>
+              </div>
             </div>
             {svc.on && (
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, paddingLeft: 12 }}>
@@ -1743,14 +1768,17 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
           <Kpi label="Per outlet per month" value={fmt(perOutletMonth)} />
         </div>
 
-        <div style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: SURFACE_2, border: `1px solid ${BORDER}` }}>
+        <div id="pricing-spread36" style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: SURFACE_2, border: `1px solid ${BORDER}` }}>
           <div style={{ fontSize: '0.78rem', color: MUTED }}>Spread All Costs Over 36 Months</div>
           <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginTop: 4 }}>{fmt(spread36)}<span style={{ fontSize: '0.75rem', color: MUTED, fontWeight: 400 }}>/outlet/mo</span></div>
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn primary>📅 Spread All Costs Over 36 Months</Btn>
-          <Btn onClick={copySummary}>📋 Copy Summary to Clipboard</Btn>
+          <Btn primary onClick={() => {
+            const el = document.getElementById('pricing-spread36');
+            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }}>📅 Spread All Costs Over 36 Months</Btn>
+          <Btn onClick={copySummary}>{copied ? '✅ Copied!' : '📋 Copy Summary to Clipboard'}</Btn>
         </div>
       </Card>
     </div>
