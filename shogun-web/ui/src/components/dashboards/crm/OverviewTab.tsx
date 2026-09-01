@@ -5,19 +5,17 @@ import { PipelineForecastTab } from './PipelineForecastTab';
 import { PartnerPerformanceTab } from './PartnerPerformanceTab';
 import { ManagerPerformanceTab } from './ManagerPerformanceTab';
 import { DealsDeepDiveTab } from './DealsDeepDiveTab';
-import { OmnichannelChatTab } from './OmnichannelChatTab';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 
 const VIEWS = [
-  { id: 'sales', label: 'Sales Booking' },
-  { id: 'pipeline', label: 'Pipeline & Forecast' },
-  { id: 'partnerperf', label: 'Partner Performance' },
-  { id: 'managers', label: 'Manager Performance' },
-  { id: 'deepdive', label: 'Deals Deep-Dive' },
-  { id: 'omnichannel', label: 'Omnichannel' },
+  { id: 'sales', label: '📊 Sales Booking' },
+  { id: 'pipeline', label: '📈 Pipeline & Forecast' },
+  { id: 'partnerperf', label: '🤝 Partner Performance' },
+  { id: 'managers', label: '👥 Manager Performance' },
+  { id: 'deepdive', label: '🎯 Deals Deep-Dive' },
 ] as const;
 
 type ViewId = (typeof VIEWS)[number]['id'];
@@ -59,7 +57,6 @@ export function OverviewTab({ dept, color, stats, onDrillDown }: Props) {
       {view === 'partnerperf' && <PartnerPerformanceTab stats={stats} color={color} />}
       {view === 'managers' && <ManagerPerformanceTab stats={stats} color={color} onDrillDown={onDrillDown} />}
       {view === 'deepdive' && <DealsDeepDiveTab stats={stats} color={color} />}
-      {view === 'omnichannel' && <OmnichannelChatTab stats={stats} color={color} />}
     </div>
   );
 }
