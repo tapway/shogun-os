@@ -128,6 +128,20 @@ def _page_cache_get(source: str, slug: str) -> Optional[Dict[str, Any]]:
     return copy.deepcopy(page)  # Return deep copy to prevent nested mutation
 
 
+def _page_cache_peek(source: str, slug: str) -> bool:
+    """Check if page exists in cache WITHOUT copying — for membership tests only."""
+    entry = _PAGE_CACHE.get((source, slug))
+    if not entry:
+        return False
+    fetched_at, _ = entry
+    ttl = _page_cache_ttl()
+    # TTL=0 means "cache forever"; positive TTL is expiry window in seconds
+    if ttl > 0 and (time.time() - fetched_at) > ttl:
+        _PAGE_CACHE.pop((source, slug), None)
+        return False
+    return True
+
+
 def _page_cache_put(source: str, slug: str, page: Dict[str, Any]) -> None:
     if len(_PAGE_CACHE) >= _PAGE_CACHE_MAX:
         # Evict the oldest quarter rather than one-at-a-time thrashing.
@@ -564,11 +578,11 @@ async def gbrain_fetch_pages(
     if cap > 0 and len(pages) > cap:
         logger.warning(
             "gbrain_fetch_pages(%s): %d rows past enrichment cap %d are metadata-only "
-            "(frontmatter fields blank) — set GBRAIN_MCP_ENRICH_CAP=0 for full coverage",
+            "(frontmatter fields blank) — default cap=0 enriches all, set GBRAIN_MCP_ENRICH_CAP=N to limit",
             source, len(pages) - cap, cap,
         )
     rows_with_slugs = [(i, str(p.get("slug", ""))) for i, p in enumerate(window)]
-    missing = [(i, s) for i, s in rows_with_slugs if s and _page_cache_get(source, s) is None]
+    missing = [(i, s) for i, s in rows_with_slugs if s and not _page_cache_peek(source, s)]
 
     if missing:
         sem = asyncio.Semaphore(_enrich_concurrency())

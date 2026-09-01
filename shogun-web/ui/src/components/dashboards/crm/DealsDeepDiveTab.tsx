@@ -143,7 +143,9 @@ export function DealsDeepDiveTab({ stats, color }: Props) {
                   <td style={{ padding: '8px 12px', textAlign: 'right', color: TEXT, whiteSpace: 'nowrap' }}>
                     RM {deal.amount >= 1_000_000
                       ? `${(deal.amount / 1_000_000).toFixed(1)}M`
-                      : `${(deal.amount / 1000).toFixed(0)}K`}
+                      : deal.amount >= 1000
+                      ? `${(deal.amount / 1000).toFixed(0)}K`
+                      : deal.amount.toLocaleString()}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'center' }}>
                     <CrmIcon name={PRIORITY_ICONS[deal.priority] || PRIORITY_ICONS['Cold'] || 'Snowflake'} size={14} />

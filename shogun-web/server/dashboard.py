@@ -732,7 +732,7 @@ def _load_crm_mock() -> dict:
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
-# regardless and enriches every row by default (GBRAIN_MCP_ENRICH_CAP=0).
+# regardless and enriches every row by default (cap=0).
 CRM_LIST_LIMIT = 10000
 
 
@@ -2733,7 +2733,7 @@ async def get_finance_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Finance dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix="")
+    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix=None)
     return await _run_finance_aggregation(pages)
 
 
@@ -2910,7 +2910,7 @@ async def get_procurement_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Procurement dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
+    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix=None)
     return _run_procurement_aggregation(pages)
 
 
