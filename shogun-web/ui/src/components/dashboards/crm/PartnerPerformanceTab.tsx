@@ -100,6 +100,7 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
             color={color}
             unit="RM "
             height={240}
+            xAngle={-35}
           />
         </div>
         <div className="sd-chart-card" style={{ flex: 1 }}>
@@ -112,6 +113,7 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
             color={color}
             unit="RM "
             height={240}
+            xAngle={-35}
           />
         </div>
       </div>
@@ -120,13 +122,14 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
       <div className="sd-chart-card">
         <h3 className="sd-chart-title">Deals by Partner</h3>
         <BarChart
-          data={topByDeals}
-          xKey="partner"
-          yKey="totalDeals"
-          color={color}
-          unit=""
-          height={220}
-        />
+            data={topByDeals}
+            xKey="partner"
+            yKey="totalDeals"
+            color={color}
+            unit=""
+            height={220}
+            xAngle={-35}
+          />
       </div>
 
       {/* At-Risk by Partner Table */}
