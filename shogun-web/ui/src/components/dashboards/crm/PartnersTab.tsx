@@ -1380,31 +1380,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
         </div>
       </Card>
 
-      {/* AM Scorecard */}
-      <Card title="AM Scorecard">
-        <div style={{ overflowX: 'auto' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
-            <thead>
-              <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
-                {['AM', 'Pipeline', 'Open deals', 'Partners', 'Stalls'].map(h => (
-                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: MUTED, fontWeight: 600 }}>{h}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody>
-              {data.wins && data.wins.map((w) => (
-                <tr key={w.title} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <td style={{ padding: '8px 12px', fontWeight: 500, color: TEXT }}>{w.owner || w.title}</td>
-                  <td style={{ padding: '8px 12px', color: TEXT }}>{w.detail?.split('·')[0] || '—'}</td>
-                  <td style={{ padding: '8px 12px', color: TEXT }}>—</td>
-                  <td style={{ padding: '8px 12px', color: TEXT }}>—</td>
-                  <td style={{ padding: '8px 12px', color: MUTED }}>—</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </Card>
+      {/* AM Scorecard — disabled until per-manager KPI data available from API */}
 
       {/* Dormancy Radar */}
       <Card title="Dormancy Radar — Cooling Toward Dormant" subtitle={`${data.watch ? data.watch.length : 0} partners`}>

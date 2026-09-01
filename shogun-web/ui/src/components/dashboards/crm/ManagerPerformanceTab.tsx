@@ -15,12 +15,8 @@ const BORDER = 'var(--samurai-border)';
 const WARN = 'var(--samurai-warn, #f59e0b)';
 
 // Manager targets (would come from config in production)
-const MANAGER_TARGETS: Record<string, number> = {
-  'Liyana': 2_000_000,
-  'Kunna': 3_000_000,
-  'Anwar': 3_000_000,
-  'Chee How': 1_500_000,
-};
+// Manager targets not yet available from backend — attainment display disabled
+// TODO: Pull targets from config/backend when available
 
 export function ManagerPerformanceTab({ stats, color, onDrillDown }: Props) {
   const [selectedManager, setSelectedManager] = useState<ManagerEntry | null>(null);
@@ -67,7 +63,7 @@ export function ManagerPerformanceTab({ stats, color, onDrillDown }: Props) {
         gap: 16 
       }}>
         {activeManagers.map((manager) => {
-          const target = MANAGER_TARGETS[manager.owner] || 0;
+          const target = 0; // Targets not available from backend
           const attainment = target > 0 ? Math.round((manager.salesYTD / target) * 100) : 0;
           const atRisk = stats.atRiskByManager.find(a => a.owner === manager.owner);
 
@@ -174,7 +170,7 @@ function ManagerDrillDown({
   color: string;
   onBack: () => void;
 }) {
-  const target = MANAGER_TARGETS[manager.owner] || 0;
+  const target = 0; // Targets not available from backend
   const attainment = target > 0 ? Math.round((manager.salesYTD / target) * 100) : 0;
   const atRisk = stats.atRiskByManager.find(a => a.owner === manager.owner);
 

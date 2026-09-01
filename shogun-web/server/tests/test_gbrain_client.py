@@ -20,7 +20,7 @@ import gbrain_client  # noqa: E402
 
 
 class _StubConfig:
-    def __init__(self, brain_root, preference="filesystem", enrich_cap=0, fs_max_age=0):
+    def __init__(self, brain_root, preference="filesystem", enrich_cap=500, fs_max_age=0):
         self.brain_root = str(brain_root)
         self.gbrain_read_preference = preference
         self.gbrain_base_url = "http://unused"

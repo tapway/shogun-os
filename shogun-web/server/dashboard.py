@@ -732,7 +732,7 @@ def _load_crm_mock() -> dict:
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
-# regardless and enriches every row by default (cap=0).
+# regardless and caps enrichment at 500 rows by default (set GBRAIN_MCP_ENRICH_CAP=0 for full coverage).
 CRM_LIST_LIMIT = 10000
 
 

@@ -572,13 +572,13 @@ async def gbrain_fetch_pages(
     # frontmatter-derived columns never render blank on metadata-only rows.
     # Concurrency-bounded and served from a TTL page cache (see _PAGE_CACHE)
     # so repeated dashboard loads cost at most one get_page per slug per
-    # window. cap=0 (default) enriches all rows; a positive cap bounds it.
+    # window. Default cap=500 bounds enrichment; set GBRAIN_MCP_ENRICH_CAP=0 to enrich all.
     cap = _enrich_cap()
     window = pages if cap <= 0 else pages[:cap]
     if cap > 0 and len(pages) > cap:
         logger.warning(
             "gbrain_fetch_pages(%s): %d rows past enrichment cap %d are metadata-only "
-            "(frontmatter fields blank) — default cap=0 enriches all, set GBRAIN_MCP_ENRICH_CAP=N to limit",
+            "(frontmatter fields blank) — default cap=500; set GBRAIN_MCP_ENRICH_CAP=0 to enrich all",
             source, len(pages) - cap, cap,
         )
     rows_with_slugs = [(i, str(p.get("slug", ""))) for i, p in enumerate(window)]
