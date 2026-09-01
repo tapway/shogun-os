@@ -221,17 +221,19 @@ export function TasksTab({ dept, color, onDealClick }: Props) {
 
                         {/* Deal link */}
                         {task.deal_slug && (
-                          <div
-                            onClick={() => handleDealClick(task.deal_slug)}
-                            style={{
-                              fontSize: '0.8rem',
-                              color: color,
-                              cursor: 'pointer',
-                            }}
-                            onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
-                            onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
-                          >
-                            @{task.assignee || 'Unassigned'} · {task.deal_title || task.deal_slug}
+                          <div style={{ fontSize: '0.8rem', color: MUTED }}>
+                            <span>{task.assignee || 'Unassigned'} · </span>
+                            <span
+                              onClick={() => handleDealClick(task.deal_slug)}
+                              style={{
+                                color: color,
+                                cursor: 'pointer',
+                              }}
+                              onMouseEnter={(e) => e.currentTarget.style.textDecoration = 'underline'}
+                              onMouseLeave={(e) => e.currentTarget.style.textDecoration = 'none'}
+                            >
+                              {task.deal_title || task.deal_slug}
+                            </span>
                           </div>
                         )}
                       </div>
