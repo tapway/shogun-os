@@ -26,14 +26,8 @@ const PRODUCT_COLORS = [
 export function SalesPulseTab({ stats, color, onDrillDown }: Props) {
   const [selectedManager, setSelectedManager] = useState<ManagerEntry | null>(null);
 
-  // Calculate attainment percentages (targets would come from config in production)
-  const mtdTarget = 1_200_000; // RM 1.2M
-  const qtdTarget = 3_600_000; // RM 3.6M  
-  const ytdTarget = 9_500_000; // RM 9.5M
-  
-  const mtdAttainment = Math.round((stats.salesMTD / mtdTarget) * 100);
-  const qtdAttainment = Math.round((stats.salesQTD / qtdTarget) * 100);
-  const ytdAttainment = Math.round((stats.salesYTD / ytdTarget) * 100);
+  // Targets not yet available from backend — attainment display disabled
+  // TODO: Pull targets from config/backend when available
 
   // Get current month/quarter/year labels
   const now = new Date();
@@ -41,33 +35,31 @@ export function SalesPulseTab({ stats, color, onDrillDown }: Props) {
   const quarterLabel = `Q${Math.ceil((now.getMonth() + 1) / 3)} ${now.getFullYear()}`;
   const yearLabel = now.getFullYear().toString();
 
-  // Last quarter avg deal size comparison (simplified - would need historical data)
-  const lastQuarterAvg = 38_000; // RM 38K placeholder
 
   const KPIs = [
     { 
       label: 'Sales MTD', 
       value: `RM ${(stats.salesMTD / 1000).toFixed(0)}K`,
       sub: monthLabel,
-      detail: `${mtdAttainment}% attainment of RM ${(mtdTarget / 1_000_000).toFixed(1)}M target`
+      detail: monthLabel
     },
     { 
       label: 'Sales QTD', 
       value: `RM ${(stats.salesQTD / 1000).toFixed(0)}K`,
       sub: quarterLabel,
-      detail: `${qtdAttainment}% attainment of RM ${(qtdTarget / 1_000_000).toFixed(1)}M target`
+      detail: quarterLabel
     },
     { 
       label: 'Sales YTD', 
       value: `RM ${(stats.salesYTD / 1_000_000).toFixed(1)}M`,
       sub: yearLabel,
-      detail: `${ytdAttainment}% attainment of RM ${(ytdTarget / 1_000_000).toFixed(1)}M target`
+      detail: yearLabel
     },
     { 
       label: 'Avg Deal Size', 
       value: `RM ${(stats.avgDealSize / 1_000_000).toFixed(1)}M`,
       sub: '',
-      detail: `vs RM ${(lastQuarterAvg / 1000).toFixed(0)}K last quarter`
+      detail: ''
     },
   ];
 
@@ -130,19 +122,16 @@ export function SalesPulseTab({ stats, color, onDrillDown }: Props) {
 
         {/* KPI Grid */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
-          {/* Target Attainment */}
+          {/* Sales YTD */}
           <div className="sd-kpi-card" style={{ padding: 16 }}>
             <div style={{ fontSize: '0.75rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase' }}>
-              🎯 Target Attainment
+              💰 Sales YTD
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 700, color: TEXT, marginTop: 8 }}>
-              {ytdAttainment}%
+              RM {(selectedManager.salesYTD / 1_000_000).toFixed(2)}M
             </div>
             <div style={{ fontSize: '0.8rem', color: MUTED, marginTop: 4 }}>
-              attainment
-            </div>
-            <div style={{ fontSize: '0.85rem', color: TEXT, marginTop: 8 }}>
-              RM {(selectedManager.salesYTD / 1_000_000).toFixed(1)}M of RM {(ytdTarget / 1_000_000).toFixed(1)}M
+              year to date
             </div>
           </div>
 
