@@ -50,22 +50,27 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
     },
   ];
 
+  // Shorten partner names for chart x-axis (max 14 chars + ellipsis)
+  const shortName = (name: string) => name.length > 14 ? name.substring(0, 13) + '…' : name;
+
   // Top partners by booking (for chart)
   const topByBooking = [...stats.byPartner]
     .filter(p => p.booking > 0)
     .sort((a, b) => b.booking - a.booking)
-    .slice(0, 7);
+    .slice(0, 7)
+    .map(p => ({ ...p, partnerShort: shortName(p.partner) }));
 
   // Top partners by pipeline value (for chart)
   const topByPipeline = [...stats.byPartner]
     .filter(p => p.pipelineValue > 0)
     .sort((a, b) => b.pipelineValue - a.pipelineValue)
-    .slice(0, 7);
+    .slice(0, 7)
+    .map(p => ({ ...p, partnerShort: shortName(p.partner) }));
 
   // Top partners by deal count (for chart)
   const topByDeals = [...stats.byPartner]
     .filter(p => p.dealsWon + p.pipelineDeals > 0)
-    .map(p => ({ ...p, totalDeals: p.dealsWon + p.pipelineDeals }))
+    .map(p => ({ ...p, totalDeals: p.dealsWon + p.pipelineDeals, partnerShort: shortName(p.partner) }))
     .sort((a, b) => b.totalDeals - a.totalDeals)
     .slice(0, 7);
 
@@ -95,12 +100,11 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
           <p className="sd-chart-sub">Click bar to filter</p>
           <BarChart
             data={topByBooking}
-            xKey="partner"
+            xKey="partnerShort"
             yKey="booking"
             color={color}
             unit="RM "
             height={240}
-            xAngle={-35}
           />
         </div>
         <div className="sd-chart-card" style={{ flex: 1 }}>
@@ -108,12 +112,11 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
           <p className="sd-chart-sub">Click bar to filter</p>
           <BarChart
             data={topByPipeline}
-            xKey="partner"
+            xKey="partnerShort"
             yKey="pipelineValue"
             color={color}
             unit="RM "
             height={240}
-            xAngle={-35}
           />
         </div>
       </div>
@@ -123,12 +126,11 @@ export function PartnerPerformanceTab({ stats, color }: Props) {
         <h3 className="sd-chart-title">Deals by Partner</h3>
         <BarChart
             data={topByDeals}
-            xKey="partner"
+            xKey="partnerShort"
             yKey="totalDeals"
             color={color}
             unit=""
             height={220}
-            xAngle={-35}
           />
       </div>
 
