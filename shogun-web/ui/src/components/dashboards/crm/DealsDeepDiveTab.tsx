@@ -1,5 +1,7 @@
 import { BarChart } from '../charts';
 import type { CeoDashboardStats } from '../../../lib/types';
+import { CrmIcon } from './CrmIcons';
+import type { CrmIconName } from './CrmIcons';
 
 interface Props { stats: CeoDashboardStats; color: string }
 
@@ -8,13 +10,13 @@ const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 
 // Priority icons
-const PRIORITY_ICONS: Record<string, string> = {
-  'Hot': '🔥',
-  'Warm': '⚡',
-  'Cold': '❄',
-  'High': '🔥',
-  'Medium': '⚡',
-  'Low': '❄',
+const PRIORITY_ICONS: Record<string, CrmIconName> = {
+  'Hot': 'Flame',
+  'Warm': 'Zap',
+  'Cold': 'Snowflake',
+  'High': 'Flame',
+  'Medium': 'Zap',
+  'Low': 'Snowflake',
 };
 
 export function DealsDeepDiveTab({ stats, color }: Props) {
@@ -109,7 +111,10 @@ export function DealsDeepDiveTab({ stats, color }: Props) {
 
       {/* Top 15 Deals Table */}
       <div className="sd-chart-card" style={{ padding: 16 }}>
-        <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>🏆 Top 15 Deals</h3>
+        <h3 className="sd-chart-title" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+          <CrmIcon name="Trophy" size={16} />
+          Top 15 Deals
+        </h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
@@ -141,7 +146,7 @@ export function DealsDeepDiveTab({ stats, color }: Props) {
                       : `${(deal.amount / 1000).toFixed(0)}K`}
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'center' }}>
-                    {PRIORITY_ICONS[deal.priority] || PRIORITY_ICONS['Cold'] || '❄'}
+                    <CrmIcon name={PRIORITY_ICONS[deal.priority] || PRIORITY_ICONS['Cold'] || 'Snowflake'} size={14} />
                   </td>
                   <td style={{ padding: '8px 12px', textAlign: 'right', color: MUTED }}>
                     {deal.owner ? deal.owner.substring(0, 3).toUpperCase() : '—'}

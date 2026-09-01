@@ -1,5 +1,6 @@
 import { BarChart, LineChart } from '../charts';
 import type { CeoDashboardStats } from '../../../lib/types';
+import { CrmIcon } from './CrmIcons';
 
 interface Props { stats: CeoDashboardStats; color: string }
 
@@ -21,7 +22,7 @@ export function PipelineForecastTab({ stats, color }: Props) {
     {
       label: 'Pipeline Coverage',
       value: `${stats.pipelineCoverage}×`,
-      detail: stats.pipelineCoverage >= 3 ? '✅ Above 3× benchmark' : '⚠ Below 3× benchmark',
+      detail: stats.pipelineCoverage >= 3 ? 'Above 3× benchmark' : 'Below 3× benchmark',
     },
     {
       label: 'Win Rate (YTD)',
@@ -168,7 +169,7 @@ export function PipelineForecastTab({ stats, color }: Props) {
       {/* At-Risk Breakdown Table */}
       <div className="sd-chart-card" style={{ padding: 16 }}>
         <h3 className="sd-chart-title" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: WARN }}>⚠</span> At-Risk Breakdown by Sales Manager
+          At-Risk Breakdown by Sales Manager
         </h3>
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
@@ -205,7 +206,7 @@ export function PipelineForecastTab({ stats, color }: Props) {
       {/* At-Risk Deals List */}
       <div className="sd-chart-card" style={{ padding: 16 }}>
         <h3 className="sd-chart-title" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
-          <span style={{ color: WARN }}>⚠</span> At-Risk Deals
+          At-Risk Deals
         </h3>
         {atRiskDeals.length === 0 ? (
           <div style={{ padding: 20, textAlign: 'center', color: MUTED, fontSize: '0.85rem' }}>

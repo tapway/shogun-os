@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
+import { CrmIcon, StatusDot } from './CrmIcons';
 import { departmentsApi } from '../../../lib/api';
 import type {
   CrmDealListItem,
@@ -139,7 +140,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
   return (
     <div className="sd-stack">
       {data.aiBrief && (
-        <Card title="🤖 AI Daily Brief — TPS" subtitle={data.aiBrief.date}>
+        <Card title="AI Daily Brief — TPS" subtitle={data.aiBrief.date}>
           <div className="sd-kpi-grid" style={{ marginBottom: 12 }}>
             {data.aiBrief.kpis.map((k) => (
               <Kpi key={k.label} label={k.label} value={k.value} note={k.delta} accent={color} />
@@ -156,7 +157,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         {data.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.note} accent={color} />)}
       </div>
 
-      <Card title="🧭 Account Manager Coverage">
+      <Card title="Account Manager Coverage">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 14 }}>
           {data.amCoverage.map((am) => (
             <div key={am.am} style={{ background: SURFACE_2, borderRadius: 10, padding: 14 }}>
@@ -172,7 +173,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         </div>
       </Card>
 
-      <Card title="🏅 Tier Board" subtitle="Referral · Silver · Gold · Platinum (per Partner Tiering framework)">
+      <Card title="Tier Board" subtitle="Referral · Silver · Gold · Platinum (per Partner Tiering framework)">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(230px, 1fr))', gap: 12 }}>
           {data.tierBoard.map((group) => {
             const tone = TIER_TONES[group.tier] ?? color;
@@ -198,7 +199,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        <Card title="🔻 Lifecycle Funnel" subtitle="All Partners (YTD 2026)">
+        <Card title="Lifecycle Funnel" subtitle="All Partners (YTD 2026)">
           {(() => {
             const max = Math.max(...data.funnel.map((f) => f.count), 1);
             return (
@@ -219,7 +220,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
           })()}
         </Card>
 
-        <Card title="⚗️ Per-partner leak points">
+        <Card title="Per-partner leak points">
           {data.leakPoints.map((l) => (
             <div key={l.partner} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
               <div style={{ fontWeight: 500, fontSize: '0.82rem', color: TEXT }}>{l.partner}</div>
@@ -229,7 +230,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         </Card>
       </div>
 
-      <Card title="🥁 Battle Log" subtitle="recent partner activity">
+      <Card title="Battle Log" subtitle="recent partner activity">
         <div className="sd-stack" style={{ gap: 6 }}>
           {data.battleLog.map((b) => (
             <div key={b.day + b.action} style={{ display: 'flex', gap: 10, fontSize: '0.8rem', alignItems: 'baseline' }}>
@@ -245,7 +246,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         const g = data.cohortGrid;
         const maxQ = Math.max(...g.rows.flatMap((r) => r.quarters), 1);
         return (
-          <Card title="📈 Quarterly Cohort Grid" subtitle="deals won per quarter since onboarding (Q1 = first quarter of life)">
+          <Card title="Quarterly Cohort Grid" subtitle="deals won per quarter since onboarding (Q1 = first quarter of life)">
             <div style={{ overflowX: 'auto' }}>
               <table style={{ borderCollapse: 'separate', borderSpacing: 3, width: '100%', minWidth: 520, fontSize: '0.72rem' }}>
                 <thead>
@@ -275,7 +276,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
         );
       })()}
 
-      <Card title="📦 Open Partner Pipeline" subtitle="stall detection & next-step coverage">
+      <Card title="Open Partner Pipeline" subtitle="stall detection & next-step coverage">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ borderCollapse: 'collapse', width: '100%', minWidth: 640, fontSize: '0.8rem' }}>
             <thead><tr>{['Partner', 'Open Deals', 'Open Value', 'Weighted', 'Stalled >21d', 'Next-step coverage', 'Status'].map((h) => (
@@ -301,7 +302,7 @@ export function SphereOverview({ data, color }: { data: PartnerSphereOverview; c
       </Card>
 
       {data.hygiene && (
-        <Card title="🧾 Registration Hygiene" subtitle="since form automation went live (24 Aug)">
+        <Card title="Registration Hygiene" subtitle="since form automation went live (24 Aug)">
           <div className="sd-kpi-grid">
             <Kpi label="Via Form (auto)" value={String(data.hygiene.viaForm)} note={data.hygiene.viaFormNote} />
             <Kpi label="Via Chat (manual)" value={String(data.hygiene.viaChat)} note={data.hygiene.viaChatNote} />
@@ -332,11 +333,13 @@ function regionOf(regions: string): string[] {
     .map(([label]) => label);
 }
 
-function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList']; color: string }) {
+function SphereMasterList({ data, profileData, color }: { data: PartnerSphereData['masterList']; profileData: PartnerSphereProfile | null; color: string }) {
   const [tier, setTier] = useState('All');
   const [am, setAm] = useState('All');
   const [status, setStatus] = useState('All');
   const [region, setRegion] = useState('All');
+  const [search, setSearch] = useState('');
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
 
   const tiers = ['All', ...Array.from(new Set(data.map((p) => p.tier)))];
   const ams = ['All', ...Array.from(new Set(data.map((p) => p.am)))];
@@ -346,12 +349,53 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
     (tier === 'All' || p.tier === tier) &&
     (am === 'All' || p.am === am) &&
     (status === 'All' || p.status === status) &&
-    (region === 'All' || regionOf(p.regions).includes(region)),
+    (region === 'All' || regionOf(p.regions).includes(region)) &&
+    (!search || p.name.toLowerCase().includes(search.toLowerCase()) || p.tier.toLowerCase().includes(search.toLowerCase())),
   );
+
+  // If a partner is selected, show their profile inline
+  if (selectedPartner) {
+    const partnerInfo = data.find(p => p.name === selectedPartner);
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedPartner}</h2>
+            {partnerInfo && (
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+                {partnerInfo.regions} · AM: {partnerInfo.am} · {partnerInfo.openDeals} deals · {partnerInfo.lastActivity}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {partnerInfo && <Pill text={partnerInfo.tier} tone={partnerInfo.tier === 'Platinum' ? 'accent' : 'neutral'} />}
+              {partnerInfo && <Pill text={partnerInfo.status} tone="good" />}
+            </div>
+          </div>
+          <button onClick={() => setSelectedPartner(null)}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer' }}>
+            ← Back to Partners List
+          </button>
+        </div>
+        {profileData ? <SphereProfile data={profileData} color={color} /> : (
+          <Card><div style={{ padding: 20, textAlign: 'center', color: MUTED }}>Profile data not available for this partner</div></Card>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="sd-stack">
-      <Card title="📇 Partner Master List" subtitle={`The directory of every partner — tags drive the filters · showing ${rows.length} of ${data.length} partners`}>
+      <Card title="Partner Master List" subtitle={`The directory of every partner — tags drive the filters · showing ${rows.length} of ${data.length} partners`}>
+        {/* Search bar */}
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search partners by name or tier..."
+            style={{ width: '100%', padding: '10px 36px 10px 14px', fontSize: '0.88rem', borderRadius: 8, border: `1px solid ${BORDER}`, outline: 'none', color: TEXT }} />
+          {search && (
+            <button onClick={() => setSearch('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '1rem' }}><CrmIcon name="X" size={14} /></button>
+          )}
+        </div>
         <div className="sd-stack" style={{ gap: 10 }}>
           {[{ label: 'Tier', opts: tiers, val: tier, set: setTier },
             { label: 'AM', opts: ams, val: am, set: setAm },
@@ -380,7 +424,11 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
               {rows.map((p) => (
                 <tr key={p.name} style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <td style={{ padding: '8px 10px', color: TEXT }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.84rem' }}>{p.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color, cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => setSelectedPartner(p.name)}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                    >{p.name}</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED }}>{p.regions} {p.since}</div>
                   </td>
                   <td style={{ padding: '8px 10px' }}><Pill text={p.tier} tone={p.tier === 'Platinum' ? 'accent' : p.tier === 'Onboarding' ? 'warn' : 'neutral'} /></td>
@@ -404,7 +452,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
           </table>
         </div>
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn>📞 Log call</Btn><Btn>➕ Task</Btn>
+          <Btn>Log Call</Btn><Btn>Add Task</Btn>
         </div>
       </Card>
     </div>
@@ -437,10 +485,10 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
     if (!selectedPartner) {
       return (
         <div className="sd-stack" style={{ gap: 16 }}>
-          <Card title="🤝 Partner Profile" subtitle="Look up any partner's live profile, deals and AI assessment.">
+          <Card title="Partner Profile" subtitle="Look up any partner's live profile, deals and AI assessment.">
             <div style={{ marginBottom: 16 }}>
               <div style={{ fontSize: '0.85rem', color: MUTED, marginBottom: 8 }}>
-                🔍 Select a partner · {masterList.length} partners · searchable
+                Select a partner · {masterList.length} partners · searchable
               </div>
               <div style={{ position: 'relative' }}>
                 <input
@@ -473,7 +521,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
                       fontSize: '1rem',
                     }}
                   >
-                    ✕
+                    <CrmIcon name="X" size={14} />
                   </button>
                 )}
               </div>
@@ -596,7 +644,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
         </div>
       </Card>
 
-      <Card title="🤖 AI Daily Brief — Syspex" subtitle="auto-refreshed daily 06:00">
+      <Card title="AI Daily Brief — Syspex" subtitle="auto-refreshed daily 06:00">
         <div className="sd-kpi-grid" style={{ marginBottom: 12 }}>
           {data.brief.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.note} accent={color} />)}
         </div>
@@ -615,7 +663,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
         </div>
       </Card>
 
-      <Card title="📸 Active camera licences">
+      <Card title="Active Camera Licences">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'baseline', flexWrap: 'wrap', gap: 8 }}>
           <span style={{ fontSize: '1.6rem', fontWeight: 700, color }}>{data.licenceMilestones.active}</span>
           <span style={{ fontSize: '0.8rem', color: MUTED }}>{data.licenceMilestones.goal} · {data.licenceMilestones.next} · {data.licenceMilestones.credits}</span>
@@ -627,7 +675,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
       </div>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(340px, 1fr))', gap: 16 }}>
-        <Card title="🏛️ Score Pillars" subtitle="Activity 20 / Pipeline 25 / POC 20 / Close 35">
+        <Card title="Score Pillars" subtitle="Activity 20 / Pipeline 25 / POC 20 / Close 35">
           {data.pillars.map((p) => (
             <PillarRow key={p.name} label={p.name} value={p.score} max={p.max} color={color} />
           ))}
@@ -635,7 +683,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
             Archetype: <span style={{ color: TEXT, fontWeight: 600 }}>{data.archetype}</span>
           </div>
         </Card>
-        <Card title="🔻 Their Funnel (all-time)">
+        <Card title="Their Funnel (All-Time)">
           {(() => {
             const max = Math.max(...data.funnel.map((f) => f.count), 1);
             return (
@@ -655,7 +703,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
             );
           })()}
         </Card>
-        <Card title="📈 Ramp Cohort Grid" subtitle="deals won per quarter since onboarding">
+        <Card title="Ramp Cohort Grid" subtitle="deals won per quarter since onboarding">
           <div style={{ overflowX: 'auto' }}>
             <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
               <thead>
@@ -704,7 +752,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
         </div>
       </Card>
 
-      <Card title="🕘 Recent Activity">
+      <Card title="Recent Activity">
         <ul style={{ listStyle: 'none', margin: 0, padding: 0 }}>
           {data.recentActivity.map((a) => (
             <li key={a.date + a.text} style={{ position: 'relative', paddingLeft: 22, paddingBottom: 14, borderLeft: `2px solid ${BORDER}`, marginLeft: 5 }}>
@@ -717,7 +765,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🎖️ Platinum retention requirements" subtitle="Tier Status & Commitments — per Partner Tiering framework · quarterly review">
+        <Card title="Platinum Retention Requirements" subtitle="Tier Status & Commitments — per Partner Tiering framework · quarterly review">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.commitments.requirements.map((r) => (
@@ -732,7 +780,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
             </tbody>
           </table>
         </Card>
-        <Card title="🎁 Entitlements in effect">
+        <Card title="Entitlements in Effect">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.commitments.entitlements.map((e) => (
@@ -744,7 +792,7 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
             </tbody>
           </table>
         </Card>
-        <Card title="🛡️ Deal protection register">
+        <Card title="Deal Protection Register">
           <table style={{ borderCollapse: 'collapse', width: '100%', fontSize: '0.78rem' }}>
             <tbody>
               {data.protectionRegister.map((p) => (
@@ -805,7 +853,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
   return (
     <div className="sd-stack">
       {/* Partner Care Routine Header */}
-      <Card title="🧑‍⚕️ Partner Care Routine" subtitle={`${data.date} · tailored · live`}>
+      <Card title="Partner Care Routine" subtitle={`${data.date} · tailored · live`}>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <select
             value={selectedPartner}
@@ -840,7 +888,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
             border: `1px solid ${color}`,
           }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
-              <span style={{ fontSize: '0.7rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>✦ AI Recommendation · confidence medium</span>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>AI Recommendation · confidence medium</span>
             </div>
             <div style={{ fontSize: '0.95rem', fontWeight: 600, color: TEXT, marginBottom: 6 }}>
               {selectedPartner}: act this week — steady state — protect the rhythm
@@ -856,18 +904,18 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
             <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
               {filteredOverdue.length > 0 && (
                 <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: 'none', background: '#ff453a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
-                  📞 Re-engage now
+                  Re-engage Now
                 </button>
               )}
               <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${color}`, background: 'transparent', color: color, cursor: 'pointer' }}>
-                🗓 Quarterly business review
+                Quarterly Business Review
               </button>
             </div>
           </div>
         )}
       </Card>
 
-      <Card title={`🎯 Focus for today — ${data.date}`}>
+      <Card title={`Focus for Today — ${data.date}`}>
         <p style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.6 }}>{data.focus}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
           {Object.entries(data.amFilter).map(([k, v]) => (
@@ -879,7 +927,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
         </div>
       </Card>
 
-      <Card title="🗓 This week">
+      <Card title="This Week">
         <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
           {data.weekStrip.map((w) => (
             <div key={w.day} style={{
@@ -894,23 +942,23 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
         </div>
       </Card>
 
-      <Card title="🔴 Overdue — handle first" subtitle="clear these before anything else">
+      <Card title="Overdue — Handle First" subtitle="clear these before anything else">
         <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredOverdue.map((o) => <ActionCard key={o.title} item={o} tone="bad" />)}</div>
         {filteredOverdue.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No overdue items{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
-      <Card title="🟢 Today's actions" subtitle="tap ✓ when done — logs to CRM automatically">
+      <Card title="Today's Actions" subtitle="Tap check when done — logs to CRM automatically">
         <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredToday.map((o) => <ActionCard key={o.title} item={o} tone={o.done ? 'good' : 'neutral'} />)}</div>
         {filteredToday.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No actions today{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
-      <Card title="🟡 Coming up this week" subtitle="no need to look at these until their day">
+      <Card title="Coming Up This Week" subtitle="no need to look at these until their day">
         <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredUpcoming.map((o) => <ActionCard key={o.title} item={o} tone="neutral" />)}</div>
         {filteredUpcoming.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>Nothing upcoming{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🔁 Partner rituals — scheduling status">
+        <Card title="Partner Rituals — Scheduling Status">
           {filteredRituals.map((r) => (
             <div key={r.title} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -924,7 +972,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
           {filteredRituals.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No rituals{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
         </Card>
         <div className="sd-stack">
-          <Card title="🎫 Open partner tickets" subtitle={`${data.tickets.length} open`}>
+          <Card title="Open Partner Tickets" subtitle={`${data.tickets.length} open`}>
             {data.tickets.map((t) => (
               <div key={t.title} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
                 <div>
@@ -935,7 +983,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
               </div>
             ))}
           </Card>
-          <Card title="📆 Reviews ahead" subtitle="next 90 days">
+          <Card title="Reviews Ahead" subtitle="next 90 days">
             {data.reviews.map((r) => (
               <div key={r.title} style={{ display: 'flex', justifyContent: 'space-between', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
                 <div>
@@ -964,7 +1012,7 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
         <Kpi label="Conflicts detected" value={String(data.stats.conflicts)} note="needs arbitration" accent={data.stats.conflicts > 0 ? '#ff453a' : '#34c77b'} />
       </div>
 
-      <Card title="🛡️ Deal Registration & Protection Register" subtitle={data.policy}>
+      <Card title="Deal Registration & Protection Register" subtitle={data.policy}>
         <div className="sd-stack" style={{ gap: 8 }}>
           {data.alerts.map((a) => (
             <div key={a.text} style={{
@@ -1021,7 +1069,7 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
                   <div style={{ fontWeight: 600, fontSize: '0.84rem', color: TEXT }}>{p.deal}</div>
                   <div style={{ fontSize: '0.72rem', color: MUTED }}>{p.value} · {p.stage} · {p.partner} ({p.tier}) · {p.am} · {p.submitted}</div>
                 </div>
-                <Btn primary>✓ {p.action}</Btn>
+                <Btn primary><CrmIcon name="Check" size={14} style={{ marginRight: 4 }} />{p.action}</Btn>
               </div>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 8 }}>
                 {p.checks.map((c) => <Pill key={c} text={c} tone={c.includes('✓') ? 'good' : 'warn'} />)}
@@ -1063,7 +1111,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
     if (draggedCard && draggedCard.fromStage !== targetStageKey) {
       // In a real app, this would call an API to update the partner's stage
       // For now, just log it
-      // TODO: Call API to persist stage change when backend supports it
+      console.log(`Moving ${draggedCard.name} from ${draggedCard.fromStage} to ${targetStageKey}`);
     }
     setDraggedCard(null);
   };
@@ -1113,7 +1161,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
               {cardData.checklist.map((item: any) => (
                 <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
                   <span style={{ color: item.state === 'done' ? '#34c77b' : item.state === 'today' ? color : MUTED, fontWeight: 700 }}>
-                    {item.state === 'done' ? '✓' : item.state === 'today' ? '▸' : '◻'}
+                    {item.state === 'done' ? <CrmIcon name="Check" size={14} /> : item.state === 'today' ? <CrmIcon name="CircleDot" size={14} /> : <CrmIcon name="Circle" size={14} />}
                   </span>
                   <span style={{ fontSize: '0.85rem', color: item.state === 'done' ? MUTED : TEXT, textDecoration: item.state === 'done' ? 'line-through' : 'none' }}>
                     {item.text}
@@ -1136,7 +1184,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
 
   return (
     <div className="sd-stack">
-      <Card title="📥 Partner Onboarding — drag a partner to the next stage" subtitle={`${data.pipelineSummary} · Move each partner through the onboarding journey. Drag a card left-to-right as each step is completed.`}>
+      <Card title="Partner Onboarding — Drag a Partner to the Next Stage" subtitle={`${data.pipelineSummary} · Move each partner through the onboarding journey. Drag a card left-to-right as each step is completed.`}>
         {/* Status columns: left → right (one per stage, no wrapping); cards stack top → down within each column */}
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${data.stages.length}, minmax(215px, 1fr))`, gap: 12 }}>
@@ -1178,7 +1226,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
                       <ul style={{ marginTop: 6, paddingLeft: 14, fontSize: '0.72rem', color: MUTED, listStyle: 'none' }}>
                         {(c.checklist ?? []).map((x) => (
                           <li key={x.text} style={{ margin: '2px 0', color: x.state === 'done' ? '#34c77b' : x.state === 'today' ? color : MUTED }}>
-                            {x.state === 'done' ? '✓' : x.state === 'today' ? '▸' : '◻'} {x.text}
+                            {x.state === 'done' ? <CrmIcon name="Check" size={14} /> : x.state === 'today' ? <CrmIcon name="CircleDot" size={14} /> : <CrmIcon name="Circle" size={14} />} {x.text}
                           </li>
                         ))}
                       </ul>
@@ -1207,7 +1255,7 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
 function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
   return (
     <div className="sd-stack">
-      <Card title="📈 QBR Auto-Pack Generator" subtitle="One click per partner: a complete Quarterly Business Review pack compiled from live CRM data — funnel, scores, licences vs commitments, wins/losses, and next-quarter plan template">
+      <Card title="QBR Auto-Pack Generator" subtitle="One click per partner: a complete Quarterly Business Review pack compiled from live CRM data — funnel, scores, licences vs commitments, wins/losses, and next-quarter plan template">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           {data.quarters.map((q) => (
             <button key={q} style={{
@@ -1218,7 +1266,7 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
             }}>{q}</button>
           ))}
           <span style={{ flex: 1 }} />
-          {data.generateAll && <Btn primary>⚡ Generate All Packs</Btn>}
+          {data.generateAll && <Btn primary>Generate All Packs</Btn>}
         </div>
       </Card>
 
@@ -1249,7 +1297,7 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
                 {p.cadence && <div style={{ color: MUTED, fontSize: '0.72rem', marginTop: 2 }}>cadence {p.cadence}</div>}
               </div>
               <div style={{ textAlign: 'right', minWidth: 150 }}>
-                <Btn primary>📄 Generate Pack</Btn>
+                <Btn primary>Generate Pack</Btn>
                 <div style={{ fontSize: '0.68rem', color: MUTED, marginTop: 4 }}>{p.slides} · {p.formats} · est. {p.est}</div>
               </div>
             </div>
@@ -1260,19 +1308,19 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
       <Card title="Pack Preview" subtitle={`${data.preview.title} · ${data.preview.meta}`}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: 16 }}>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>📈 Performance</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="TrendingUp" size={14} style={{ marginRight: 4 }} />Performance</div>
             {data.preview.performance.map((p) => (
               <StatLine key={p.label} label={p.label} value={`${p.value}${p.delta ? ` · ${p.delta}` : ''}`} />
             ))}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>🎯 Commitments</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="Target" size={14} style={{ marginRight: 4 }} />Commitments</div>
             {data.preview.commitments.map((p) => (
               <StatLine key={p.label} label={p.label} value={`${p.value}${p.delta ? ` · ${p.delta}` : ''}`} />
             ))}
           </div>
           <div>
-            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}>💬 Talking Points (auto-drafted)</div>
+            <div style={{ fontSize: '0.78rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: 8 }}><CrmIcon name="Activity" size={14} style={{ marginRight: 4 }} />Talking Points (Auto-Drafted)</div>
             <ul style={{ paddingLeft: 16, fontSize: '0.78rem', color: TEXT }}>
               {data.preview.talkingPoints.map((t) => <li key={t} style={{ margin: '4px 0' }}>{t}</li>)}
             </ul>
@@ -1294,7 +1342,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
   return (
     <div className="sd-stack">
       {/* Board Brief */}
-      <Card title={`📮 Board Brief — decisions & exceptions only`} subtitle={`week of ${data.week}`}>
+      <Card title={`Board Brief — Decisions & Exceptions Only`} subtitle={`week of ${data.week}`}>
         <div style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.7, marginBottom: 12 }}>
           <strong>The week in one paragraph.</strong><br />
           {data.kpis && data.kpis.length > 0 && (
@@ -1308,7 +1356,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
 
       {/* Exceptions requiring decision */}
       {data.decisions && data.decisions.length > 0 && (
-        <Card title="⚠️ Exceptions requiring decision">
+        <Card title="Exceptions requiring decision">
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
             {data.decisions.map((d) => (
               <div key={d.title} style={{ fontSize: '0.85rem', color: TEXT, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
@@ -1321,7 +1369,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
       )}
 
       {/* Funnel health */}
-      <Card title="📉 Funnel health">
+      <Card title="Funnel Health">
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
           {data.watch && data.watch.map((w) => (
             <div key={w.title} style={{ padding: 12, background: SURFACE_2, borderRadius: 8 }}>
@@ -1333,7 +1381,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
       </Card>
 
       {/* AM Scorecard */}
-      <Card title="🧭 AM scorecard">
+      <Card title="AM Scorecard">
         <div style={{ overflowX: 'auto' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
@@ -1359,7 +1407,7 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
       </Card>
 
       {/* Dormancy Radar */}
-      <Card title="🛰 Dormancy Radar — cooling toward dormant" subtitle={`${data.watch ? data.watch.length : 0} partners`}>
+      <Card title="Dormancy Radar — Cooling Toward Dormant" subtitle={`${data.watch ? data.watch.length : 0} partners`}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
           {data.watch && data.watch.map((w) => (
             <div key={w.title} style={{
@@ -1390,10 +1438,10 @@ function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color:
 
       {/* Rituals & protection health */}
       {data.rituals && (
-        <Card title="📆 Rituals & protection health">
-          <StatLine label="🛡️ Deal protections" value={data.rituals.protections} />
-          <StatLine label="🔁 Cadence calls" value={data.rituals.cadence} />
-          <StatLine label="📊 Q3 review cycle" value={data.rituals.q3} />
+        <Card title="Rituals & Protection Health">
+          <StatLine label="Deal Protections" value={data.rituals.protections} />
+          <StatLine label="Cadence Calls" value={data.rituals.cadence} />
+          <StatLine label="Q3 Review Cycle" value={data.rituals.q3} />
         </Card>
       )}
     </div>
@@ -1429,6 +1477,9 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
   const [emTrips, setEmTrips] = useState(0);
   const [emNights, setEmNights] = useState(0);
 
+
+  // Spread view toggle
+  const [showSpread, setShowSpread] = useState(false);
   const tierDiscount = data.tiers.find((t) => t.name === tier)?.discount ?? '';
   const pct = tierDiscount ? parseInt(tierDiscount.replace(/[^0-9]/g, ''), 10) : 0;
 
@@ -1498,27 +1549,34 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
   const perOutletMonth = outlets > 0 ? Math.round(monthlyRecurring / outlets) : 0;
   const spread36 = outlets > 0 ? Math.round((monthlyRecurring * 36 + oneTimeCharges) / 36 / outlets) : 0;
 
+  
   const summaryText = [
-    `SamurAI V2 Pricing · ${selectedBundle} · ${currency}`,
-    `Partner Tier: ${tier}${tierDiscount ? ` (${tierDiscount})` : ''}`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
+    `  SamurAI V2 — Retail Pricing Summary`,
+    `  Currency: ${currency} (converted from MYR, rounded up)`,
+    '━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━',
     ``,
-    `Monthly:`,
-    `  Bundle (${selectedBundle}): ${fmt(bundleMonthly)}/mo`,
-    `  Extra Cameras (${extraCams} × ${outlets} outlets): ${fmt(camsMonthly)}/mo`,
-    `  Monthly Recurring: ${fmt(monthlyRecurring)}/mo`,
+    `Bundle: ${selectedBundle}`,
+    `   ${fmt(bundleMonthly)}/month × ${outlets} outlet(s)`,
     ``,
-    `One-Time:`,
-    `  Setup (${outlets} outlets): ${fmt(setupOneTime)}`,
-    ...(pmOn ? [`  Project Management (${pmDays} days): ${fmt(pmCost)}`] : []),
-    ...(custOn ? [`  Software Customisation (${custDays} days): ${fmt(custCost)}`] : []),
-    ...(consultOn ? [`  AI Expert Consulting (${consultDays} days): ${fmt(consultCost)}`] : []),
-    ...(nsTrips > 0 || nsNights > 0 ? [`  Outstation N&S (${nsTrips} trips, ${nsNights} nights): ${fmt(nsCost)}`] : []),
-    ...(emTrips > 0 || emNights > 0 ? [`  Outstation East MY (${emTrips} trips, ${emNights} nights): ${fmt(emCost)}`] : []),
-    `  One-Time Total: ${fmt(oneTimeCharges)}`,
+    `One-Time Setup: ${fmt(adj(data.setup.price))} × ${outlets} = ${fmt(setupOneTime)}`,
+    ...(pmOn ? [``, `Project Management: ${fmt(adj(1200))} × ${pmDays} days = ${fmt(pmCost)}`] : []),
+    ...(custOn ? [``, `Software Customisation: ${fmt(adj(1500))} × ${custDays} days = ${fmt(custCost)}`] : []),
+    ...(consultOn ? [``, `AI Expert Consulting: ${fmt(adj(1500))} × ${consultDays} days = ${fmt(consultCost)}`] : []),
+    ...((nsTrips > 0 || nsNights > 0 || emTrips > 0 || emNights > 0) ? [``, `Outstation: ${fmt(outstationTotal)}`] : []),
     ``,
-    `Total First Month: ${fmt(totalFirstMonth)}`,
+    `ALL-IN SaaS (36 mo, costs amortised): ${fmt(spread36)}/mo`,
+    `   Full 36-month value: ${fmt(spread36 * 36 * outlets)}`,
+    ``,
+    '──────────────────────────────────',
+    `Monthly Recurring: ${fmt(monthlyRecurring)}/mo`,
+    `One-Time Charges: ${fmt(oneTimeCharges)}`,
+    `Total (1st Month): ${fmt(totalFirstMonth)}`,
     `Per Outlet/Month: ${fmt(perOutletMonth)}`,
-    `Spread Over 36 Months: ${fmt(spread36)}/outlet/mo`,
+    '──────────────────────────────────',
+    ``,
+    `Generated by Tapway SamurAI V2 Pricing Simulator`,
+    `sales@gotapway.com · www.gotapway.com`,
   ].join('\n');
 
   const [copied, setCopied] = useState(false);
@@ -1551,9 +1609,11 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
   );
 
   return (
-    <div className="sd-stack">
+    <div style={{ display: 'grid', gridTemplateColumns: '1fr 380px', gap: 20, alignItems: 'start' }}>
+      {/* LEFT COLUMN */}
+      <div className="sd-stack">
       {/* Currency / Tier selector bar */}
-      <Card title="💰 SamurAI V2 · Retail Pricing Simulator">
+      <Card title="SamurAI V2 · Retail Pricing Simulator">
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
           <span className="sd-kpi-label">Currency</span>
           {data.currencies.map((c) => (
@@ -1576,16 +1636,16 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
                 color: tier === t.name ? color : MUTED,
               }}>{t.name}{t.discount ? ` ${t.discount}` : ''}</button>
           ))}
-          <Btn>📄 Download Brochure PDF</Btn>
+          <Btn>Download Brochure PDF</Btn>
         </div>
       </Card>
 
       {/* Bundle Selector Cards */}
-      <Card title="📦 Choose Your Bundle" subtitle={data.bundleNote}>
+      <Card title="Choose Your Bundle" subtitle={data.bundleNote}>
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(190px, 1fr))', gap: 12 }}>
           {data.bundles.map((b) => {
             const active = selectedBundle === b.name;
-            const indicator = b.name === 'Lite' ? '🟢' : b.name === 'Base' ? '🔵' : b.name === 'Base+' ? '🟡' : '🔴';
+            const indicatorColor = b.name === 'Lite' ? 'green' : b.name === 'Base' ? 'blue' : b.name === 'Base+' ? 'yellow' : 'red';
             const borderColor = active ? (BUNDLE_COLORS[b.name] || color) : BORDER;
             return (
               <button key={b.name} onClick={() => setSelectedBundle(b.name)}
@@ -1596,7 +1656,7 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
                   transition: 'all 0.15s ease',
                 }}>
                 <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
-                  {indicator} {b.name}
+                  <StatusDot color={indicatorColor} /> {b.name}
                 </div>
                 <div style={{ fontSize: '1.3rem', fontWeight: 700, color: active ? (BUNDLE_COLORS[b.name] || color) : TEXT, marginTop: 4 }}>
                   {fmt(adj(b.price))}<span style={{ fontSize: '0.75rem', color: MUTED }}>{b.per}</span>
@@ -1609,16 +1669,16 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
       </Card>
 
       {/* Bundle Detail Panel */}
-      <Card title={`${selectedBundle === 'Lite' ? '🟢' : selectedBundle === 'Base' ? '🔵' : selectedBundle === 'Base+' ? '🟡' : '🔴'} What you can do with ${selectedBundle}:`}>
-        <ul style={{ paddingLeft: 16, fontSize: '0.8rem', color: TEXT }}>
-          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '4px 0' }}>{f}</li>)}
+      <Card title={`What You Can Do With ${selectedBundle}:`}>
+        <ul style={{ paddingLeft: 20, fontSize: '0.8rem', color: TEXT, listStyleType: 'disc' }}>
+          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '5px 0', lineHeight: 1.5 }}>{f}</li>)}
         </ul>
         <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
       </Card>
 
       {/* One-Time Setup + Add-on Cameras */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
-        <Card title="🏪 One-Time Setup" subtitle={data.setup.note}>
+        <Card title="One-Time Setup" subtitle={data.setup.note}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: '0.8rem', color: TEXT }}>Number of outlets · {fmt(adj(data.setup.price))}/{data.setup.unit}</span>
             <Stepper value={outlets} onChange={setOutlets} min={1} />
@@ -1628,7 +1688,7 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
           </div>
         </Card>
 
-        <Card title="📷 Add-on Cameras" subtitle={data.addonCameras.note}>
+        <Card title="Add-on Cameras" subtitle={data.addonCameras.note}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: '0.8rem', color: TEXT }}>Extra cameras per outlet · {fmt(adj(data.addonCameras.price))}/{data.addonCameras.unit}</span>
             <Stepper value={extraCams} onChange={setExtraCams} min={0} />
@@ -1640,7 +1700,7 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
       </div>
 
       {/* Professional Services */}
-      <Card title="🛠️ Professional Services" subtitle="Toggle on and set man days">
+      <Card title="Professional Services" subtitle="Toggle on and set man days">
         {[
           { label: 'Project Management', rate: 1200, on: pmOn, setOn: setPmOn, days: pmDays, setDays: setPmDays },
           { label: 'Software Customisation', rate: 1500, on: custOn, setOn: setCustOn, days: custDays, setDays: setCustDays },
@@ -1685,7 +1745,7 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
       </Card>
 
       {/* Outstation */}
-      <Card title="📍 Outstation" subtitle="outside Klang Valley">
+      <Card title="Outstation" subtitle="outside Klang Valley">
         {/* Northern & Southern */}
         <div style={{ padding: '10px 0', borderBottom: `1px solid ${BORDER}` }}>
           <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500, marginBottom: 8 }}>Northern & Southern</div>
@@ -1720,8 +1780,12 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
       </Card>
 
+      </div>{/* END LEFT COLUMN */}
+
+      {/* RIGHT COLUMN: Sticky Pricing Summary */}
+      <div style={{ position: 'sticky', top: 16 }}>
       {/* Dynamic Pricing Summary */}
-      <Card title="💰 Pricing Summary" subtitle="Monthly + one-time costs">
+      <Card title="Pricing Summary" subtitle={showSpread ? 'All-in SaaS subscription' : 'Monthly + one-time costs'}>
         <div className="sd-stack" style={{ gap: 0 }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
             <span style={{ fontSize: '0.82rem', color: TEXT }}>Bundle ({selectedBundle}) <span style={{ fontSize: '0.7rem', color: MUTED }}>(monthly)</span></span>
@@ -1761,26 +1825,51 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
           )}
         </div>
 
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
-          <Kpi label="Monthly recurring" value={fmt(monthlyRecurring)} accent={color} />
-          <Kpi label="One-time charges" value={fmt(oneTimeCharges)} />
-          <Kpi label="Total (1st month)" value={fmt(totalFirstMonth)} accent={color} />
-          <Kpi label="Per outlet per month" value={fmt(perOutletMonth)} />
-        </div>
-
-        <div id="pricing-spread36" style={{ marginTop: 12, padding: '10px 14px', borderRadius: 8, background: SURFACE_2, border: `1px solid ${BORDER}` }}>
-          <div style={{ fontSize: '0.78rem', color: MUTED }}>Spread All Costs Over 36 Months</div>
-          <div style={{ fontSize: '1.1rem', fontWeight: 700, color, marginTop: 4 }}>{fmt(spread36)}<span style={{ fontSize: '0.75rem', color: MUTED, fontWeight: 400 }}>/outlet/mo</span></div>
+        {/* Conditional KPIs based on showSpread */}
+        <div style={{ display: 'grid', gridTemplateColumns: showSpread ? '1fr 1fr' : 'repeat(auto-fit, minmax(160px, 1fr))', gap: 10, marginTop: 14 }}>
+          {showSpread ? (
+            <>
+              <Kpi label="All-in SaaS" value={fmt(spread36)} accent={color} />
+              <Kpi label="Total contract value (36 mo)" value={fmt(spread36 * 36 * outlets)} />
+            </>
+          ) : (
+            <>
+              <Kpi label="Monthly recurring" value={fmt(monthlyRecurring)} accent={color} />
+              <Kpi label="One-time charges" value={fmt(oneTimeCharges)} />
+              <Kpi label="Total (1st month)" value={fmt(totalFirstMonth)} accent={color} />
+              <Kpi label="Per outlet per month" value={fmt(perOutletMonth)} />
+            </>
+          )}
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn primary onClick={() => {
-            const el = document.getElementById('pricing-spread36');
-            el?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-          }}>📅 Spread All Costs Over 36 Months</Btn>
-          <Btn onClick={copySummary}>{copied ? '✅ Copied!' : '📋 Copy Summary to Clipboard'}</Btn>
+          <button
+            onClick={() => setShowSpread(!showSpread)}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${color}`, background: color, color: '#0a0a0a',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+          >
+            {showSpread ? 'Show Standard View (Upfront Costs)' : 'Spread All Costs Over 36 Months'}
+          </button>
+          <button
+            onClick={copySummary}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${BORDER}`, background: 'transparent', color: TEXT,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; e.currentTarget.style.color = color; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT; e.currentTarget.style.transform = 'none'; }}
+          >
+            {copied ? 'Copied!' : 'Copy Summary to Clipboard'}
+          </button>
         </div>
       </Card>
+      </div>{/* END RIGHT COLUMN */}
     </div>
   );
 }
@@ -1937,7 +2026,7 @@ function PartnerDealsSection({
           <option value="registered-asc">Registered · oldest</option>
         </select>
         {(search || partnerFilter !== 'All' || tierFilter !== 'All' || stageFilter !== 'All') && (
-          <button onClick={() => { setSearch(''); setPartnerFilter('All'); setTierFilter('All'); setStageFilter('All'); }} style={{ padding: '6px 12px', fontSize: '0.8rem', color: MUTED, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }}>✕ Clear</button>
+          <button onClick={() => { setSearch(''); setPartnerFilter('All'); setTierFilter('All'); setStageFilter('All'); }} style={{ padding: '6px 12px', fontSize: '0.8rem', color: MUTED, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }}>Clear</button>
         )}
       </div>
 
@@ -1964,7 +2053,7 @@ function PartnerDealsSection({
                 <td style={{ padding: '8px 10px', color: MUTED }}>{deal.created || '—'}</td>
                 <td style={{ padding: '8px 10px', color: MUTED }}>—</td>
                 <td style={{ padding: '8px 10px', color: TEXT, whiteSpace: 'nowrap' }}>{deal.amount ? `RM ${deal.amount >= 1_000_000 ? `${(deal.amount / 1_000_000).toFixed(1)}M` : `${(deal.amount / 1000).toFixed(0)}K`}` : '—'}</td>
-                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.priority === 'High' ? '🔥' : deal.priority === 'Medium' ? '⚡' : '◉'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.priority === 'High' ? <CrmIcon name="Flame" size={14} style={{ color: '#ff453a' }} /> : deal.priority === 'Medium' ? <CrmIcon name="Zap" size={14} style={{ color: '#ffb340' }} /> : <CrmIcon name="CircleDot" size={14} />}</td>
               </tr>
             ))}
           </tbody>
@@ -1990,16 +2079,15 @@ function DetailField({ label, value }: { label: string; value: string }) {
 /* ------------------------------------------------------------------ */
 
 const SECTIONS = [
-  { id: 'overview', label: '📊 Overview' },
-  { id: 'masterList', label: '📇 Partners' },
-  { id: 'profile', label: '🏢 Partner Profile' },
-  { id: 'deals', label: '💼 Partner Deals' },
-  { id: 'commandCenter', label: '🎯 Command Center' },
-  { id: 'protection', label: '🛡️ Protection' },
-  { id: 'onboarding', label: '📥 Onboarding' },
-  { id: 'qbr', label: '📈 QBR Packs' },
-  { id: 'ceoDigest', label: '📮 CEO Digest' },
-  { id: 'pricing', label: '💰 Pricing Simulator' },
+  { id: 'overview', label: 'Overview', icon: 'BarChart3' as const },
+  { id: 'masterList', label: 'Partners', icon: 'Contact' as const },
+  { id: 'deals', label: 'Partner Deals', icon: 'Briefcase' as const },
+  { id: 'commandCenter', label: 'Command Center', icon: 'Target' as const },
+  { id: 'protection', label: 'Protection', icon: 'Shield' as const },
+  { id: 'onboarding', label: 'Onboarding', icon: 'Download' as const },
+  { id: 'qbr', label: 'QBR Packs', icon: 'TrendingUp' as const },
+  { id: 'ceoDigest', label: 'CEO Digest', icon: 'Mailbox' as const },
+  { id: 'pricing', label: 'Pricing Simulator', icon: 'Coins' as const },
 ] as const;
 
 type SectionId = (typeof SECTIONS)[number]['id'];
@@ -2047,16 +2135,17 @@ export function PartnersTab({ dept, color }: Props) {
               border: `1px solid ${section === s.id ? color : BORDER}`,
               background: section === s.id ? 'rgba(0,122,255,0.12)' : 'transparent',
               color: section === s.id ? color : MUTED,
+              display: 'flex', alignItems: 'center', gap: 5,
             }}
           >
+            {'icon' in s && <CrmIcon name={s.icon as any} size={13} />}
             {s.label}
           </button>
         ))}
       </div>
 
       {section === 'overview' && sphere.overview && <SphereOverview data={sphere.overview} color={color} />}
-      {section === 'masterList' && <SphereMasterList data={sphere.masterList} color={color} />}
-      {section === 'profile' && <PartnerProfileSelector masterList={sphere.masterList} profileData={sphere.profile} color={color} />}
+      {section === 'masterList' && <SphereMasterList data={sphere.masterList} profileData={sphere.profile} color={color} />}
       {section === 'deals' && <PartnerDealsSection dept={dept} color={color} masterList={sphere.masterList} />}
       {section === 'commandCenter' && sphere.commandCenter && <SphereCommandCenter data={sphere.commandCenter} color={color} />}
       {section === 'protection' && sphere.protection && <SphereProtection data={sphere.protection} color={color} />}
