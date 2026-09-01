@@ -1,107 +1,189 @@
-import { BarChart, PieChart } from '../charts';
+import { BarChart } from '../charts';
 import type { CeoDashboardStats } from '../../../lib/types';
 
 interface Props { stats: CeoDashboardStats; color: string }
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
-const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
-}
+// Priority icons
+const PRIORITY_ICONS: Record<string, string> = {
+  'Hot': '🔥',
+  'Warm': '⚡',
+  'Cold': '❄',
+  'High': '🔥',
+  'Medium': '⚡',
+  'Low': '❄',
+};
 
 export function DealsDeepDiveTab({ stats, color }: Props) {
-  const priorityData = stats.byPriority.map((p) => ({
-    name: p.priority,
-    value: p.count,
-  }));
+  const KPIs = [
+    { label: 'Active Deals', value: stats.totalActiveDeals.toString() },
+    { label: 'Hot Deals', value: stats.hotDeals.toString() },
+    { label: 'Warm Deals', value: stats.warmDeals.toString() },
+    { label: 'Cold / Stale', value: stats.coldDeals.toString() },
+  ];
 
-  const PRODUCT_SORT_ORDER = ['Apparel & Fashion', 'Consumer Electronics', 'Corporate Wholesale', 'Lifestyle & Home'];
+  // Deals by manager (top 6)
+  const dealsByManager = [...stats.byManager]
+    .filter(m => m.deals > 0)
+    .sort((a, b) => b.deals - a.deals)
+    .slice(0, 6)
+    .map(m => ({
+      owner: m.owner.length > 12 ? m.owner.substring(0, 12) + '…' : m.owner,
+      deals: m.deals,
+    }));
 
-  const sortedProducts = [...stats.byProduct].sort((a, b) => {
-    const idxA = PRODUCT_SORT_ORDER.indexOf(a.product);
-    const idxB = PRODUCT_SORT_ORDER.indexOf(b.product);
-    if (idxA !== -1 && idxB !== -1) return idxA - idxB;
-    if (idxA !== -1) return -1;
-    if (idxB !== -1) return 1;
-    return b.count - a.count;
-  });
+  // Deals by priority
+  const dealsByPriority = stats.byPriority
+    .filter(p => p.count > 0)
+    .sort((a, b) => b.count - a.count);
 
-  const productData = sortedProducts.map((p) => ({
-    name: `${p.product} (${p.count})`,
-    value: p.count,
-  }));
+  // Top partners by deal count
+  const topPartners = [...stats.byPartner]
+    .filter(p => p.dealsWon + p.pipelineDeals > 0)
+    .map(p => ({ ...p, totalDeals: p.dealsWon + p.pipelineDeals }))
+    .sort((a, b) => b.totalDeals - a.totalDeals)
+    .slice(0, 5);
+
+  // Manager × Partner matrix (top 15)
+  const matrixTop = [...stats.byManagerByPartner]
+    .sort((a, b) => b.deals - a.deals)
+    .slice(0, 15);
 
   return (
-    <div className="sd-stack">
+    <div className="sd-stack" style={{ gap: 20 }}>
+      {/* KPI Cards */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+        {KPIs.map((kpi) => (
+          <div key={kpi.label} className="sd-kpi-card" style={{ padding: 16 }}>
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+              {kpi.label}
+            </div>
+            <div style={{ fontSize: '1.75rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>
+              {kpi.value}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts Row */}
       <div className="sd-row">
-        <div className="sd-chart-card !p-4">
-          <h3 className="sd-chart-title !text-xs !font-bold">Deal Priority</h3>
-          <p className="sd-chart-sub !text-[11px]">Open deals grouped by priority</p>
-          <PieChart data={priorityData} color={color} unit="" height={170} innerRadius={30} outerRadius={52} legendFontSize="11px" />
+        <div className="sd-chart-card" style={{ flex: 1 }}>
+          <h3 className="sd-chart-title">Deals by Manager</h3>
+          <BarChart
+            data={dealsByManager}
+            xKey="owner"
+            yKey="deals"
+            color={color}
+            unit=""
+            height={220}
+          />
         </div>
-        <div className="sd-chart-card !p-4">
-          <h3 className="sd-chart-title !text-xs !font-bold">Product Breakdown</h3>
-          <p className="sd-chart-sub !text-[11px]">Open deals grouped by product category</p>
-          <PieChart data={productData} color={color} unit="" height={170} innerRadius={30} outerRadius={52} legendFontSize="11px" />
+        <div className="sd-chart-card" style={{ flex: 1 }}>
+          <h3 className="sd-chart-title">Deals by Priority</h3>
+          <BarChart
+            data={dealsByPriority}
+            xKey="priority"
+            yKey="count"
+            color={color}
+            unit=""
+            height={220}
+          />
         </div>
       </div>
 
+      {/* Deals by Partner Chart */}
       <div className="sd-chart-card">
-        <h3 className="sd-chart-title">Product Pipeline Value</h3>
-        <p className="sd-chart-sub">Pipeline value by product</p>
+        <h3 className="sd-chart-title">Deals by Partner (Top Deals)</h3>
         <BarChart
-          data={sortedProducts}
-          xKey="product"
-          yKey="value"
+          data={topPartners}
+          xKey="partner"
+          yKey="totalDeals"
           color={color}
-          unit="RM "
-          height={200}
+          unit=""
+          height={220}
         />
       </div>
 
-      {/* Top deals table */}
-      <div className="sd-chart-card">
-        <h3 className="sd-chart-title">Top {stats.topDeals.length} Deals</h3>
-        <p className="sd-chart-sub">Largest open opportunities</p>
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+      {/* Top 15 Deals Table */}
+      <div className="sd-chart-card" style={{ padding: 16 }}>
+        <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>🏆 Top 15 Deals</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
             <thead>
-              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                <Th align="left">Deal</Th>
-                <Th align="left">Customer</Th>
-                <Th align="left">Owner</Th>
-                <Th align="left">Stage</Th>
-                <Th align="right">Amount</Th>
-                <Th align="center">Hot</Th>
+              <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Deal</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Amount</th>
+                <th style={{ textAlign: 'center', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Prio</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Mgr</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Partner</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Prob</th>
               </tr>
             </thead>
             <tbody>
-              {stats.topDeals.slice(0, 10).map((deal, i) => (
-                <tr key={deal.slug} style={{ borderBottom: `1px solid ${BORDER}`, background: i % 2 === 1 ? SURFACE_2 : undefined }}>
-                  <td className="px-3 py-2.5 max-w-[180px] truncate" style={{ fontWeight: 600, color: TEXT }} title={deal.title}>
-                    {deal.title}
+              {stats.topDeals.slice(0, 15).map((deal) => (
+                <tr key={deal.slug} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 500, color: TEXT, maxWidth: 300 }}>
+                    <div style={{ 
+                      overflow: 'hidden', 
+                      textOverflow: 'ellipsis', 
+                      whiteSpace: 'nowrap',
+                      maxWidth: 300,
+                    }}>
+                      {deal.title}
+                    </div>
                   </td>
-                  <td className="px-3 py-2.5" style={{ color: MUTED }}>{deal.customer}</td>
-                  <td className="px-3 py-2.5" style={{ color: MUTED }}>{deal.owner}</td>
-                  <td className="px-3 py-2.5">
-                    <span className="sd-chip muted">{deal.stage}</span>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: TEXT, whiteSpace: 'nowrap' }}>
+                    RM {deal.amount >= 1_000_000
+                      ? `${(deal.amount / 1_000_000).toFixed(1)}M`
+                      : `${(deal.amount / 1000).toFixed(0)}K`}
                   </td>
-                  <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
-                    RM {(deal.amount / 1000).toFixed(0)}K
+                  <td style={{ padding: '8px 12px', textAlign: 'center' }}>
+                    {PRIORITY_ICONS[deal.priority] || PRIORITY_ICONS['Cold'] || '❄'}
                   </td>
-                  <td className="px-3 py-2.5 text-center">
-                    {deal.hot ? (
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'var(--samurai-danger)' }} title="Hot" />
-                    ) : deal.priority === 'Warm' ? (
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'var(--samurai-warning)' }} title="Warm" />
-                    ) : (
-                      <span className="inline-block h-2 w-2 rounded-full" style={{ background: 'var(--samurai-muted)' }} title="Cold" />
-                    )}
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: MUTED }}>
+                    {deal.owner ? deal.owner.substring(0, 3).toUpperCase() : '—'}
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: MUTED }}>
+                    {deal.partner 
+                      ? (deal.partner.length > 10 ? deal.partner.substring(0, 10) + '…' : deal.partner)
+                      : '—'}
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: TEXT }}>
+                    {deal.winProbability}%
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
+      {/* Manager × Partner Matrix */}
+      <div className="sd-chart-card" style={{ padding: 16 }}>
+        <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>Manager × Partner Matrix</h3>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                <th style={{ textAlign: 'left', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Manager</th>
+                <th style={{ textAlign: 'left', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Partner</th>
+                <th style={{ textAlign: 'right', padding: '8px 12px', color: MUTED, fontWeight: 600 }}>Deals</th>
+              </tr>
+            </thead>
+            <tbody>
+              {matrixTop.map((row, idx) => (
+                <tr key={`${row.owner}-${row.partner}-${idx}`} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 500, color: TEXT }}>
+                    {row.owner.substring(0, 3).toUpperCase()}
+                  </td>
+                  <td style={{ padding: '8px 12px', color: TEXT }}>
+                    {row.partner.length > 20 ? row.partner.substring(0, 20) + '…' : row.partner}
+                  </td>
+                  <td style={{ padding: '8px 12px', textAlign: 'right', color: TEXT }}>
+                    {row.deals}
                   </td>
                 </tr>
               ))}

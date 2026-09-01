@@ -1,8 +1,9 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { Search, Users } from 'lucide-react';
 import { departmentsApi } from '../../../lib/api';
 import type {
+  CrmDealListItem,
   PartnerSphereData,
   PartnerSphereOverview,
   PartnerSphereProfile,
@@ -408,16 +409,176 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
       </Card>
     </div>
   );
-}
+  }
 
-/* ------------------------------------------------------------------ */
-/* 3. Partner Profile (Syspex)                                         */
-/* ------------------------------------------------------------------ */
+  /* ------------------------------------------------------------------ */
+  /* Partner Profile Selector (search + select, then show profile)       */
+  /* ------------------------------------------------------------------ */
 
-function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: string }) {
-  return (
-    <div className="sd-stack">
-      <Card>
+  function PartnerProfileSelector({ 
+    masterList, 
+    profileData, 
+    color 
+  }: { 
+    masterList: PartnerSphereData['masterList']; 
+    profileData: PartnerSphereProfile | null; 
+    color: string;
+  }) {
+    const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+    const [search, setSearch] = useState('');
+
+    // Filter partners by search
+    const filteredPartners = masterList.filter(p =>
+      p.name.toLowerCase().includes(search.toLowerCase()) ||
+      p.tier.toLowerCase().includes(search.toLowerCase())
+    );
+
+    // If no partner selected, show the selector
+    if (!selectedPartner) {
+      return (
+        <div className="sd-stack" style={{ gap: 16 }}>
+          <Card title="🤝 Partner Profile" subtitle="Look up any partner's live profile, deals and AI assessment.">
+            <div style={{ marginBottom: 16 }}>
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginBottom: 8 }}>
+                🔍 Select a partner · {masterList.length} partners · searchable
+              </div>
+              <div style={{ position: 'relative' }}>
+                <input
+                  type="text"
+                  value={search}
+                  onChange={(e) => setSearch(e.target.value)}
+                  placeholder="Search partners…"
+                  style={{
+                    width: '100%',
+                    padding: '10px 36px 10px 14px',
+                    fontSize: '0.9rem',
+                    borderRadius: 8,
+                    border: `1px solid ${BORDER}`,
+                    outline: 'none',
+                    color: TEXT,
+                  }}
+                />
+                {search && (
+                  <button
+                    onClick={() => setSearch('')}
+                    style={{
+                      position: 'absolute',
+                      right: 10,
+                      top: '50%',
+                      transform: 'translateY(-50%)',
+                      background: 'none',
+                      border: 'none',
+                      cursor: 'pointer',
+                      color: MUTED,
+                      fontSize: '1rem',
+                    }}
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            </div>
+
+            {/* Partner list */}
+            <div style={{ 
+              maxHeight: 500, 
+              overflowY: 'auto',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 4,
+            }}>
+              {filteredPartners.map((partner) => (
+                <div
+                  key={partner.name}
+                  onClick={() => setSelectedPartner(partner.name)}
+                  style={{
+                    padding: '10px 14px',
+                    borderRadius: 6,
+                    border: `1px solid ${BORDER}`,
+                    cursor: 'pointer',
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    transition: 'all 0.15s',
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.borderColor = color}
+                  onMouseLeave={(e) => e.currentTarget.style.borderColor = BORDER}
+                >
+                  <span style={{ fontWeight: 500, color: TEXT }}>{partner.name}</span>
+                  <Pill text={partner.tier} tone={partner.tier === 'Platinum' ? 'accent' : 'neutral'} />
+                </div>
+              ))}
+              {filteredPartners.length === 0 && (
+                <div style={{ padding: 20, textAlign: 'center', color: MUTED }}>
+                  No partners found matching "{search}"
+                </div>
+              )}
+            </div>
+          </Card>
+        </div>
+      );
+    }
+
+    // Find the selected partner in masterList
+    const partnerInfo = masterList.find(p => p.name === selectedPartner);
+
+    // Show the profile with change partner option
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        {/* Header with change partner button */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: TEXT, margin: 0 }}>
+              {selectedPartner}
+            </h2>
+            {partnerInfo && (
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+                {partnerInfo.regions} · AM: {partnerInfo.am} · {partnerInfo.openDeals} deals all-time · {partnerInfo.lastActivity}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {partnerInfo && <Pill text={partnerInfo.tier} tone={partnerInfo.tier === 'Platinum' ? 'accent' : 'neutral'} />}
+              {partnerInfo && <Pill text={partnerInfo.status} tone="good" />}
+            </div>
+          </div>
+          <button
+            onClick={() => setSelectedPartner(null)}
+            style={{
+              padding: '6px 14px',
+              fontSize: '0.8rem',
+              color: color,
+              background: 'transparent',
+              border: `1px solid ${color}`,
+              borderRadius: 6,
+              cursor: 'pointer',
+            }}
+          >
+            ⇄ Change partner
+          </button>
+        </div>
+
+        {/* Show the existing SphereProfile component if we have data */}
+        {profileData ? (
+          <SphereProfile data={profileData} color={color} />
+        ) : (
+          <Card>
+            <div style={{ padding: 20, textAlign: 'center', color: MUTED }}>
+              Profile data not available for this partner
+            </div>
+          </Card>
+        )}
+      </div>
+    );
+  }
+
+  /* ------------------------------------------------------------------ */
+  /* 3. Partner Profile (Syspex)                                         */
+  /* ------------------------------------------------------------------ */
+
+  function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: string }) {
+    return (
+      <div className="sd-stack">
+        <Card>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
           <Pill text={data.header.tier} tone="accent" />
           <Pill text={data.header.discount} tone="good" />
@@ -608,6 +769,18 @@ function SphereProfile({ data, color }: { data: PartnerSphereProfile; color: str
 /* ------------------------------------------------------------------ */
 
 function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter; color: string }) {
+  const [selectedPartner, setSelectedPartner] = useState<string>('');
+
+  // Get unique partners from overdue + today + upcoming + rituals
+  const allPartners = useMemo(() => {
+    const set = new Set<string>();
+    data.overdue.forEach(o => { if (o.owner) set.add(o.owner); });
+    data.today.forEach(t => { if (t.owner) set.add(t.owner); });
+    data.upcoming.forEach(u => { if (u.owner) set.add(u.owner); });
+    data.rituals.forEach(r => { if (r.owner) set.add(r.owner); });
+    return [''].concat([...set].sort());
+  }, [data]);
+
   const ActionCard = ({ item, tone }: { item: { title: string; detail: string; owner: string; due?: string; ttl?: string; done?: boolean }; tone: 'bad' | 'neutral' | 'good' }) => (
     <div style={{ background: SURFACE_2, borderRadius: 10, padding: '10px 14px', borderLeft: `3px solid ${tone === 'bad' ? '#ff453a' : tone === 'good' ? '#34c77b' : color}`, opacity: item.done ? 0.55 : 1 }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
@@ -618,8 +791,82 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
     </div>
   );
 
+  // Filter items by selected partner
+  const filterByPartner = (items: any[]) => {
+    if (!selectedPartner) return items;
+    return items.filter(i => i.owner === selectedPartner || i.title.includes(selectedPartner));
+  };
+
+  const filteredOverdue = filterByPartner(data.overdue);
+  const filteredToday = filterByPartner(data.today);
+  const filteredUpcoming = filterByPartner(data.upcoming);
+  const filteredRituals = filterByPartner(data.rituals);
+
   return (
     <div className="sd-stack">
+      {/* Partner Care Routine Header */}
+      <Card title="🧑‍⚕️ Partner Care Routine" subtitle={`${data.date} · tailored · live`}>
+        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
+          <select
+            value={selectedPartner}
+            onChange={(e) => setSelectedPartner(e.target.value)}
+            style={{
+              padding: '10px 14px',
+              fontSize: '0.9rem',
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: 'var(--samurai-surface)',
+              color: TEXT,
+              outline: 'none',
+              cursor: 'pointer',
+              minWidth: 250,
+            }}
+          >
+            <option value="">— Choose a partner —</option>
+            {allPartners.filter(Boolean).map(p => <option key={p} value={p}>{p}</option>)}
+          </select>
+          {!selectedPartner && (
+            <span style={{ fontSize: '0.8rem', color: MUTED }}>Select a partner to see their tailored care routine.</span>
+          )}
+        </div>
+
+        {/* Per-partner AI recommendation */}
+        {selectedPartner && (
+          <div style={{
+            marginTop: 14,
+            padding: 14,
+            borderRadius: 10,
+            background: 'rgba(0,122,255,0.06)',
+            border: `1px solid ${color}`,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+              <span style={{ fontSize: '0.7rem', fontWeight: 700, color, textTransform: 'uppercase', letterSpacing: '0.08em' }}>✦ AI Recommendation · confidence medium</span>
+            </div>
+            <div style={{ fontSize: '0.95rem', fontWeight: 600, color: TEXT, marginBottom: 6 }}>
+              {selectedPartner}: act this week — steady state — protect the rhythm
+            </div>
+            <div style={{ fontSize: '0.82rem', color: MUTED, lineHeight: 1.5 }}>
+              Maintain cadence: share one insight per fortnight and confirm the next QBR date.
+            </div>
+            <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 6 }}>
+              Based on: {filteredOverdue.length > 0 ? `overdue ${filteredOverdue.length} action(s)` : 'regular cadence'}
+            </div>
+
+            {/* Quick actions for selected partner */}
+            <div style={{ display: 'flex', gap: 8, marginTop: 12, flexWrap: 'wrap' }}>
+              {filteredOverdue.length > 0 && (
+                <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: 'none', background: '#ff453a', color: '#fff', cursor: 'pointer', fontWeight: 600 }}>
+                  📞 Re-engage now
+                </button>
+              )}
+              <button style={{ padding: '6px 14px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${color}`, background: 'transparent', color: color, cursor: 'pointer' }}>
+                🗓 Quarterly business review
+              </button>
+            </div>
+          </div>
+        )}
+      </Card>
+
       <Card title={`🎯 Focus for today — ${data.date}`}>
         <p style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.6 }}>{data.focus}</p>
         <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 10 }}>
@@ -648,20 +895,23 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
       </Card>
 
       <Card title="🔴 Overdue — handle first" subtitle="clear these before anything else">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.overdue.map((o) => <ActionCard key={o.title} item={o} tone="bad" />)}</div>
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredOverdue.map((o) => <ActionCard key={o.title} item={o} tone="bad" />)}</div>
+        {filteredOverdue.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No overdue items{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
       <Card title="🟢 Today's actions" subtitle="tap ✓ when done — logs to CRM automatically">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.today.map((o) => <ActionCard key={o.title} item={o} tone={o.done ? 'good' : 'neutral'} />)}</div>
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredToday.map((o) => <ActionCard key={o.title} item={o} tone={o.done ? 'good' : 'neutral'} />)}</div>
+        {filteredToday.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No actions today{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
       <Card title="🟡 Coming up this week" subtitle="no need to look at these until their day">
-        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{data.upcoming.map((o) => <ActionCard key={o.title} item={o} tone="neutral" />)}</div>
+        <div className="sd-stack" style={{ gap: 10, marginTop: 6 }}>{filteredUpcoming.map((o) => <ActionCard key={o.title} item={o} tone="neutral" />)}</div>
+        {filteredUpcoming.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>Nothing upcoming{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
       </Card>
 
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(300px, 1fr))', gap: 16 }}>
         <Card title="🔁 Partner rituals — scheduling status">
-          {data.rituals.map((r) => (
+          {filteredRituals.map((r) => (
             <div key={r.title} style={{ padding: '8px 0', borderBottom: `1px solid ${BORDER}` }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: 8 }}>
                 <span style={{ fontSize: '0.82rem', fontWeight: 600, color: TEXT }}>{r.title}</span>
@@ -671,6 +921,7 @@ function SphereCommandCenter({ data, color }: { data: PartnerSphereCommandCenter
               <div style={{ fontSize: '0.72rem', color, marginTop: 2 }}>{r.owner}</div>
             </div>
           ))}
+          {filteredRituals.length === 0 && <div style={{ padding: 12, color: MUTED, fontSize: '0.82rem' }}>No rituals{selectedPartner ? ` for ${selectedPartner}` : ''}.</div>}
         </Card>
         <div className="sd-stack">
           <Card title="🎫 Open partner tickets" subtitle={`${data.tickets.length} open`}>
@@ -788,14 +1039,114 @@ function SphereProtection({ data, color }: { data: PartnerSphereProtection; colo
 /* ------------------------------------------------------------------ */
 
 function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; color: string }) {
+  const [draggedCard, setDraggedCard] = useState<{ name: string; fromStage: string } | null>(null);
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
+
+  // Find partner in masterList for detail view (we'll use onboarding card data as fallback)
+  const handleCardClick = (cardName: string) => {
+    setSelectedPartner(cardName);
+  };
+
+  const handleDragStart = (e: React.DragEvent, cardName: string, stageKey: string) => {
+    setDraggedCard({ name: cardName, fromStage: stageKey });
+    e.dataTransfer.effectAllowed = 'move';
+    e.dataTransfer.setData('text/plain', cardName);
+  };
+
+  const handleDragOver = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = 'move';
+  };
+
+  const handleDrop = (e: React.DragEvent, targetStageKey: string) => {
+    e.preventDefault();
+    if (draggedCard && draggedCard.fromStage !== targetStageKey) {
+      // In a real app, this would call an API to update the partner's stage
+      // For now, just log it
+      console.log(`Moving ${draggedCard.name} from ${draggedCard.fromStage} to ${targetStageKey}`);
+    }
+    setDraggedCard(null);
+  };
+
+  // If a partner is selected, show their detail (reuse PartnerProfileSelector pattern)
+  if (selectedPartner) {
+    // Find the card data
+    let cardData: any = null;
+    for (const stage of data.stages) {
+      const found = stage.cards.find(c => c.name === selectedPartner);
+      if (found) { cardData = found; break; }
+    }
+
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <button onClick={() => setSelectedPartner(null)} style={{ padding: '8px 16px', fontSize: '0.85rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>← Back to Onboarding Board</button>
+        
+        {/* Partner header */}
+        <div>
+          <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedPartner}</h2>
+          {cardData && (
+            <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+              {cardData.org || '—'} · AM: {cardData.am || '—'}{cardData.age ? ` · ${cardData.age} since last activity` : ''}
+            </div>
+          )}
+          {cardData && (
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {cardData.health && <Pill text={cardData.health === 'danger' ? 'At Risk' : cardData.health === 'warn' ? 'In progress' : 'Active'} tone={cardData.health === 'danger' ? 'bad' : cardData.health === 'warn' ? 'warn' : 'good'} />}
+            </div>
+          )}
+        </div>
+
+        {/* KPIs */}
+        <div className="sd-chart-card" style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 16 }}>
+            <DetailField label="Open deals" value={cardData?.detail?.match(/(\d+)\s*open/)?.[1] || '—'} />
+            <DetailField label="Pipeline" value={cardData?.detail?.match(/RM\s*([\d,.]+[KMG]?)/)?.[1] ? `RM ${cardData.detail.match(/RM\s*([\d,.]+[KMG]?)/)[1]}` : '—'} />
+            <DetailField label="Stage" value={data.stages.find(s => s.cards.some(c => c.name === selectedPartner))?.label || '—'} />
+          </div>
+        </div>
+
+        {/* Checklist */}
+        {cardData?.checklist && cardData.checklist.length > 0 && (
+          <div className="sd-chart-card" style={{ padding: 16 }}>
+            <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>Onboarding Checklist</h3>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+              {cardData.checklist.map((item: any) => (
+                <div key={item.text} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
+                  <span style={{ color: item.state === 'done' ? '#34c77b' : item.state === 'today' ? color : MUTED, fontWeight: 700 }}>
+                    {item.state === 'done' ? '✓' : item.state === 'today' ? '▸' : '◻'}
+                  </span>
+                  <span style={{ fontSize: '0.85rem', color: item.state === 'done' ? MUTED : TEXT, textDecoration: item.state === 'done' ? 'line-through' : 'none' }}>
+                    {item.text}
+                  </span>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Note */}
+        {cardData?.note && (
+          <div className="sd-chart-card" style={{ padding: 16, borderColor: color }}>
+            <div style={{ fontSize: '0.85rem', color: TEXT }}>{cardData.note}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
   return (
     <div className="sd-stack">
-      <Card title="📥 Partner Onboarding Pipeline" subtitle={`${data.pipelineSummary} · stage-age turns amber at benchmark, red at 2×`}>
+      <Card title="📥 Partner Onboarding — drag a partner to the next stage" subtitle={`${data.pipelineSummary} · Move each partner through the onboarding journey. Drag a card left-to-right as each step is completed.`}>
         {/* Status columns: left → right (one per stage, no wrapping); cards stack top → down within each column */}
         <div style={{ overflowX: 'auto' }}>
           <div style={{ display: 'grid', gridTemplateColumns: `repeat(${data.stages.length}, minmax(215px, 1fr))`, gap: 12 }}>
             {data.stages.map((s) => (
-              <div key={s.key} style={{ background: SURFACE_2, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column' }}>
+              <div 
+                key={s.key} 
+                style={{ background: SURFACE_2, borderRadius: 10, padding: 12, display: 'flex', flexDirection: 'column', minHeight: 200 }}
+                onDragOver={handleDragOver}
+                onDrop={(e) => handleDrop(e, s.key)}
+              >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                 <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{s.label}</span>
                 <span style={{
@@ -806,10 +1157,20 @@ function SphereOnboarding({ data, color }: { data: PartnerSphereOnboarding; colo
               <div style={{ fontSize: '0.7rem', color: MUTED, marginTop: 2 }}>benchmark: {s.benchmark}</div>
               <div className="sd-stack" style={{ gap: 8, marginTop: 8 }}>
                 {s.cards.map((c) => (
-                  <div key={c.name} style={{
-                    background: SURFACE, borderRadius: 8, padding: 10,
-                    borderLeft: `3px solid ${c.health === 'danger' ? '#ff453a' : c.health === 'warn' ? '#ffb340' : '#34c77b'}`,
-                  }}>
+                  <div 
+                    key={c.name} 
+                    draggable
+                    onDragStart={(e) => handleDragStart(e, c.name, s.key)}
+                    onClick={() => handleCardClick(c.name)}
+                    style={{
+                      background: SURFACE, borderRadius: 8, padding: 10, cursor: 'grab',
+                      borderLeft: `3px solid ${c.health === 'danger' ? '#ff453a' : c.health === 'warn' ? '#ffb340' : '#34c77b'}`,
+                      opacity: draggedCard?.name === c.name ? 0.5 : 1,
+                      transition: 'opacity 0.15s',
+                    }}
+                    onMouseEnter={(e) => e.currentTarget.style.boxShadow = `0 2px 8px rgba(0,0,0,0.1)`}
+                    onMouseLeave={(e) => e.currentTarget.style.boxShadow = 'none'}
+                  >
                     <div style={{ fontWeight: 600, fontSize: '0.82rem', color: TEXT }}>{c.name}</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED }}>{c.org} · {c.am}{c.age ? ` · ⏱ ${c.age}` : ''}</div>
                     {c.detail && <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 3 }}>{c.detail}</div>}
@@ -930,69 +1291,109 @@ function SphereQbr({ data, color }: { data: PartnerSphereQbr; color: string }) {
 /* ------------------------------------------------------------------ */
 
 function SphereCeoDigest({ data, color }: { data: PartnerSphereCeoDigest; color: string }) {
-  const delivery = data.deliverySettings ?? data.delivery2 ?? [];
   return (
     <div className="sd-stack">
-      <Card title={`📮 TPS Weekly Digest — Partner Sphere`} subtitle={`${data.week} · ${data.delivery}`}>
-        <div className="sd-kpi-grid">
-          {data.kpis.map((k) => <Kpi key={k.label} label={k.label} value={k.value} note={k.delta} accent={color} />)}
+      {/* Board Brief */}
+      <Card title={`📮 Board Brief — decisions & exceptions only`} subtitle={`week of ${data.week}`}>
+        <div style={{ fontSize: '0.9rem', color: TEXT, lineHeight: 1.7, marginBottom: 12 }}>
+          <strong>The week in one paragraph.</strong><br />
+          {data.kpis && data.kpis.length > 0 && (
+            <>Channel stands at {data.kpis.find(k => k.label.includes('Pipeline'))?.value || 'RM 15.9M'} across active partners. </>
+          )}
+          {data.decisions && data.decisions.length > 0 && (
+            <>{data.decisions.length} items need your decision this week.</>
+          )}
         </div>
       </Card>
 
-      <Card title="🔴 Needs your decision">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.decisions.map((d) => (
-            <div key={d.title} style={{ background: 'rgba(255,69,58,0.08)', borderRadius: 10, padding: '10px 14px' }}>
-              <div style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{d.title}</div>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{d.detail}</div>
-              <div style={{ fontSize: '0.74rem', color: '#ff453a', marginTop: 4 }}>owner: {d.owner} · {d.due}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="🟢 Wins of the week">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.wins.map((w) => (
-            <div key={w.title} style={{ background: 'rgba(52,199,123,0.08)', borderRadius: 10, padding: '10px 14px' }}>
-              <span style={{ fontWeight: 700, fontSize: '0.74rem', color: '#34c77b', marginRight: 8 }}>{w.emoji}</span>
-              <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{w.title}</span>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{w.detail}</div>
-              <div style={{ fontSize: '0.74rem', color: '#34c77b', marginTop: 4 }}>{w.owner}</div>
-            </div>
-          ))}
-        </div>
-      </Card>
-
-      <Card title="🟡 Watch list">
-        <div className="sd-stack" style={{ gap: 10 }}>
-          {data.watch.map((w) => (
-            <div key={w.title} style={{ background: SURFACE_2, borderRadius: 10, padding: '10px 14px' }}>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
-                <Pill text={w.tag || ''} tone="warn" />
-                <span style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>{w.title}</span>
+      {/* Exceptions requiring decision */}
+      {data.decisions && data.decisions.length > 0 && (
+        <Card title="⚠️ Exceptions requiring decision">
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+            {data.decisions.map((d) => (
+              <div key={d.title} style={{ fontSize: '0.85rem', color: TEXT, padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
+                <span style={{ color: '#ff453a', marginRight: 6 }}>•</span>
+                <strong>{d.title}</strong> — {d.detail}
               </div>
-              <div style={{ fontSize: '0.76rem', color: MUTED, marginTop: 3 }}>{w.detail}</div>
-              <div style={{ fontSize: '0.74rem', color, marginTop: 4 }}>{w.owner}</div>
+            ))}
+          </div>
+        </Card>
+      )}
+
+      {/* Funnel health */}
+      <Card title="📉 Funnel health">
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
+          {data.watch && data.watch.map((w) => (
+            <div key={w.title} style={{ padding: 12, background: SURFACE_2, borderRadius: 8 }}>
+              <div style={{ fontSize: '0.75rem', color: MUTED }}>{w.title}</div>
+              <div style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{w.tag || w.detail}</div>
             </div>
           ))}
         </div>
       </Card>
 
-      <Card title="📆 Rituals & protection health">
-        <StatLine label="🛡️ Deal protections" value={data.rituals.protections} />
-        <StatLine label="🔁 Cadence calls" value={data.rituals.cadence} />
-        <StatLine label="📊 Q3 review cycle" value={data.rituals.q3} />
+      {/* AM Scorecard */}
+      <Card title="🧭 AM scorecard">
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem' }}>
+            <thead>
+              <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                {['AM', 'Pipeline', 'Open deals', 'Partners', 'Stalls'].map(h => (
+                  <th key={h} style={{ padding: '8px 12px', textAlign: 'left', color: MUTED, fontWeight: 600 }}>{h}</th>
+                ))}
+              </tr>
+            </thead>
+            <tbody>
+              {data.wins && data.wins.map((w) => (
+                <tr key={w.title} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <td style={{ padding: '8px 12px', fontWeight: 500, color: TEXT }}>{w.owner || w.title}</td>
+                  <td style={{ padding: '8px 12px', color: TEXT }}>{w.detail?.split('·')[0] || '—'}</td>
+                  <td style={{ padding: '8px 12px', color: TEXT }}>—</td>
+                  <td style={{ padding: '8px 12px', color: TEXT }}>—</td>
+                  <td style={{ padding: '8px 12px', color: MUTED }}>—</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </Card>
 
-      {delivery.length > 0 && (
-        <Card title="⚙️ Delivery settings">
-          {delivery.map((d) => (
-            <div key={d.channel} style={{ padding: '6px 0', borderBottom: `1px solid ${BORDER}` }}>
-              <span style={{ fontSize: '0.8rem', fontWeight: 600, color: TEXT }}>{d.channel}: </span>
-              <span style={{ fontSize: '0.78rem', color: MUTED }}>{d.detail}</span>
+      {/* Dormancy Radar */}
+      <Card title="🛰 Dormancy Radar — cooling toward dormant" subtitle={`${data.watch ? data.watch.length : 0} partners`}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 10 }}>
+          {data.watch && data.watch.map((w) => (
+            <div key={w.title} style={{
+              padding: 14,
+              borderRadius: 8,
+              border: `1px solid ${BORDER}`,
+              background: 'rgba(255,179,64,0.04)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem', color: TEXT }}>{w.title}</div>
+                <div style={{ fontSize: '0.7rem', fontWeight: 700, color: '#ffb340', background: 'rgba(255,179,64,0.15)', padding: '2px 8px', borderRadius: 4 }}>
+                  DormantScore {w.tag?.replace(/[^0-9]/g, '') || '0'}
+                </div>
+              </div>
+              <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 6, lineHeight: 1.5 }}>
+                {w.detail}
+              </div>
+              <div style={{ fontSize: '0.72rem', color: '#ff453a', marginTop: 6, fontWeight: 600 }}>
+                AT RISK of dormancy - intervene
+              </div>
             </div>
           ))}
+          {(!data.watch || data.watch.length === 0) && (
+            <div style={{ padding: 20, textAlign: 'center', color: MUTED, gridColumn: '1 / -1' }}>No partners at dormancy risk</div>
+          )}
+        </div>
+      </Card>
+
+      {/* Rituals & protection health */}
+      {data.rituals && (
+        <Card title="📆 Rituals & protection health">
+          <StatLine label="🛡️ Deal protections" value={data.rituals.protections} />
+          <StatLine label="🔁 Cadence calls" value={data.rituals.cadence} />
+          <StatLine label="📊 Q3 review cycle" value={data.rituals.q3} />
         </Card>
       )}
     </div>
@@ -1134,13 +1535,214 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
 }
 
 /* ------------------------------------------------------------------ */
+/* Partner Deals Section                                               */
+/* ------------------------------------------------------------------ */
+
+function PartnerDealsSection({ 
+  dept, 
+  color, 
+  masterList 
+}: { 
+  dept: string; 
+  color: string; 
+  masterList: PartnerSphereData['masterList'];
+}) {
+  const [search, setSearch] = useState('');
+  const [partnerFilter, setPartnerFilter] = useState('All');
+  const [tierFilter, setTierFilter] = useState('All');
+  const [stageFilter, setStageFilter] = useState('All');
+  const [sortField, setSortField] = useState<'value' | 'registered' | 'close'>('value');
+  const [sortDir, setSortDir] = useState<'asc' | 'desc'>('desc');
+  const [selectedDeal, setSelectedDeal] = useState<CrmDealListItem | null>(null);
+
+  // Fetch all deals
+  const query = useQuery({
+    queryKey: ['crm-deals', dept],
+    queryFn: () => departmentsApi.crmDealsList(dept, '', '', '', '', ''),
+    refetchInterval: 120_000,
+  });
+
+  const deals = query.data?.deals ?? [];
+
+  // Build partner map from masterList for attribution
+  const partnerMap = useMemo(() => {
+    const map = new Map<string, { tier: string; am: string }>();
+    for (const p of masterList) {
+      map.set(p.name, { tier: p.tier, am: p.am });
+    }
+    return map;
+  }, [masterList]);
+
+  // Enrich deals with partner info and filter
+  const enrichedDeals = useMemo(() => {
+    let result = deals.map(d => {
+      const partnerInfo = d.source ? partnerMap.get(d.source) : null;
+      return {
+        ...d,
+        partnerName: d.source || '— Unassigned —',
+        partnerTier: partnerInfo?.tier || '',
+        partnerAm: partnerInfo?.am || '',
+      };
+    });
+
+    // Apply filters
+    if (search) {
+      const s = search.toLowerCase();
+      result = result.filter(d =>
+        d.title.toLowerCase().includes(s) ||
+        (d.customer || '').toLowerCase().includes(s) ||
+        d.partnerName.toLowerCase().includes(s) ||
+        (d.owner || '').toLowerCase().includes(s)
+      );
+    }
+    if (partnerFilter !== 'All') {
+      result = result.filter(d => d.partnerName === partnerFilter);
+    }
+    if (tierFilter !== 'All') {
+      result = result.filter(d => d.partnerTier === tierFilter);
+    }
+    if (stageFilter !== 'All') {
+      result = result.filter(d => d.stage === stageFilter);
+    }
+
+    // Sort
+    result.sort((a, b) => {
+      let cmp = 0;
+      if (sortField === 'value') cmp = (a.amount || 0) - (b.amount || 0);
+      else if (sortField === 'registered') cmp = (a.created || '').localeCompare(b.created || '');
+      else if (sortField === 'close') cmp = 0; // close date not in CrmDealListItem
+      return sortDir === 'desc' ? -cmp : cmp;
+    });
+
+    return result;
+  }, [deals, search, partnerFilter, tierFilter, stageFilter, sortField, sortDir, partnerMap]);
+
+  // Unique filter options
+  const partners = useMemo(() => ['All', ...Array.from(new Set(enrichedDeals.map(d => d.partnerName))).sort()], [enrichedDeals]);
+  const tiers = useMemo(() => ['All', ...Array.from(new Set(masterList.map(p => p.tier))).sort()], [masterList]);
+  const stages = useMemo(() => ['All', ...Array.from(new Set(deals.map(d => d.stage).filter(Boolean) as string[])).sort()], [deals]);
+
+  if (query.isLoading) {
+    return <div className="sd-empty"><div className="h-7 w-7 animate-spin rounded-full" style={{ border: `2px solid ${color}`, borderTopColor: 'transparent' }} /><p>Loading deals…</p></div>;
+  }
+
+  // Deal detail view
+  if (selectedDeal) {
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <button onClick={() => setSelectedDeal(null)} style={{ padding: '8px 16px', fontSize: '0.85rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer', alignSelf: 'flex-start' }}>← Back to deals</button>
+        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedDeal.title}</h2>
+        {selectedDeal.customer && <div style={{ fontSize: '0.9rem', color: MUTED }}>{selectedDeal.customer} · {selectedDeal.source || 'No partner'}</div>}
+        <div className="sd-chart-card" style={{ padding: 16 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 16 }}>
+            <DetailField label="Stage" value={selectedDeal.stage || '—'} />
+            <DetailField label="Owner (AM)" value={selectedDeal.owner || '—'} />
+            <DetailField label="Value" value={selectedDeal.amount ? `RM ${selectedDeal.amount.toLocaleString()}` : '—'} />
+            <DetailField label="Priority" value={selectedDeal.priority || '—'} />
+            <DetailField label="Created" value={selectedDeal.created || '—'} />
+            <DetailField label="Partner channel" value={selectedDeal.source || '—'} />
+          </div>
+        </div>
+        {selectedDeal.compiled_truth && (
+          <div className="sd-chart-card" style={{ padding: 16 }}>
+            <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>Raw Content</h3>
+            <div style={{ fontSize: '0.85rem', color: TEXT, whiteSpace: 'pre-wrap', fontFamily: 'monospace', lineHeight: 1.6, maxHeight: 400, overflowY: 'auto' }}>{selectedDeal.compiled_truth}</div>
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  return (
+    <div className="sd-stack" style={{ gap: 16 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: 8 }}>
+        <div>
+          <h2 style={{ fontSize: '1.1rem', fontWeight: 600, color: TEXT, margin: 0 }}>Partner Deals — {enrichedDeals.length} of {deals.length} deals</h2>
+          <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 4 }}>Every deal in the CRM, attributed to its partner — live from the pipeline. Click any row for full detail.</div>
+        </div>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: '#34c77b' }}>
+          <span style={{ width: 8, height: 8, borderRadius: '50%', background: '#34c77b', display: 'inline-block' }} />
+          LIVE · auto-refresh
+        </div>
+      </div>
+
+      {/* Filters */}
+      <div className="sd-chart-card" style={{ padding: 12, display: 'flex', gap: 10, flexWrap: 'wrap', alignItems: 'center' }}>
+        <input type="text" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search deal, customer, partner, owner…" style={{ flex: 1, minWidth: 200, padding: '8px 12px', fontSize: '0.85rem', borderRadius: 6, border: `1px solid ${BORDER}`, outline: 'none', color: TEXT }} />
+        <select value={partnerFilter} onChange={(e) => setPartnerFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {partners.map(p => <option key={p} value={p}>{p === 'All' ? 'All partners' : p}</option>)}
+        </select>
+        <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {tiers.map(t => <option key={t} value={t}>{t === 'All' ? 'All tiers' : t}</option>)}
+        </select>
+        <select value={stageFilter} onChange={(e) => setStageFilter(e.target.value)} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          {stages.map(s => <option key={s} value={s}>{s === 'All' ? 'All stages' : s}</option>)}
+        </select>
+        <select value={`${sortField}-${sortDir}`} onChange={(e) => { const [f, d] = e.target.value.split('-'); setSortField(f as any); setSortDir(d as any); }} style={{ padding: '8px 12px', fontSize: '0.8rem', borderRadius: 6, border: `1px solid ${BORDER}`, background: 'transparent', color: TEXT }}>
+          <option value="value-desc">Value · high→low</option>
+          <option value="value-asc">Value · low→high</option>
+          <option value="registered-desc">Registered · newest</option>
+          <option value="registered-asc">Registered · oldest</option>
+        </select>
+        {(search || partnerFilter !== 'All' || tierFilter !== 'All' || stageFilter !== 'All') && (
+          <button onClick={() => { setSearch(''); setPartnerFilter('All'); setTierFilter('All'); setStageFilter('All'); }} style={{ padding: '6px 12px', fontSize: '0.8rem', color: MUTED, background: 'transparent', border: `1px solid ${BORDER}`, borderRadius: 6, cursor: 'pointer' }}>✕ Clear</button>
+        )}
+      </div>
+
+      {/* Table */}
+      <div className="sd-chart-card" style={{ padding: 0, overflowX: 'auto' }}>
+        <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem', minWidth: 900 }}>
+          <thead>
+            <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+              {['Deal', 'Partner', 'Customer', 'Stage', 'Registered', 'Product', 'Value', 'Pri'].map(h => (
+                <th key={h} style={{ padding: '8px 10px', textAlign: 'left', color: MUTED, fontWeight: 600, whiteSpace: 'nowrap' }}>{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {enrichedDeals.slice(0, 100).map((deal) => (
+              <tr key={deal.slug} onClick={() => setSelectedDeal(deal)} style={{ borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }} onMouseEnter={(e) => e.currentTarget.style.background = 'rgba(0,0,0,0.02)'} onMouseLeave={(e) => e.currentTarget.style.background = 'transparent'}>
+                <td style={{ padding: '8px 10px', fontWeight: 500, color: TEXT, maxWidth: 250 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.title}</div></td>
+                <td style={{ padding: '8px 10px', color: TEXT }}>
+                  <div>{deal.partnerName}</div>
+                  {deal.partnerTier && <div style={{ fontSize: '0.7rem', color: MUTED }}>{deal.partnerTier}{deal.partnerAm ? ` · AM: ${deal.partnerAm}` : ''}</div>}
+                </td>
+                <td style={{ padding: '8px 10px', color: MUTED, maxWidth: 180 }}><div style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{deal.customer || '—'}</div></td>
+                <td style={{ padding: '8px 10px', color: TEXT }}>{deal.stage || '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.created || '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>—</td>
+                <td style={{ padding: '8px 10px', color: TEXT, whiteSpace: 'nowrap' }}>{deal.amount ? `RM ${deal.amount >= 1_000_000 ? `${(deal.amount / 1_000_000).toFixed(1)}M` : `${(deal.amount / 1000).toFixed(0)}K`}` : '—'}</td>
+                <td style={{ padding: '8px 10px', color: MUTED }}>{deal.priority === 'High' ? '🔥' : deal.priority === 'Medium' ? '⚡' : '◉'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        {enrichedDeals.length > 100 && <div style={{ padding: 12, textAlign: 'center', color: MUTED, fontSize: '0.8rem' }}>Showing first 100 of {enrichedDeals.length} deals</div>}
+        {enrichedDeals.length === 0 && <div style={{ padding: 30, textAlign: 'center', color: MUTED }}>No deals found matching filters</div>}
+      </div>
+    </div>
+  );
+}
+
+function DetailField({ label, value }: { label: string; value: string }) {
+  return (
+    <div>
+      <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 4 }}>{label}</div>
+      <div style={{ fontSize: '0.95rem', fontWeight: 500, color: TEXT }}>{value}</div>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
 /* Main: Partner Sphere                                                */
 /* ------------------------------------------------------------------ */
 
 const SECTIONS = [
   { id: 'overview', label: '📊 Overview' },
   { id: 'masterList', label: '📇 Partners' },
-  { id: 'profile', label: '🏢 Syspex Profile' },
+  { id: 'profile', label: '🏢 Partner Profile' },
+  { id: 'deals', label: '💼 Partner Deals' },
   { id: 'commandCenter', label: '🎯 Command Center' },
   { id: 'protection', label: '🛡️ Protection' },
   { id: 'onboarding', label: '📥 Onboarding' },
@@ -1204,7 +1806,8 @@ export function PartnersTab({ dept, color }: Props) {
 
       {section === 'overview' && sphere.overview && <SphereOverview data={sphere.overview} color={color} />}
       {section === 'masterList' && <SphereMasterList data={sphere.masterList} color={color} />}
-      {section === 'profile' && sphere.profile && <SphereProfile data={sphere.profile} color={color} />}
+      {section === 'profile' && <PartnerProfileSelector masterList={sphere.masterList} profileData={sphere.profile} color={color} />}
+      {section === 'deals' && <PartnerDealsSection dept={dept} color={color} masterList={sphere.masterList} />}
       {section === 'commandCenter' && sphere.commandCenter && <SphereCommandCenter data={sphere.commandCenter} color={color} />}
       {section === 'protection' && sphere.protection && <SphereProtection data={sphere.protection} color={color} />}
       {section === 'onboarding' && sphere.onboarding && <SphereOnboarding data={sphere.onboarding} color={color} />}

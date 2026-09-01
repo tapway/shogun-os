@@ -758,13 +758,23 @@ async def get_crm_ceo_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Aggregated CEO dashboard stats for CRM.
+    """Aggregated CEO dashboard stats for CRM — 100% mock data (demo mode).
 
-    Reads CRM pages directly from the brain (source ``crm``) via gbrain.
-    Returns empty state when the brain has no CRM pages yet or is down.
+    Serves the fictional CRM ledger from examples/crm-mock.json. All tabs
+    read the same data set, so metrics are internally consistent across the
+    dashboard.
     """
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
-    return _run_ceo_aggregation(pages)
+    mock_data = _load_crm_mock()
+    if not mock_data:
+        logger.info("CRM dashboard: mock data missing — returning empty state")
+        return {"mock": False}
+    
+    payload = mock_data.get("dashboard_mock", {})
+    if not payload:
+        logger.info("CRM dashboard: dashboard_mock section missing")
+        return {"mock": False}
+    
+    return {**payload, "mock": True}
 
 
 def _extract_deal_list_item(page: dict) -> dict:
@@ -832,20 +842,24 @@ async def list_crm_deals(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM deals direct from the brain (source ``crm``, slug ``deals/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
+    """List CRM deals — 100% mock data (demo mode).
 
-    deals = [p for p in pages if not _is_meta_slug(str(p.get("slug", "")))]
-    items = [_extract_deal_list_item(p) for p in deals]
+    Serves deals from examples/crm-mock.json with the same filtering logic
+    as the live gbrain path.
+    """
+    mock_data = _load_crm_mock()
+    if not mock_data:
+        return {"deals": [], "total": 0, "mock": False}
+    
+    items = list(mock_data.get("deals", []))
 
     if search:
         s = search.lower()
-        items = [d for d in items if s in d["title"].lower() or s in (d.get("customer") or "").lower()]
+        items = [d for d in items if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
     if stage:
-        items = [d for d in items if d.get("stage", "") == _canonical_stage(stage)]
+        items = [d for d in items if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
     if owner:
-        co = _canonical_owner(owner)
-        items = [d for d in items if d.get("owner", "") == co]
+        items = [d for d in items if _canonical_owner(d.get("owner", "")) == _canonical_owner(owner)]
     if priority:
         cp = _canonical_priority(priority)
         items = [d for d in items if _canonical_priority(d.get("priority", "")) == cp]
@@ -853,31 +867,10 @@ async def list_crm_deals(
         ss = source.strip().lower()
         items = [d for d in items if ss in (d.get("source") or "").lower()]
 
-    # Sort by created date descending (most recent first)
+    # Sort by created date descending
     items.sort(key=lambda d: d.get("created") or "", reverse=True)
 
-    if not pages and _crm_mock_enabled():
-        # Live source empty/unavailable — serve the demo payload. Filters are
-        # reapplied in the SAME ORDER as the live path (search, stage, owner,
-        # priority, source) so behaviour is indistinguishable from live data.
-        mock = _load_crm_mock().get("deals", [])
-        if search:
-            s = search.lower()
-            mock = [d for d in mock if s in str(d.get("title", "")).lower() or s in str(d.get("customer", "")).lower()]
-        if stage:
-            mock = [d for d in mock if _canonical_stage(d.get("stage", "")) == _canonical_stage(stage)]
-        if owner:
-            mock = [d for d in mock if _canonical_owner(d.get("owner", "")) == _canonical_owner(owner)]
-        if priority:
-            cp = _canonical_priority(priority)
-            mock = [d for d in mock if _canonical_priority(d.get("priority", "")) == cp]
-        if source:
-            ss = source.strip().lower()
-            mock = [d for d in mock if ss in (d.get("source") or "").lower()]
-        mock = sorted(mock, key=lambda d: str(d.get("created", "")), reverse=True)
-        return {"deals": mock, "total": len(mock), "mock": True}
-
-    return {"deals": items, "total": len(items)}
+    return {"deals": items, "total": len(items), "mock": True}
 
 
 @router.get("/companies")
@@ -1014,16 +1007,14 @@ async def get_partner_sphere(
             "aiBrief": None,
         }
 
-    if _crm_mock_enabled():
-        mock_sphere = _load_crm_mock().get("partner_sphere") or {}
-        filled = False
-        for key in result:
-            if key == "mock":
-                continue
-            if not result[key] and mock_sphere.get(key):
-                result[key] = mock_sphere[key]
-                filled = True
-        result["mock"] = filled
+    # Always serve mock partner sphere on demo
+    mock_sphere = _load_crm_mock().get("partner_sphere") or {}
+    for key in result:
+        if key == "mock":
+            continue
+        if mock_sphere.get(key):
+            result[key] = mock_sphere[key]
+    result["mock"] = True
     return result
 
 
