@@ -5,17 +5,18 @@ import { PipelineForecastTab } from './PipelineForecastTab';
 import { PartnerPerformanceTab } from './PartnerPerformanceTab';
 import { ManagerPerformanceTab } from './ManagerPerformanceTab';
 import { DealsDeepDiveTab } from './DealsDeepDiveTab';
+import { CrmIcon } from './CrmIcons';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 
 const VIEWS = [
-  { id: 'sales', label: '📊 Sales Booking' },
-  { id: 'pipeline', label: '📈 Pipeline & Forecast' },
-  { id: 'partnerperf', label: '🤝 Partner Performance' },
-  { id: 'managers', label: '👥 Manager Performance' },
-  { id: 'deepdive', label: '🎯 Deals Deep-Dive' },
+  { id: 'sales', label: 'Sales Booking', icon: 'BarChart3' as const },
+  { id: 'pipeline', label: 'Pipeline & Forecast', icon: 'TrendingUp' as const },
+  { id: 'partnerperf', label: 'Partner Performance', icon: 'Handshake' as const },
+  { id: 'managers', label: 'Manager Performance', icon: 'Users' as const },
+  { id: 'deepdive', label: 'Deals Deep-Dive', icon: 'Target' as const },
 ] as const;
 
 type ViewId = (typeof VIEWS)[number]['id'];
@@ -47,7 +48,10 @@ export function OverviewTab({ dept, color, stats, onDrillDown }: Props) {
               color: view === v.id ? color : MUTED,
             }}
           >
-            {v.label}
+            <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5 }}>
+              <CrmIcon name={v.icon} size={13} />
+              {v.label}
+            </span>
           </button>
         ))}
       </div>

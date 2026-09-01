@@ -3,6 +3,8 @@ import { useQuery } from '@tanstack/react-query';
 import { Search, Briefcase, X } from 'lucide-react';
 import { departmentsApi } from '../../../lib/api';
 import type { CrmDealListItem } from '../../../lib/types';
+import { CrmIcon } from './CrmIcons';
+import type { CrmIconName } from './CrmIcons';
 
 interface Props {
   dept: string;
@@ -29,13 +31,13 @@ const STAGE_COLORS: Record<string, string> = {
 };
 
 // Priority icons
-const PRIORITY_ICONS: Record<string, string> = {
-  'High': '🔥',
-  'Hot': '🔥',
-  'Medium': '⚡',
-  'Warm': '⚡',
-  'Low': '❄',
-  'Cold': '❄',
+const PRIORITY_ICONS: Record<string, CrmIconName> = {
+  'High': 'Flame',
+  'Hot': 'Flame',
+  'Medium': 'Zap',
+  'Warm': 'Zap',
+  'Low': 'Snowflake',
+  'Cold': 'Snowflake',
 };
 
 export function DealsTab({ dept, color, initialOwner = '' }: Props) {
@@ -243,16 +245,18 @@ export function DealsTab({ dept, color, initialOwner = '' }: Props) {
 
             {/* Partner */}
             {deal.customer && (
-              <div style={{ fontSize: '0.8rem', color: MUTED, marginBottom: 4 }}>
-                🤝 {deal.customer}
+              <div style={{ fontSize: '0.8rem', color: MUTED, marginBottom: 4, display: 'flex', alignItems: 'center', gap: 4 }}>
+                <CrmIcon name="Handshake" size={12} />
+                {deal.customer}
               </div>
             )}
 
             {/* Priority & Amount row */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8 }}>
               {deal.priority && (
-                <span style={{ fontSize: '0.8rem', color: MUTED }}>
-                  {PRIORITY_ICONS[deal.priority] || ''} {deal.priority}
+                <span style={{ fontSize: '0.8rem', color: MUTED, display: 'inline-flex', alignItems: 'center', gap: 3 }}>
+                  <CrmIcon name={PRIORITY_ICONS[deal.priority] || 'Snowflake'} size={12} />
+                  {deal.priority}
                 </span>
               )}
               {deal.amount != null && deal.amount > 0 && (

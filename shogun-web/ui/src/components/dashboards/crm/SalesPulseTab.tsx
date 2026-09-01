@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BarChart } from '../charts';
 import type { CeoDashboardStats, ManagerEntry } from '../../../lib/types';
+import { CrmIcon } from './CrmIcons';
 
 interface Props { 
   stats: CeoDashboardStats; 
@@ -132,8 +133,9 @@ export function SalesPulseTab({ stats, color, onDrillDown }: Props) {
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
           {/* Target Attainment */}
           <div className="sd-kpi-card" style={{ padding: 16 }}>
-            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase' }}>
-              🎯 Target Attainment
+            <div style={{ fontSize: '0.75rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 4 }}>
+              <CrmIcon name="Target" size={12} />
+              Target Attainment
             </div>
             <div style={{ fontSize: '1.8rem', fontWeight: 700, color: TEXT, marginTop: 8 }}>
               {ytdAttainment}%
@@ -188,7 +190,10 @@ export function SalesPulseTab({ stats, color, onDrillDown }: Props) {
 
         {/* Won Deals YTD */}
         <div className="sd-chart-card" style={{ padding: 16 }}>
-          <h3 className="sd-chart-title" style={{ marginBottom: 12 }}>💰 Won Deals YTD</h3>
+          <h3 className="sd-chart-title" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CrmIcon name="DollarSign" size={16} />
+            Won Deals YTD
+          </h3>
           <div style={{ fontSize: '0.9rem', color: TEXT }}>
             ({selectedManager.wonDeals} deals · RM {(selectedManager.salesYTD / 1_000_000).toFixed(1)}M)
           </div>

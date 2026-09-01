@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { BarChart } from '../charts';
 import type { CeoDashboardStats, ManagerEntry } from '../../../lib/types';
+import { CrmIcon } from './CrmIcons';
 
 interface Props { 
   stats: CeoDashboardStats; 
@@ -92,8 +93,9 @@ export function ManagerPerformanceTab({ stats, color, onDrillDown }: Props) {
 
               {/* Target Attainment */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                  🎯 Target
+                <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 3 }}>
+                  <CrmIcon name="Target" size={11} />
+                  Target
                 </div>
                 <div style={{ display: 'flex', alignItems: 'baseline', gap: 8, marginTop: 4 }}>
                   <span style={{ fontSize: '1.3rem', fontWeight: 700, color: TEXT }}>
@@ -223,7 +225,10 @@ function ManagerDrillDown({
       {/* KPI Row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 12 }}>
         <div className="sd-kpi-card" style={{ padding: 14 }}>
-          <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase' }}>🎯 Target Attainment</div>
+          <div style={{ fontSize: '0.7rem', color: MUTED, textTransform: 'uppercase', display: 'flex', alignItems: 'center', gap: 3 }}>
+            <CrmIcon name="Target" size={11} />
+            Target Attainment
+          </div>
           <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>
             {attainment}%
           </div>
@@ -268,8 +273,9 @@ function ManagerDrillDown({
       {/* Won Deals YTD */}
       {wonDeals.length > 0 && (
         <div className="sd-chart-card" style={{ padding: 16 }}>
-          <h3 className="sd-chart-title" style={{ marginBottom: 8 }}>
-            💰 Won Deals YTD ({wonDeals.length} deals · RM {(manager.salesYTD / 1_000_000).toFixed(1)}M)
+          <h3 className="sd-chart-title" style={{ marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
+            <CrmIcon name="DollarSign" size={16} />
+            Won Deals YTD ({wonDeals.length} deals · RM {(manager.salesYTD / 1_000_000).toFixed(1)}M)
           </h3>
         </div>
       )}
@@ -314,7 +320,7 @@ function ManagerDrillDown({
       {atRisk && atRisk.atRiskDeals > 0 && (
         <div className="sd-chart-card" style={{ padding: 16, borderColor: WARN }}>
           <h3 className="sd-chart-title" style={{ marginBottom: 12, color: WARN }}>
-            ⚠ At-Risk Exposure (stalled &gt;30 days)
+            At-Risk Exposure (stalled &gt;30 days)
           </h3>
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(150px, 1fr))', gap: 12 }}>
             <div>
