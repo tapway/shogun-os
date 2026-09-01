@@ -9,7 +9,7 @@ import {
   Cell,
 } from 'recharts';
 import { chartColors } from '../../../lib/palette';
-import { ChartEmpty, CHART_TICK, CHART_TICK_SMALL, CHART_TOOLTIP_STYLE } from './empty';
+import { ChartEmpty, CHART_TICK, CHART_TICK_SMALL, CHART_TOOLTIP_STYLE, compactTick } from './empty';
 import type { FunnelEntry } from '../../../lib/types';
 
 interface FunnelChartProps {
@@ -38,11 +38,11 @@ export function FunnelChart({
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         data={data as any}
         layout="vertical"
-        margin={{ top: 5, right: 20, left: 0, bottom: 5 }}
+        margin={{ top: 5, right: 20, left: 10, bottom: 15 }}
       >
         <CartesianGrid strokeDasharray="3 3" stroke="var(--samurai-border)" horizontal={false} />
         <XAxis type="number" tick={CHART_TICK} axisLine={false} tickLine={false}
-          tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
+          tickFormatter={compactTick(unit)}
         />
         <YAxis type="category" dataKey="stage" tick={CHART_TICK_SMALL}
           axisLine={false} tickLine={false} width={100}

@@ -9,7 +9,7 @@ import {
   Legend,
 } from 'recharts';
 import { chartColors } from '../../../lib/palette';
-import { ChartEmpty, CHART_TICK, CHART_TOOLTIP_STYLE } from './empty';
+import { ChartEmpty, CHART_TICK, CHART_TOOLTIP_STYLE, compactTick } from './empty';
 
 interface LineChartProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -37,12 +37,12 @@ export function LineChart({
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <RechartsLineChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+      <RechartsLineChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--samurai-border)" />
         <XAxis dataKey={xKey} tick={CHART_TICK} axisLine={false} tickLine={false} />
         <YAxis
           tick={CHART_TICK} axisLine={false} tickLine={false}
-          tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
+          tickFormatter={compactTick(unit)}
         />
         <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} labelFormatter={(label) => `${label}`} />
         {dataKeys && dataKeys.length > 0 && (

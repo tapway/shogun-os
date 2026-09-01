@@ -8,7 +8,7 @@ import {
   CartesianGrid,
 } from 'recharts';
 import { chartColors } from '../../../lib/palette';
-import { ChartEmpty, CHART_TICK, CHART_TICK_SMALL, CHART_TOOLTIP_STYLE } from './empty';
+import { ChartEmpty, CHART_TICK, CHART_TICK_SMALL, CHART_TOOLTIP_STYLE, compactTick } from './empty';
 
 interface BarChartProps {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -47,7 +47,7 @@ export function BarChart({
     <ResponsiveContainer width="100%" height={height}>
       <RechartsBarChart
         data={data}
-        margin={{ top: 5, right: 5, left: -10, bottom: 15 }}
+        margin={{ top: 5, right: 10, left: 10, bottom: 15 }}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onClick={(e: any) => {
           if (e?.activePayload?.[0]?.payload) onClick?.(e.activePayload[0].payload);
@@ -66,7 +66,7 @@ export function BarChart({
         />
         <YAxis
           tick={CHART_TICK} axisLine={false} tickLine={false}
-          tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
+          tickFormatter={compactTick(unit)}
         />
         <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} labelFormatter={(label) => `${label}`} />
         {dataKeys && dataKeys.length > 0

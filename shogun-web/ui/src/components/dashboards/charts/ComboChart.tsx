@@ -9,7 +9,7 @@ import {
   CartesianGrid,
   Legend,
 } from 'recharts';
-import { ChartEmpty, CHART_TICK, CHART_TOOLTIP_STYLE } from './empty';
+import { ChartEmpty, CHART_TICK, CHART_TOOLTIP_STYLE, compactTick } from './empty';
 
 interface ComboSeries {
   key: string;
@@ -37,12 +37,12 @@ export function ComboChart({ data, xKey, series, unit = '', height = 250 }: Comb
 
   return (
     <ResponsiveContainer width="100%" height={height}>
-      <ComposedChart data={data} margin={{ top: 5, right: 5, left: -10, bottom: 5 }}>
+      <ComposedChart data={data} margin={{ top: 5, right: 10, left: 10, bottom: 5 }}>
         <CartesianGrid strokeDasharray="3 3" stroke="var(--samurai-border)" />
         <XAxis dataKey={xKey} tick={CHART_TICK} axisLine={false} tickLine={false} />
         <YAxis
           tick={CHART_TICK} axisLine={false} tickLine={false}
-          tickFormatter={(v: number) => (unit ? `${unit}${v.toLocaleString()}` : v.toLocaleString())}
+          tickFormatter={compactTick(unit)}
         />
         <Tooltip
           formatter={fmt as never}
