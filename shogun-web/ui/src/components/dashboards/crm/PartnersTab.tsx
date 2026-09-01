@@ -332,11 +332,13 @@ function regionOf(regions: string): string[] {
     .map(([label]) => label);
 }
 
-function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList']; color: string }) {
+function SphereMasterList({ data, profileData, color }: { data: PartnerSphereData['masterList']; profileData: PartnerSphereProfile | null; color: string }) {
   const [tier, setTier] = useState('All');
   const [am, setAm] = useState('All');
   const [status, setStatus] = useState('All');
   const [region, setRegion] = useState('All');
+  const [search, setSearch] = useState('');
+  const [selectedPartner, setSelectedPartner] = useState<string | null>(null);
 
   const tiers = ['All', ...Array.from(new Set(data.map((p) => p.tier)))];
   const ams = ['All', ...Array.from(new Set(data.map((p) => p.am)))];
@@ -346,12 +348,53 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
     (tier === 'All' || p.tier === tier) &&
     (am === 'All' || p.am === am) &&
     (status === 'All' || p.status === status) &&
-    (region === 'All' || regionOf(p.regions).includes(region)),
+    (region === 'All' || regionOf(p.regions).includes(region)) &&
+    (!search || p.name.toLowerCase().includes(search.toLowerCase()) || p.tier.toLowerCase().includes(search.toLowerCase())),
   );
+
+  // If a partner is selected, show their profile inline
+  if (selectedPartner) {
+    const partnerInfo = data.find(p => p.name === selectedPartner);
+    return (
+      <div className="sd-stack" style={{ gap: 16 }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 12 }}>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, color: TEXT, margin: 0 }}>{selectedPartner}</h2>
+            {partnerInfo && (
+              <div style={{ fontSize: '0.85rem', color: MUTED, marginTop: 4 }}>
+                {partnerInfo.regions} · AM: {partnerInfo.am} · {partnerInfo.openDeals} deals · {partnerInfo.lastActivity}
+              </div>
+            )}
+            <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+              {partnerInfo && <Pill text={partnerInfo.tier} tone={partnerInfo.tier === 'Platinum' ? 'accent' : 'neutral'} />}
+              {partnerInfo && <Pill text={partnerInfo.status} tone="good" />}
+            </div>
+          </div>
+          <button onClick={() => setSelectedPartner(null)}
+            style={{ padding: '6px 14px', fontSize: '0.8rem', color, background: 'transparent', border: `1px solid ${color}`, borderRadius: 6, cursor: 'pointer' }}>
+            ← Back to Partners List
+          </button>
+        </div>
+        {profileData ? <SphereProfile data={profileData} color={color} /> : (
+          <Card><div style={{ padding: 20, textAlign: 'center', color: MUTED }}>Profile data not available for this partner</div></Card>
+        )}
+      </div>
+    );
+  }
 
   return (
     <div className="sd-stack">
       <Card title="📇 Partner Master List" subtitle={`The directory of every partner — tags drive the filters · showing ${rows.length} of ${data.length} partners`}>
+        {/* Search bar */}
+        <div style={{ position: 'relative', marginBottom: 12 }}>
+          <input type="text" value={search} onChange={(e) => setSearch(e.target.value)}
+            placeholder="🔍 Search partners by name or tier…"
+            style={{ width: '100%', padding: '10px 36px 10px 14px', fontSize: '0.88rem', borderRadius: 8, border: `1px solid ${BORDER}`, outline: 'none', color: TEXT }} />
+          {search && (
+            <button onClick={() => setSearch('')}
+              style={{ position: 'absolute', right: 10, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '1rem' }}>✕</button>
+          )}
+        </div>
         <div className="sd-stack" style={{ gap: 10 }}>
           {[{ label: 'Tier', opts: tiers, val: tier, set: setTier },
             { label: 'AM', opts: ams, val: am, set: setAm },
@@ -380,7 +423,11 @@ function SphereMasterList({ data, color }: { data: PartnerSphereData['masterList
               {rows.map((p) => (
                 <tr key={p.name} style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <td style={{ padding: '8px 10px', color: TEXT }}>
-                    <div style={{ fontWeight: 600, fontSize: '0.84rem' }}>{p.name}</div>
+                    <div style={{ fontWeight: 600, fontSize: '0.84rem', color, cursor: 'pointer', textDecoration: 'underline' }}
+                      onClick={() => setSelectedPartner(p.name)}
+                      onMouseEnter={(e) => e.currentTarget.style.opacity = '0.7'}
+                      onMouseLeave={(e) => e.currentTarget.style.opacity = '1'}
+                    >{p.name}</div>
                     <div style={{ fontSize: '0.7rem', color: MUTED }}>{p.regions} {p.since}</div>
                   </td>
                   <td style={{ padding: '8px 10px' }}><Pill text={p.tier} tone={p.tier === 'Platinum' ? 'accent' : p.tier === 'Onboarding' ? 'warn' : 'neutral'} /></td>
@@ -2013,7 +2060,6 @@ function DetailField({ label, value }: { label: string; value: string }) {
 const SECTIONS = [
   { id: 'overview', label: '📊 Overview' },
   { id: 'masterList', label: '📇 Partners' },
-  { id: 'profile', label: '🏢 Partner Profile' },
   { id: 'deals', label: '💼 Partner Deals' },
   { id: 'commandCenter', label: '🎯 Command Center' },
   { id: 'protection', label: '🛡️ Protection' },
@@ -2076,8 +2122,7 @@ export function PartnersTab({ dept, color }: Props) {
       </div>
 
       {section === 'overview' && sphere.overview && <SphereOverview data={sphere.overview} color={color} />}
-      {section === 'masterList' && <SphereMasterList data={sphere.masterList} color={color} />}
-      {section === 'profile' && <PartnerProfileSelector masterList={sphere.masterList} profileData={sphere.profile} color={color} />}
+      {section === 'masterList' && <SphereMasterList data={sphere.masterList} profileData={sphere.profile} color={color} />}
       {section === 'deals' && <PartnerDealsSection dept={dept} color={color} masterList={sphere.masterList} />}
       {section === 'commandCenter' && sphere.commandCenter && <SphereCommandCenter data={sphere.commandCenter} color={color} />}
       {section === 'protection' && sphere.protection && <SphereProtection data={sphere.protection} color={color} />}
