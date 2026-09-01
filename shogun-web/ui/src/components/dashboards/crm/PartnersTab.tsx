@@ -1670,8 +1670,8 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
 
       {/* Bundle Detail Panel */}
       <Card title={`What You Can Do With ${selectedBundle}:`}>
-        <ul style={{ paddingLeft: 16, fontSize: '0.8rem', color: TEXT }}>
-          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '4px 0' }}>{f}</li>)}
+        <ul style={{ paddingLeft: 20, fontSize: '0.8rem', color: TEXT, listStyleType: 'disc' }}>
+          {(TIER_FEATURES[selectedBundle] || []).map((f) => <li key={f} style={{ margin: '5px 0', lineHeight: 1.5 }}>{f}</li>)}
         </ul>
         <div style={{ fontSize: '0.74rem', color: MUTED, marginTop: 10 }}>{data.addonCameras.note}</div>
       </Card>
@@ -1843,10 +1843,30 @@ function SpherePricing({ data, color }: { data: PartnerSpherePricing; color: str
         </div>
 
         <div style={{ display: 'flex', gap: 8, marginTop: 12 }}>
-          <Btn primary onClick={() => setShowSpread(!showSpread)}>
+          <button
+            onClick={() => setShowSpread(!showSpread)}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${color}`, background: color, color: '#0a0a0a',
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.opacity = '0.85'; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.opacity = '1'; e.currentTarget.style.transform = 'none'; }}
+          >
             {showSpread ? 'Show Standard View (Upfront Costs)' : 'Spread All Costs Over 36 Months'}
-          </Btn>
-          <Btn onClick={copySummary}>{copied ? 'Copied!' : 'Copy Summary to Clipboard'}</Btn>
+          </button>
+          <button
+            onClick={copySummary}
+            style={{
+              padding: '8px 16px', borderRadius: 8, fontSize: '0.78rem', fontWeight: 600, cursor: 'pointer',
+              border: `1.5px solid ${BORDER}`, background: 'transparent', color: TEXT,
+              transition: 'all 0.15s ease',
+            }}
+            onMouseEnter={(e) => { e.currentTarget.style.borderColor = color; e.currentTarget.style.color = color; e.currentTarget.style.transform = 'translateY(-1px)'; }}
+            onMouseLeave={(e) => { e.currentTarget.style.borderColor = BORDER; e.currentTarget.style.color = TEXT; e.currentTarget.style.transform = 'none'; }}
+          >
+            {copied ? 'Copied!' : 'Copy Summary to Clipboard'}
+          </button>
         </div>
       </Card>
       </div>{/* END RIGHT COLUMN */}
