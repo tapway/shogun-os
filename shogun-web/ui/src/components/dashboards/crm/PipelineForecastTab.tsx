@@ -8,6 +8,9 @@ const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const WARN = 'var(--samurai-warn, #f59e0b)';
 
+// Distinct colors for each manager in stacked bar
+const MANAGER_COLORS = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4'];
+
 export function PipelineForecastTab({ stats, color }: Props) {
   const KPIs = [
     {
@@ -55,20 +58,28 @@ export function PipelineForecastTab({ stats, color }: Props) {
   const totalActual = stats.wonByMonth.reduce((sum, m) => sum + m.value, 0);
   const gap = totalForecast - totalActual;
 
-  // $$ to close by period - aggregate from manager data
-  const closeThisMonth = stats.byManager.reduce((sum, m) => sum + (m.closeThisMonth || 0), 0);
-  const closeThisQ = stats.byManager.reduce((sum, m) => sum + (m.closeThisQ || 0), 0);
-  const closeNextQ = stats.byManager.reduce((sum, m) => sum + (m.closeNextQ || 0), 0);
-  const closeThisYear = stats.byManager.reduce((sum, m) => sum + (m.closeThisYear || 0), 0);
+  // $$ to close by period — build per-manager breakdown for stacked bars
+  const periods = ['This Month', 'This Quarter', 'Next Quarter', 'This Year'] as const;
+  const managerKeys = [...new Set(stats.byManager.filter(m => m.deals > 0).map(m => m.owner))];
+  
+  const periodData = periods.map(period => {
+    const row: Record<string, string | number> = { period };
+    let total = 0;
+    for (const mgr of managerKeys) {
+      const m = stats.byManager.find(bm => bm.owner === mgr);
+      let val = 0;
+      if (period === 'This Month') val = m?.closeThisMonth || 0;
+      else if (period === 'This Quarter') val = m?.closeThisQ || 0;
+      else if (period === 'Next Quarter') val = m?.closeNextQ || 0;
+      else if (period === 'This Year') val = m?.closeThisYear || 0;
+      row[mgr] = val;
+      total += val;
+    }
+    row['total'] = total;
+    return row;
+  }).sort((a, b) => (b.total as number) - (a.total as number));
 
-  const periodData = [
-    { period: 'This Month', value: closeThisMonth },
-    { period: 'This Quarter', value: closeThisQ },
-    { period: 'Next Quarter', value: closeNextQ },
-    { period: 'This Year', value: closeThisYear },
-  ].sort((a, b) => b.value - a.value);
-
-  // At-risk deals (top 5 by value)
+  // At-risk deals (top 5 by value, daysInStage > 30)
   const atRiskDeals = stats.topDeals
     .filter(d => d.daysInStage > 30)
     .sort((a, b) => b.amount - a.amount)
@@ -114,7 +125,9 @@ export function PipelineForecastTab({ stats, color }: Props) {
             data={forecastVsActual}
             xKey="month"
             yKey="forecast"
-            color={color}
+            dataKeys={['forecast', 'actual']}
+            labels={{ forecast: 'Forecast', actual: 'Actual Closed' }}
+            colors={[color, '#10b981']}
             unit="RM "
             height={240}
           />
@@ -128,14 +141,27 @@ export function PipelineForecastTab({ stats, color }: Props) {
       <div className="sd-row">
         <div className="sd-chart-card" style={{ flex: 1 }}>
           <h3 className="sd-chart-title">$$ to Close by Period</h3>
+          <p className="sd-chart-sub">Stacked by sales manager</p>
           <BarChart
             data={periodData}
             xKey="period"
-            yKey="value"
-            color={color}
+            yKey="total"
+            dataKeys={managerKeys}
+            colors={MANAGER_COLORS.slice(0, managerKeys.length)}
+            labels={Object.fromEntries(managerKeys.map(k => [k, k]))}
+            stacked
             unit="RM "
-            height={220}
+            height={260}
           />
+          {/* Legend */}
+          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, marginTop: 10, justifyContent: 'center' }}>
+            {managerKeys.map((mgr, i) => (
+              <div key={mgr} style={{ display: 'flex', alignItems: 'center', gap: 5, fontSize: '0.75rem', color: TEXT }}>
+                <div style={{ width: 10, height: 10, borderRadius: 2, background: MANAGER_COLORS[i % MANAGER_COLORS.length] }} />
+                {mgr}
+              </div>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -181,35 +207,41 @@ export function PipelineForecastTab({ stats, color }: Props) {
         <h3 className="sd-chart-title" style={{ marginBottom: 12, display: 'flex', alignItems: 'center', gap: 8 }}>
           <span style={{ color: WARN }}>⚠</span> At-Risk Deals
         </h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-          {atRiskDeals.map((deal) => (
-            <div key={deal.slug} style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-              padding: '10px 12px',
-              background: 'rgba(245, 158, 11, 0.05)',
-              borderRadius: 6,
-              border: `1px solid ${WARN}`,
-            }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: '0.85rem', fontWeight: 500, color: TEXT }}>
-                  {deal.title}
+        {atRiskDeals.length === 0 ? (
+          <div style={{ padding: 20, textAlign: 'center', color: MUTED, fontSize: '0.85rem' }}>
+            No deals stalled &gt;30 days
+          </div>
+        ) : (
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {atRiskDeals.map((deal) => (
+              <div key={deal.slug} style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                padding: '10px 12px',
+                background: 'rgba(245, 158, 11, 0.05)',
+                borderRadius: 6,
+                border: `1px solid ${WARN}`,
+              }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: '0.85rem', fontWeight: 500, color: TEXT }}>
+                    {deal.title}
+                  </div>
+                  <div style={{ fontSize: '0.75rem', color: MUTED }}>
+                    {deal.owner ? deal.owner.substring(0, 3).toUpperCase() : 'N/A'} · {deal.daysInStage}d stalled
+                  </div>
                 </div>
-                <div style={{ fontSize: '0.75rem', color: MUTED }}>
-                  {deal.owner ? deal.owner.substring(0, 3).toUpperCase() : 'N/A'} · {deal.daysInStage}d stalled
+                <div style={{ textAlign: 'right', minWidth: 100 }}>
+                  <div style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT }}>
+                    RM {deal.amount >= 1_000_000
+                      ? `${(deal.amount / 1_000_000).toFixed(1)}M`
+                      : `${(deal.amount / 1000).toFixed(0)}K`}
+                  </div>
                 </div>
               </div>
-              <div style={{ textAlign: 'right', minWidth: 100 }}>
-                <div style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT }}>
-                  RM {deal.amount >= 1_000_000
-                    ? `${(deal.amount / 1_000_000).toFixed(1)}M`
-                    : `${(deal.amount / 1000).toFixed(0)}K`}
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
+            ))}
+          </div>
+        )}
       </div>
     </div>
   );

@@ -277,14 +277,29 @@
     ],
     "atRiskByManager": [
       {
+        "owner": "Liyana",
+        "atRiskDeals": 3,
+        "atRiskValue": 5600000
+      },
+      {
+        "owner": "Nazrul",
+        "atRiskDeals": 2,
+        "atRiskValue": 1800000
+      },
+      {
         "owner": "Irene",
-        "atRiskDeals": 1,
-        "atRiskValue": 320000
+        "atRiskDeals": 2,
+        "atRiskValue": 1020000
       },
       {
         "owner": "Shahrul",
-        "atRiskDeals": 2,
-        "atRiskValue": 240000
+        "atRiskDeals": 1,
+        "atRiskValue": 500000
+      },
+      {
+        "owner": "Aisha",
+        "atRiskDeals": 1,
+        "atRiskValue": 320000
       }
     ],
     "atRiskByPartner": [
@@ -319,60 +334,44 @@
     ],
     "topDeals": [
       {
-        "slug": "deals/apparel-autumn-aeon",
-        "title": "Autumn Fashion Stock Wholesale — Aeon Stores",
-        "customer": "Aeon Co (M) Bhd",
-        "amount": 450000,
+        "slug": "deals/infracab-ai-surveillance",
+        "title": "Infracab — AI Surveillance & People Analytics",
+        "amount": 3500000,
         "stage": "Quote",
-        "priority": "Hot",
-        "owner": "Irene",
-        "partner": "Aeon Retail Outlets",
-        "closeDate": "2026-09-15",
-        "winProbability": 75,
-        "daysInStage": 8,
-        "hot": true
+        "owner": "Liyana",
+        "daysInStage": 95
       },
       {
-        "slug": "deals/electronics-audio-parkson",
-        "title": "Smart Home Audio Bundle — Parkson Malls",
-        "customer": "Parkson Corporation",
-        "amount": 380000,
-        "stage": "Tender",
-        "priority": "Hot",
-        "owner": "Shamini",
-        "partner": "Parkson Departmental Stores",
-        "closeDate": "2026-09-30",
-        "winProbability": 80,
-        "daysInStage": 14,
-        "hot": true
+        "slug": "deals/cpn-43-malls",
+        "title": "Central Pattana (CPN) — 43 Malls PeopleTrack Deployment",
+        "amount": 2100000,
+        "stage": "Quote",
+        "owner": "Liyana",
+        "daysInStage": 574
       },
       {
-        "slug": "deals/corporate-uniform-maybank",
-        "title": "Corporate Employee Apparel Supply — Maybank",
-        "customer": "Maybank Malaysia",
-        "amount": 290000,
-        "stage": "Confirmed",
-        "priority": "Hot",
-        "owner": "Nazrul",
-        "partner": "Lotus Supermarkets Wholesale",
-        "closeDate": "2026-08-28",
-        "winProbability": 90,
-        "daysInStage": 5,
-        "hot": true
-      },
-      {
-        "slug": "deals/lifestyle-gift-box-petronas",
-        "title": "Lifestyle Festival Gift Sets — Petronas Retail",
-        "customer": "Petronas Dagangan",
-        "amount": 210000,
+        "slug": "deals/mayang-mall",
+        "title": "Mayang mall peopletrack",
+        "amount": 1300000,
         "stage": "Qualified",
-        "priority": "Warm",
-        "owner": "Syarif",
-        "partner": "SOGO KL Fashion Mall",
-        "closeDate": "2026-10-15",
-        "winProbability": 60,
-        "daysInStage": 10,
-        "hot": false
+        "owner": "Nazrul",
+        "daysInStage": 95
+      },
+      {
+        "slug": "deals/empire-sushi",
+        "title": "Empire Sushi — AI Vision & Cloud Subscription",
+        "amount": 689000,
+        "stage": "Quote",
+        "owner": "Irene",
+        "daysInStage": 95
+      },
+      {
+        "slug": "deals/aeon-30-malls",
+        "title": "Peopletrack for 30 aeon malls",
+        "amount": 500000,
+        "stage": "Confirmed",
+        "owner": "Shahrul",
+        "daysInStage": 233
       }
     ],
     "channelVolume": {
