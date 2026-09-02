@@ -85,7 +85,10 @@ export function FinanceDocScanTab({ department, color }: FinanceDocScanTabProps)
     if (formTemplate) formData.append('template', formTemplate);
 
     try {
-      const res = await fetch(`/api/departments/${department}/dashboard/doc-scan/sources`, {
+      const url = editSource 
+        ? `/api/departments/${department}/dashboard/doc-scan/sources/${editSource.id}`
+        : `/api/departments/${department}/dashboard/doc-scan/sources`;
+      const res = await fetch(url, {
         method: editSource ? 'PUT' : 'POST',
         body: formData,
       });

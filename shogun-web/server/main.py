@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re as _re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -184,8 +185,16 @@ def create_app() -> FastAPI:
         user: User = Depends(get_current_user),
     ):
         """Serve files from the new doc-scan pipeline. Auth required."""
+        # Sanitize path components to prevent traversal
+        if not _re.match(r'^[A-Za-z0-9_-]+$', dept) or not _re.match(r'^[A-Za-z0-9_-]+$', source_id):
+            raise HTTPException(status_code=400, detail="Invalid path component")
         safe_name = Path(filename).name  # prevent path traversal
         file_path = scans_dir / "scans" / dept / source_id / safe_name
+        # Verify resolved path stays inside scans_dir
+        try:
+            file_path.resolve().relative_to(scans_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied")
         if not file_path.is_file():
             raise HTTPException(status_code=404, detail="File not found")
         return FileResponse(file_path)
@@ -199,8 +208,16 @@ def create_app() -> FastAPI:
         user: User = Depends(get_current_user),
     ):
         """Serve filled Excel output files. Auth required."""
+        # Sanitize path components to prevent traversal
+        if not _re.match(r'^[A-Za-z0-9_-]+$', dept) or not _re.match(r'^[A-Za-z0-9_-]+$', source_id):
+            raise HTTPException(status_code=400, detail="Invalid path component")
         safe_name = Path(filename).name
         file_path = scans_dir / "scans" / dept / source_id / "output" / safe_name
+        # Verify resolved path stays inside scans_dir
+        try:
+            file_path.resolve().relative_to(scans_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied")
         if not file_path.is_file():
             raise HTTPException(status_code=404, detail="Output file not found")
         return FileResponse(file_path, filename=safe_name)

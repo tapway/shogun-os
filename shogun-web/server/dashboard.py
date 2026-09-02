@@ -3129,7 +3129,11 @@ async def create_doc_scan_source(
         cfg = get_config()
         upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
         upload_dir.mkdir(parents=True, exist_ok=True)
-        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
         with open(template_path, "wb") as f:
             content = await template.read()
             f.write(content)
@@ -3178,7 +3182,11 @@ async def update_doc_scan_source(
         cfg = get_config()
         upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
         upload_dir.mkdir(parents=True, exist_ok=True)
-        template_path = str(upload_dir / f"{source_id}_{template.filename}")
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
         with open(template_path, "wb") as f:
             content = await template.read()
             f.write(content)
@@ -3200,13 +3208,17 @@ async def delete_doc_scan_source(name: str = Path(...), source_id: str = Path(..
 async def update_source_schedule(
     name: str = Path(...),
     source_id: str = Path(...),
-    schedule: str = Body(...),
+    body: dict = Body(...),
     user: User = Depends(get_current_user),
 ):
     """Update the schedule for a scan source."""
     source_key = f"{name}:{source_id}"
     if source_key not in _DOC_SCAN_SOURCES:
         raise HTTPException(status_code=404, detail="Source not found")
+    
+    schedule = body.get("schedule")
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Missing 'schedule' field")
     
     _DOC_SCAN_SOURCES[source_key]["schedule"] = schedule
     return {"status": "updated", "schedule": schedule}
@@ -3238,6 +3250,10 @@ async def run_doc_scan_source(
     
     if not folder_id:
         raise HTTPException(status_code=400, detail="Invalid Google Drive URL - could not extract folder ID")
+    
+    # Validate folder_id to prevent API query injection
+    if not _re.match(r'^[A-Za-z0-9_-]+$', folder_id):
+        raise HTTPException(status_code=400, detail="Invalid folder ID format")
     
     # Step 1: List image files in Drive folder using google_api.py (gws CLI fallback)
     REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
@@ -3273,8 +3289,14 @@ async def run_doc_scan_source(
         file_id = file_info.get("id")
         file_name = file_info.get("name", f"doc_{i}.png")
         
+        # Sanitize file_name to prevent path traversal
+        safe_file_name = pathlib.Path(file_name).name
+        if not safe_file_name or '/' in safe_file_name or '\\' in safe_file_name:
+            logger.warning(f"Skipping file with invalid name: {file_name}")
+            continue
+        
         # Download file using google_api.py
-        temp_path = upload_dir / file_name
+        temp_path = upload_dir / safe_file_name
         download_cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "download", file_id, "--output", str(temp_path)]
         try:
             dl_result = subprocess.run(download_cmd, capture_output=True, text=True, timeout=60)
@@ -3287,7 +3309,7 @@ async def run_doc_scan_source(
             continue
         
         # Step 3: OCR inline — add venv site-packages to sys.path so easyocr/pymupdf are available
-        logger.info(f"OCR: file={file_name}, temp_path={temp_path}, exists={temp_path.exists()}")
+        logger.info(f"OCR: file={safe_file_name}, temp_path={temp_path}, exists={temp_path.exists()}")
         
         try:
             if not temp_path.exists():
@@ -3301,7 +3323,7 @@ async def run_doc_scan_source(
                 
                 # Convert PDF to image if needed
                 ocr_input = str(temp_path)
-                if file_name.lower().endswith('.pdf'):
+                if safe_file_name.lower().endswith('.pdf'):
                     try:
                         import pymupdf
                     except ImportError:
@@ -3309,19 +3331,21 @@ async def run_doc_scan_source(
                     doc = pymupdf.open(str(temp_path))
                     page = doc[0]
                     pix = page.get_pixmap(dpi=200)
-                    img_path = upload_dir / f"{file_name}.png"
+                    img_path = upload_dir / f"{safe_file_name}.png"
                     pix.save(str(img_path))
                     doc.close()
                     ocr_input = str(img_path)
                 
-                # Run easyocr
+                # Run easyocr in thread pool to avoid blocking event loop
                 import easyocr
-                reader = easyocr.Reader(['en'], gpu=False)
-                ocr_result = reader.readtext(ocr_input)
+                def _run_ocr():
+                    reader = easyocr.Reader(['en'], gpu=False)
+                    return reader.readtext(ocr_input)
+                ocr_result = await asyncio.to_thread(_run_ocr)
                 ocr_text = " ".join([r[1] for r in ocr_result])
                 
                 # Clean up converted image if PDF
-                if file_name.lower().endswith('.pdf'):
+                if safe_file_name.lower().endswith('.pdf'):
                     try:
                         FileSystemPath(ocr_input).unlink()
                     except OSError:
@@ -3397,7 +3421,7 @@ async def run_doc_scan_source(
                     extracted = {"raw_ocr": ocr_text[:800], "note": f"Field extraction not configured for '{document_type}'"}
             
         except Exception as e:
-            logger.error(f"OCR exception for {file_name}: {type(e).__name__}: {e}")
+            logger.error(f"OCR exception for {safe_file_name}: {type(e).__name__}: {e}")
             extracted = {"error": f"{type(e).__name__}: {str(e)}"}
         
         # Build result object (no raw_ocr in displayed fields)
@@ -3429,7 +3453,10 @@ async def run_doc_scan_source(
         try:
             import openpyxl
             
-            wb = openpyxl.load_workbook(template_path)
+            # Load workbook in thread pool to avoid blocking
+            def _load_wb():
+                return openpyxl.load_workbook(template_path)
+            wb = await asyncio.to_thread(_load_wb)
             ws = wb.active
             
             # Read header names from row 1
@@ -3506,7 +3533,10 @@ async def run_doc_scan_source(
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
             output_filename = f"{source['title'].replace(' ', '_')}_{timestamp}.xlsx"
             output_path = output_dir / output_filename
-            wb.save(str(output_path))
+            # Save workbook in thread pool to avoid blocking
+            def _save_wb():
+                wb.save(str(output_path))
+            await asyncio.to_thread(_save_wb)
             output_excel_url = f"/api/doc-uploads/scans/{name}/{source_id}/output/{output_filename}"
             logger.info(f"Combined Excel saved: {output_path} ({len(results)} rows)")
             
