@@ -2893,6 +2893,11 @@ async def review_hr_candidate(
     if kind not in ("hr", "manager"):
         raise HTTPException(status_code=422, detail="kind must be 'hr' or 'manager'")
 
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_review_to_mock(candidate_id, kind)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
+
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -2930,6 +2935,11 @@ async def add_hr_candidate_to_pipeline(
 ) -> dict:
     """Flag a candidate as added to the recruitment pipeline."""
     from models import HrCandidate
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_add_to_pipeline_to_mock(candidate_id)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
@@ -3004,6 +3014,364 @@ def _persist_candidate_move_to_mock(candidate_id: int, new_status: str) -> dict 
     except Exception as e:
         print(f"[WARN] Failed to persist candidate move to mock: {e}")
         return None
+
+
+def _save_hr_mock(mock: dict) -> None:
+    """Write HR mock data back to JSON file."""
+    import json
+    with open(_HR_MOCK_PATH, 'w', encoding='utf-8') as f:
+        json.dump(mock, f, indent=2)
+
+
+def _find_mock_candidate(mock: dict, candidate_id: int) -> dict | None:
+    """Find a candidate by ID in mock data. Returns the candidate dict or None.
+    Only matches candidates whose notion_page_id starts with 'mock-cand-' to avoid
+    collisions with DB-created candidates that happen to share the same numeric ID."""
+    for c in mock.get("candidates", []):
+        if c.get("id") == candidate_id and str(c.get("notion_page_id", "")).startswith("mock-cand-"):
+            return c
+    return None
+
+
+def _update_mock_pipeline_counts(mock: dict) -> None:
+    """Recalculate pipeline_counts from current candidate statuses."""
+    from collections import Counter
+    pipeline_counts = Counter(
+        c["status"] for c in mock.get("candidates", []) if c.get("waiting_since")
+    )
+    mock["pipeline_counts"] = dict(pipeline_counts)
+
+
+def _persist_candidate_review_to_mock(candidate_id: int, kind: str) -> dict | None:
+    """Persist HR/Manager review tap to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        now = __import__("datetime").datetime.utcnow().isoformat(timespec="seconds")
+        if kind == "hr":
+            cand["hr_reviewed"] = True
+            cand["hr_reviewed_at"] = now
+        else:
+            cand["manager_reviewed"] = True
+            cand["manager_reviewed_at"] = now
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate review to mock: {e}")
+        return None
+
+
+def _persist_candidate_add_to_pipeline_to_mock(candidate_id: int) -> dict | None:
+    """Persist add-to-pipeline action to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        old_status = cand.get("status", "")
+        cand["in_pipeline"] = True
+        if old_status not in ("1st Interview Scheduled", "HR Interview Done",
+                              "Waiting Manager Interview Confirm", "Manager Interview Scheduled",
+                              "Waiting Interview Result", "Waiting Offer Confirmation",
+                              "Offer Sent - Waiting Reply", "Done"):
+            cand["status"] = "Interview Email Sent - Waiting Reply"
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "stage_move",
+            "note": "Added into recruitment pipeline",
+            "from_status": old_status,
+            "to_status": cand["status"],
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist add-to-pipeline to mock: {e}")
+        return None
+
+
+def _persist_candidate_comment_to_mock(candidate_id: int, note: str) -> dict | None:
+    """Persist comment event to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "comment",
+            "note": note,
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate comment to mock: {e}")
+        return None
+
+
+def _persist_candidate_decision_to_mock(candidate_id: int, decision: str, comment: str = "") -> dict | None:
+    """Persist interview decision to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        cur = (cand.get("status") or "").strip()
+        if decision == "continue":
+            if cur.lower() != "hr interview done":
+                return None  # let live endpoint handle validation error
+            new_status = "Waiting Manager Interview Confirm"
+        elif decision == "offer":
+            if cur.lower() != "waiting offer confirmation":
+                return None
+            new_status = "Offer Sent - Waiting Reply"
+        else:  # reject
+            if cur.lower() not in ("hr interview done", "waiting interview result", "waiting offer confirmation"):
+                return None
+            new_status = "Rejected"
+
+        old = cand["status"]
+        cand["status"] = new_status
+        cand["waiting_since"] = None
+        cand["waiting_reason"] = None
+        if new_status == "Rejected":
+            cand["removed_reason"] = "Rejected"
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        note_text = f"Decision: {decision.upper()}. {comment}" if comment else f"Decision: {decision.upper()}"
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "decision",
+            "note": note_text,
+            "from_status": old,
+            "to_status": new_status,
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate decision to mock: {e}")
+        return None
+
+
+def _persist_candidate_schedule_to_mock(candidate_id: int, rnd: str, scheduled_at: str,
+                                         interviewer_name: str = "", location: str = "") -> dict | None:
+    """Persist interview schedule to mock JSON. Returns (candidate, interview) dicts or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        old = cand.get("status", "")
+        new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
+        cand["status"] = new_status
+        cand["waiting_since"] = None
+        cand["waiting_reason"] = None
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+
+        # Create interview record
+        interviews = mock.setdefault("interviews", [])
+        max_iv_id = max((iv.get("id", 0) for iv in interviews), default=0)
+        interview = {
+            "id": max_iv_id + 1,
+            "candidate_id": candidate_id,
+            "job_id": cand.get("job_opening_id"),
+            "round": rnd,
+            "scheduled_at": scheduled_at,
+            "interviewer_name": interviewer_name or None,
+            "interviewer_employee_id": None,
+            "location": location or None,
+            "status": "scheduled",
+        }
+        interviews.append(interview)
+
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_ev_id = max((ev.get("id", 0) for ev in events), default=0)
+        note = f"Interview scheduled ({rnd} round) at {scheduled_at}"
+        if interviewer_name:
+            note += f" with {interviewer_name}"
+        events.append({
+            "id": max_ev_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "stage_move",
+            "note": note,
+            "from_status": old,
+            "to_status": new_status,
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return {"candidate": cand.copy(), "interview": interview.copy()}
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate schedule to mock: {e}")
+        return None
+
+
+def _persist_candidate_waiting_to_mock(candidate_id: int, reason: str) -> dict | None:
+    """Persist waiting state change to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        if reason:
+            cand["waiting_since"] = __import__("datetime").datetime.utcnow().isoformat(timespec="seconds")
+            cand["waiting_reason"] = reason[:256]
+        else:
+            cand["waiting_since"] = None
+            cand["waiting_reason"] = None
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        note = f"Waiting: {reason}" if reason else "Waiting cleared (replied / resolved)"
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "note",
+            "note": note,
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate waiting to mock: {e}")
+        return None
+
+
+def _persist_candidate_remove_to_mock(candidate_id: int, reason: str) -> dict | None:
+    """Persist soft-remove (reject) to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        old = cand.get("status", "")
+        cand["status"] = "Rejected"
+        cand["removed_reason"] = reason[:1000]
+        cand["waiting_since"] = None
+        cand["waiting_reason"] = None
+        cand["in_pipeline"] = False
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "stage_move",
+            "note": f"Removed: {reason}",
+            "from_status": old,
+            "to_status": "Rejected",
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate remove to mock: {e}")
+        return None
+
+
+def _persist_candidate_attach_job_to_mock(candidate_id: int, job_id: int) -> dict | None:
+    """Persist attach-to-job to mock JSON. Returns updated candidate or None."""
+    try:
+        mock = _load_hr_mock()
+        cand = _find_mock_candidate(mock, candidate_id)
+        if not cand:
+            return None
+        # Find job title from mock job_openings
+        job_title = None
+        for j in mock.get("job_openings", []):
+            if j.get("id") == job_id:
+                job_title = j.get("job_title")
+                break
+        old_status = cand.get("status", "")
+        cand["job_opening_id"] = job_id
+        if job_title:
+            cand["role"] = job_title
+        cand["status"] = "Resume Received"
+        cand["removed_reason"] = None
+        cand["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+        # Add event
+        events = mock.setdefault("candidate_events", [])
+        max_id = max((ev.get("id", 0) for ev in events), default=0)
+        events.append({
+            "id": max_id + 1,
+            "candidate_id": candidate_id,
+            "event_type": "stage_move",
+            "note": f"Attached to job '{job_title or job_id}' (re-invited from talent pool)",
+            "from_status": old_status,
+            "to_status": "Resume Received",
+            "actor_name": "Demo User",
+            "actor_email": "demo@example.com",
+            "created_at": __import__("datetime").datetime.utcnow().isoformat(timespec="seconds"),
+        })
+        _update_mock_pipeline_counts(mock)
+        _save_hr_mock(mock)
+        return cand.copy()
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate attach-job to mock: {e}")
+        return None
+
+
+def _persist_interview_status_to_mock(interview_id: int, status: str) -> dict | None:
+    """Persist interview status change to mock JSON. Returns updated interview or None.
+    Only matches interviews whose candidate_id points to a mock-cand- candidate."""
+    try:
+        mock = _load_hr_mock()
+        # Build set of mock candidate IDs
+        mock_cand_ids = {
+            c["id"] for c in mock.get("candidates", [])
+            if str(c.get("notion_page_id", "")).startswith("mock-cand-")
+        }
+        interviews = mock.get("interviews", [])
+        updated_iv = None
+        for iv in interviews:
+            if iv.get("id") == interview_id and iv.get("candidate_id") in mock_cand_ids:
+                iv["status"] = status
+                updated_iv = iv.copy()
+                break
+        if updated_iv:
+            _save_hr_mock(mock)
+            return updated_iv
+        return None
+    except Exception as e:
+        print(f"[WARN] Failed to persist interview status to mock: {e}")
+        return None
+
 
 @router.post("/hr/candidates/{candidate_id}/move")
 async def move_hr_candidate(
@@ -3325,6 +3693,11 @@ async def comment_hr_candidate(
     if not note:
         raise HTTPException(status_code=422, detail="Comment cannot be empty")
 
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_comment_to_mock(candidate_id, note)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
+
     _hr_event(db, tenant.id, candidate_id, "comment", note=note, user=user)
     db.commit()
     return {"ok": True, "candidate": cand.to_dict()}
@@ -3348,6 +3721,11 @@ async def decide_hr_candidate(
     decision = (body.decision or "").strip().lower()
     if decision not in ("continue", "reject", "offer"):
         raise HTTPException(status_code=422, detail="decision must be continue, reject or offer")
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_decision_to_mock(candidate_id, decision, (body.comment or "").strip())
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
@@ -3417,6 +3795,15 @@ async def schedule_hr_interview(
     if not when:
         raise HTTPException(status_code=422, detail="Interview date/time is required")
 
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_schedule_to_mock(
+        candidate_id, rnd, when,
+        interviewer_name=(body.interviewer_name or "").strip(),
+        location=(body.location or "").strip(),
+    )
+    if mock_result:
+        return {"ok": True, "candidate": mock_result["candidate"], "interview": mock_result["interview"]}
+
     job_id = None
     if cand.role:
         job = db.execute(
@@ -3478,6 +3865,12 @@ async def update_hr_interview_status(
     st = (body.status or "").strip().lower()
     if st not in ("scheduled", "completed", "cancelled"):
         raise HTTPException(status_code=422, detail="Invalid interview status")
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_interview_status_to_mock(interview_id, st)
+    if mock_result:
+        return {"ok": True, "interview": mock_result}
+
     iv.status = st
     db.commit()
     return {"ok": True, "interview": iv.to_dict()}
@@ -3502,6 +3895,12 @@ async def set_hr_candidate_waiting(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     reason = (body.note or "").strip()
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_waiting_to_mock(candidate_id, reason)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
+
     if reason:
         cand.waiting_since = datetime.utcnow().isoformat(timespec="seconds")
         cand.waiting_reason = reason[:256]
@@ -3524,6 +3923,12 @@ async def remove_hr_candidate(
 ) -> dict:
     """Soft-remove a candidate: status Rejected with reason kept for audit."""
     from models import HrCandidate
+
+    # Demo mode: persist to mock JSON file
+    _reason = (body.note or "").strip() or "No response"
+    mock_result = _persist_candidate_remove_to_mock(candidate_id, _reason)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
@@ -4407,6 +4812,11 @@ async def attach_candidate_to_job(
     """Attach (or re-invite) a talent-pool candidate to a job opening and
     restart their journey at Resume Received."""
     from models import HrCandidate, HrJobOpening
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_attach_job_to_mock(candidate_id, body.job_id)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
