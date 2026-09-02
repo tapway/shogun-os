@@ -771,7 +771,7 @@
       "role": "IT Support",
       "status": "Shortlisted",
       "source": "LinkedIn",
-      "resume_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
+      "resume_url": "/resumes/ella-bennett-resume.pdf",
       "screening_answers_url": null,
       "candidate_type": "fulltime",
       "date_entry": "2026-09-01",
@@ -1704,6 +1704,57 @@
       "actor_name": "Demo User",
       "actor_email": "demo@example.com",
       "created_at": "2026-09-02T07:53:27"
+    },
+    {
+      "id": 9,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:01:30"
+    },
+    {
+      "id": 10,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:01:34"
+    },
+    {
+      "id": 11,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:01:34"
+    },
+    {
+      "id": 12,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:01:34"
+    },
+    {
+      "id": 13,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:01:34"
     }
   ],
   "interviews": [
@@ -1731,6 +1782,17 @@
     },
     {
       "id": 4,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 5,
       "candidate_id": 1,
       "job_id": 1,
       "round": "first",
