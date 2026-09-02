@@ -147,9 +147,12 @@ const OTHER_KEY = "Other";
 
 /** Classify a candidate by the employment type of their matching OPEN job
  * opening (position-based). in_pipeline candidates with no open match go to
- * "Other". Returns null when the candidate must stay hidden. */
+ * "Other". Returns null when the candidate must stay hidden.
+ * "Resume Received" candidates are excluded — they belong in the Candidate Pool. */
 function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string | null {
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return null;
+  // Resume Received stays in Candidate Pool, not in pipeline columns
+  if (canonicalStatus(c.status) === "Resume Received") return null;
   const openMatches = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j));
   if (openMatches.length > 0) {
     const t = (openMatches[0].employment_type || "").trim();
@@ -303,6 +306,14 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
 
   const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [] }));
   const otherCandidates = bySection[OTHER_KEY] || [];
+
+  // Candidate Pool: "Resume Received" candidates not yet shortlisted
+  const poolCandidates = useMemo(() => {
+    return applyMoves(globallyFiltered).filter(
+      (c) => canonicalStatus(c.status) === "Resume Received" && !TERMINAL_STAGES.has(canonicalStatus(c.status)),
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [globallyFiltered, moves]);
 
   return (
     <div className="sd-stack">
@@ -480,6 +491,40 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
           <p style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", margin: "0.5rem 0 0" }}>
             Waiting ≥ 14 days shows red — open the card and use Remove (soft-reject, kept for audit) if there is no reply.
           </p>
+        </div>
+      )}
+
+      {/* Candidate Pool — Resume Received (not yet in pipeline) */}
+      {view === "pipeline" && poolCandidates.length > 0 && (
+        <div className="sd-chart-card">
+          <div style={{ marginBottom: "0.75rem", display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <Briefcase size={14} style={{ color: "var(--samurai-text)" }} />
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>Candidate Pool</h3>
+            <span
+              style={{
+                fontSize: "0.75rem",
+                fontWeight: 700,
+                color: "var(--samurai-muted)",
+                background: "var(--samurai-surface-2)",
+                padding: "0.1rem 0.5rem",
+                borderRadius: "0.4rem",
+              }}
+            >
+              {poolCandidates.length} candidates
+            </span>
+            <span style={{ fontSize: "0.7rem", color: "var(--samurai-muted)", marginLeft: "auto" }}>
+              Click a card to review &amp; shortlist into the pipeline
+            </span>
+          </div>
+          <KanbanBoard
+            candidates={poolCandidates}
+            onSelect={setSelected}
+            dragId={dragId}
+            dragOver={dragOver}
+            setDragId={setDragId}
+            setDragOver={setDragOver}
+            onDropStage={moveCandidate}
+          />
         </div>
       )}
 
