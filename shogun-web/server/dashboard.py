@@ -12,10 +12,9 @@ import subprocess
 import sys
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote as _url_quote
-
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form, Body
 from pydantic import BaseModel, Field
 from sqlalchemy import select
 from sqlalchemy.orm import Session
@@ -29,6 +28,35 @@ from models import Tenant, Department, User
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source configuration & results
+# ---------------------------------------------------------------------------
+
+class DocScanSource(BaseModel):
+    """Configuration for a document scan source."""
+    title: str
+    drive_url: str
+    schedule: str = "manual"  # daily, weekly, manual
+    document_type: str = "invoice"
+    template_path: Optional[str] = None
+
+class DocScanResult(BaseModel):
+    """Result from a document scan run."""
+    filename: str
+    file_url: str
+    source_id: str
+    source_title: str
+    document_type: str
+    ocr_summary: str
+    interpretation: Dict[str, Any] = Field(default_factory=dict)
+    status: str = "pending"  # pending, processed, verified, rejected
+
+# In-memory storage for demo (replace with DB table in production)
+_DOC_SCAN_SOURCES: Dict[str, Dict[str, Any]] = {}  # key = department:id
+_DOC_SCAN_RESULTS: Dict[str, List[Dict[str, Any]]] = {}  # key = department
+
 
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
@@ -2196,19 +2224,92 @@ def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
     }
 
 
-async def _run_finance_aggregation(pages: List[dict]) -> dict:
-    """Aggregate gbrain finance pages into structured dashboard stats.
+# ─── Finance snapshot fetch — gbrain-only, targeted reads ──────────────
+# The Finance dashboard reads snapshot pages written by the finance
+# snapshot-writer on the server (see recipes/DASHBOARD_SNAPSHOT_CONTRACT.md).
+# ALL data comes from gbrain via targeted get_page calls — no list_pages,
+# no tools/list (the portal's gbrain shim implements tools/call only), and
+# no local data files. QBO live fetch is OFF by default — set
+# SHOGUN_FINANCE_QBO=1 to re-enable it as a data source.
 
-    Data source: gbrain snapshots only. When no snapshots are available,
-    returns an empty-state payload (zeros + empty lists) so the UI shows
-    "no data yet" — does NOT load mock/example data.
+_FIN_SNAPSHOT_NAMES = (
+    "cash", "pl", "balance-sheet", "ar", "ap", "bva", "concentration", "compliance",
+)
+_FIN_SNAP_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_FIN_SNAP_TTL = 60.0  # seconds — the dashboard refetches every 120s
+
+
+async def _fetch_one_snapshot(name: str) -> Optional[Tuple[str, dict]]:
+    """Fetch one finance snapshot page from gbrain (try all slug spellings).
+
+    Returns ``(cache_key, frontmatter_or_body_dict)`` or None when the page
+    is missing/empty. Never raises — a failed page simply yields None.
+    """
+    for slug in (
+        f"finance/snapshots/{name}", f"finance/snapshots/{name}.json",
+        f"snapshots/{name}", f"snapshots/{name}.json",
+    ):
+        try:
+            page = await gbrain_fetch_page("finance", slug)
+        except Exception:
+            page = None
+        if not page:
+            continue
+        fm = _parse_frontmatter(page.get("frontmatter", {}))
+        if not fm:
+            body = (page.get("content") or page.get("body")
+                    or page.get("compiled_truth") or "")
+            try:
+                fm = json.loads(body) if body.strip().startswith("{") else {}
+            except (json.JSONDecodeError, TypeError):
+                fm = {}
+        if fm:
+            key = slug[:-5] if slug.endswith(".json") else slug
+            return key, fm
+    return None
+
+
+async def _fetch_finance_snapshots() -> Dict[str, dict]:
+    """Fetch the 8 finance snapshot pages from gbrain (60s cache).
+
+    All 8 fetches run concurrently so a cold cache costs one round-trip
+    batch, not eight sequential ones. Never raises — missing pages degrade
+    to the empty-state dashboard.
+    """
+    if _FIN_SNAP_CACHE["ts"] and (time.time() - _FIN_SNAP_CACHE["ts"]) < _FIN_SNAP_TTL:
+        return dict(_FIN_SNAP_CACHE["data"])
+
+    results = await asyncio.gather(
+        *(_fetch_one_snapshot(n) for n in _FIN_SNAPSHOT_NAMES),
+        return_exceptions=True,
+    )
+    snaps: Dict[str, dict] = {}
+    for r in results:
+        if isinstance(r, tuple) and len(r) == 2:
+            snaps[r[0]] = r[1]
+
+    _FIN_SNAP_CACHE["data"] = snaps
+    _FIN_SNAP_CACHE["ts"] = time.time()
+    return dict(snaps)
+
+
+async def _run_finance_aggregation(pages: List[dict]) -> dict:
+    """Aggregate Finance dashboard stats — gbrain ONLY.
+
+    The portal links to gbrain and reads snapshot pages written there by
+    the finance snapshot-writer on the server (finance/snapshots/*).
+    Targeted get_page reads — no list_pages (the shim maps finance→data/%
+    for listings), no QBO, no local data files. When no snapshots exist
+    yet the payload is an empty state (zeros + empty lists) and the UI
+    shows a "waiting for gbrain snapshots" banner. Never mock data.
     """
     now = _now()
     cy, cm = now.year, now.month
 
-    # ── Pull snapshot pages (finance agent writes these) ──
-    snapshot_map: Dict[str, dict] = {}
-    for p in pages:
+    # ── Pull snapshot pages — targeted gbrain reads (no list_pages) ──
+    snapshot_map = await _fetch_finance_snapshots()
+    # Fold in any snapshot pages handed over via `pages` (legacy callers)
+    for p in pages or []:
         slug = str(p.get("slug", ""))
         fm = _parse_frontmatter(p.get("frontmatter", {}))
         if not fm:
@@ -2217,7 +2318,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
                 fm = json.loads(body) if body else {}
             except (json.JSONDecodeError, TypeError):
                 fm = {}
-        if fm:
+        if fm and slug not in snapshot_map:
             snapshot_map[slug] = fm
 
     # Check if we have real snapshot data
@@ -2225,18 +2326,8 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     pl_snap = snapshot_map.get("snapshots/pl", snapshot_map.get("finance/snapshots/pl", {}))
     has_real_data = bool(cash_snap or pl_snap)
 
-    # ── Fetch live QBO data (5-min cache) ──
-    today_str = now.strftime("%Y-%m-%d")
-    ytd_start = f"{cy}-01-01"
-    mtd_start = f"{cy}-{cm:02d}-01"
-    live_bs = _fetch_qbo_balance_sheet(today_str)
-    live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
-    live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
-    has_live_qbo = ("error" not in live_bs
-                    and "error" not in live_pl_ytd
-                    and "error" not in live_pl_mtd)
-
-    # Default asset + overview fields (overridden by live/snapshot/mock branches)
+    # gbrain-only data path — no QBO, no local data files.
+    # Default asset + overview fields (overridden by snapshot branch)
     current_assets: List[dict] = []
     non_current_assets: List[dict] = []
     total_current_assets = 0.0
@@ -2262,213 +2353,7 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
     dunning_queue: List[dict] = []
     ar_invoices_list: List[dict] = []
 
-    if has_live_qbo:
-        # ── LIVE QBO DATA — primary path ──
-        mock = False  # live data, not mock
-        # Assets + bank accounts from live BS via _build_live_assets
-        live_assets = _build_live_assets(live_bs)
-        current_assets = live_assets["currentAssets"]
-        non_current_assets = live_assets["nonCurrentAssets"]
-        total_current_assets = live_assets["totalCurrentAssets"]
-        total_non_current_assets = live_assets["totalNonCurrentAssets"]
-        total_assets_val = live_assets["totalAssets"]
-        bank_accounts: List[dict] = live_assets["bankAccounts"]
-        asset_trend = await _build_asset_trend_async()  # may be [] on fetch failure
-
-        # Cash: sum of bank/cash accounts from live BS
-        total_liquid_cash = sum(
-            _safe_float(b.get("balance_myr", b.get("balance", 0))) for b in bank_accounts
-        )
-        if total_liquid_cash == 0:
-            total_liquid_cash = _safe_float(live_bs.get("total_assets", 0))
-
-        # Revenue/expenses from live PL
-        revenue_mtd = _safe_float(live_pl_mtd.get("total_revenue"))
-        revenue_ytd = _safe_float(live_pl_ytd.get("total_revenue"))
-        total_expenses_ytd = _safe_float(live_pl_ytd.get("total_expenses"))
-        net_profit_ytd = _safe_float(live_pl_ytd.get("net_profit"))
-
-        # Margins (rough proxies from PL)
-        gross_margin = ((revenue_ytd - total_expenses_ytd) / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        ebitda_margin = (net_profit_ytd / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        gross_profit_margin = gross_margin
-
-        # Burn rate + runway
-        months_elapsed = cm
-        net_monthly_burn = (total_expenses_ytd / months_elapsed) if months_elapsed > 0 else 0.0
-        cash_runway_months = (total_liquid_cash / net_monthly_burn) if net_monthly_burn > 0 else 0.0
-
-        if cash_runway_months == 0:
-            runway_status = "unknown"
-        elif cash_runway_months < 3:
-            runway_status = "critical"
-        elif cash_runway_months < 6:
-            runway_status = "caution"
-        else:
-            runway_status = "healthy"
-
-        unpaid_statutory = 0.0
-
-        # Balance sheet overview KPIs from live BS
-        total_liabilities = _safe_float(live_bs.get("total_liabilities"))
-        total_equity = _safe_float(live_bs.get("total_equity"))
-        total_assets_bs = _safe_float(live_bs.get("total_assets"))
-        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
-        equity_ratio = (total_equity / total_assets_bs) if total_assets_bs else 0.0
-        gross_working_capital = total_current_assets
-        total_current_liabilities = 0.0  # QBO bridge doesn't split current/non-current liabilities
-        net_working_capital = total_current_assets - total_current_liabilities
-
-        # AR/AP from live QBO invoices/bills
-        ar_data = _fetch_qbo_ar_invoices()
-        ap_data = _fetch_qbo_ap_bills()
-        ar_invoices = ar_data.get("invoices", []) if "error" not in ar_data else []
-        ap_bills_list = ap_data.get("bills", []) if "error" not in ap_data else []
-        total_ar = sum(_safe_float(inv.get("balance_due", inv.get("total", 0))) for inv in ar_invoices)
-        total_ap = sum(_safe_float(bill.get("balance_due", bill.get("total", 0))) for bill in ap_bills_list)
-        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
-
-        # AR aging from invoice due dates
-        ar_overdue_30 = 0.0
-        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
-        dunning_queue: List[dict] = []
-        ar_invoices_list: List[dict] = []  # all outstanding invoices tagged with bucket, for popout
-        for inv in ar_invoices:
-            due_str = inv.get("due_date", "")
-            balance = _safe_float(inv.get("balance_due", 0))
-            if balance <= 0 or not due_str:
-                continue
-            try:
-                due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
-                age_days = (now - due_dt).days
-            except (ValueError, TypeError):
-                age_days = 0
-            if age_days <= 30:
-                bucket = "0-30"
-                ar_aging["bucket_0_30"] += balance
-            elif age_days <= 60:
-                bucket = "31-60"
-                ar_aging["bucket_31_60"] += balance
-            elif age_days <= 90:
-                bucket = "61-90"
-                ar_aging["bucket_61_90"] += balance
-            else:
-                bucket = "90+"
-                ar_aging["bucket_90_plus"] += balance
-                ar_overdue_30 += balance
-                dunning_queue.append({
-                    "invoice_no": inv.get("number", ""),
-                    "customer": inv.get("contact_name", ""),
-                    "due_date": due_str,
-                    "amount": balance,
-                    "aging_days": age_days,
-                    "bucket": "90+",
-                    "dunning_status": "Overdue",
-                })
-            # Build the popout entry for every outstanding invoice
-            ar_invoices_list.append({
-                "invoice_no": inv.get("number", ""),
-                "customer": inv.get("contact_name", ""),
-                "due_date": due_str,
-                "amount": balance,
-                "aging_days": max(0, age_days),
-                "bucket": bucket,
-                "dunning_status": "Overdue" if age_days > 0 else "Current",
-            })
-
-        dso = 0.0
-        dpo = 0.0
-        ap_overdue = 0.0
-
-        # Format AP bills for frontend
-        ap_bills = []
-        for bill in ap_bills_list:
-            ap_bills.append({
-                "bill_no": bill.get("number", ""),
-                "vendor": bill.get("contact_name", ""),
-                "due_date": bill.get("due_date", ""),
-                "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
-                "match_status": "Matched",
-                "approval_status": "Pending",
-            })
-
-        # Cash Flow tab — live QBO-derived series
-        # AR/AP aging-by-target (1-30/31-60/61-90/90+ DPD) from invoices/bills
-        ar_aging_by_target = _build_aging_by_target(ar_invoices)
-        ap_aging_by_target = _build_aging_by_target(ap_bills_list)
-        # 6-month P&L trend (revenue/expenses/net_profit) — each month cached
-        monthly_pl_trend = _build_monthly_pl_trend(6)
-        # Monthly burn trend (expenses per month) — reuses P&L cache
-        burn_trend = _build_burn_trend(6)
-        # 6-month cash flow forecast with fan range (total/low/high)
-        cash_flow_forecast = _build_cash_flow_forecast(6)
-        # Cash flow breakdown by P&L account (income + expenses, YTD + MTD)
-        cash_flow_breakdown = _build_cash_flow_breakdown(live_pl_ytd, live_pl_mtd)
-
-        # fx_positions, forecast_13w, fixed/variable opex: not available from QBO
-        fx_positions: List[dict] = []
-        forecast_13w = {"conservative": [], "expected": [], "optimistic": []}
-        fixed_opex = 0.0
-        variable_opex = 0.0
-
-        # Risk alerts from live data
-        risk_alerts: List[dict] = []
-        if net_working_capital < 0:
-            risk_alerts.append({
-                "type": "working_capital",
-                "level": "critical",
-                "message": f"Negative working capital: RM {net_working_capital:,.0f}",
-            })
-        if ar_aging["bucket_90_plus"] > 0:
-            risk_alerts.append({
-                "type": "ar_overdue",
-                "level": "critical" if ar_aging["bucket_90_plus"] > 50000 else "warning",
-                "message": f"RM {ar_aging['bucket_90_plus']:,.0f} in receivables overdue >90 days",
-            })
-
-        # Trends: use mock if available, else empty
-        revenue_opex_trend: List[dict] = []
-        cash_flow_trend: List[dict] = []
-
-        # BvA: load budget items from mock JSON, match QBO actuals
-        # NOTE: budget items are real (from Budget Excel), but unit economics,
-        # client concentration, and compliance are fabricated demo data.
-        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
-        mock_data = {}
-        mock = True  # BvA/concentration/compliance loaded from demo JSON
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    mock_data = json.load(f).get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data for BvA budgets: %s", e)
-        budget_items = mock_data.get("bvaLineItems", [])
-        bva_line_items = _match_qbo_actuals_to_budget(budget_items, live_pl_ytd)
-        bva_departments: List[dict] = bva_line_items  # alias for backward compat
-
-        # Unit economics, concentration, compliance: from mock/snapshot
-        unit_economics: dict = mock_data.get("unitEconomics", {
-            "gross_margin_pct": gross_margin, "contribution_margin_pct": 0,
-            "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
-        raw_client_concentration: List[dict] = mock_data.get("clientConcentration", [])
-        # Compute revenue_pct from revenue_ytd relative to total YTD revenue
-        total_client_revenue = sum(_safe_float(c.get("revenue_ytd", 0)) for c in raw_client_concentration)
-        if total_client_revenue > 0 and revenue_ytd > 0:
-            client_concentration: List[dict] = [
-                {**c, "revenue_pct": round((_safe_float(c.get("revenue_ytd", 0)) / revenue_ytd * 100), 1)}
-                for c in raw_client_concentration
-            ]
-        else:
-            client_concentration = raw_client_concentration
-        close_checklist: List[dict] = mock_data.get("closeChecklist", [])
-        statutory_schedule: List[dict] = mock_data.get("statutorySchedule", [])
-        sst_readiness: dict = mock_data.get("sstReadiness", {
-            "draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
-        cp58_register: List[dict] = mock_data.get("cp58Register", [])
-        wht_queue: List[dict] = mock_data.get("whtQueue", [])
-        expense_claim_audit: List[dict] = mock_data.get("expenseClaimAudit", [])
-
-    elif has_real_data:
+    if has_real_data:
         mock = False  # gbrain snapshot data, not mock
         total_liquid_cash = _safe_float(cash_snap.get("total_liquid_cash"))
         net_monthly_burn = _safe_float(cash_snap.get("net_monthly_burn"))
@@ -2521,7 +2406,12 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         else:
             runway_status = "healthy"
 
-        bank_accounts: List[dict] = cash_snap.get("bank_accounts", [])
+        bank_accounts: List[dict] = []
+        for row in cash_snap.get("bank_accounts", []):
+            if not isinstance(row, dict):
+                continue
+            bal = _safe_float(row.get("balance_myr", row.get("balance", 0)))
+            bank_accounts.append({**row, "balance_myr": bal})
         fx_positions: List[dict] = cash_snap.get("fx_positions", [])
         forecast_13w: dict = cash_snap.get("forecast_13w", {"conservative": [], "expected": [], "optimistic": []})
         fixed_opex = _safe_float(cash_snap.get("fixed_opex"))
@@ -2536,14 +2426,61 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
             "bucket_61_90": _safe_float(ar_snap.get("bucket_61_90")),
             "bucket_90_plus": _safe_float(ar_snap.get("bucket_90_plus")),
         }
-        dunning_queue: List[dict] = ar_snap.get("dunning_queue", [])
-        ar_invoices_list: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
+        raw_dunning: List[dict] = ar_snap.get("dunning_queue", [])
+        # Normalize to the UI dunning shape (invoice_no/customer/amount/bucket)
+        dunning_queue: List[dict] = []
+        for row in raw_dunning:
+            if not isinstance(row, dict):
+                continue
+            dunning_queue.append({
+                "invoice_no": row.get("invoice_no", row.get("invoice", "")),
+                "customer": row.get("customer", row.get("client", "")),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "aging_days": _safe_int(row.get("aging_days", row.get("days_overdue", 0))),
+                "bucket": row.get("bucket", "90+"),
+                "dunning_status": row.get("dunning_status", "Overdue"),
+            })
+        raw_ar_items: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
+        # Normalize snapshot rows to the UI item shape (invoice_no/customer/
+        # bucket/aging_days/dunning_status) — the contract allows the shorter
+        # invoice/client/days_overdue keys, the frontend needs the long ones.
+        ar_invoices_list: List[dict] = []
+        for row in raw_ar_items:
+            if not isinstance(row, dict):
+                continue
+            bucket = str(row.get("bucket") or "")
+            if not bucket:
+                days = _safe_float(row.get("aging_days", row.get("days_overdue", 0)))
+                bucket = ("0-30" if days <= 30 else "31-60" if days <= 60
+                          else "61-90" if days <= 90 else "90+")
+            ar_invoices_list.append({
+                "invoice_no": row.get("invoice_no", row.get("invoice", "")),
+                "customer": row.get("customer", row.get("client", "")),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "aging_days": _safe_int(row.get("aging_days", row.get("days_overdue", 0))),
+                "bucket": bucket,
+                "dunning_status": row.get("dunning_status",
+                                          "Overdue" if _safe_float(row.get("days_overdue", 0)) > 0 else "Current"),
+            })
 
         ap_snap = snapshot_map.get("snapshots/ap", snapshot_map.get("finance/snapshots/ap", {}))
         total_ap = _safe_float(ap_snap.get("total_ap"))
         ap_overdue = _safe_float(ap_snap.get("ap_overdue"))
         dpo = _safe_float(ap_snap.get("dpo"))
-        ap_bills: List[dict] = ap_snap.get("bills", [])
+        ap_bills: List[dict] = []
+        for row in ap_snap.get("bills", []):
+            if not isinstance(row, dict):
+                continue
+            ap_bills.append({
+                "bill_no": row.get("bill_no", row.get("bill", "")),
+                "vendor": row.get("vendor", ""),
+                "due_date": row.get("due_date", ""),
+                "amount": _safe_float(row.get("amount")),
+                "match_status": row.get("match_status", "Matched"),
+                "approval_status": row.get("approval_status", "Pending"),
+            })
 
         bva_departments: List[dict] = bva_snap.get("departments", [])
         unit_economics: dict = bva_snap.get("unit_economics", {"gross_margin_pct": gross_margin, "contribution_margin_pct": 0, "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
@@ -2654,9 +2591,13 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         burn_trend = mock_data.get("burnTrend", [])
         cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
 
+    data_source = "gbrain" if has_real_data else "empty"
+
     return {
         # Mock flag — true when data loaded from examples/*.json (demo mode)
         "mock": mock,
+        # Where the numbers came from: "qbo" | "gbrain" | "empty"
+        "dataSource": data_source,
         # Tab 1 — Executive Pulse
         "totalLiquidCash": total_liquid_cash,
         "netMonthlyBurn": net_monthly_burn,
@@ -3153,6 +3094,493 @@ async def list_scanned_documents(
     ).scalars().all()
     return {"documents": [d.to_dict() for d in docs]}
 
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source CRUD & execution
+# ---------------------------------------------------------------------------
+
+@router.get("/doc-scan/sources")
+async def list_doc_scan_sources(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all configured scan sources for this department."""
+    sources = [
+        {**s, "id": k.split(":")[1]} 
+        for k, s in _DOC_SCAN_SOURCES.items() 
+        if k.startswith(f"{name}:")
+    ]
+    return {"sources": sources}
+
+
+@router.post("/doc-scan/sources")
+async def create_doc_scan_source(
+    name: str = Path(...),
+    title: str = Form(...),
+    drive_url: str = Form(...),
+    schedule: str = Form("manual"),
+    document_type: str = Form("invoice"),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Create a new scan source configuration."""
+    import uuid
+    source_id = str(uuid.uuid4())[:8]
+    
+    template_path = None
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+    
+    source_key = f"{name}:{source_id}"
+    _DOC_SCAN_SOURCES[source_key] = {
+        "title": title,
+        "drive_url": drive_url,
+        "schedule": schedule,
+        "document_type": document_type,
+        "template_path": template_path,
+        "last_run": None,
+        "next_run": None,
+    }
+    
+    return {"id": source_id, "status": "created"}
+
+
+@router.put("/doc-scan/sources/{source_id}")
+async def update_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    title: str = Form(None),
+    drive_url: str = Form(None),
+    schedule: str = Form(None),
+    document_type: str = Form(None),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Update an existing scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    if title:
+        source["title"] = title
+    if drive_url:
+        source["drive_url"] = drive_url
+    if schedule:
+        source["schedule"] = schedule
+    if document_type:
+        source["document_type"] = document_type
+    
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+        source["template_path"] = template_path
+    
+    return {"id": source_id, "status": "updated"}
+
+
+@router.delete("/doc-scan/sources/{source_id}")
+async def delete_doc_scan_source(name: str = Path(...), source_id: str = Path(...), user: User = Depends(get_current_user)):
+    """Delete a scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key in _DOC_SCAN_SOURCES:
+        del _DOC_SCAN_SOURCES[source_key]
+    return {"status": "deleted"}
+
+
+@router.put("/doc-scan/sources/{source_id}/schedule")
+async def update_source_schedule(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    body: dict = Body(...),
+    user: User = Depends(get_current_user),
+):
+    """Update the schedule for a scan source."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    schedule = body.get("schedule")
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Missing 'schedule' field")
+    
+    _DOC_SCAN_SOURCES[source_key]["schedule"] = schedule
+    return {"status": "updated", "schedule": schedule}
+
+
+@router.post("/doc-scan/sources/{source_id}/run")
+async def run_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run a scan source immediately - fetch from Drive, OCR all images, extract to Excel template."""
+    import subprocess
+    from pathlib import Path as FileSystemPath
+    
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    drive_url = source.get("drive_url", "")
+    document_type = source.get("document_type", "invoice")
+    
+    # Extract folder ID from Drive URL (https://drive.google.com/drive/folders/FILE_ID)
+    folder_id = None
+    if "/folders/" in drive_url:
+        folder_id = drive_url.split("/folders/")[-1].split("?")[0].split("/")[0]
+    
+    if not folder_id:
+        raise HTTPException(status_code=400, detail="Invalid Google Drive URL - could not extract folder ID")
+    
+    # Validate folder_id to prevent API query injection
+    if not _re.match(r'^[A-Za-z0-9_-]+$', folder_id):
+        raise HTTPException(status_code=400, detail="Invalid folder ID format")
+    
+    # Step 1: List image files in Drive folder using google_api.py (gws CLI fallback)
+    REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+    GOOGLE_API_SCRIPT = REPO_ROOT / "skills" / "google-workspace" / "scripts" / "google_api.py"
+    
+    query = f"'{folder_id}' in parents and trashed=false and (mimeType contains 'image/' or mimeType='application/pdf')"
+    cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "search", "--raw-query", query, "--max", "50"]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or result.stdout.strip()
+            if "Not authenticated" in err_msg:
+                raise HTTPException(status_code=503, detail="Google Drive API not authenticated. Run: python skills/google-workspace/scripts/setup.py")
+            raise HTTPException(status_code=500, detail=f"Drive API error: {err_msg}")
+        files = json.loads(result.stdout)
+        if not isinstance(files, list):
+            files = []
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"google_api.py not found at {GOOGLE_API_SCRIPT}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse Drive response: {str(e)}")
+    
+    if not files:
+        return {"status": "completed", "results_count": 0, "message": "No images found in Drive folder"}
+    
+    # Step 2: Download and OCR each image
+    results = []
+    upload_dir = FileSystemPath(get_config().db_path).parent / "dashboard_uploads" / "scans" / name / source_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    for i, file_info in enumerate(files):
+        file_id = file_info.get("id")
+        file_name = file_info.get("name", f"doc_{i}.png")
+        
+        # Sanitize file_name to prevent path traversal
+        safe_file_name = pathlib.Path(file_name).name
+        if not safe_file_name or '/' in safe_file_name or '\\' in safe_file_name:
+            logger.warning(f"Skipping file with invalid name: {file_name}")
+            continue
+        
+        # Download file using google_api.py
+        temp_path = upload_dir / safe_file_name
+        download_cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "download", file_id, "--output", str(temp_path)]
+        try:
+            dl_result = subprocess.run(download_cmd, capture_output=True, text=True, timeout=60)
+            if dl_result.returncode != 0 or not temp_path.exists():
+                err_msg = dl_result.stderr.strip() or dl_result.stdout.strip()
+                logger.warning(f"Failed to download {file_name}: {err_msg}")
+                continue
+        except Exception as e:
+            logger.warning(f"Download error for {file_name}: {str(e)}")
+            continue
+        
+        # Step 3: OCR inline — add venv site-packages to sys.path so easyocr/pymupdf are available
+        logger.info(f"OCR: file={safe_file_name}, temp_path={temp_path}, exists={temp_path.exists()}")
+        
+        try:
+            if not temp_path.exists():
+                extracted = {"error": f"Downloaded file not found at {temp_path}"}
+            else:
+                # Add venv site-packages to sys.path for this process
+                import sys as _sys
+                venv_site = str(REPO_ROOT / "venv" / "Lib" / "site-packages")
+                if venv_site not in _sys.path:
+                    _sys.path.insert(0, venv_site)
+                
+                # Convert PDF to image if needed
+                ocr_input = str(temp_path)
+                if safe_file_name.lower().endswith('.pdf'):
+                    try:
+                        import pymupdf
+                    except ImportError:
+                        import fitz as pymupdf
+                    doc = pymupdf.open(str(temp_path))
+                    page = doc[0]
+                    pix = page.get_pixmap(dpi=200)
+                    img_path = upload_dir / f"{safe_file_name}.png"
+                    pix.save(str(img_path))
+                    doc.close()
+                    ocr_input = str(img_path)
+                
+                # Run easyocr in thread pool to avoid blocking event loop
+                import easyocr
+                def _run_ocr():
+                    reader = easyocr.Reader(['en'], gpu=False)
+                    return reader.readtext(ocr_input)
+                ocr_result = await asyncio.to_thread(_run_ocr)
+                ocr_text = " ".join([r[1] for r in ocr_result])
+                
+                # Clean up converted image if PDF
+                if safe_file_name.lower().endswith('.pdf'):
+                    try:
+                        FileSystemPath(ocr_input).unlink()
+                    except OSError:
+                        pass
+                
+                # Field extraction from OCR text (regex-based, invoice-optimized)
+                extracted = {}
+                if document_type == "invoice":
+                    import re
+                    
+                    # Invoice number: look for "Invoice No" or "Inv No" followed by alphanumeric code
+                    inv_match = re.search(r"(?:Invoice|Inv)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    
+                    # Date: look for DD-MMM-YYYY or DD/MM/YYYY patterns (prefer full dates)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    if not date_match:
+                        date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{2,4})", ocr_text)
+                    
+                    # Total amount: look for "Total RM" or just "RM" near end of text
+                    total_match = re.search(r"Total\s*(?:RM)?\s*([\d,]+\.?\d*)", ocr_text, re.IGNORECASE)
+                    if not total_match:
+                        total_match = re.search(r"RM\s*([\d,]+\.\d{2})", ocr_text)
+                    
+                    # Vendor name: first line or before "INVOICE" keyword
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    
+                    # Service Tax / SST number
+                    tax_match = re.search(r"(?:Service\s*Tax|SST|Tax)\s*No\.?\s*:?\s*([A-Z0-9\-]+)", ocr_text, re.IGNORECASE)
+                    
+                    # PO Number
+                    po_match = re.search(r"(?:PO|P\.O\.)\s*(?:No\.?)?\s*:?\s*(\d+)", ocr_text, re.IGNORECASE)
+                    
+                    # Customer / Invoice To
+                    customer_match = re.search(r"(?:Invoice\s*To|Delivered\s*To|Bill\s*To)\s*:?\s*([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE)
+                    
+                    # e-Invoice UIN
+                    uin_match = re.search(r"UIN:\s*([A-Z0-9]+)", ocr_text, re.IGNORECASE)
+                    
+                    extracted = {
+                        "vendor_name": vendor_match.group(1).strip() if vendor_match else None,
+                        "invoice_number": inv_match.group(1).strip() if inv_match else None,
+                        "invoice_date": date_match.group(1).strip() if date_match else None,
+                        "total_amount": f"RM {total_match.group(1)}" if total_match else None,
+                        "service_tax_no": tax_match.group(1).strip() if tax_match else None,
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "customer_name": customer_match.group(1).strip() if customer_match else None,
+                        "uin": uin_match.group(1).strip() if uin_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "delivery_order":
+                    import re
+                    do_match = re.search(r"(?:DO|Delivery\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    supplier_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "do_number": do_match.group(1).strip() if do_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "supplier": supplier_match.group(1).strip() if supplier_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "purchase_order":
+                    import re
+                    po_match = re.search(r"(?:PO|Purchase\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "vendor": vendor_match.group(1).strip() if vendor_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                else:
+                    extracted = {"raw_ocr": ocr_text[:800], "note": f"Field extraction not configured for '{document_type}'"}
+            
+        except Exception as e:
+            logger.error(f"OCR exception for {safe_file_name}: {type(e).__name__}: {e}")
+            extracted = {"error": f"{type(e).__name__}: {str(e)}"}
+        
+        # Build result object (no raw_ocr in displayed fields)
+        display_fields = {k: v for k, v in extracted.items() if k != "raw_ocr"}
+        
+        result_entry = {
+            "id": len(_DOC_SCAN_RESULTS.get(name, [])) + i + 1,
+            "filename": file_name,
+            "file_url": f"/api/doc-uploads/scans/{name}/{source_id}/{file_name}",
+            "source_id": source_id,
+            "source_title": source["title"],
+            "document_type": document_type,
+            "ocr_summary": f"Extracted {len(display_fields)} fields from {file_name}",
+            "interpretation": {
+                "fields": display_fields,
+                "validation": {"valid": "error" not in extracted, "message": "Extraction complete" if "error" not in extracted else extracted.get("error")}
+            },
+            "status": "processed" if "error" not in extracted else "failed",
+            "scan_date": datetime.now().isoformat(),
+        }
+        results.append(result_entry)
+        
+        # Keep downloaded files for viewing (don't delete)
+    
+    # Generate ONE combined Excel with all scanned docs
+    output_excel_url = None
+    template_path = source.get("template_path")
+    if template_path and FileSystemPath(template_path).exists() and results:
+        try:
+            import openpyxl
+            
+            # Load workbook in thread pool to avoid blocking
+            def _load_wb():
+                return openpyxl.load_workbook(template_path)
+            wb = await asyncio.to_thread(_load_wb)
+            ws = wb.active
+            
+            # Read header names from row 1
+            excel_headers = []
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    excel_headers.append({"col": col_idx, "name": str(cell.value).strip()})
+            
+            if not excel_headers:
+                logger.warning("Excel template has no headers in row 1")
+            else:
+                # Collect all unique extracted field keys across all results
+                all_field_keys = set()
+                for result in results:
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    all_field_keys.update(k for k in fields.keys() if k != "raw_ocr")
+                all_field_keys.add("filename")
+                
+                # Use LLM to map extracted fields → Excel headers by meaning
+                from gateway import _call_deepseek
+                
+                header_names = [h["name"] for h in excel_headers]
+                field_list = list(all_field_keys)
+                
+                mapping_prompt = (
+                    f"I have an Excel template with these column headers: {header_names}\n"
+                    f"And OCR-extracted fields with these keys: {field_list}\n\n"
+                    "Map each extracted field key to the MOST SEMANTICALLY SIMILAR Excel header. "
+                    "Return ONLY a JSON object where keys are the extracted field names and values are the matching Excel header names. "
+                    "If a field has no matching header, omit it. Do NOT add explanations.\n"
+                    "Example: {{\"invoice_number\": \"Doc No\", \"vendor_name\": \"Creditor Name\"}}"
+                )
+                
+                mapping_response = await _call_deepseek(
+                    mapping_prompt,
+                    system_prompt="You are a data mapping assistant. Return ONLY valid JSON. No markdown, no explanation.",
+                    max_tokens=512,
+                )
+                
+                # Parse the mapping
+                field_to_header = {}
+                if mapping_response:
+                    try:
+                        # Strip markdown fences if present
+                        clean = mapping_response.strip()
+                        if clean.startswith("```"):
+                            clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                        field_to_header = json.loads(clean)
+                        logger.info(f"LLM field mapping: {field_to_header}")
+                    except (json.JSONDecodeError, IndexError) as e:
+                        logger.warning(f"Failed to parse LLM mapping response: {e}")
+                
+                # Build header name → col index lookup
+                header_col_map = {h["name"]: h["col"] for h in excel_headers}
+                
+                # Fill each scanned doc as a row
+                for row_idx, result in enumerate(results, 2):
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    fields["filename"] = result.get("filename", "")
+                    
+                    for field_key, field_value in fields.items():
+                        if field_value is None or field_key == "raw_ocr":
+                            continue
+                        
+                        # Look up which Excel header this field maps to
+                        matched_header = field_to_header.get(field_key)
+                        if matched_header and matched_header in header_col_map:
+                            col = header_col_map[matched_header]
+                            ws.cell(row=row_idx, column=col, value=str(field_value))
+            
+            # Save combined Excel (preserve original formatting)
+            output_dir = upload_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"{source['title'].replace(' ', '_')}_{timestamp}.xlsx"
+            output_path = output_dir / output_filename
+            # Save workbook in thread pool to avoid blocking
+            def _save_wb():
+                wb.save(str(output_path))
+            await asyncio.to_thread(_save_wb)
+            output_excel_url = f"/api/doc-uploads/scans/{name}/{source_id}/output/{output_filename}"
+            logger.info(f"Combined Excel saved: {output_path} ({len(results)} rows)")
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate combined Excel: {e}")
+    
+    # Store results
+    if name not in _DOC_SCAN_RESULTS:
+        _DOC_SCAN_RESULTS[name] = []
+    _DOC_SCAN_RESULTS[name].extend(results)
+    
+    # Update last_run
+    source["last_run"] = datetime.now().isoformat()
+    
+    return {"status": "completed", "results_count": len(results), "results": results, "output_excel_url": output_excel_url}
+
+
+@router.get("/doc-scan/results")
+async def list_doc_scan_results(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all scan results for this department."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    return {"results": results}
+
+
+@router.post("/doc-scan/results/{result_id}/verify")
+async def verify_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as verified."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "verified"
+            return {"status": "verified"}
+    raise HTTPException(status_code=404, detail="Result not found")
+
+
+@router.post("/doc-scan/results/{result_id}/reject")
+async def reject_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as rejected."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "rejected"
+            return {"status": "rejected"}
+    raise HTTPException(status_code=404, detail="Result not found")
 
 @router.post("/inspect-site")
 async def inspect_site(

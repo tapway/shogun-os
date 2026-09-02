@@ -141,7 +141,33 @@ Backend reads at `dashboard.py` `_run_procurement_aggregation`
 ## Finance slugs
 
 Backend reads at `dashboard.py` `_run_finance_aggregation`
-(`snapshots/<name>` or `finance/snapshots/<name>`).
+(`snapshots/<name>` or `finance/snapshots/<name>`, with or without the
+`.json` suffix). **gbrain-only** — the portal links to gbrain and reads
+nothing else (no QBO, no local data files). No snapshots → empty-state
+payload with `dataSource: "empty"` (never mock figures).
+
+**Item-shape tolerance** — the backend normalizes these before serving the
+UI, so writers may use either spelling:
+- AR rows: `invoice`|`invoice_no`, `client`|`customer`, `days_overdue`|`aging_days` (bucket derived when absent)
+- AP rows: `bill`|`bill_no`; `match_status`/`approval_status` default to `Matched`/`Pending`
+- Bank rows: `balance` (backend derives `balance_myr`)
+- Dunning rows: same AR tolerance
+
+### `finance/snapshots/balance-sheet.json`
+```json
+{
+  "current_assets": [{ "name": "Trade and Other Receivables", "amount": 8792248.0, "icon": "FileText", "sub_items": [{ "name": "Accounts Receivable", "amount": 8792248.0 }] }],
+  "non_current_assets": [{ "name": "Property, Plant & Equipment", "amount": 225000.0, "icon": "Building2" }],
+  "total_current_assets": 9130000.0,
+  "total_non_current_assets": 600000.0,
+  "total_assets": 9730000.0,
+  "total_liabilities": 1164765.18,
+  "total_equity": 8565234.82,
+  "total_current_liabilities": 400000.0,
+  "asset_trend": [{ "month": "2026-07", "current": 9000000.0, "non_current": 590000.0 }]
+}
+```
+- `icon` is a lucide icon name (see `_ASSET_ICON_MAP` in `dashboard.py`).
 
 ### `finance/snapshots/cash.json`
 ```json
@@ -158,7 +184,15 @@ Backend reads at `dashboard.py` `_run_finance_aggregation`
     "expected":     [{ "week": "2026-W33", "closing": 1180000.0 }],
     "optimistic":    [{ "week": "2026-W33", "closing": 1260000.0 }]
   },
-  "cash_flow_trend": [{ "month": "2026-07", "inflow": 420000.0, "outflow": 348000.0 }]
+  "cash_flow_trend": [{ "month": "2026-07", "inflow": 420000.0, "outflow": 348000.0 }],
+  "cash_flow_forecast": [{ "month": "2026-09", "total": 1200000.0, "low": 1050000.0, "high": 1350000.0 }],
+  "burn_trend": [{ "month": "2026-07", "burn": 95000.0 }],
+  "cash_flow_breakdown": {
+    "income": [{ "category": "Consulting", "actual_ytd": 2980000.0, "actual_mtd": 410000.0, "pct_of_total": 100.0 }],
+    "expenses": [{ "category": "Salaries", "actual_ytd": 1800000.0, "actual_mtd": 250000.0, "pct_of_total": 60.4 }],
+    "income_total_ytd": 2980000.0, "income_total_mtd": 410000.0,
+    "expense_total_ytd": 1800000.0, "expense_total_mtd": 250000.0
+  }
 }
 ```
 
@@ -170,9 +204,11 @@ Backend reads at `dashboard.py` `_run_finance_aggregation`
   "gross_margin_pct": 42.0,
   "ebitda_margin_pct": 18.0,
   "unpaid_statutory": 32000.0,
-  "revenue_opex_trend": [{ "month": "2026-07", "revenue": 410000.0, "opex": 245000.0 }]
+  "revenue_opex_trend": [{ "month": "2026-07", "revenue": 410000.0, "opex": 245000.0 }],
+  "monthly_pl_trend": [{ "month": "2026-07", "revenue": 410000.0, "expenses": 245000.0, "net_profit": 165000.0 }]
 }
 ```
+- `monthly_pl_trend` powers the Overview tab's 6-month P&L chart (`revenue`/`expenses`/`net_profit` per month).
 
 ### `finance/snapshots/concentration.json`
 ```json
@@ -203,9 +239,12 @@ Backend reads at `dashboard.py` `_run_finance_aggregation`
   "bucket_61_90": 68000.0,
   "bucket_90_plus": 24000.0,
   "dso": 41.0,
-  "dunning_queue": [{ "invoice": "INV-2026-0888", "client": "Acme Corp", "amount": 18000.0, "days_overdue": 96 }]
+  "dunning_queue": [{ "invoice": "INV-2026-0888", "client": "Acme Corp", "amount": 18000.0, "days_overdue": 96, "bucket": "90+", "dunning_status": "Overdue" }],
+  "ar_invoices": [{ "invoice": "INV-2026-0901", "client": "Beta Ltd", "due_date": "2026-09-15", "amount": 54000.0, "days_overdue": 0, "bucket": "0-30", "dunning_status": "Current" }],
+  "aging_by_target": [{ "label": "On Time", "amount": 340000.0 }, { "label": "1-30 DPD", "amount": 120000.0 }]
 }
 ```
+- `ar_invoices` = ALL outstanding invoices (the aging-bucket click-through); `dunning_queue` = overdue-only action list.
 
 ### `finance/snapshots/ap.json`
 ```json
@@ -213,9 +252,18 @@ Backend reads at `dashboard.py` `_run_finance_aggregation`
   "total_ap": 248000.0,
   "ap_overdue": 32000.0,
   "dpo": 38.0,
-  "bills": [{ "bill": "BILL-2026-0421", "vendor": "NexTech Distribution", "amount": 12400.0, "due_date": "2026-08-12" }]
+  "bills": [{ "bill": "BILL-2026-0421", "vendor": "NexTech Distribution", "amount": 12400.0, "due_date": "2026-08-12", "match_status": "Matched", "approval_status": "Pending" }],
+  "aging_by_target": [{ "label": "On Time", "amount": 216000.0 }, { "label": "1-30 DPD", "amount": 32000.0 }]
 }
 ```
+
+### `finance/snapshots/bva.json` (line_items addition)
+```json
+{
+  "line_items": [{ "section": "income", "account_name": "Consulting Fees", "budget_ytd": 3000000.0, "actual_ytd": 2980000.0 }]
+}
+```
+- `section` is `income` | `expenses` (Budget vs Actuals tab layout).
 
 ### `finance/snapshots/compliance.json`
 ```json

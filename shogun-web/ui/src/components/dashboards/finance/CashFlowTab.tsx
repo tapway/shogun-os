@@ -50,7 +50,7 @@ const DPD_COLORS: Record<string, string> = {
 export function CashFlowTab({ stats, color }: Props) {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
 
-  // ── Live QBO data ──
+  // ── Live gbrain snapshot data ──
   const totalLiquidCash = stats.totalLiquidCash ?? 0;
   const totalAR = stats.totalAR ?? 0;
   const avgMonthlyBurn = stats.netMonthlyBurn ?? 0;
@@ -84,7 +84,7 @@ export function CashFlowTab({ stats, color }: Props) {
           Cash Flow Management Dashboard
         </h2>
         <p style={{ fontSize: '0.72rem', color: MUTED, margin: '0.15rem 0 0' }}>
-          Live data from QuickBooks Online — bank balances, receivables, burn rate, and 6-month forecast
+          Live data from gbrain snapshots — bank balances, receivables, burn rate, and 6-month forecast
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export function CashFlowTab({ stats, color }: Props) {
         {/* Column 1: Core Financial Metrics (vertical stack) */}
         <div className="sd-chart-card" style={{ flex: '0 0 22%', minWidth: '220px' }}>
           <h3 className="sd-chart-title">Core Financial Metrics</h3>
-          <p className="sd-chart-sub">Live QBO KPIs — click for detail</p>
+          <p className="sd-chart-sub">Live KPIs from gbrain — click for detail</p>
           <div className="sd-stack" style={{ gap: '0.5rem', marginTop: '0.4rem' }}>
             {coreMetrics.map((kpi) => (
               <button
@@ -340,7 +340,7 @@ export function CashFlowTab({ stats, color }: Props) {
               </div>
             ))}
             {stats.bankAccounts.length === 0 && (
-              <p style={{ fontSize: '0.85rem', color: MUTED, textAlign: 'center' }}>No bank accounts found in QBO.</p>
+              <p style={{ fontSize: '0.85rem', color: MUTED, textAlign: 'center' }}>No bank accounts found in gbrain snapshots.</p>
             )}
           </div>
         </FinanceDetailModal>
@@ -459,7 +459,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'incomeExpenses' && (
         <FinanceDetailModal
           title="Income and Expenses (Last 6 Months)"
-          subtitle="Monthly P&L trend from live QBO"
+          subtitle="Monthly P&L trend from gbrain snapshots"
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >
@@ -598,7 +598,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'burnTrend' && (
         <FinanceDetailModal
           title="Monthly Burn Trend (Last 6 Months)"
-          subtitle="Total expenses per month from live QBO P&L"
+          subtitle="Total expenses per month from gbrain snapshots"
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >

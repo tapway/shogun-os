@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re as _re
 from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import AsyncIterator
@@ -173,6 +174,53 @@ def create_app() -> FastAPI:
     # Authenticated file serving for scanned document uploads
     scans_dir = Path(cfg.db_path).parent / "dashboard_uploads"
     scans_dir.mkdir(parents=True, exist_ok=True)
+
+    # Serve doc-scan files (new multi-source scanning — auth required, no DB check)
+    # MUST be registered BEFORE the catch-all {filename:path} route below
+    @app.get("/api/doc-uploads/scans/{dept}/{source_id}/{filename}")
+    async def serve_doc_scan_file(
+        dept: str,
+        source_id: str,
+        filename: str,
+        user: User = Depends(get_current_user),
+    ):
+        """Serve files from the new doc-scan pipeline. Auth required."""
+        # Sanitize path components to prevent traversal
+        if not _re.match(r'^[A-Za-z0-9_-]+$', dept) or not _re.match(r'^[A-Za-z0-9_-]+$', source_id):
+            raise HTTPException(status_code=400, detail="Invalid path component")
+        safe_name = Path(filename).name  # prevent path traversal
+        file_path = scans_dir / "scans" / dept / source_id / safe_name
+        # Verify resolved path stays inside scans_dir
+        try:
+            file_path.resolve().relative_to(scans_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied")
+        if not file_path.is_file():
+            raise HTTPException(status_code=404, detail="File not found")
+        return FileResponse(file_path)
+
+    # Serve output Excel files from doc-scan pipeline
+    @app.get("/api/doc-uploads/scans/{dept}/{source_id}/output/{filename}")
+    async def serve_doc_scan_output(
+        dept: str,
+        source_id: str,
+        filename: str,
+        user: User = Depends(get_current_user),
+    ):
+        """Serve filled Excel output files. Auth required."""
+        # Sanitize path components to prevent traversal
+        if not _re.match(r'^[A-Za-z0-9_-]+$', dept) or not _re.match(r'^[A-Za-z0-9_-]+$', source_id):
+            raise HTTPException(status_code=400, detail="Invalid path component")
+        safe_name = Path(filename).name
+        file_path = scans_dir / "scans" / dept / source_id / "output" / safe_name
+        # Verify resolved path stays inside scans_dir
+        try:
+            file_path.resolve().relative_to(scans_dir.resolve())
+        except ValueError:
+            raise HTTPException(status_code=403, detail="Access denied")
+        if not file_path.is_file():
+            raise HTTPException(status_code=404, detail="Output file not found")
+        return FileResponse(file_path, filename=safe_name)
 
     @app.get("/api/doc-uploads/{filename:path}")
     async def serve_doc_upload(
