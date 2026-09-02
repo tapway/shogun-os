@@ -1,14 +1,68 @@
 import { useState } from 'react';
 import { Check, Circle, Bell } from 'lucide-react';
-import type { MarketingDashboardStats } from '../../../lib/types';
+import type { MarketingDashboardStats, MarketingEventTask } from '../../../lib/types';
 
 interface Props { stats: MarketingDashboardStats; color: string }
 
 export function EventsTab({ stats, color }: Props) {
   const [view, setView] = useState<'list' | 'calendar' | 'timeline'>('list');
+  // Local task state — keyed by "eventId:taskId"
+  const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>({});
 
   const upcoming = stats.events.filter((e) => e.status === 'upcoming');
   const past = stats.events.filter((e) => e.status === 'past');
+
+  const isTaskDone = (eventId: string, task: MarketingEventTask) => {
+    const key = `${eventId}:${task.id}`;
+    return key in taskOverrides ? taskOverrides[key] : task.done;
+  };
+
+  const toggleTask = (eventId: string, taskId: string) => {
+    const key = `${eventId}:${taskId}`;
+    setTaskOverrides((prev) => ({ ...prev, [key]: !isTaskDone(eventId, { id: taskId, label: '', done: false }) }));
+  };
+
+  const getDoneCount = (event: typeof stats.events[number]) => {
+    if (!event.tasks) return 0;
+    return event.tasks.filter((t) => isTaskDone(event.id, t)).length;
+  };
+
+  const renderTasks = (event: typeof stats.events[number], interactive: boolean) => {
+    if (!event.tasks || event.tasks.length === 0) return null;
+    const doneCount = getDoneCount(event);
+    return (
+      <div style={{ marginTop: 10 }}>
+        <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>
+          {doneCount}/{event.tasks.length} done
+        </div>
+        {event.tasks.map((task) => {
+          const done = isTaskDone(event.id, task);
+          return (
+            <div
+              key={task.id}
+              onClick={() => interactive && toggleTask(event.id, task.id)}
+              style={{
+                display: 'flex', alignItems: 'center', gap: 8, padding: '4px 0', fontSize: '0.8rem',
+                cursor: interactive ? 'pointer' : 'default', userSelect: 'none',
+              }}
+            >
+              {done
+                ? <Check className="h-4 w-4 shrink-0" style={{ color: '#22c55e' }} />
+                : <Circle className="h-4 w-4 shrink-0" style={{ color: 'var(--samurai-muted)', opacity: 0.4 }} />
+              }
+              <span style={{
+                textDecoration: done ? 'line-through' : 'none',
+                opacity: done ? 0.5 : 1,
+                color: 'var(--samurai-text)',
+              }}>
+                {task.label}
+              </span>
+            </div>
+          );
+        })}
+      </div>
+    );
+  };
 
   return (
     <div className="sd-stack">
@@ -40,7 +94,6 @@ export function EventsTab({ stats, color }: Props) {
 
       {view === 'list' && (
         <div className="sd-stack" style={{ gap: 16 }}>
-          {/* Upcoming events */}
           {upcoming.length > 0 && (
             <div>
               <h3 style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.7, marginBottom: 8 }}>Upcoming</h3>
@@ -48,50 +101,27 @@ export function EventsTab({ stats, color }: Props) {
                 <div key={event.id} className="sd-chart-card" style={{ marginBottom: 8 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
                     <div>
-                      <div style={{ fontWeight: 600 }}>{event.name}</div>
-                      <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{event.date} · {event.location}</div>
+                      <div style={{ fontWeight: 600, color: 'var(--samurai-text)' }}>{event.name}</div>
+                      <div style={{ fontSize: '0.8rem', color: 'var(--samurai-muted)' }}>{event.date} · {event.location}</div>
                     </div>
                     {event.daysUntil !== undefined && (
                       <span style={{ fontSize: '0.78rem', fontWeight: 600, color }}>{event.daysUntil} days</span>
                     )}
                   </div>
-                  {/* Task checklist */}
-                  {event.tasks && event.tasks.length > 0 && (
-                    <div style={{ marginTop: 10 }}>
-                      <div style={{ fontSize: '0.75rem', opacity: 0.6, marginBottom: 4 }}>
-                        {event.tasks.filter((t) => t.done).length}/{event.tasks.length} done
-                      </div>
-                      {event.tasks.map((task) => (
-                        <div key={task.id} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '3px 0', fontSize: '0.8rem' }}>
-                          {task.done
-                            ? <Check className="h-3.5 w-3.5" style={{ color: '#22c55e' }} />
-                            : <Circle className="h-3.5 w-3.5" style={{ opacity: 0.3 }} />
-                          }
-                          <span style={{ textDecoration: task.done ? 'line-through' : 'none', opacity: task.done ? 0.5 : 1 }}>
-                            {task.label}
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
+                  {renderTasks(event, true)}
                 </div>
               ))}
             </div>
           )}
 
-          {/* Past events */}
           {past.length > 0 && (
             <div>
               <h3 style={{ fontSize: '0.85rem', fontWeight: 600, opacity: 0.7, marginBottom: 8 }}>Past</h3>
               {past.map((event) => (
                 <div key={event.id} className="sd-chart-card" style={{ marginBottom: 8, opacity: 0.7 }}>
-                  <div style={{ fontWeight: 600 }}>{event.name}</div>
-                  <div style={{ fontSize: '0.8rem', opacity: 0.6 }}>{event.date} · {event.location}</div>
-                  {event.tasks && event.tasks.length > 0 && (
-                    <div style={{ fontSize: '0.75rem', marginTop: 4, opacity: 0.5 }}>
-                      {event.tasks.filter((t) => t.done).length}/{event.tasks.length} done
-                    </div>
-                  )}
+                  <div style={{ fontWeight: 600, color: 'var(--samurai-text)' }}>{event.name}</div>
+                  <div style={{ fontSize: '0.8rem', color: 'var(--samurai-muted)' }}>{event.date} · {event.location}</div>
+                  {renderTasks(event, true)}
                 </div>
               ))}
             </div>
@@ -109,8 +139,8 @@ export function EventsTab({ stats, color }: Props) {
       <div className="sd-chart-card" style={{ display: 'flex', gap: 10, alignItems: 'flex-start' }}>
         <Bell className="h-5 w-5 shrink-0" style={{ color, marginTop: 2 }} />
         <div>
-          <div style={{ fontWeight: 600, fontSize: '0.85rem' }}>Reminders</div>
-          <div style={{ fontSize: '0.8rem', opacity: 0.7 }}>{stats.eventsRemindersNote}</div>
+          <div style={{ fontWeight: 600, fontSize: '0.85rem', color: 'var(--samurai-text)' }}>Reminders</div>
+          <div style={{ fontSize: '0.8rem', color: 'var(--samurai-muted)' }}>{stats.eventsRemindersNote}</div>
         </div>
       </div>
     </div>
