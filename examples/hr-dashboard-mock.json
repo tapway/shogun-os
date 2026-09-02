@@ -3218,6 +3218,108 @@
       "actor_name": "Demo User",
       "actor_email": "demo@example.com",
       "created_at": "2026-09-02T07:36:41"
+    },
+    {
+      "id": 156,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:38:05"
+    },
+    {
+      "id": 157,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:38:09"
+    },
+    {
+      "id": 158,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:38:09"
+    },
+    {
+      "id": 159,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:38:09"
+    },
+    {
+      "id": 160,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:38:09"
+    },
+    {
+      "id": 161,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:42:54"
+    },
+    {
+      "id": 162,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:42:58"
+    },
+    {
+      "id": 163,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:42:58"
+    },
+    {
+      "id": 164,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:42:58"
+    },
+    {
+      "id": 165,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:42:58"
     }
   ],
   "interviews": [
@@ -3616,6 +3718,28 @@
       "interviewer_employee_id": null,
       "location": "Meet link",
       "status": "scheduled"
+    },
+    {
+      "id": 37,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 38,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
     }
   ],
   "equipment_logs": [
@@ -3760,6 +3884,14 @@
       "completed": true,
       "completed_at": "2024-06-12",
       "completed_by": "Alex Thompson"
+    },
+    {
+      "id": 6,
+      "staff_name": "Alice Tan",
+      "item_id": 1,
+      "completed": true,
+      "completed_at": "2026-09-02T07:41:37",
+      "completed_by": "HR One"
     }
   ],
   "source": "mock_data"

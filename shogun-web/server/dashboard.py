@@ -3023,6 +3023,77 @@ def _save_hr_mock(mock: dict) -> None:
         json.dump(mock, f, indent=2)
 
 
+def _persist_checklist_toggle_to_mock(item_id: int, staff_name: str, completed: bool, actor: str) -> dict | None:
+    """Persist onboarding checklist toggle to mock JSON. Returns result dict or None."""
+    try:
+        mock = _load_hr_mock()
+        items = mock.get("onboarding_checklist_items", [])
+        # Verify item exists in mock data
+        if not any(it.get("id") == item_id for it in items):
+            return None
+        # Only intercept for staff that exist in mock onboarding_tasks
+        mock_staff = {t.get("staff_name") for t in mock.get("onboarding_tasks", [])}
+        if staff_name not in mock_staff:
+            return None
+
+        progress_list = mock.setdefault("onboarding_checklist_progress", [])
+        now = __import__("datetime").datetime.utcnow().isoformat(timespec="seconds")
+
+        # Find or create progress entry
+        entry = None
+        for p in progress_list:
+            if p.get("staff_name") == staff_name and p.get("item_id") == item_id:
+                entry = p
+                break
+
+        if entry is None:
+            max_id = max((p.get("id", 0) for p in progress_list), default=0)
+            entry = {
+                "id": max_id + 1,
+                "staff_name": staff_name,
+                "item_id": item_id,
+                "completed": completed,
+                "completed_at": now if completed else None,
+                "completed_by": actor if completed else None,
+            }
+            progress_list.append(entry)
+        else:
+            entry["completed"] = completed
+            entry["completed_at"] = now if completed else None
+            entry["completed_by"] = actor if completed else None
+
+        # Recompute: are all items done for this staff member?
+        total_items = len(items)
+        done_ids = {
+            p["item_id"] for p in progress_list
+            if p.get("staff_name") == staff_name and p.get("completed")
+        }
+        all_done = total_items > 0 and len(done_ids) >= total_items
+
+        # Update corresponding onboarding_tasks entry status
+        for task in mock.get("onboarding_tasks", []):
+            if task.get("staff_name") == staff_name:
+                if all_done and task.get("status") != "Done":
+                    task["status"] = "Done"
+                    task["task_status"] = "\u2705 Task Completed"
+                elif not all_done and task.get("status") == "Done":
+                    task["status"] = "In Progress"
+                    task["task_status"] = "\ud83d\udea7 In Progress"
+                break
+
+        _save_hr_mock(mock)
+        return {
+            "ok": True,
+            "progress": entry.copy(),
+            "all_done": all_done,
+            "done_count": len(done_ids),
+            "total_items": total_items,
+        }
+    except Exception as e:
+        print(f"[WARN] Failed to persist checklist toggle to mock: {e}")
+        return None
+
+
 def _find_mock_candidate(mock: dict, candidate_id: int) -> dict | None:
     """Find a candidate by ID in mock data. Returns the candidate dict or None.
     Only matches candidates whose notion_page_id starts with 'mock-cand-' to avoid
@@ -4391,6 +4462,16 @@ async def toggle_hr_checklist_item(
     marked Done (onboarding process complete); unticking after completion
     reverts it to In progress.
     """
+    staff = (body.staff_name or "").strip()
+    if not staff:
+        raise HTTPException(status_code=422, detail="staff_name is required")
+
+    # Demo mode: persist to mock JSON file
+    actor = (user.name if user else "HR")
+    mock_result = _persist_checklist_toggle_to_mock(item_id, staff, body.completed, actor)
+    if mock_result:
+        return mock_result
+
     from models import HrOnboardingChecklistItem, HrOnboardingChecklistProgress, HrOnboardingTask
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
@@ -4399,9 +4480,6 @@ async def toggle_hr_checklist_item(
     item = db.get(HrOnboardingChecklistItem, item_id)
     if item is None or item.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Checklist item not found")
-    staff = (body.staff_name or "").strip()
-    if not staff:
-        raise HTTPException(status_code=422, detail="staff_name is required")
 
     progress = db.execute(select(HrOnboardingChecklistProgress).where(
         HrOnboardingChecklistProgress.tenant_id == tenant.id,
