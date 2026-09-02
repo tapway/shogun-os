@@ -72,7 +72,7 @@ export function CandidateWorkflowModal({ candidate, stats, department, onClose, 
   const isScheduleManager = stage === "Waiting Manager Interview Confirm";
 
   async function refresh() {
-    await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
     onCandidateChanged?.();
   }
 

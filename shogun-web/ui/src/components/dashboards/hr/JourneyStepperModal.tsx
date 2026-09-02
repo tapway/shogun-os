@@ -130,7 +130,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
   async function refresh(updated?: HrCandidate) {
     if (updated) setCandidate({ ...candidate, ...updated });
-    await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+    await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
   }
 
   async function run(fn: () => Promise<{ candidate?: HrCandidate } | void>, label: string) {

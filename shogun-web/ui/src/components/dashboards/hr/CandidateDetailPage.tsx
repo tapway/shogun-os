@@ -58,7 +58,7 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
       .then((res) => {
         if (cancelled) return;
         setExtract(res.extract);
-        queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+        queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
       })
       .catch((err) => {
         if (!cancelled) setError(err instanceof Error ? err.message : "AI extraction failed.");
@@ -77,7 +77,7 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
     setError("");
     try {
       await hrApi.candidateReview(department, candidateId, kind);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
     } catch (err) {
       setError(err instanceof Error ? err.message : "Review update failed.");
     } finally {
@@ -90,7 +90,7 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
     setError("");
     try {
       await hrApi.candidateAddToPipeline(department, candidateId);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
       onAddedToPipeline();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add to pipeline.");

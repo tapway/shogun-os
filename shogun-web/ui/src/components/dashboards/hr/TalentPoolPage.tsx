@@ -1096,7 +1096,7 @@ function EditJobOpeningModal({
     if (jdFile) fd.append("file", jdFile);
     try {
       await hrApi.updateJobOpening(department, job.id, fd);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to update job opening.");
@@ -1318,7 +1318,7 @@ function AddApplicantModal({
     fd.append("file", resume);
     try {
       await hrApi.addApplicant(department, job.id, fd);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
       onClose();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add applicant.");

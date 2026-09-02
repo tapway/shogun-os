@@ -489,7 +489,7 @@ function CreateJobOpeningModal({
     if (jdFile) fd.append("file", jdFile);
     try {
       const res = await hrApi.createJobOpening(department, fd);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
       onCreated(res.job);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to create job opening.");
