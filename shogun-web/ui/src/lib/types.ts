@@ -1887,3 +1887,82 @@ export interface HrDashboardStats {
   onboarding_checklist_progress?: HrOnboardingChecklistProgress[];
   source?: string;
 }
+
+// ─── Marketing Dashboard Types ───
+
+export type MarketingIntegrationStatus = 'live' | 'new' | 'broken' | 'pending' | 'not_connected';
+
+export interface MarketingSummaryKpi {
+  label: string;
+  value: string;
+  subtext?: string;
+  status: MarketingIntegrationStatus;
+}
+
+export interface MarketingLeadDeal {
+  id: string;
+  contact: string;
+  deal: string;
+  company: string;
+  owner: string;
+  source: string;
+  event: string;
+  industry: string;
+  stage: string;
+  value: number | null;
+  date: string;
+}
+
+export interface MarketingEventTask {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface MarketingEvent {
+  id: string;
+  name: string;
+  date: string;
+  location: string;
+  status: 'upcoming' | 'past';
+  daysUntil?: number;
+  tasks?: MarketingEventTask[];
+  remindersNote?: string;
+}
+
+export interface MarketingSocialChannel {
+  platform: string;
+  icon: string;
+  status: 'automated' | 'not_automated';
+  followers?: number;
+  engagement?: string;
+}
+
+export interface MarketingContentAsset {
+  type: string;
+  count: number;
+  note: string;
+}
+
+export interface MarketingDashboardStats {
+  mock?: boolean;
+  // Summary KPIs (status-tagged cards)
+  summaryKpis: MarketingSummaryKpi[];
+  // Leads tab
+  leadsDeals: MarketingLeadDeal[];
+  leadsTotal: number;
+  leadsPipelineValue: number;
+  leadsContacts: number;
+  // Events tab
+  events: MarketingEvent[];
+  eventsRemindersNote: string;
+  // SEO Rankings tab
+  seoConnected: boolean;
+  seoMessage?: string;
+  // Social Media tab
+  socialChannels: MarketingSocialChannel[];
+  socialNextStep: string;
+  // Content tab
+  contentAssets: MarketingContentAsset[];
+  contentNextStep: string;
+}

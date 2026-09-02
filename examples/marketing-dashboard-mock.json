@@ -1,0 +1,292 @@
+{
+  "mock": true,
+  "summaryKpis": [
+    {
+      "label": "Marketing Leads",
+      "value": "30",
+      "subtext": "of 430+ total",
+      "status": "live"
+    },
+    {
+      "label": "Pipeline Value",
+      "value": "RM 179K",
+      "subtext": "0.2% of RM 80.3M",
+      "status": "live"
+    },
+    {
+      "label": "Blog Posts",
+      "value": "\u2014",
+      "subtext": "Pull from WP",
+      "status": "live"
+    },
+    {
+      "label": "Upcoming Events",
+      "value": "\u2014",
+      "subtext": "Check Events page",
+      "status": "new"
+    },
+    {
+      "label": "Website Traffic",
+      "value": "\u2014",
+      "subtext": "GA4 creds exist, runtime broken",
+      "status": "broken"
+    },
+    {
+      "label": "SEO Rankings",
+      "value": "\u2014",
+      "subtext": "GSC API not connected",
+      "status": "pending"
+    },
+    {
+      "label": "Social Media",
+      "value": "\u2014",
+      "subtext": "Not automated",
+      "status": "pending"
+    },
+    {
+      "label": "Content",
+      "value": "\u2014",
+      "subtext": "None produced",
+      "status": "pending"
+    }
+  ],
+  "leadsDeals": [
+    {
+      "id": "L001",
+      "contact": "George Hew",
+      "deal": "HTL Marketing \u2014 Sofa QC & Vision AI (AWS AI Event 2026)",
+      "company": "HTL Marketing Pte Ltd",
+      "owner": "Kunna",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "Manufacturing / Furniture (Sofa)",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-18"
+    },
+    {
+      "id": "L002",
+      "contact": "Anupama Singal",
+      "deal": "Integrated Retail \u2014 PeopleTrack Partner (AWS AI Event 2026)",
+      "company": "Integrated Retail Management Consulting Pte. Ltd.",
+      "owner": "Anwar",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "Retail Management Consulting",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-18"
+    },
+    {
+      "id": "L003",
+      "contact": "Alex Chan",
+      "deal": "BabboBox \u2014 Partnership (AWS AI Event 2026)",
+      "company": "BabboBox Pte Ltd",
+      "owner": "Anwar",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "Technology / SaaS",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-10"
+    },
+    {
+      "id": "L004",
+      "contact": "Ariel Lin",
+      "deal": "Beyondsoft \u2014 AI Practice (AWS AI Event 2026)",
+      "company": "Beyondsoft International (Singapore) Pte Ltd",
+      "owner": "Anwar",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "IT Services / AI",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-10"
+    },
+    {
+      "id": "L005",
+      "contact": "Colin Tan",
+      "deal": "BreadTalk Group \u2014 F&B Vision (AWS AI Event 2026)",
+      "company": "BreadTalk Group Pte Ltd",
+      "owner": "Liyana",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "Food & Beverage / Bakery",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-10"
+    },
+    {
+      "id": "L006",
+      "contact": "Rama Rao Gudivada",
+      "deal": "Mlion Corporation \u2014 Partnership (AWS AI Event 2026)",
+      "company": "Mlion Corporation Pte Ltd",
+      "owner": "Anwar",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "IT Solutions / Software Engineering",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-10"
+    },
+    {
+      "id": "L007",
+      "contact": "Min Han",
+      "deal": "ValueMax \u2014 Digital Solutions (AWS AI Event 2026)",
+      "company": "ValueMax Group Limited",
+      "owner": "Liyana",
+      "source": "Marketing Event",
+      "event": "not specified",
+      "industry": "Financial Services / Consumer Finance",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-10"
+    },
+    {
+      "id": "L008",
+      "contact": "Tony Tan",
+      "deal": "No Deal Yet",
+      "company": "Durian Plantation",
+      "owner": "Unknown",
+      "source": "Website / Inbound",
+      "event": "not specified",
+      "industry": "not on record",
+      "stage": "Lead",
+      "value": null,
+      "date": "2026-08-06"
+    }
+  ],
+  "leadsTotal": 42,
+  "leadsPipelineValue": 179000,
+  "leadsContacts": 41,
+  "events": [
+    {
+      "id": "E001",
+      "name": "Lenovo PSDC Penang",
+      "date": "2026-09-23",
+      "location": "PSDC Campus",
+      "status": "upcoming",
+      "daysUntil": 21,
+      "tasks": [
+        {
+          "id": "t1",
+          "label": "Book venue",
+          "done": true
+        },
+        {
+          "id": "t2",
+          "label": "Send invitations",
+          "done": true
+        },
+        {
+          "id": "t3",
+          "label": "Prepare demo booth",
+          "done": false
+        },
+        {
+          "id": "t4",
+          "label": "Print collateral",
+          "done": false
+        }
+      ]
+    },
+    {
+      "id": "E002",
+      "name": "AWS AI-First Executive Forum",
+      "date": "2026-08-18",
+      "location": "Mandarin Oriental, Singapore",
+      "status": "past",
+      "tasks": [
+        {
+          "id": "t5",
+          "label": "Register attendees",
+          "done": true
+        },
+        {
+          "id": "t6",
+          "label": "Prepare pitch deck",
+          "done": true
+        },
+        {
+          "id": "t7",
+          "label": "Follow up leads",
+          "done": true
+        },
+        {
+          "id": "t8",
+          "label": "Submit expense report",
+          "done": true
+        },
+        {
+          "id": "t9",
+          "label": "Upload photos",
+          "done": true
+        },
+        {
+          "id": "t10",
+          "label": "Write recap post",
+          "done": true
+        },
+        {
+          "id": "t11",
+          "label": "Update CRM entries",
+          "done": true
+        }
+      ]
+    }
+  ],
+  "eventsRemindersNote": "A cron job runs daily at 8:00 AM MYT. It checks upcoming events and sends Telegram reminders at the intervals you set (default: 7, 3, and 1 day(s) before). Missed runs are caught up on the next execution.",
+  "seoConnected": false,
+  "seoMessage": "No keyword rankings, click-through rates, or position data is available. Connect the GSC API to populate this page with real data.",
+  "socialChannels": [
+    {
+      "platform": "X / Twitter",
+      "icon": "\ud83d\udc26",
+      "status": "not_automated"
+    },
+    {
+      "platform": "LinkedIn",
+      "icon": "\ud83d\udcbc",
+      "status": "not_automated"
+    },
+    {
+      "platform": "Facebook",
+      "icon": "\ud83d\udcd8",
+      "status": "not_automated"
+    },
+    {
+      "platform": "Instagram",
+      "icon": "\ud83d\udcf7",
+      "status": "not_automated"
+    }
+  ],
+  "socialNextStep": "Connect X/Twitter and LinkedIn APIs to pull follower counts, post engagement, and impressions. No data exists until APIs are integrated.",
+  "contentAssets": [
+    {
+      "type": "Whitepapers",
+      "count": 0,
+      "note": "None produced"
+    },
+    {
+      "type": "Case Studies",
+      "count": 0,
+      "note": "None produced"
+    },
+    {
+      "type": "Newsletters",
+      "count": 0,
+      "note": "None produced"
+    },
+    {
+      "type": "E-books / Guides",
+      "count": 0,
+      "note": "None produced"
+    },
+    {
+      "type": "Webinars",
+      "count": 0,
+      "note": "None produced"
+    }
+  ],
+  "contentNextStep": "Track content production manually or integrate with Google Drive / WordPress to auto-detect new content assets."
+}

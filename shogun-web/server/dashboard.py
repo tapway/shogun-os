@@ -649,6 +649,17 @@ async def get_dashboard_config(
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
+        "marketing": {
+            "enabled": True,
+            "tabs": [
+                {"id": "summary", "label": "Summary", "icon": "LayoutDashboard"},
+                {"id": "leads", "label": "Leads", "icon": "UserPlus"},
+                {"id": "events", "label": "Events", "icon": "Calendar"},
+                {"id": "seo", "label": "SEO Rankings", "icon": "Search"},
+                {"id": "social", "label": "Social Media", "icon": "Share2"},
+                {"id": "content", "label": "Content", "icon": "FileText"},
+            ],
+        },
     }
 
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
@@ -1548,6 +1559,35 @@ async def get_procurement_stats(
     """Aggregated Procurement dashboard stats — all 5 tabs."""
     pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
     return _run_procurement_aggregation(pages)
+
+
+# ---------------------------------------------------------------------------
+# Marketing dashboard endpoints
+# ---------------------------------------------------------------------------
+
+_MARKETING_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "marketing-dashboard-mock.json"
+
+
+def _load_marketing_mock() -> dict:
+    """Load marketing mock data from examples/ JSON file."""
+    import json as _json
+    with open(_MARKETING_MOCK_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
+@router.get("/marketing-stats")
+async def get_marketing_stats(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated Marketing dashboard stats — all 6 tabs.
+
+    Currently returns mock/demo data. Future: aggregate from gbrain marketing source.
+    """
+    # TODO: Query gbrain marketing source for live data
+    # For now, return mock data with mock=True flag
+    return _load_marketing_mock()
 
 
 # ---------------------------------------------------------------------------

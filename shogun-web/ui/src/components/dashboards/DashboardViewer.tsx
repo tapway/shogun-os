@@ -7,6 +7,7 @@ import { FinanceDashboard } from './finance/FinanceDashboard';
 import { PlantationDashboard } from './plantation/PlantationDashboard';
 import { ProcurementDashboard } from './procurement/ProcurementDashboard';
 import { HrDashboard } from './hr/HrDashboard';
+import { MarketingDashboard } from './marketing/MarketingDashboard';
 
 const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: string; color: string }>> = {
   crm: CrmDashboard,
@@ -14,6 +15,7 @@ const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: str
   procurement: ProcurementDashboard,
   hr: HrDashboard,
   'facility': PlantationDashboard,
+  marketing: MarketingDashboard,
 };
 
 interface DashboardViewerProps {
