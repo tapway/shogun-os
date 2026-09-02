@@ -1806,6 +1806,210 @@
       "actor_name": "Demo User",
       "actor_email": "demo@example.com",
       "created_at": "2026-09-02T08:03:43"
+    },
+    {
+      "id": 19,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:13"
+    },
+    {
+      "id": 20,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:17"
+    },
+    {
+      "id": 21,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:17"
+    },
+    {
+      "id": 22,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:17"
+    },
+    {
+      "id": 23,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:17"
+    },
+    {
+      "id": 24,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:52"
+    },
+    {
+      "id": 25,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:56"
+    },
+    {
+      "id": 26,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:56"
+    },
+    {
+      "id": 27,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:56"
+    },
+    {
+      "id": 28,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:10:56"
+    },
+    {
+      "id": 29,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:12:05"
+    },
+    {
+      "id": 30,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:12:09"
+    },
+    {
+      "id": 31,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:12:09"
+    },
+    {
+      "id": 32,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:12:09"
+    },
+    {
+      "id": 33,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:12:10"
+    },
+    {
+      "id": 34,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:19:51"
+    },
+    {
+      "id": 35,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:19:54"
+    },
+    {
+      "id": 36,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:19:54"
+    },
+    {
+      "id": 37,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:19:54"
+    },
+    {
+      "id": 38,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T08:19:54"
     }
   ],
   "interviews": [
@@ -1855,6 +2059,50 @@
     },
     {
       "id": 6,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 7,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 8,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 9,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 10,
       "candidate_id": 1,
       "job_id": 1,
       "round": "first",
