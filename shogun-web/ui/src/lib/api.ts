@@ -38,6 +38,7 @@ import type {
   LoginPayload,
   OnboardingState,
   ProcurementDashboardStats,
+  MarketingDashboardStats,
   ProviderConfig,
   Skill,
   SkillDetail,
@@ -347,6 +348,8 @@ export const departmentsApi = {
     apiFetch<FinanceDashboardStats>(`/api/departments/${dept}/dashboard/finance-stats`),
   dashboardProcurementStats: (dept: string) =>
     apiFetch<ProcurementDashboardStats>(`/api/departments/${dept}/dashboard/procurement-stats`),
+  dashboardMarketingStats: (dept: string) =>
+    apiFetch<MarketingDashboardStats>(`/api/departments/${dept}/dashboard/marketing-stats`),
 
   // CRM list endpoints (live gbrain data)
   crmDealsList: (dept: string, search = '', stage = '', owner = '', priority = '', source = '') => {

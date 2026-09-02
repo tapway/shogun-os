@@ -1,0 +1,89 @@
+{
+  "mock": true,
+  "totalCampaigns": 24,
+  "activeCampaigns": 8,
+  "totalLeads": 1847,
+  "leadsMTD": 234,
+  "leadsQTD": 687,
+  "costPerLead": 42.50,
+  "marketingRoi": 285,
+  "conversionRate": 3.8,
+  "totalSpendMTD": 9950,
+  "totalSpendYTD": 118400,
+  "campaignsByStatus": [
+    { "status": "active", "count": 8, "spend": 45200 },
+    { "status": "paused", "count": 4, "spend": 12800 },
+    { "status": "completed", "count": 10, "spend": 52400 },
+    { "status": "draft", "count": 2, "spend": 0 }
+  ],
+  "topCampaigns": [
+    { "name": "Q3 Brand Awareness", "channel": "Google Ads", "status": "Active", "spend": 18500, "impressions": 425000, "clicks": 12750, "conversions": 342, "roi": 320 },
+    { "name": "Back-to-School Promo", "channel": "Facebook", "status": "Active", "spend": 12300, "impressions": 310000, "clicks": 9300, "conversions": 218, "roi": 265 },
+    { "name": "LinkedIn B2B Lead Gen", "channel": "LinkedIn", "status": "Active", "spend": 8900, "impressions": 85000, "clicks": 3400, "conversions": 89, "roi": 195 },
+    { "name": "TikTok Product Launch", "channel": "TikTok", "status": "Active", "spend": 6200, "impressions": 520000, "clicks": 15600, "conversions": 156, "roi": 410 },
+    { "name": "Email Nurture Series", "channel": "Email", "status": "Active", "spend": 1200, "impressions": 45000, "clicks": 6750, "conversions": 203, "roi": 580 },
+    { "name": "SEO Content Sprint", "channel": "SEO", "status": "Active", "spend": 3400, "impressions": 128000, "clicks": 8960, "conversions": 134, "roi": 445 },
+    { "name": "Spring Collection", "channel": "Instagram", "status": "Completed", "spend": 15600, "impressions": 380000, "clicks": 11400, "conversions": 285, "roi": 290 },
+    { "name": "Webinar Series Q2", "channel": "LinkedIn", "status": "Completed", "spend": 4500, "impressions": 42000, "clicks": 2100, "conversions": 67, "roi": 175 },
+    { "name": "Retargeting Lapsed", "channel": "Google Ads", "status": "Paused", "spend": 7800, "impressions": 195000, "clicks": 5850, "conversions": 117, "roi": 145 },
+    { "name": "Holiday Pre-Sale", "channel": "Facebook", "status": "Draft", "spend": 0, "impressions": 0, "clicks": 0, "conversions": 0, "roi": 0 }
+  ],
+  "campaignSpendTrend": [
+    { "month": "Mar", "spend": 14200, "leads": 185, "conversions": 62 },
+    { "month": "Apr", "spend": 16800, "leads": 210, "conversions": 78 },
+    { "month": "May", "spend": 15500, "leads": 198, "conversions": 71 },
+    { "month": "Jun", "spend": 18200, "leads": 245, "conversions": 89 },
+    { "month": "Jul", "spend": 17600, "leads": 232, "conversions": 85 },
+    { "month": "Aug", "spend": 19800, "leads": 267, "conversions": 98 }
+  ],
+  "byChannel": [
+    { "channel": "Google Ads", "spend": 32400, "impressions": 680000, "clicks": 20400, "ctr": 3.0, "conversions": 510, "cpa": 63.53 },
+    { "channel": "Facebook", "spend": 28900, "impressions": 720000, "clicks": 21600, "ctr": 3.0, "conversions": 432, "cpa": 66.90 },
+    { "channel": "Instagram", "spend": 18200, "impressions": 450000, "clicks": 13500, "ctr": 3.0, "conversions": 310, "cpa": 58.71 },
+    { "channel": "LinkedIn", "spend": 15600, "impressions": 142000, "clicks": 5680, "ctr": 4.0, "conversions": 178, "cpa": 87.64 },
+    { "channel": "TikTok", "spend": 8400, "impressions": 620000, "clicks": 18600, "ctr": 3.0, "conversions": 186, "cpa": 45.16 },
+    { "channel": "Email", "spend": 3200, "impressions": 68000, "clicks": 10200, "ctr": 15.0, "conversions": 306, "cpa": 10.46 },
+    { "channel": "SEO", "spend": 11700, "impressions": 285000, "clicks": 19950, "ctr": 7.0, "conversions": 299, "cpa": 39.13 }
+  ],
+  "socialMetrics": {
+    "followers": 48500,
+    "engagementRate": 4.2,
+    "postsMtd": 32,
+    "viralPosts": 3
+  },
+  "contentPublished": 156,
+  "contentByType": [
+    { "type": "blog", "count": 78, "views": 124500, "shares": 3420 },
+    { "type": "video", "count": 24, "views": 89200, "shares": 5680 },
+    { "type": "infographic", "count": 18, "views": 45600, "shares": 2890 },
+    { "type": "case_study", "count": 12, "views": 28400, "shares": 1240 },
+    { "type": "whitepaper", "count": 8, "views": 15800, "shares": 890 }
+  ],
+  "topContent": [
+    { "title": "10 Retail Trends Shaping 2026", "type": "blog", "publishedAt": "2026-08-15", "views": 18500, "shares": 890, "leadsGenerated": 45 },
+    { "title": "Shogun OS Platform Demo", "type": "video", "publishedAt": "2026-08-02", "views": 24200, "shares": 1560, "leadsGenerated": 78 },
+    { "title": "Parkson Case Study: 40% Efficiency Gain", "type": "case_study", "publishedAt": "2026-07-20", "views": 12800, "shares": 680, "leadsGenerated": 34 },
+    { "title": "Supply Chain Optimization Infographic", "type": "infographic", "publishedAt": "2026-07-10", "views": 15600, "shares": 1240, "leadsGenerated": 28 },
+    { "title": "Enterprise AI Adoption Whitepaper", "type": "whitepaper", "publishedAt": "2026-06-28", "views": 8900, "shares": 560, "leadsGenerated": 52 }
+  ],
+  "organicTraffic": 34200,
+  "organicTrafficGrowth": 12.5,
+  "keywordRankings": [
+    { "keyword": "retail management software", "position": 3, "searchVolume": 12100, "difficulty": 72, "trend": "up" },
+    { "keyword": "inventory management system malaysia", "position": 5, "searchVolume": 8400, "difficulty": 58, "trend": "up" },
+    { "keyword": "supply chain automation", "position": 8, "searchVolume": 15600, "difficulty": 81, "trend": "stable" },
+    { "keyword": "enterprise resource planning sme", "position": 12, "searchVolume": 6200, "difficulty": 65, "trend": "down" },
+    { "keyword": "omnichannel retail platform", "position": 2, "searchVolume": 4800, "difficulty": 45, "trend": "up" },
+    { "keyword": "warehouse management system", "position": 15, "searchVolume": 22400, "difficulty": 88, "trend": "stable" },
+    { "keyword": "pos system malaysia", "position": 4, "searchVolume": 9800, "difficulty": 52, "trend": "up" },
+    { "keyword": "b2b ecommerce platform", "position": 18, "searchVolume": 11200, "difficulty": 76, "trend": "down" },
+    { "keyword": "ai demand forecasting", "position": 7, "searchVolume": 5400, "difficulty": 62, "trend": "up" },
+    { "keyword": "retail analytics dashboard", "position": 6, "searchVolume": 3200, "difficulty": 38, "trend": "up" }
+  ],
+  "backlinks": 1247,
+  "domainAuthority": 42,
+  "riskAlerts": [
+    { "type": "budget_overspend", "level": "warning", "message": "Google Ads spend 12% above monthly budget", "campaign": "Q3 Brand Awareness" },
+    { "type": "declining_traffic", "level": "warning", "message": "Organic traffic declined 3% week-over-week" }
+  ]
+}

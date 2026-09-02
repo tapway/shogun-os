@@ -2886,6 +2886,35 @@ async def get_procurement_stats(
 
 
 # ---------------------------------------------------------------------------
+# Marketing dashboard endpoints
+# ---------------------------------------------------------------------------
+
+_MARKETING_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "marketing-dashboard-mock.json"
+
+
+def _load_marketing_mock() -> dict:
+    """Load marketing mock data from examples/ JSON file."""
+    import json as _json
+    with open(_MARKETING_MOCK_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
+@router.get("/marketing-stats")
+async def get_marketing_stats(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated Marketing dashboard stats — all 6 tabs.
+
+    Currently returns mock/demo data. Future: aggregate from gbrain marketing source.
+    """
+    # TODO: Query gbrain marketing source for live data
+    # For now, return mock data with mock=True flag
+    return _load_marketing_mock()
+
+
+# ---------------------------------------------------------------------------
 # Plantation Estate Operations dashboard endpoints
 # ---------------------------------------------------------------------------
 
