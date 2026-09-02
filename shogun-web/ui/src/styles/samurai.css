@@ -1365,3 +1365,9 @@ html[data-theme="blue"] input[type="date"]::-webkit-calendar-picker-indicator {
   filter: invert(1);
   cursor: pointer;
 }
+
+/* Fix native select dropdown contrast in dark/blue themes */
+html[data-theme="dark"] select,
+html[data-theme="blue"] select {
+  color-scheme: dark;
+}
