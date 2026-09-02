@@ -1579,6 +1579,7 @@ async def get_procurement_stats(
 
 _MARKETING_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "marketing-dashboard-mock.json"
 _PROJECTS_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "projects-dashboard-mock.json"
+_HR_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "hr-dashboard-mock.json"
 
 
 def _load_marketing_mock() -> dict:
@@ -1606,6 +1607,13 @@ def _load_projects_mock() -> dict:
     """Load projects mock data from examples/ JSON file."""
     import json as _json
     with open(_PROJECTS_MOCK_PATH, encoding="utf-8") as f:
+        return _json.load(f)
+
+
+def _load_hr_mock() -> dict:
+    """Load HR mock data from examples/ JSON file."""
+    import json as _json
+    with open(_HR_MOCK_PATH, encoding="utf-8") as f:
         return _json.load(f)
 
 
@@ -2511,118 +2519,12 @@ async def get_hr_stats(
 ) -> dict:
     """Aggregated HR dashboard stats — all tabs.
 
-    Data is synced from Notion into SQLite by scripts/sync-notion-hr.py.
-    Formula fields (Deadline, Days Left, Overdue, Task Status, No. of Years)
-    are computed on read so they stay current.
+    Returns mock/demo data from examples/hr-dashboard-mock.json.
+    When Notion sync is available, uncomment the DB query path below.
     """
-    from models import (
-        HrCandidate,
-        HrEmployee,
-        HrEquipment,
-        HrJobOpening,
-        HrMeeting,
-        HrMeetingActionItem,
-        HrMeetingAttendee,
-        HrOnboardingTask,
-        HrPerformanceReview,
-        HrTraining,
-        HrTrainer,
-    )
-
-    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
-    if tenant is None:
-        raise HTTPException(status_code=404, detail="Tenant not found")
-
-    employees = db.execute(select(HrEmployee).where(HrEmployee.tenant_id == tenant.id)).scalars().all()
-    job_openings = db.execute(select(HrJobOpening).where(HrJobOpening.tenant_id == tenant.id)).scalars().all()
-    candidates = db.execute(select(HrCandidate).where(HrCandidate.tenant_id == tenant.id)).scalars().all()
-    onboarding = db.execute(select(HrOnboardingTask).where(HrOnboardingTask.tenant_id == tenant.id)).scalars().all()
-    reviews = db.execute(select(HrPerformanceReview).where(HrPerformanceReview.tenant_id == tenant.id)).scalars().all()
-    equipment = db.execute(select(HrEquipment).where(HrEquipment.tenant_id == tenant.id)).scalars().all()
-    trainings = db.execute(select(HrTraining).where(HrTraining.tenant_id == tenant.id)).scalars().all()
-    trainers = db.execute(select(HrTrainer).where(HrTrainer.tenant_id == tenant.id)).scalars().all()
-    meetings = db.execute(select(HrMeeting).where(HrMeeting.tenant_id == tenant.id)).scalars().all()
-    from models import HrCandidateEvent, HrCandidateFile, HrEquipmentLog, HrInterview, HrOnboardingChecklistItem, HrOnboardingChecklistProgress, HrTrainingParticipant
-    training_participants = db.execute(select(HrTrainingParticipant).where(HrTrainingParticipant.tenant_id == tenant.id)).scalars().all()
-    _seed_default_checklist_items(db, tenant.id)
-    checklist_items = db.execute(select(HrOnboardingChecklistItem).where(HrOnboardingChecklistItem.tenant_id == tenant.id).order_by(HrOnboardingChecklistItem.sort_order, HrOnboardingChecklistItem.id)).scalars().all()
-    checklist_progress = db.execute(select(HrOnboardingChecklistProgress).where(HrOnboardingChecklistProgress.tenant_id == tenant.id)).scalars().all()
-    candidate_files = db.execute(select(HrCandidateFile).where(HrCandidateFile.tenant_id == tenant.id)).scalars().all()
-    equipment_logs = db.execute(select(HrEquipmentLog).where(HrEquipmentLog.tenant_id == tenant.id).order_by(HrEquipmentLog.id.desc())).scalars().all()
-    candidate_events = db.execute(select(HrCandidateEvent).where(HrCandidateEvent.tenant_id == tenant.id).order_by(HrCandidateEvent.id.desc())).scalars().all()
-    interviews = db.execute(select(HrInterview).where(HrInterview.tenant_id == tenant.id)).scalars().all()
-    action_items = db.execute(select(HrMeetingActionItem).where(HrMeetingActionItem.tenant_id == tenant.id)).scalars().all()
-    attendees = db.execute(select(HrMeetingAttendee).where(HrMeetingAttendee.tenant_id == tenant.id)).scalars().all()
-
-    dept_counts: dict[str, int] = {}
-    for emp in employees:
-        dept = emp.department or "Unknown"
-        dept_counts[dept] = dept_counts.get(dept, 0) + 1
-
-    pipeline_counts: dict[str, int] = {}
-    for cand in candidates:
-        status = cand.status or "Unknown"
-        pipeline_counts[status] = pipeline_counts.get(status, 0) + 1
-
-    onboarding_in_progress = sum(1 for t in onboarding if t.status == "In progress")
-    onboarding_done = sum(1 for t in onboarding if t.status == "Done")
-    overdue_openings = sum(1 for j in job_openings if j.to_dict().get("overdue") == "Overdue")
-    training_total_charges = sum(t.training_charges or 0 for t in trainings)
-
-    # Normalize legacy statuses to new convention
-    STATUS_MAP = {
-        "Not Initiated": "Draft",
-        "Test Ongoing": "Active",
-        "Hired": "Closed - Hired",
-        "Ongoing": "Active",
-        "Open": "Active",
-    }
-    def normalize_status(s: str | None) -> str:
-        if not s:
-            return "Draft"
-        if s.startswith("Closed"):
-            return s
-        return STATUS_MAP.get(s, s)
-
-    open_action_items = sum(1 for a in action_items if a.status in ("Open", "In progress", "Not Started"))
-
-    return {
-        "total_employees": len(employees),
-        "total_job_openings": len(job_openings),
-        "overdue_openings": overdue_openings,
-        "total_candidates": len(candidates),
-        "pipeline_counts": pipeline_counts,
-        "onboarding_in_progress": onboarding_in_progress,
-        "onboarding_done": onboarding_done,
-        "total_reviews": len(reviews),
-        "total_equipment": len(equipment),
-        "equipment_overdue": sum(1 for e in equipment if e.to_dict().get("is_overdue")),
-        "total_trainings": len(trainings),
-        "total_trainers": len(trainers),
-        "training_total_charges": training_total_charges,
-        "total_meetings": len(meetings),
-        "open_action_items": open_action_items,
-        "dept_counts": dept_counts,
-        "employees": [e.to_dict() for e in employees],
-        "job_openings": [{**j.to_dict(), "job_status": normalize_status(j.job_status)} for j in job_openings],
-        "candidates": [c.to_dict() for c in candidates],
-        "onboarding_tasks": [t.to_dict() for t in onboarding],
-        "performance_reviews": [r.to_dict() for r in reviews],
-        "equipment": [e.to_dict() for e in equipment],
-        "trainings": [t.to_dict() for t in trainings],
-        "trainers": [t.to_dict() for t in trainers],
-        "meetings": [m.to_dict() for m in meetings],
-        "meeting_action_items": [a.to_dict() for a in action_items],
-        "meeting_attendees": [a.to_dict() for a in attendees],
-        "candidate_files": [f.to_dict() for f in candidate_files],
-        "candidate_events": [e.to_dict() for e in candidate_events],
-        "interviews": [i.to_dict() for i in interviews],
-        "equipment_logs": [l.to_dict() for l in equipment_logs],
-        "training_participants": [p.to_dict() for p in training_participants],
-        "onboarding_checklist_items": [i.to_dict() for i in checklist_items],
-        "onboarding_checklist_progress": [p.to_dict() for p in checklist_progress],
-        "source": "notion_sync",
-    }
+    # TODO: Switch to live Notion-synced data when available
+    # For now, return mock data so the demo branch works without Notion sync
+    return _load_hr_mock()
 
 
 _ALLOWED_JD_EXTS = {"pdf", "doc", "docx", "txt", "md", "rtf"}
