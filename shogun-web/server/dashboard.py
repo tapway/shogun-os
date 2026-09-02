@@ -609,6 +609,17 @@ async def get_dashboard_config(
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
+        "marketing": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "campaigns", "label": "Campaigns", "icon": "Megaphone"},
+                {"id": "content", "label": "Content", "icon": "FileText"},
+                {"id": "social", "label": "Social Media", "icon": "Share2"},
+                {"id": "analytics", "label": "Analytics", "icon": "BarChart3"},
+                {"id": "seo", "label": "SEO", "icon": "Search"},
+            ],
+        },
     }
 
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
