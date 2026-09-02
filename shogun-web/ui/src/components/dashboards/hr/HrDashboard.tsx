@@ -8,8 +8,6 @@ import { EmployeeDirectoryTab } from "./EmployeeDirectoryTab";
 import { JobOpeningsTab } from "./JobOpeningsTab";
 import { RecruitmentPipelineTab } from "./RecruitmentPipelineTab";
 import { OnboardingTab } from "./OnboardingTab";
-import { LeaveTrackerTab } from "./LeaveTrackerTab";
-import { PerformanceTab } from "./PerformanceTab";
 import { EquipmentTab } from "./EquipmentTab";
 import { GlobalTalentPoolTab } from "./GlobalTalentPoolTab";
 import { TrainingTab } from "./TrainingTab";
@@ -29,8 +27,6 @@ const GROUPS: DashboardTab[] = [
 /** Second-level tabs inside the Employees group. */
 const EMPLOYEE_TABS: DashboardTab[] = [
   { id: "directory", label: "Employee Directory", icon: "Users" },
-  { id: "leave", label: "Leave Tracker", icon: "Calendar" },
-  { id: "performance", label: "Performance Reviews", icon: "TrendingUp" },
   { id: "equipment", label: "Equipment Tracker", icon: "Monitor" },
   { id: "training", label: "Training & Development", icon: "GraduationCap" },
 ];
@@ -165,8 +161,6 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
       {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} department={department} />}
 
       {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
-      {activeTab === "leave" && <LeaveTrackerTab stats={stats} color={color} />}
-      {activeTab === "performance" && <PerformanceTab stats={stats} color={color} />}
       {activeTab === "equipment" && <EquipmentTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
       {activeTab === "training" && <TrainingTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
 
