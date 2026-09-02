@@ -4700,6 +4700,40 @@ async def bulk_candidate_action(
 
     Rejected candidates are never deleted — kept with reason for the talent pool.
     """
+    # Demo mode: persist to mock JSON
+    if body.action in ("shortlist", "reject") and body.candidate_ids:
+        try:
+            mock = _load_hr_mock()
+            updated = 0
+            now = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+            for cid in body.candidate_ids:
+                cand = _find_mock_candidate(mock, cid)
+                if not cand:
+                    continue
+                if body.action == "shortlist":
+                    if cand.get("status") in ("Rejected", "Done"):
+                        continue
+                    cand["status"] = "Shortlisted"
+                    cand["removed_reason"] = None
+                    cand["waiting_since"] = None
+                    cand["waiting_reason"] = None
+                    cand["last_edited"] = now
+                    updated += 1
+                else:
+                    reason = (body.reason or "").strip() or "Not suitable"
+                    cand["status"] = "Rejected"
+                    cand["removed_reason"] = reason[:1000]
+                    cand["waiting_since"] = None
+                    cand["waiting_reason"] = None
+                    cand["last_edited"] = now
+                    updated += 1
+            if updated > 0:
+                _update_mock_pipeline_counts(mock)
+                _save_hr_mock(mock)
+            return {"ok": True, "updated": updated}
+        except Exception as e:
+            print(f"[WARN] Bulk action mock persist failed: {e}")
+
     from models import HrCandidate, HrJobOpening
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)

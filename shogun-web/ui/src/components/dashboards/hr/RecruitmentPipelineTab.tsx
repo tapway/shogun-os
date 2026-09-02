@@ -147,9 +147,11 @@ const OTHER_KEY = "Other";
 
 /** Classify a candidate by the employment type of their matching OPEN job
  * opening (position-based). in_pipeline candidates with no open match go to
- * "Other". Returns null when the candidate must stay hidden. */
+ * "Other". Returns null when the candidate must stay hidden.
+ * "Resume Received" candidates are excluded from pipeline — they start at Shortlisted. */
 function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string | null {
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return null;
+  if (canonicalStatus(c.status) === "Resume Received") return null;
   const openMatches = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j));
   if (openMatches.length > 0) {
     const t = (openMatches[0].employment_type || "").trim();
