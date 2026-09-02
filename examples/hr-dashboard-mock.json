@@ -416,7 +416,7 @@
       "manager_reviewed_at": "2026-08-14",
       "in_pipeline": true,
       "job_opening_id": 1,
-      "waiting_since": null,
+      "waiting_since": "2026-09-01",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "Ryan Thompson"
@@ -444,7 +444,7 @@
       "manager_reviewed_at": null,
       "in_pipeline": true,
       "job_opening_id": 1,
-      "waiting_since": null,
+      "waiting_since": "2026-08-31",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "Olivia Martinez"
@@ -472,7 +472,7 @@
       "manager_reviewed_at": null,
       "in_pipeline": true,
       "job_opening_id": 2,
-      "waiting_since": null,
+      "waiting_since": "2026-08-30",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "David Park"
@@ -500,7 +500,7 @@
       "manager_reviewed_at": "2026-08-25",
       "in_pipeline": true,
       "job_opening_id": 2,
-      "waiting_since": null,
+      "waiting_since": "2026-08-29",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "Luna Anderson"
@@ -528,7 +528,7 @@
       "manager_reviewed_at": null,
       "in_pipeline": true,
       "job_opening_id": 4,
-      "waiting_since": null,
+      "waiting_since": "2026-08-28",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "Ethan Brooks"
@@ -584,7 +584,7 @@
       "manager_reviewed_at": "2026-07-25",
       "in_pipeline": true,
       "job_opening_id": 1,
-      "waiting_since": null,
+      "waiting_since": "2026-08-26",
       "waiting_reason": null,
       "removed_reason": null,
       "candidate_name": "Noah Campbell"
