@@ -517,11 +517,11 @@ export function EquipmentTab({ stats, color, department, onChanged }: Props) {
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            style={{ background: "var(--samurai-bg)", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", width: "100%", maxWidth: 620, maxHeight: "85vh", overflowY: "auto", padding: "1.25rem" }}
+            style={{ background: "var(--samurai-bg)", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", width: "100%", maxWidth: 680, maxHeight: "90vh", overflowY: "auto", padding: "1.25rem" }}
           >
             <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "1rem" }}>
               <h3 style={{ margin: 0, fontSize: "1.05rem", color: TEXT, marginRight: "auto" }}>
-                Activity Log — {logsFor.equipment_name}
+                Equipment Details — {logsFor.equipment_name}
               </h3>
               <button
                 onClick={() => setLogsFor(null)}
@@ -530,6 +530,71 @@ export function EquipmentTab({ stats, color, department, onChanged }: Props) {
                 Close
               </button>
             </div>
+
+            {/* Equipment Details Grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.6rem 1.2rem", marginBottom: "1rem", padding: "0.8rem", border: `1px solid ${BORDER}`, borderRadius: "0.5rem", background: SURFACE }}>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Item Number</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{logsFor.item_number || "—"}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Category</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{logsFor.category || "—"}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Condition</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{logsFor.condition || "—"}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Assigned To</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{logsFor.assigned_to || "—"}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Amount</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{fmtAmount(logsFor.amount)}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Purchase Date</span>
+                <span style={{ fontSize: "0.85rem", color: TEXT }}>{fmtDate(logsFor.purchase_date)}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Return Due Date</span>
+                <span style={{ fontSize: "0.85rem", color: isOverdue(logsFor) ? DANGER : TEXT }}>{fmtDate(logsFor.return_due_date)}</span>
+              </div>
+              <div>
+                <span style={{ fontSize: "0.7rem", color: MUTED, display: "block" }}>Status</span>
+                <span style={{ fontSize: "0.85rem", color: logsFor.returned ? LIME : isOverdue(logsFor) ? DANGER : TEXT }}>
+                  {logsFor.returned ? `Returned (${fmtDate(logsFor.return_date)})` : isOverdue(logsFor) ? "Overdue" : "On Loan"}
+                </span>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem", flexWrap: "wrap" }}>
+              {logsFor.image_url && (
+                <a
+                  href={logsFor.image_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.4rem 0.8rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE, color: TEXT, fontSize: "0.8rem", textDecoration: "none", cursor: "pointer" }}
+                >
+                  📷 View Equipment Image
+                </a>
+              )}
+              {logsFor.signature_doc_url && (
+                <a
+                  href={logsFor.signature_doc_url}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.4rem 0.8rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE, color: TEXT, fontSize: "0.8rem", textDecoration: "none", cursor: "pointer" }}
+                >
+                  📄 View Signed Document
+                </a>
+              )}
+            </div>
+
+            {/* Activity Log Section */}
+            <h4 style={{ margin: "0 0 0.6rem 0", fontSize: "0.9rem", color: TEXT }}>Activity Log</h4>
             {(() => {
               const entries = logs.filter((l) => l.equipment_id === logsFor.id);
               if (entries.length === 0) {
