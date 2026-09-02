@@ -238,13 +238,16 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     return Array.from(s).sort();
   }, [candidates]);
 
-  // Pipeline stages (canonical, ordered) present across ALL candidates
+  // Pipeline stages — always show all active stages so users can drag to any column
   const stages = useMemo(() => {
     const present = new Set(candidates.map((c) => canonicalStatus(c.status)));
+    // Show all STATUS_ORDER stages except terminal/special ones, plus any unlisted present stages
+    const ACTIVE_STAGES = STATUS_ORDER.filter(
+      (s) => s !== "Resume Received" && s !== "Done" && s !== "Rejected" &&
+             s !== "Virtual Bench" && s !== "KIV" && s !== "On Hold" && s !== "No Response",
+    );
     const ordered: string[] = [];
-    STATUS_ORDER.forEach((s) => {
-      if (present.has(s)) ordered.push(s);
-    });
+    ACTIVE_STAGES.forEach((s) => ordered.push(s));
     const unlisted = Array.from(present)
       .filter((s) => !STATUS_ORDER.includes(s))
       .sort();
@@ -612,10 +615,13 @@ function KanbanBoard({
 
   const columns = useMemo(() => {
     const present = new Set(candidates.map((c) => canonicalStatus(c.status)));
+    // Always show all active pipeline stages so users can drag to empty columns
+    const ACTIVE_STAGES = STATUS_ORDER.filter(
+      (s) => s !== "Resume Received" && s !== "Done" && s !== "Rejected" &&
+             s !== "Virtual Bench" && s !== "KIV" && s !== "On Hold" && s !== "No Response",
+    );
     const ordered: string[] = [];
-    STATUS_ORDER.forEach((s) => {
-      if (present.has(s)) ordered.push(s);
-    });
+    ACTIVE_STAGES.forEach((s) => ordered.push(s));
     const unlisted = Array.from(present)
       .filter((s) => !STATUS_ORDER.includes(s))
       .sort();
