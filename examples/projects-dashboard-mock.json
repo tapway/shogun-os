@@ -2,378 +2,13 @@
   "mock": true,
   "projects": [
     {
-      "id": "PRJ-001",
-      "name": "GreenFleet AI Monitoring",
-      "client": "GreenFleet Logistics Sdn Bhd",
-      "pm": "Marcus",
-      "fde": "Luna",
-      "status": "active",
-      "startDate": "2026-04-07",
-      "targetEnd": "2026-10-01",
-      "product": "NovaAI",
-      "valueRm": 190144.8,
-      "gate": 4,
-      "gateStatus": "passed",
-      "goals": [
-        {
-          "id": "G1",
-          "description": "Deploy AI on 15 trucks to detect open bins and waste leaks",
-          "kpi": "Measurable penalty reduction",
-          "deadline": "2026-09-05",
-          "status": "in-progress"
-        }
-      ],
-      "architecture": "MDVRs \u2192 Cloud (CloudHost) \u2192 AI (TechVision) \u2192 GreenFleet",
-      "scope": {
-        "inScope": [
-          "AI Analytics Server",
-          "NovaAI Copilot deployment",
-          "6 AI use cases",
-          "MDVR integration",
-          "User training"
-        ],
-        "outOfScope": [
-          "MDVR hardware supply",
-          "Cloud provisioning",
-          "Camera installation"
-        ]
-      },
-      "budget": [
-        {
-          "id": 1,
-          "category": "NovaAI AI Analytics (15 trucks)",
-          "budgeted": 190144.8,
-          "actual": 57043.44,
-          "variance": 133101.36,
-          "health": "at-risk"
-        }
-      ],
-      "tasks": [
-        {
-          "id": "T-001",
-          "title": "Create project timeline",
-          "owner": "Marcus",
-          "deadline": "2026-04-28",
-          "priority": "HIGH",
-          "status": "done",
-          "completed": "2026-05-04"
-        },
-        {
-          "id": "T-009",
-          "title": "Install NovaAI on cloud server",
-          "owner": "Ryan",
-          "deadline": "2026-07-29",
-          "priority": "HIGH",
-          "status": "done",
-          "completed": "2026-08-16"
-        },
-        {
-          "id": "T-016",
-          "title": "Install NovaAI runner on all truck MDVRs",
-          "owner": "Aria",
-          "deadline": "2026-08-19",
-          "priority": "CRITICAL",
-          "status": "in-progress"
-        },
-        {
-          "id": "T-018",
-          "title": "Model labeling & training for all use cases",
-          "owner": "Luna",
-          "deadline": "2026-09-09",
-          "priority": "HIGH",
-          "status": "todo"
-        },
-        {
-          "id": "T-019",
-          "title": "Execute UAT & obtain client sign-off",
-          "owner": "Marcus",
-          "deadline": "2026-09-25",
-          "priority": "HIGH",
-          "status": "todo"
-        }
-      ],
-      "orgChart": [
-        {
-          "role": "PM",
-          "name": "Marcus"
-        },
-        {
-          "role": "AI Expert",
-          "name": "Luna"
-        },
-        {
-          "role": "Installation",
-          "name": "Noah"
-        }
-      ],
-      "risks": [],
-      "decisions": [],
-      "budgetStatus": "under-budget",
-      "overallHealth": "at-risk"
-    },
-    {
-      "id": "PRJ-006",
-      "name": "Atlas Phase 2 LPR",
-      "client": "Atlas Industries Sdn Bhd (SEA HQ)",
-      "pm": "Elena",
-      "fde": "Luna",
-      "status": "paused",
-      "startDate": "2025-11-06",
-      "targetEnd": "2026-06-26",
-      "product": "",
-      "valueRm": 0,
-      "gate": 4,
-      "gateStatus": "passed",
-      "goals": [
-        {
-          "id": "G1",
-          "description": "Improve Capture Accuracy",
-          "kpi": "Accuracy validated in UAT",
-          "deadline": "Go-Live target 2026-06-15",
-          "status": "todo"
-        }
-      ],
-      "scope": {
-        "inScope": [
-          "Camera relocation at Gate 1 & 2",
-          "4x PTZ integration",
-          "Cabling",
-          "NovaAI deployment",
-          "UAT"
-        ],
-        "outOfScope": [
-          "Civil works",
-          "Network cabling beyond camera points"
-        ]
-      },
-      "budget": [],
-      "tasks": [
-        {
-          "id": "TASK-001",
-          "title": "On-site camera check",
-          "owner": "Muhammad",
-          "deadline": "2026-05-05",
-          "priority": "HIGH",
-          "status": "done",
-          "completed": "2026-05-09"
-        },
-        {
-          "id": "TASK-015",
-          "title": "Develop VLM mini app for container OCR",
-          "owner": "Ryan",
-          "deadline": "2026-06-05",
-          "priority": "CRITICAL",
-          "status": "done",
-          "completed": "2026-06-01"
-        },
-        {
-          "id": "TASK-016",
-          "title": "Retrain LPR model",
-          "owner": "Luna",
-          "deadline": "2026-06-18",
-          "priority": "CRITICAL",
-          "status": "done",
-          "completed": "2026-07-13"
-        }
-      ],
-      "orgChart": [
-        {
-          "role": "PM",
-          "name": "Elena"
-        },
-        {
-          "role": "Tech Support",
-          "name": "Aria"
-        },
-        {
-          "role": "Coordinator",
-          "name": "Marcus"
-        }
-      ],
-      "risks": [],
-      "decisions": [],
-      "budgetStatus": "tbd",
-      "overallHealth": "at-risk"
-    },
-    {
-      "id": "PRJ-035",
-      "name": "Horizon GXO Analytics",
-      "client": "Pinnacle Corp (M) Sdn Bhd",
-      "pm": "Olivia",
-      "fde": "Luna",
-      "status": "active",
-      "startDate": "2026-07-01",
-      "targetEnd": "2026-09-30",
-      "product": "NovaAI",
-      "valueRm": 67088.0,
-      "gate": 4,
-      "gateStatus": "passed",
-      "goals": [
-        {
-          "id": "G1",
-          "description": "Clothing color detection >75%",
-          "deadline": "2026-09-15",
-          "status": "todo"
-        },
-        {
-          "id": "G2",
-          "description": "Object/bag detection >75%",
-          "deadline": "2026-09-15",
-          "status": "todo"
-        },
-        {
-          "id": "G3",
-          "description": "Door access logging >75%",
-          "deadline": "2026-09-15",
-          "status": "todo"
-        }
-      ],
-      "scope": {
-        "inScope": [
-          "Color detection",
-          "Bag detection",
-          "Door logging",
-          "Guard monitoring",
-          "NovaAI v1.5 deployment"
-        ],
-        "outOfScope": [
-          "Work outside monitored doors"
-        ]
-      },
-      "budget": [
-        {
-          "id": 1,
-          "category": "Edge AI Server",
-          "budgeted": 21338,
-          "actual": 17810,
-          "variance": 3528,
-          "health": "at-risk"
-        },
-        {
-          "id": 2,
-          "category": "NovaAI Software & Services",
-          "budgeted": 45750,
-          "actual": 0,
-          "variance": 45750,
-          "health": "at-risk"
-        }
-      ],
-      "tasks": [
-        {
-          "id": "TASK-001",
-          "title": "Procure Edge AI Server",
-          "owner": "Sophia",
-          "deadline": "2026-07-15",
-          "priority": "HIGH",
-          "status": "done",
-          "completed": "2026-07-15"
-        },
-        {
-          "id": "TASK-006",
-          "title": "Install Ubuntu on server",
-          "owner": "Leo",
-          "deadline": "2026-07-17",
-          "priority": "CRITICAL",
-          "status": "done",
-          "completed": "2026-07-20"
-        },
-        {
-          "id": "TASK-007",
-          "title": "Deploy NovaAI v1.5",
-          "owner": "Olivia",
-          "deadline": "2026-07-21",
-          "priority": "CRITICAL",
-          "status": "done"
-        }
-      ],
-      "orgChart": [
-        {
-          "role": "PM",
-          "name": "Olivia"
-        },
-        {
-          "role": "Coordinator",
-          "name": "Sophia"
-        },
-        {
-          "role": "FDE",
-          "name": "Luna"
-        }
-      ],
-      "risks": [],
-      "decisions": [],
-      "budgetStatus": "under-budget",
-      "overallHealth": "on-track"
-    },
-    {
-      "id": "PRJ-038",
-      "name": "FreshMart Store Analytics",
-      "client": "FreshMart Stores",
-      "pm": "Alex",
-      "fde": "Luna",
-      "status": "active",
-      "startDate": "2026-07-10",
-      "targetEnd": "",
-      "product": "NovaAI V2 Lite + BEV",
-      "valueRm": 0,
-      "gate": 1,
-      "gateStatus": "gated",
-      "goals": [],
-      "architecture": "Edge Jetson \u2192 4x NVRs via RTSP \u2192 Cloud L20 V2 Lite + BEV module",
-      "scope": {
-        "inScope": [
-          "Jetson install + NVR connectivity",
-          "Store & Shopper Analytics with ReID",
-          "Category traffic",
-          "Staff exclusion",
-          "Heatmap",
-          "BEV Digital Twin",
-          "Queue management",
-          "Shelf gap detection",
-          "Self-checkout fraud"
-        ],
-        "outOfScope": []
-      },
-      "budget": [],
-      "tasks": [
-        {
-          "id": "TASK-001",
-          "title": "Install Jetson with NovaAI Runner",
-          "owner": "Alex",
-          "deadline": "2026-07-15",
-          "priority": "CRITICAL",
-          "status": "done"
-        },
-        {
-          "id": "TASK-002",
-          "title": "Store & Shopper Analytics with ReID",
-          "owner": "James",
-          "deadline": "2026-08-07",
-          "priority": "CRITICAL",
-          "status": "in-progress"
-        },
-        {
-          "id": "TASK-005",
-          "title": "NovaAI BEV module \u2014 Digital Twin",
-          "owner": "Lisa",
-          "deadline": "2026-08-21",
-          "priority": "CRITICAL",
-          "status": "todo"
-        }
-      ],
-      "orgChart": [],
-      "risks": [],
-      "decisions": [],
-      "budgetStatus": "tbd",
-      "overallHealth": "blocked"
-    },
-    {
       "id": "PRJ-050",
       "name": "Apex Retail IOI PeopleTrack",
       "client": "Apex Retail Group",
       "pm": "Marcus",
       "fde": "",
       "status": "active",
+      "dir": "PRJ-050-apex-retail-ioi",
       "startDate": "2026-08-20",
       "targetEnd": "2026-10-01",
       "product": "PeopleTrack",
@@ -381,6 +16,8 @@
       "gate": 1,
       "gateStatus": "gated",
       "charterStatus": "approved",
+      "overallHealth": "blocked",
+      "budgetStatus": "under-budget",
       "goals": [
         {
           "id": "G1",
@@ -392,14 +29,12 @@
       ],
       "scope": {
         "inScope": [
-          "PeopleTrack at IOI \u2014 1 site, 1 camera",
+          "PeopleTrack at IOI - 1 site, 1 camera",
           "TD2000G2 surface mount",
-          "Re-ID algorithm",
-          "PM 1 man-day"
+          "Re-ID algorithm"
         ],
         "outOfScope": [
-          "Additional cameras",
-          "Year-2 recurring"
+          "Additional cameras"
         ]
       },
       "budget": [
@@ -409,22 +44,6 @@
           "budgeted": 3662.86,
           "actual": 0,
           "variance": 3662.86,
-          "health": "at-risk"
-        },
-        {
-          "id": 2,
-          "category": "Software Subscription",
-          "budgeted": 1135.08,
-          "actual": 0,
-          "variance": 1135.08,
-          "health": "at-risk"
-        },
-        {
-          "id": 3,
-          "category": "Professional Services",
-          "budgeted": 1296,
-          "actual": 0,
-          "variance": 1296,
           "health": "at-risk"
         }
       ],
@@ -470,9 +89,7 @@
         }
       ],
       "risks": [],
-      "decisions": [],
-      "budgetStatus": "under-budget",
-      "overallHealth": "blocked"
+      "decisions": []
     },
     {
       "id": "PRJ-045",
@@ -481,6 +98,7 @@
       "pm": "Marcus",
       "fde": "Luna",
       "status": "active",
+      "dir": "PRJ-045-health-vod",
       "startDate": "2026-06-19",
       "targetEnd": "2026-09-16",
       "product": "NovaAI",
@@ -488,6 +106,8 @@
       "gate": 4,
       "gateStatus": "passed",
       "charterStatus": "approved",
+      "overallHealth": "at-risk",
+      "budgetStatus": "under-budget",
       "goals": [
         {
           "id": "G1",
@@ -497,7 +117,6 @@
           "status": "in-progress"
         }
       ],
-      "architecture": "Client uploads video to S3 \u2192 Lambda triggers AI \u2192 results to DynamoDB \u2192 Web Portal",
       "scope": {
         "inScope": [
           "App development",
@@ -505,8 +124,7 @@
           "Functional testing"
         ],
         "outOfScope": [
-          "AWS account management",
-          "Infrastructure patching"
+          "AWS account management"
         ]
       },
       "budget": [
@@ -532,7 +150,6 @@
           "id": "TASK-001",
           "title": "Assign AI/Dev Lead",
           "owner": "Marcus",
-          "deadline": "",
           "priority": "HIGH",
           "status": "done",
           "completed": "2026-08-16"
@@ -541,7 +158,6 @@
           "id": "TASK-003",
           "title": "Select NovaAI model",
           "owner": "Marcus",
-          "deadline": "",
           "priority": "HIGH",
           "status": "todo"
         }
@@ -561,9 +177,244 @@
         }
       ],
       "risks": [],
-      "decisions": [],
+      "decisions": []
+    },
+    {
+      "id": "PRJ-038",
+      "name": "FreshMart Store Analytics",
+      "client": "FreshMart Stores",
+      "pm": "Alex",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-038-freshmart",
+      "startDate": "2026-07-10",
+      "targetEnd": "",
+      "product": "NovaAI V2 Lite + BEV",
+      "valueRm": 0,
+      "gate": 1,
+      "gateStatus": "gated",
+      "charterStatus": "approved",
+      "overallHealth": "blocked",
+      "budgetStatus": "tbd",
+      "goals": [],
+      "scope": {
+        "inScope": [
+          "Jetson install + NVR connectivity",
+          "Store Analytics with ReID",
+          "BEV Digital Twin",
+          "Queue management",
+          "Shelf gap detection"
+        ],
+        "outOfScope": []
+      },
+      "budget": [],
+      "tasks": [
+        {
+          "id": "TASK-001",
+          "title": "Install Jetson with NovaAI Runner",
+          "owner": "Alex",
+          "deadline": "2026-07-15",
+          "priority": "CRITICAL",
+          "status": "done"
+        },
+        {
+          "id": "TASK-002",
+          "title": "Store & Shopper Analytics with ReID",
+          "owner": "James",
+          "deadline": "2026-08-07",
+          "priority": "CRITICAL",
+          "status": "in-progress"
+        },
+        {
+          "id": "TASK-005",
+          "title": "NovaAI BEV module - Digital Twin",
+          "owner": "Lisa",
+          "deadline": "2026-08-21",
+          "priority": "CRITICAL",
+          "status": "todo"
+        }
+      ],
+      "orgChart": [],
+      "risks": [],
+      "decisions": []
+    },
+    {
+      "id": "PRJ-035",
+      "name": "Horizon GXO Analytics",
+      "client": "Pinnacle Corp (M) Sdn Bhd",
+      "pm": "Olivia",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-035-horizon-gxo",
+      "startDate": "2026-07-01",
+      "targetEnd": "2026-09-30",
+      "product": "NovaAI",
+      "valueRm": 67088.0,
+      "gate": 4,
+      "gateStatus": "passed",
+      "overallHealth": "on-track",
       "budgetStatus": "under-budget",
-      "overallHealth": "at-risk"
+      "goals": [
+        {
+          "id": "G1",
+          "description": "Clothing color detection >75%",
+          "deadline": "2026-09-15",
+          "status": "todo"
+        },
+        {
+          "id": "G2",
+          "description": "Object/bag detection >75%",
+          "deadline": "2026-09-15",
+          "status": "todo"
+        }
+      ],
+      "scope": {
+        "inScope": [
+          "Color detection",
+          "Bag detection",
+          "Door logging",
+          "Guard monitoring"
+        ],
+        "outOfScope": []
+      },
+      "budget": [
+        {
+          "id": 1,
+          "category": "Edge AI Server",
+          "budgeted": 21338,
+          "actual": 17810,
+          "variance": 3528,
+          "health": "at-risk"
+        },
+        {
+          "id": 2,
+          "category": "NovaAI Software & Services",
+          "budgeted": 45750,
+          "actual": 0,
+          "variance": 45750,
+          "health": "at-risk"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "TASK-001",
+          "title": "Procure Edge AI Server",
+          "owner": "Sophia",
+          "deadline": "2026-07-15",
+          "priority": "HIGH",
+          "status": "done",
+          "completed": "2026-07-15"
+        },
+        {
+          "id": "TASK-007",
+          "title": "Deploy NovaAI v1.5",
+          "owner": "Olivia",
+          "deadline": "2026-07-21",
+          "priority": "CRITICAL",
+          "status": "done"
+        }
+      ],
+      "orgChart": [
+        {
+          "role": "PM",
+          "name": "Olivia"
+        },
+        {
+          "role": "Coordinator",
+          "name": "Sophia"
+        },
+        {
+          "role": "FDE",
+          "name": "Luna"
+        }
+      ],
+      "risks": [],
+      "decisions": []
+    },
+    {
+      "id": "PRJ-021",
+      "name": "Metropolitan Mall PeopleCount",
+      "client": "Metropolitan Mall",
+      "pm": "Marcus",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-021-metropolitan-mall",
+      "startDate": "2026-04-28",
+      "targetEnd": "2026-06-18",
+      "product": "People Counting",
+      "valueRm": 162540.37,
+      "gate": 1,
+      "gateStatus": "gated",
+      "charterStatus": "approved",
+      "overallHealth": "blocked",
+      "budgetStatus": "under-budget",
+      "goals": [
+        {
+          "id": "G1",
+          "description": "Supply and install 34 sensors",
+          "kpi": "Counting accuracy >95%",
+          "deadline": "2026-06-18",
+          "status": "todo"
+        }
+      ],
+      "scope": {
+        "inScope": [
+          "Supply and install 34 sensors",
+          "Cabling using existing infrastructure",
+          "Configuration & commissioning"
+        ],
+        "outOfScope": [
+          "New cabling"
+        ]
+      },
+      "budget": [
+        {
+          "id": 1,
+          "category": "People Counting (34 sensors)",
+          "budgeted": 162540.37,
+          "actual": 81270.19,
+          "variance": 81270.18,
+          "health": "at-risk"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "TASK-001",
+          "title": "Review documents and kick-off",
+          "owner": "Marcus",
+          "deadline": "2026-05-13",
+          "priority": "HIGH",
+          "status": "done"
+        },
+        {
+          "id": "TASK-002",
+          "title": "Procurement - Camera, Sensor & Mounts",
+          "owner": "Sophia",
+          "deadline": "2026-06-19",
+          "priority": "HIGH",
+          "status": "done"
+        },
+        {
+          "id": "TASK-005",
+          "title": "Sensor Installation (34 sensors)",
+          "owner": "Aria",
+          "deadline": "2026-09-25",
+          "priority": "HIGH",
+          "status": "todo"
+        }
+      ],
+      "orgChart": [
+        {
+          "role": "PM",
+          "name": "Marcus"
+        },
+        {
+          "role": "FDE",
+          "name": "Luna"
+        }
+      ],
+      "risks": [],
+      "decisions": []
     },
     {
       "id": "PRJ-018",
@@ -572,28 +423,24 @@
       "pm": "Elena",
       "fde": "Luna",
       "status": "recovery",
+      "dir": "PRJ-018-connecttel",
       "startDate": "2026-04-27",
       "targetEnd": "2026-07-28",
       "product": "NovaAI v1.5 Copilot",
       "valueRm": 96812.66,
       "gate": 4,
       "gateStatus": "passed",
+      "overallHealth": "at-risk",
+      "budgetStatus": "tbd",
       "goals": [
         {
           "id": "G1",
-          "description": "Minimum viable recovery by EOD Jul 28",
-          "kpi": "Re-ID + Vehicle Counting + Illegal Parking working",
-          "deadline": "2026-07-28",
-          "status": "done"
-        },
-        {
-          "id": "G2",
-          "description": "Re-ID cross-camera tracking",
+          "description": "Minimum viable recovery",
+          "kpi": "Re-ID + VC + Illegal Parking working",
           "deadline": "2026-07-28",
           "status": "done"
         }
       ],
-      "architecture": "CCTV \u2192 NVR \u2192 On-Prem \u2192 AWS EC2 (NovaAI Copilot)",
       "scope": {
         "inScope": [
           "NovaAI Copilot deployment",
@@ -602,8 +449,7 @@
           "Dashboard"
         ],
         "outOfScope": [
-          "Drone flight control",
-          "AWS provisioning"
+          "Drone flight control"
         ]
       },
       "budget": [],
@@ -627,9 +473,145 @@
       ],
       "orgChart": [],
       "risks": [],
-      "decisions": [],
+      "decisions": []
+    },
+    {
+      "id": "PRJ-014",
+      "name": "Pacific Steel Vision AI",
+      "client": "Pacific Steel Works",
+      "pm": "Marcus",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-014-pacific-steel",
+      "startDate": "2025-11-29",
+      "targetEnd": "2026-08-31",
+      "product": "NovaAI CV Lite",
+      "valueRm": 0,
+      "gate": 4,
+      "gateStatus": "passed",
+      "overallHealth": "at-risk",
       "budgetStatus": "tbd",
-      "overallHealth": "at-risk"
+      "goals": [],
+      "scope": {
+        "inScope": [
+          "NovaAI system design",
+          "Hardware installation",
+          "Software deployment",
+          "Staff training"
+        ],
+        "outOfScope": []
+      },
+      "budget": [],
+      "tasks": [
+        {
+          "id": "TASK-005",
+          "title": "Vision AI Model Training - all 12 cameras",
+          "owner": "Marcus",
+          "deadline": "",
+          "priority": "HIGH",
+          "status": "done",
+          "completed": "2026-06-04"
+        },
+        {
+          "id": "TASK-020",
+          "title": "Deploy latest trained YOLO model",
+          "owner": "Lucas",
+          "deadline": "2026-05-29",
+          "priority": "CRITICAL",
+          "status": "done",
+          "completed": "2026-06-03"
+        }
+      ],
+      "orgChart": [],
+      "risks": [],
+      "decisions": []
+    },
+    {
+      "id": "PRJ-008",
+      "name": "FreshCo Retail Compliance",
+      "client": "FreshCo Wholesale",
+      "pm": "Sophia",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-008-freshco",
+      "startDate": "2026-01-28",
+      "targetEnd": "2026-06-26",
+      "product": "NovaAI Copilot Lite",
+      "valueRm": 29569.82,
+      "gate": 4,
+      "gateStatus": "passed",
+      "overallHealth": "on-track",
+      "budgetStatus": "under-budget",
+      "goals": [
+        {
+          "id": "G1",
+          "description": "Deploy NovaAI at checkout (2 webcams)",
+          "kpi": "AI detection accuracy >= 90%",
+          "deadline": "2026-06-26",
+          "status": "in-progress"
+        }
+      ],
+      "scope": {
+        "inScope": [
+          "NovaAI Copilot Lite",
+          "USB-to-RTSP conversion",
+          "Patlite tower light alerts",
+          "Panda POS integration"
+        ],
+        "outOfScope": [
+          "POS code modifications"
+        ]
+      },
+      "budget": [
+        {
+          "id": 1,
+          "category": "Tower Lights (2 units)",
+          "budgeted": 910,
+          "actual": 910,
+          "variance": 0,
+          "health": "on-budget"
+        },
+        {
+          "id": 2,
+          "category": "Server Lenovo P3 Ultra",
+          "budgeted": 4603.5,
+          "actual": 4603.5,
+          "variance": 0,
+          "health": "on-budget"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "TASK-001",
+          "title": "Create USB-to-RTSP script",
+          "owner": "Jordan",
+          "deadline": "",
+          "priority": "HIGH",
+          "status": "done",
+          "completed": "2026-05-09"
+        },
+        {
+          "id": "TASK-007",
+          "title": "Support hardware installation at site",
+          "owner": "Aria",
+          "deadline": "",
+          "priority": "HIGH",
+          "status": "done",
+          "completed": "2026-07-01"
+        }
+      ],
+      "orgChart": [
+        {
+          "role": "PM",
+          "name": "Sophia"
+        },
+        {
+          "role": "Engineering",
+          "name": "Jordan, Farah, David, Emma"
+        }
+      ],
+      "risks": [],
+      "decisions": []
     },
     {
       "id": "PRJ-002",
@@ -638,14 +620,16 @@
       "pm": "Elena",
       "fde": "Luna",
       "status": "active",
+      "dir": "PRJ-002-evergreen-mall",
       "startDate": "2026-04-01",
       "targetEnd": "2026-09-01",
       "product": "",
       "valueRm": 0,
       "gate": 4,
       "gateStatus": "passed",
+      "overallHealth": "at-risk",
+      "budgetStatus": "tbd",
       "goals": [],
-      "architecture": "Edge server \u2192 PostgreSQL \u2192 FastAPI \u2192 Metabase dashboard",
       "scope": {
         "inScope": [
           "Happiness Index",
@@ -654,8 +638,7 @@
           "Vehicle LPR"
         ],
         "outOfScope": [
-          "Facial recognition",
-          "Staff exclusion"
+          "Facial recognition"
         ]
       },
       "budget": [],
@@ -685,45 +668,134 @@
         }
       ],
       "risks": [],
-      "decisions": [],
-      "budgetStatus": "tbd",
-      "overallHealth": "at-risk"
+      "decisions": []
+    },
+    {
+      "id": "PRJ-001",
+      "name": "GreenFleet AI Monitoring",
+      "client": "GreenFleet Logistics Sdn Bhd",
+      "pm": "Marcus",
+      "fde": "Luna",
+      "status": "active",
+      "dir": "PRJ-001-greenfleet",
+      "startDate": "2026-04-07",
+      "targetEnd": "2026-10-01",
+      "product": "NovaAI",
+      "valueRm": 190144.8,
+      "gate": 4,
+      "gateStatus": "passed",
+      "overallHealth": "at-risk",
+      "budgetStatus": "under-budget",
+      "goals": [
+        {
+          "id": "G1",
+          "description": "Deploy AI on 15 trucks to detect open bins",
+          "kpi": "Measurable penalty reduction",
+          "deadline": "2026-09-05",
+          "status": "in-progress"
+        }
+      ],
+      "scope": {
+        "inScope": [
+          "AI Analytics Server",
+          "NovaAI Copilot deployment",
+          "6 AI use cases",
+          "MDVR integration"
+        ],
+        "outOfScope": [
+          "MDVR hardware supply",
+          "Cloud provisioning"
+        ]
+      },
+      "budget": [
+        {
+          "id": 1,
+          "category": "NovaAI AI Analytics (15 trucks)",
+          "budgeted": 190144.8,
+          "actual": 57043.44,
+          "variance": 133101.36,
+          "health": "at-risk"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "T-009",
+          "title": "Install NovaAI on cloud server",
+          "owner": "Ryan",
+          "deadline": "2026-07-29",
+          "priority": "HIGH",
+          "status": "done",
+          "completed": "2026-08-16"
+        },
+        {
+          "id": "T-016",
+          "title": "Install NovaAI runner on all truck MDVRs",
+          "owner": "Aria",
+          "deadline": "2026-08-19",
+          "priority": "CRITICAL",
+          "status": "in-progress"
+        },
+        {
+          "id": "T-018",
+          "title": "Model labeling & training",
+          "owner": "Luna",
+          "deadline": "2026-09-09",
+          "priority": "HIGH",
+          "status": "todo"
+        }
+      ],
+      "orgChart": [
+        {
+          "role": "PM",
+          "name": "Marcus"
+        },
+        {
+          "role": "AI Expert",
+          "name": "Luna"
+        },
+        {
+          "role": "Installation",
+          "name": "Noah"
+        }
+      ],
+      "risks": [],
+      "decisions": []
     }
   ],
   "tasks": [],
   "stats": {
     "projects": {
-      "total": 8,
-      "active": 6
+      "total": 10,
+      "active": 10
     },
-    "atRisk": 4,
-    "blocked": 2,
+    "atRisk": 5,
+    "blocked": 3,
     "overdue": 3,
-    "pipelineValue": 411597.4,
-    "overallProgress": 45,
+    "pipelineValue": 603707.59,
+    "overallProgress": 66,
     "tasks": {
-      "total": 28,
+      "total": 24,
       "overdue": 5
     },
     "projectsByHealth": {
-      "At Risk": 4,
-      "Blocked": 2,
+      "At Risk": 5,
+      "Blocked": 3,
       "Completed": 0,
       "Not Started": 0,
       "On Track": 2
     },
     "portfolioByStatus": {
-      "Active": 6,
+      "Active": 10,
       "Closing": 0,
       "Commissioned": 0,
-      "On Hold": 1,
-      "Paused": 1
+      "On Hold": 0,
+      "Paused": 0
     },
     "tasksByStatus": {
-      "Blocked": 2,
-      "Cancelled": 1,
-      "Done": 14,
-      "In Progress": 5,
+      "Blocked": 0,
+      "Cancelled": 0,
+      "Done": 16,
+      "In Progress": 2,
       "To Do": 6
     },
     "openTasksByOwner": [
@@ -737,10 +809,14 @@
       },
       {
         "owner": "Jordan",
-        "count": 2
+        "count": 3
       },
       {
         "owner": "Ryan",
+        "count": 2
+      },
+      {
+        "owner": "Aria",
         "count": 2
       },
       {
@@ -750,34 +826,46 @@
       {
         "owner": "James",
         "count": 1
+      },
+      {
+        "owner": "Sophia",
+        "count": 1
+      },
+      {
+        "owner": "Lisa",
+        "count": 1
+      },
+      {
+        "owner": "Olivia",
+        "count": 1
       }
     ],
     "topProjectsByProgress": [
-      {
-        "name": "ConnectTel Smart Security",
-        "progress": 93
-      },
-      {
-        "name": "Atlas Phase 2 LPR",
-        "progress": 100
-      },
       {
         "name": "Horizon GXO Analytics",
         "progress": 100
       },
       {
-        "name": "Evergreen Mall Happitat",
-        "progress": 83
+        "name": "ConnectTel Smart Security",
+        "progress": 100
       },
       {
-        "name": "GreenFleet AI Monitoring",
-        "progress": 58
+        "name": "Pacific Steel Vision AI",
+        "progress": 100
+      },
+      {
+        "name": "FreshCo Retail Compliance",
+        "progress": 100
+      },
+      {
+        "name": "Evergreen Mall Happitat",
+        "progress": 100
       }
     ],
     "slippingVsGoLive": [
       {
-        "name": "Atlas Phase 2 LPR",
-        "daysLate": 68
+        "name": "Metropolitan Mall PeopleCount",
+        "daysLate": 80
       },
       {
         "name": "ConnectTel Smart Security",
@@ -809,15 +897,9 @@
     "projectsByPm": [
       {
         "pm": "Marcus",
-        "projects": 3,
-        "atRisk": 2,
-        "totalValue": 247696.74
-      },
-      {
-        "pm": "Elena",
-        "projects": 3,
-        "atRisk": 2,
-        "totalValue": 96812.66
+        "projects": 5,
+        "atRisk": 3,
+        "totalValue": 410237.11
       },
       {
         "pm": "Alex",
@@ -830,6 +912,18 @@
         "projects": 1,
         "atRisk": 0,
         "totalValue": 67088.0
+      },
+      {
+        "pm": "Elena",
+        "projects": 2,
+        "atRisk": 2,
+        "totalValue": 96812.66
+      },
+      {
+        "pm": "Sophia",
+        "projects": 1,
+        "atRisk": 0,
+        "totalValue": 29569.82
       }
     ]
   },
