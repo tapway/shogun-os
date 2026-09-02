@@ -1,6 +1,6 @@
 {
   "total_employees": 12,
-  "total_job_openings": 5,
+  "total_job_openings": 6,
   "overdue_openings": 1,
   "total_candidates": 12,
   "pipeline_counts": {
@@ -335,7 +335,7 @@
       "id": 3,
       "notion_page_id": "mock-job-003",
       "job_title": "Sales Operations Analyst",
-      "job_status": "Draft",
+      "job_status": "Active",
       "department": "Sales",
       "employment_type": "Full-time",
       "experience": "1-3 years",
@@ -396,6 +396,28 @@
       "deadline": "2026-07-30",
       "days_left": -63,
       "overdue": "Overdue"
+    },
+    {
+      "id": 6,
+      "notion_page_id": "mock-job-006",
+      "job_title": "Marketing Specialist",
+      "job_status": "Active",
+      "department": "Marketing",
+      "employment_type": "Contract",
+      "experience": "2-4 years",
+      "budget_max": 65000.0,
+      "hiring_manager": "Jordan Blake",
+      "application_start": "2026-08-15",
+      "job_description": "Support marketing campaigns and content creation.",
+      "jd_link": null,
+      "jd_file_url": null,
+      "screening_form_link": null,
+      "screening_email_subject": null,
+      "screening_email_body": null,
+      "closed_at": null,
+      "deadline": "2026-12-31",
+      "days_left": 120,
+      "overdue": ""
     }
   ],
   "candidates": [
@@ -629,7 +651,7 @@
       "name": "Aria Patel",
       "email": "aria.patel@example.com",
       "phone_no": "+1-555-0109",
-      "role": "Software Engineer",
+      "role": "Backend Engineer",
       "status": "Waiting Manager Interview Confirm",
       "source": "LinkedIn",
       "resume_url": null,
@@ -677,7 +699,7 @@
       "name": "Mia Chen",
       "email": "mia.chen@example.com",
       "phone_no": "+1-555-0111",
-      "role": "Data Analyst",
+      "role": "Data Analyst Intern",
       "status": "Waiting Offer Confirmation",
       "source": "Website",
       "resume_url": null,
