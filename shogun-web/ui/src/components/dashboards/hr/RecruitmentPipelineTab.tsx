@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, ExternalLink, Briefcase } from "lucide-react";
 import { hrApi } from "../../../lib/api";
@@ -175,6 +175,18 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   // Local stage overrides applied immediately on drop (optimistic) until the
   // stats query refetch lands with the persisted status.
   const [moves, setMoves] = useState<Record<number, string>>({});
+
+  // Sync selected/detailsCandidate when stats refetch (e.g., after candidate move)
+  useEffect(() => {
+    if (selected) {
+      const updated = (stats.candidates || []).find((c) => c.id === selected.id);
+      if (updated && updated.status !== selected.status) setSelected(updated);
+    }
+    if (detailsCandidate) {
+      const updated = (stats.candidates || []).find((c) => c.id === detailsCandidate.id);
+      if (updated && updated.status !== detailsCandidate.status) setDetailsCandidate(updated);
+    }
+  }, [stats.candidates]);
   const [moveError, setMoveError] = useState("");
 
   const candidates = stats.candidates || [];

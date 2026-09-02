@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
@@ -93,6 +93,14 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
   const [schedLocation, setSchedLocation] = useState("");
+
+  // Sync candidate from stats when it changes (e.g., after refetch)
+  useEffect(() => {
+    const updated = (stats.candidates || []).find((c) => c.id === candidate.id);
+    if (updated && updated.status !== candidate.status) {
+      setCandidate(updated);
+    }
+  }, [stats.candidates, candidate.id]);
 
   const events: HrCandidateEvent[] = useMemo(
     () => (stats.candidate_events || []).filter((e) => e.candidate_id === candidate.id),
