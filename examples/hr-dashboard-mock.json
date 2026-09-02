@@ -765,26 +765,26 @@
     {
       "id": 13,
       "notion_page_id": "mock-cand-itsupport-001",
-      "name": "Amir Hassan",
-      "email": "amir.hassan@example.com",
-      "phone_no": "+1-555-0213",
+      "name": "Ella Bennett",
+      "email": "ella.bennett@example.com",
+      "phone_no": "+44 20 7123 4567",
       "role": "IT Support",
       "status": "Shortlisted",
       "source": "LinkedIn",
-      "resume_url": null,
+      "resume_url": "https://www.w3.org/WAI/ER/tests/xhtml/testfiles/resources/pdf/dummy.pdf",
       "screening_answers_url": null,
       "candidate_type": "fulltime",
       "date_entry": "2026-09-01",
       "last_edited": "2026-09-02",
-      "ai_summary": null,
-      "ai_extract_json": null,
+      "ai_summary": "Ella Bennett is an EPOS Support Analyst with 3+ years of experience in IT/EPOS support for the hospitality industry. She has managed 100+ global hotel clients, reduced system downtime by 20%, resolved 500+ interface bugs annually, and improved KPI scores by 15%. She holds an MSc in Information Technology from Imperial College London and a BSc in Computer Science from University of Warwick. Strong skills in EPOS Support, IT Service Management, SLA Compliance, and Technical Troubleshooting.",
+      "ai_extract_json": "{\"summary\": \"With over 3 years of seasoned experience in IT/EPOS support, Ella excels in enhancing customer service operations and response times. Her track record includes significantly improving system efficiency and troubleshooting, leading to increased guest satisfaction.\", \"source\": \"resume\", \"skills\": [\"EPOS Support\", \"IT Service Management\", \"SLA Compliance\", \"KPI Tracking\", \"Technical Troubleshooting\", \"System Upgrades\"], \"experience\": [{\"title\": \"IT Support Specialist\", \"company\": \"Hospitality Tech Solutions Ltd\", \"period\": \"01/2021 \\u2013 Present\"}, {\"title\": \"EPOS System Coordinator\", \"company\": \"Global Inn Tech\", \"period\": \"06/2019 \\u2013 12/2020\"}, {\"title\": \"Hospitality Support Technician\", \"company\": \"Comfort Stay Technologies\", \"period\": \"02/2018 \\u2013 05/2019\"}], \"education\": [\"MSc Information Technology \\u2014 Imperial College London (2013\\u20132014)\", \"BSc Computer Science \\u2014 University of Warwick (2009\\u20132012)\"], \"screening_answers\": [], \"key_details\": {\"location\": \"Coventry, UK\", \"years_experience\": \"3+\", \"industry\": \"Hospitality / IT\", \"certifications\": \"Certified EPOS System Operator, Advanced IT Support & Troubleshooting\", \"achievements\": \"Reduced downtime 20%, Resolved 500+ bugs/yr, Improved KPIs 15%\"}}",
       "manager_reviewed_at": null,
       "in_pipeline": true,
       "job_opening_id": 7,
       "waiting_since": "2026-09-01",
       "waiting_reason": null,
       "removed_reason": null,
-      "candidate_name": "Amir Hassan"
+      "candidate_name": "Ella Bennett"
     },
     {
       "id": 14,
@@ -1653,6 +1653,57 @@
       "actor_name": "Elena Rodriguez",
       "actor_email": "elena.rodriguez@apexretail.example.com",
       "created_at": "2026-08-28T09:00:00+00:00"
+    },
+    {
+      "id": 4,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:53:24"
+    },
+    {
+      "id": 5,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:53:27"
+    },
+    {
+      "id": 6,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:53:27"
+    },
+    {
+      "id": 7,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:53:27"
+    },
+    {
+      "id": 8,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:53:27"
     }
   ],
   "interviews": [
@@ -1676,6 +1727,17 @@
       "interviewer_name": "Aria Foster",
       "interviewer_employee_id": 7,
       "location": "Virtual - Teams",
+      "status": "scheduled"
+    },
+    {
+      "id": 4,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
       "status": "scheduled"
     }
   ],
