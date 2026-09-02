@@ -658,6 +658,8 @@ async def get_dashboard_config(
                 {"id": "seo", "label": "SEO Rankings", "icon": "Search"},
                 {"id": "social", "label": "Social Media", "icon": "Share2"},
                 {"id": "content", "label": "Content", "icon": "FileText"},
+            ],
+        },
         "projects": {
             "enabled": True,
             "tabs": [
