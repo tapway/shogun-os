@@ -45,7 +45,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-001/view",
       "q1": null,
       "q2": "2",
       "q3": "6",
@@ -66,7 +66,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-002/view",
       "q1": "0",
       "q2": "4",
       "q3": "4",
@@ -87,7 +87,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-003/view",
       "q1": "5",
       "q2": "4",
       "q3": "5",
@@ -108,7 +108,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-004/view",
       "q1": "6",
       "q2": null,
       "q3": "2",
@@ -129,7 +129,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-005/view",
       "q1": null,
       "q2": null,
       "q3": null,
@@ -150,7 +150,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-006/view",
       "q1": "4",
       "q2": "2",
       "q3": null,
@@ -171,7 +171,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-007/view",
       "q1": "0",
       "q2": "4",
       "q3": null,
@@ -192,7 +192,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-008/view",
       "q1": "6",
       "q2": "0",
       "q3": null,
@@ -213,7 +213,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-009/view",
       "q1": "2",
       "q2": "3",
       "q3": "6",
@@ -234,7 +234,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-010/view",
       "q1": null,
       "q2": "0",
       "q3": "5",
@@ -255,7 +255,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-011/view",
       "q1": "6",
       "q2": "2",
       "q3": "6",
@@ -276,7 +276,7 @@
       "profile_picture_path": null,
       "profile_picture_url": null,
       "employee_file_path": null,
-      "employee_file_url": null,
+      "employee_file_url": "https://drive.google.com/file/d/mock-emp-012/view",
       "q1": "3",
       "q2": "0",
       "q3": "2",
@@ -1011,8 +1011,8 @@
       "department": "Engineering",
       "start_date": "2024-02-01",
       "end_date": "2024-02-15",
-      "status": "Done",
-      "task_status": "\u2705 Task Completed",
+      "status": "In Progress",
+      "task_status": "\ud83d\udea7 In Progress",
       "days": 14,
       "assigned_to": "Elena Rodriguez"
     },
@@ -3320,6 +3320,210 @@
       "actor_name": "Demo User",
       "actor_email": "demo@example.com",
       "created_at": "2026-09-02T07:42:58"
+    },
+    {
+      "id": 166,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:43:41"
+    },
+    {
+      "id": 167,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:43:44"
+    },
+    {
+      "id": 168,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:43:44"
+    },
+    {
+      "id": 169,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:43:44"
+    },
+    {
+      "id": 170,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:43:44"
+    },
+    {
+      "id": 171,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:26"
+    },
+    {
+      "id": 172,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:29"
+    },
+    {
+      "id": 173,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:29"
+    },
+    {
+      "id": 174,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:29"
+    },
+    {
+      "id": 175,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:29"
+    },
+    {
+      "id": 176,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:46"
+    },
+    {
+      "id": 177,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:49"
+    },
+    {
+      "id": 178,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:49"
+    },
+    {
+      "id": 179,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:49"
+    },
+    {
+      "id": 180,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:44:49"
+    },
+    {
+      "id": 181,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:49:56"
+    },
+    {
+      "id": 182,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:49:59"
+    },
+    {
+      "id": 183,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:49:59"
+    },
+    {
+      "id": 184,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:49:59"
+    },
+    {
+      "id": 185,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-02T07:49:59"
     }
   ],
   "interviews": [
@@ -3740,6 +3944,50 @@
       "interviewer_employee_id": null,
       "location": "Meet link",
       "status": "scheduled"
+    },
+    {
+      "id": 39,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 40,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 41,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 42,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
     }
   ],
   "equipment_logs": [
@@ -3849,17 +4097,17 @@
       "id": 1,
       "staff_name": "Ryan Nakamura",
       "item_id": 1,
-      "completed": true,
-      "completed_at": "2024-02-02",
-      "completed_by": "Elena Rodriguez"
+      "completed": false,
+      "completed_at": null,
+      "completed_by": null
     },
     {
       "id": 2,
       "staff_name": "Ryan Nakamura",
       "item_id": 2,
-      "completed": true,
-      "completed_at": "2024-02-03",
-      "completed_by": "Alex Thompson"
+      "completed": false,
+      "completed_at": null,
+      "completed_by": null
     },
     {
       "id": 3,
@@ -3892,6 +4140,22 @@
       "completed": true,
       "completed_at": "2026-09-02T07:41:37",
       "completed_by": "HR One"
+    },
+    {
+      "id": 7,
+      "staff_name": "Ryan Nakamura",
+      "item_id": 4,
+      "completed": true,
+      "completed_at": "2026-09-02T07:46:27",
+      "completed_by": "Test Admin"
+    },
+    {
+      "id": 8,
+      "staff_name": "Ryan Nakamura",
+      "item_id": 5,
+      "completed": true,
+      "completed_at": "2026-09-02T07:46:29",
+      "completed_by": "Test Admin"
     }
   ],
   "source": "mock_data"
