@@ -612,12 +612,12 @@ async def get_dashboard_config(
         "marketing": {
             "enabled": True,
             "tabs": [
-                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
-                {"id": "campaigns", "label": "Campaigns", "icon": "Megaphone"},
-                {"id": "content", "label": "Content", "icon": "FileText"},
+                {"id": "summary", "label": "Summary", "icon": "LayoutDashboard"},
+                {"id": "leads", "label": "Leads", "icon": "UserPlus"},
+                {"id": "events", "label": "Events", "icon": "Calendar"},
+                {"id": "seo", "label": "SEO Rankings", "icon": "Search"},
                 {"id": "social", "label": "Social Media", "icon": "Share2"},
-                {"id": "analytics", "label": "Analytics", "icon": "BarChart3"},
-                {"id": "seo", "label": "SEO", "icon": "Search"},
+                {"id": "content", "label": "Content", "icon": "FileText"},
             ],
         },
     }

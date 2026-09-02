@@ -3,20 +3,20 @@ import { useQuery } from '@tanstack/react-query';
 import { departmentsApi } from '../../../lib/api';
 import { DashboardSubNav } from '../DashboardSubNav';
 import type { DashboardTab, MarketingDashboardStats } from '../../../lib/types';
-import { OverviewTab } from './OverviewTab';
-import { CampaignsTab } from './CampaignsTab';
-import { ContentTab } from './ContentTab';
+import { SummaryTab } from './SummaryTab';
+import { LeadsTab } from './LeadsTab';
+import { EventsTab } from './EventsTab';
+import { SEORankingsTab } from './SEORankingsTab';
 import { SocialMediaTab } from './SocialMediaTab';
-import { AnalyticsTab } from './AnalyticsTab';
-import { SEOTab } from './SEOTab';
+import { ContentTab } from './ContentTab';
 
 const TABS: DashboardTab[] = [
-  { id: 'overview', label: 'Overview', icon: 'LayoutDashboard' },
-  { id: 'campaigns', label: 'Campaigns', icon: 'Megaphone' },
-  { id: 'content', label: 'Content', icon: 'FileText' },
+  { id: 'summary', label: 'Summary', icon: 'LayoutDashboard' },
+  { id: 'leads', label: 'Leads', icon: 'UserPlus' },
+  { id: 'events', label: 'Events', icon: 'Calendar' },
+  { id: 'seo', label: 'SEO Rankings', icon: 'Search' },
   { id: 'social', label: 'Social Media', icon: 'Share2' },
-  { id: 'analytics', label: 'Analytics', icon: 'BarChart3' },
-  { id: 'seo', label: 'SEO', icon: 'Search' },
+  { id: 'content', label: 'Content', icon: 'FileText' },
 ];
 
 interface MarketingDashboardProps {
@@ -25,7 +25,7 @@ interface MarketingDashboardProps {
 }
 
 export function MarketingDashboard({ department, color }: MarketingDashboardProps) {
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('summary');
 
   const statsQuery = useQuery({
     queryKey: ['dashboard-marketing-stats', department],
@@ -63,12 +63,12 @@ export function MarketingDashboard({ department, color }: MarketingDashboardProp
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       <div>
-        {activeTab === 'overview' && <OverviewTab stats={stats} color={color} />}
-        {activeTab === 'campaigns' && <CampaignsTab stats={stats} color={color} />}
-        {activeTab === 'content' && <ContentTab stats={stats} color={color} />}
+        {activeTab === 'summary' && <SummaryTab stats={stats} color={color} />}
+        {activeTab === 'leads' && <LeadsTab stats={stats} color={color} />}
+        {activeTab === 'events' && <EventsTab stats={stats} color={color} />}
+        {activeTab === 'seo' && <SEORankingsTab stats={stats} color={color} />}
         {activeTab === 'social' && <SocialMediaTab stats={stats} color={color} />}
-        {activeTab === 'analytics' && <AnalyticsTab stats={stats} color={color} />}
-        {activeTab === 'seo' && <SEOTab stats={stats} color={color} />}
+        {activeTab === 'content' && <ContentTab stats={stats} color={color} />}
       </div>
     </div>
   );

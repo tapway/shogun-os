@@ -1580,111 +1580,79 @@ export interface ProcurementDashboardStats {
 
 // ─── Marketing Dashboard Types ───
 
-export type MarketingRiskAlertType = 'budget_overspend' | 'low_roi' | 'declining_traffic' | 'poor_conversion';
+export type MarketingIntegrationStatus = 'live' | 'new' | 'broken' | 'pending' | 'not_connected';
 
-export interface MarketingRiskAlert {
-  type: MarketingRiskAlertType;
-  level: 'warning' | 'critical';
-  message: string;
-  campaign?: string;
+export interface MarketingSummaryKpi {
+  label: string;
+  value: string;
+  subtext?: string;
+  status: MarketingIntegrationStatus;
 }
 
-export interface CampaignStatusEntry {
-  status: 'active' | 'paused' | 'completed' | 'draft';
-  count: number;
-  spend: number;
+export interface MarketingLeadDeal {
+  id: string;
+  contact: string;
+  deal: string;
+  company: string;
+  owner: string;
+  source: string;
+  event: string;
+  industry: string;
+  stage: string;
+  value: number | null;
+  date: string;
 }
 
-export interface CampaignRow {
+export interface MarketingEventTask {
+  id: string;
+  label: string;
+  done: boolean;
+}
+
+export interface MarketingEvent {
+  id: string;
   name: string;
-  channel: string;
-  status: string;
-  spend: number;
-  impressions: number;
-  clicks: number;
-  conversions: number;
-  roi: number;
+  date: string;
+  location: string;
+  status: 'upcoming' | 'past';
+  daysUntil?: number;
+  tasks?: MarketingEventTask[];
+  remindersNote?: string;
 }
 
-export interface CampaignTrendPoint {
-  month: string;
-  spend: number;
-  leads: number;
-  conversions: number;
+export interface MarketingSocialChannel {
+  platform: string;
+  icon: string;
+  status: 'automated' | 'not_automated';
+  followers?: number;
+  engagement?: string;
 }
 
-export interface ChannelPerformance {
-  channel: string;
-  spend: number;
-  impressions: number;
-  clicks: number;
-  ctr: number;
-  conversions: number;
-  cpa: number;
-}
-
-export interface SocialMetrics {
-  followers: number;
-  engagementRate: number;
-  postsMtd: number;
-  viralPosts: number;
-}
-
-export interface ContentByType {
+export interface MarketingContentAsset {
   type: string;
   count: number;
-  views: number;
-  shares: number;
-}
-
-export interface ContentRow {
-  title: string;
-  type: string;
-  publishedAt: string;
-  views: number;
-  shares: number;
-  leadsGenerated: number;
-}
-
-export interface KeywordRanking {
-  keyword: string;
-  position: number;
-  searchVolume: number;
-  difficulty: number;
-  trend: 'up' | 'down' | 'stable';
+  note: string;
 }
 
 export interface MarketingDashboardStats {
   mock?: boolean;
-  // Overview KPIs
-  totalCampaigns: number;
-  activeCampaigns: number;
-  totalLeads: number;
-  leadsMTD: number;
-  leadsQTD: number;
-  costPerLead: number;
-  marketingRoi: number;
-  conversionRate: number;
-  totalSpendMTD: number;
-  totalSpendYTD: number;
-  // Campaign performance
-  campaignsByStatus: CampaignStatusEntry[];
-  topCampaigns: CampaignRow[];
-  campaignSpendTrend: CampaignTrendPoint[];
-  // Channel performance
-  byChannel: ChannelPerformance[];
-  socialMetrics: SocialMetrics;
-  // Content metrics
-  contentPublished: number;
-  contentByType: ContentByType[];
-  topContent: ContentRow[];
-  // SEO metrics
-  organicTraffic: number;
-  organicTrafficGrowth: number;
-  keywordRankings: KeywordRanking[];
-  backlinks: number;
-  domainAuthority: number;
-  // Risk alerts
-  riskAlerts: MarketingRiskAlert[];
+  // Summary KPIs (status-tagged cards)
+  summaryKpis: MarketingSummaryKpi[];
+  // Leads tab
+  leadsDeals: MarketingLeadDeal[];
+  leadsTotal: number;
+  leadsPipelineValue: number;
+  leadsContacts: number;
+  // Events tab
+  events: MarketingEvent[];
+  eventsRemindersNote: string;
+  // SEO Rankings tab
+  seoConnected: boolean;
+  seoMessage?: string;
+  // Social Media tab
+  socialChannels: MarketingSocialChannel[];
+  socialNextStep: string;
+  // Content tab
+  contentAssets: MarketingContentAsset[];
+  contentNextStep: string;
 }
-
