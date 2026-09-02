@@ -50,6 +50,12 @@ import type {
   OnboardingState,
   ProcurementDashboardStats,
   MarketingDashboardStats,
+  ProjectItem,
+  ProjectStats,
+  ProjectTaskItem,
+  ReportsSummary,
+  SupportStats,
+  SupportTicketItem,
   ProviderConfig,
   Skill,
   SkillDetail,
@@ -485,6 +491,57 @@ export const departmentsApi = {
       method: 'POST',
       body: JSON.stringify({ channel_id: channelId }),
     }),
+
+  // Project dashboard endpoints (external project tracker sync)
+  projectsList: (dept: string, status = '', pm = '') => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    if (pm) qs.set('pm', pm);
+    const q = qs.toString();
+    return apiFetch<{ projects: ProjectItem[] }>(
+      `/api/departments/${dept}/dashboard/projects${q ? `?${q}` : ''}`,
+    );
+  },
+  projectDetail: (dept: string, projectId: string) =>
+    apiFetch<ProjectItem>(`/api/departments/${dept}/dashboard/projects/${projectId}`),
+  projectTasks: (dept: string, projectId: string) =>
+    apiFetch<{ tasks: ProjectTaskItem[] }>(
+      `/api/departments/${dept}/dashboard/projects/${projectId}/tasks`,
+    ),
+  projectsAllTasks: (dept: string, owner = '', status = '', overdue?: boolean) => {
+    const qs = new URLSearchParams();
+    if (owner) qs.set('owner', owner);
+    if (status) qs.set('status', status);
+    if (overdue !== undefined) qs.set('overdue', String(overdue));
+    const q = qs.toString();
+    return apiFetch<{ tasks: ProjectTaskItem[] }>(
+      `/api/departments/${dept}/dashboard/projects/tasks${q ? `?${q}` : ''}`,
+    );
+  },
+  projectsStats: (dept: string) =>
+    apiFetch<ProjectStats>(`/api/departments/${dept}/dashboard/projects/stats`),
+  projectsActive: (dept: string) =>
+    apiFetch<{ projects: ProjectItem[] }>(
+      `/api/departments/${dept}/dashboard/projects/active`,
+    ),
+  projectsPlan: (dept: string) =>
+    apiFetch<{ tasks: ProjectTaskItem[] }>(
+      `/api/departments/${dept}/dashboard/tasks/plan`,
+    ),
+  reportsSummary: (dept: string) =>
+    apiFetch<ReportsSummary>(`/api/departments/${dept}/dashboard/reports/summary`),
+  supportTickets: (dept: string, status = '', priority = '', customer = '') => {
+    const qs = new URLSearchParams();
+    if (status) qs.set('status', status);
+    if (priority) qs.set('priority', priority);
+    if (customer) qs.set('customer', customer);
+    const q = qs.toString();
+    return apiFetch<{ tickets: SupportTicketItem[]; total: number }>(
+      `/api/departments/${dept}/dashboard/support/tickets${q ? `?${q}` : ''}`,
+    );
+  },
+  supportStats: (dept: string) =>
+    apiFetch<SupportStats>(`/api/departments/${dept}/dashboard/support/stats`),
 };
 
 
