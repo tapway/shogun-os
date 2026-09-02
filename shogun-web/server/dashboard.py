@@ -2966,6 +2966,45 @@ class HrCandidateMoveBody(BaseModel):
     status: str
 
 
+
+def _persist_candidate_move_to_mock(candidate_id: int, new_status: str) -> dict | None:
+    """Persist candidate stage change to mock JSON file for demo persistence.
+    Returns updated candidate dict on success, None on failure."""
+    import json
+    try:
+        with open(_HR_MOCK_PATH, 'r', encoding='utf-8') as f:
+            mock = json.load(f)
+        
+        candidates = mock.get("candidates", [])
+        updated_cand = None
+        for c in candidates:
+            if c.get("id") == candidate_id:
+                old_status = c.get("status")
+                c["status"] = new_status
+                # Clear waiting_since for certain stages (matching DB logic)
+                if new_status in ("1st Interview Scheduled", "HR Interview Done",
+                                  "Manager Interview Scheduled", "Waiting Interview Result",
+                                  "Waiting Offer Confirmation", "Offer Sent - Waiting Reply", "Done"):
+                    c["waiting_since"] = None
+                    c["waiting_reason"] = None
+                c["last_edited"] = __import__("datetime").datetime.now().strftime("%Y-%m-%d")
+                updated_cand = c.copy()
+                break
+        
+        if updated_cand:
+            # Update pipeline_counts
+            from collections import Counter
+            pipeline_counts = Counter(c["status"] for c in candidates if c.get("waiting_since"))
+            mock["pipeline_counts"] = dict(pipeline_counts)
+            
+            with open(_HR_MOCK_PATH, 'w', encoding='utf-8') as f:
+                json.dump(mock, f, indent=2)
+            return updated_cand
+        return None
+    except Exception as e:
+        print(f"[WARN] Failed to persist candidate move to mock: {e}")
+        return None
+
 @router.post("/hr/candidates/{candidate_id}/move")
 async def move_hr_candidate(
     candidate_id: int,
@@ -2975,11 +3014,17 @@ async def move_hr_candidate(
     db: Session = Depends(get_db),
 ) -> dict:
     """Change a candidate's pipeline stage (drag & drop on the board)."""
-    from models import HrCandidate
-
     status = (body.status or "").strip()
     if not status or len(status) > 128:
         raise HTTPException(status_code=422, detail="Status must be a non-empty stage name")
+
+    # Demo mode: persist to mock JSON file
+    mock_result = _persist_candidate_move_to_mock(candidate_id, status)
+    if mock_result:
+        return {"ok": True, "candidate": mock_result}
+
+    # Live mode: use database
+    from models import HrCandidate
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
