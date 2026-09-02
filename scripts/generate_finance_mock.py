@@ -78,13 +78,13 @@ DEFAULT_ATTAINMENT = 0.95
 # ── Fictional counterparties (aligned with crm-mock / procurement-mock) ──
 AR_INVOICES = [
     # (invoice_no, customer, due_date, amount)
-    ("INV-2026-1041", "Meridian Retail Group",          "2026-08-22", 186_000),
-    ("INV-2026-1052", "Konsortium Logistik Sdn Bhd",    "2026-08-18", 148_000),
+    ("INV-2026-1041", "Apex Retail Group Group",          "2026-08-22", 186_000),
+    ("INV-2026-1052", "Global Logistics Corp Sdn Bhd",    "2026-08-18", 148_000),
     ("INV-2026-1058", "Lima Apparel Bhd",               "2026-08-25", 118_000),
     ("INV-2026-1063", "Teras Elektronik",               "2026-08-27",  88_000),
     ("INV-2026-1066", "Jejak Runcit Sdn Bhd",           "2026-08-29",  34_000),
     ("INV-2026-1018", "Lebuhraya Sentosa Sdn Bhd",      "2026-07-24", 135_000),
-    ("INV-2026-1027", "Meridian Retail Group",          "2026-07-15",  92_000),
+    ("INV-2026-1027", "Apex Retail Group Group",          "2026-07-15",  92_000),
     ("INV-2026-1033", "Teras Elektronik",               "2026-07-08",  58_000),
     ("INV-2026-0984", "Pelabuhan Timur Berhad",         "2026-06-19", 104_000),
     ("INV-2026-0992", "Nadi Holdings",                  "2026-06-27",  36_000),
@@ -109,13 +109,13 @@ AP_BILLS = [
     ("BILL-2026-0695", "Pelabuhan Timur Berhad (Port Charges)",      "2026-06-15",  45_000),
     # 90+ DPD (critical - legal action risk)
     ("BILL-2026-0651", "Teras Elektronik Sdn Bhd (IT Equipment)",     "2026-05-01",  38_500),
-    ("BILL-2026-0638", "Meridian Retail Group (Inventory Deposit)",   "2026-04-15",  52_000),
+    ("BILL-2026-0638", "Apex Retail Group Group (Inventory Deposit)",   "2026-04-15",  52_000),
 ]
 
 CLIENT_CONCENTRATION = [
     # name, revenue_ytd — top clients aligned with crm-mock companies
-    ("Meridian Retail Group",       1_042_000),
-    ("Konsortium Logistik Sdn Bhd",   808_000),
+    ("Apex Retail Group Group",       1_042_000),
+    ("Global Logistics Corp Sdn Bhd",   808_000),
     ("Lima Apparel Bhd",              641_000),
     ("Teras Elektronik",              462_000),
     ("Pelabuhan Timur Berhad",        398_000),
@@ -446,12 +446,12 @@ def build(data: dict) -> dict:
     ]
     expense_claim_audit = [
         {"employee": "Kevin Yap", "department": "Engineering", "amount": 1_240, "category": "Travel", "status": "Approved", "week": "2026-08-W3"},
-        {"employee": "Emma Chong", "department": "Marketing", "amount": 3_180, "category": "Events", "status": "Approved", "week": "2026-08-W3"},
+        {"employee": "Luna Chong", "department": "Marketing", "amount": 3_180, "category": "Events", "status": "Approved", "week": "2026-08-W3"},
         {"employee": "Oliver Chan", "department": "Sales", "amount": 920, "category": "Client Entertainment", "status": "Flagged — missing receipt", "week": "2026-08-W4"},
         {"employee": "Marcus Sim", "department": "Operations", "amount": 460, "category": "Mileage", "status": "Pending", "week": "2026-08-W4"},
     ]
 
-    fx_positions = [
+    fx_poElenaons = [
         {"currency": "USD", "long": usd_myr, "short": 0, "net": usd_myr, "bnm_fea_compliant": True},
         {"currency": "SGD", "long": 36_000, "short": 12_000, "net": 24_000, "bnm_fea_compliant": True},
     ]
@@ -486,7 +486,7 @@ def build(data: dict) -> dict:
         "cashFlowBreakdown": _breakdown(bva, monthly_rev, monthly_exp, monthly_oi, revenue_ytd, expenses_ytd),
         # ── Tab 2 — Cash & Runway ──
         "bankAccounts": bank_accounts,
-        "fxPositions": fx_positions,
+        "fxPoElenaons": fx_poElenaons,
         "forecast13w": forecast_13w,
         "fixedOpex": fixed_opex,
         "variableOpex": variable_opex,

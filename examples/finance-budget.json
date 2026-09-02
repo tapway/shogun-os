@@ -790,7 +790,7 @@
       {
         "type": "concentration",
         "level": "warning",
-        "message": "Meridian Retail Group represents 22.0% of YTD revenue (Concentration Risk)"
+        "message": "Apex Retail Group Group represents 22.0% of YTD revenue (Concentration Risk)"
       },
       {
         "type": "ar_overdue",
@@ -1279,7 +1279,7 @@
         "last_reconciled": "2026-08-28"
       }
     ],
-    "fxPositions": [
+    "fxPoElenaons": [
       {
         "currency": "USD",
         "long": 499140,
@@ -1801,7 +1801,7 @@
       },
       {
         "invoice_no": "INV-2026-1027",
-        "customer": "Meridian Retail Group",
+        "customer": "Apex Retail Group Group",
         "due_date": "2026-07-15",
         "amount": 92000,
         "aging_days": 47,
@@ -1848,7 +1848,7 @@
     "arInvoices": [
       {
         "invoice_no": "INV-2026-1041",
-        "customer": "Meridian Retail Group",
+        "customer": "Apex Retail Group Group",
         "due_date": "2026-08-22",
         "amount": 186000,
         "aging_days": 9,
@@ -1857,7 +1857,7 @@
       },
       {
         "invoice_no": "INV-2026-1052",
-        "customer": "Konsortium Logistik Sdn Bhd",
+        "customer": "Global Logistics Corp Sdn Bhd",
         "due_date": "2026-08-18",
         "amount": 148000,
         "aging_days": 13,
@@ -1902,7 +1902,7 @@
       },
       {
         "invoice_no": "INV-2026-1027",
-        "customer": "Meridian Retail Group",
+        "customer": "Apex Retail Group Group",
         "due_date": "2026-07-15",
         "amount": 92000,
         "aging_days": 47,
@@ -2037,7 +2037,7 @@
       },
       {
         "bill_no": "BILL-2026-0638",
-        "vendor": "Meridian Retail Group (Inventory Deposit)",
+        "vendor": "Apex Retail Group Group (Inventory Deposit)",
         "due_date": "2026-04-15",
         "amount": 52000,
         "match_status": "Matched",
@@ -2823,12 +2823,12 @@
     },
     "clientConcentration": [
       {
-        "name": "Meridian Retail Group",
+        "name": "Apex Retail Group Group",
         "revenue_ytd": 1042000,
         "revenue_pct": 22.0
       },
       {
-        "name": "Konsortium Logistik Sdn Bhd",
+        "name": "Global Logistics Corp Sdn Bhd",
         "revenue_ytd": 808000,
         "revenue_pct": 17.1
       },
@@ -2973,7 +2973,7 @@
         "week": "2026-08-W3"
       },
       {
-        "employee": "Emma Chong",
+        "employee": "Luna Chong",
         "department": "Marketing",
         "amount": 3180,
         "category": "Events",

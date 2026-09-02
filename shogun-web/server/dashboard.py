@@ -1578,6 +1578,7 @@ async def get_procurement_stats(
 # ---------------------------------------------------------------------------
 
 _MARKETING_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "marketing-dashboard-mock.json"
+_PROJECTS_MOCK_PATH = pathlib.Path(__file__).resolve().parent.parent.parent / "examples" / "projects-dashboard-mock.json"
 
 
 def _load_marketing_mock() -> dict:
@@ -1600,6 +1601,12 @@ async def get_marketing_stats(
     # TODO: Query gbrain marketing source for live data
     # For now, return mock data with mock=True flag
     return _load_marketing_mock()
+
+def _load_projects_mock() -> dict:
+    """Load projects mock data from examples/ JSON file."""
+    import json as _json
+    with open(_PROJECTS_MOCK_PATH, encoding="utf-8") as f:
+        return _json.load(f)
 
 
 # ---------------------------------------------------------------------------
@@ -4494,20 +4501,19 @@ async def list_projects(
     pm: Optional[str] = Query(None, description="Filter by project manager"),
     gate: Optional[int] = Query(None, description="Filter by gate number"),
 ) -> dict:
-    """List all projects with optional filters."""
-    from models import Project
-
-    query = select(Project)
-
+    """List all projects with optional filters. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    projects = mock.get("projects", [])
+    
+    # Apply filters
     if status:
-        query = query.where(Project.status == status)
+        projects = [p for p in projects if p.get("status") == status]
     if pm:
-        query = query.where(Project.pm == pm)
+        projects = [p for p in projects if p.get("pm") == pm]
     if gate is not None:
-        query = query.where(Project.gate == gate)
-
-    projects = db.execute(query).scalars().all()
-    return {"projects": [p.to_dict() for p in projects]}
+        projects = [p for p in projects if p.get("gate") == gate]
+    
+    return {"projects": projects}
 
 
 @router.get("/projects/stats", tags=["projects"])
@@ -4515,37 +4521,9 @@ async def get_project_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get project dashboard statistics."""
-    from models import Project, Task
-    from sqlalchemy import func
-
-    total_projects = db.execute(select(func.count(Project.id))).scalar()
-    active_projects = db.execute(
-        select(func.count(Project.id)).where(Project.status.in_(["active", "in-progress"]))
-    ).scalar()
-
-    total_tasks = db.execute(select(func.count(Task.id))).scalar()
-    completed_tasks = db.execute(
-        select(func.count(Task.id)).where(Task.status == "done")
-    ).scalar()
-
-    overdue_tasks = db.execute(
-        select(func.count(Task.id))
-        .where(Task.deadline < datetime.now())
-        .where(Task.status != "done")
-    ).scalar()
-
-    return {
-        "projects": {
-            "total": total_projects or 0,
-            "active": active_projects or 0,
-        },
-        "tasks": {
-            "total": total_tasks or 0,
-            "completed": completed_tasks or 0,
-            "overdue": overdue_tasks or 0,
-        },
-    }
+    """Get project dashboard statistics. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    return mock.get("stats", {"projects": {"total": 0, "active": 0}, "tasks": {"total": 0, "completed": 0, "overdue": 0}})
 
 
 @router.get("/projects/tasks", tags=["projects"])
@@ -4561,26 +4539,25 @@ async def list_project_dashboard_tasks(
     """List all project-tracker tasks with optional filters.
 
     Namespaced under /projects/tasks so it does not shadow the CRM /tasks
-    endpoint above.
+    endpoint above. Returns mock data on demo branch.
     """
-    from models import Task
+    mock = _load_projects_mock()
+    tasks = mock.get("tasks", [])
 
-    query = select(Task)
-
+    # Apply filters
     if project_id:
-        query = query.where(Task.project_id == project_id)
+        tasks = [t for t in tasks if t.get("projectId") == project_id]
     if owner:
-        query = query.where(Task.owner == owner)
+        tasks = [t for t in tasks if t.get("owner") == owner]
     if status:
-        query = query.where(Task.status == status)
+        tasks = [t for t in tasks if t.get("status") == status]
     if priority:
-        query = query.where(Task.priority == priority)
+        tasks = [t for t in tasks if t.get("priority") == priority]
     if overdue is True:
-        # Tasks with deadline in past and not done
-        query = query.where(Task.deadline < datetime.now()).where(Task.status != "done")
+        now = datetime.now().isoformat()
+        tasks = [t for t in tasks if t.get("deadline") and t["deadline"] < now and t.get("status") != "done"]
 
-    tasks = db.execute(query).scalars().all()
-    return {"tasks": [t.to_dict() for t in tasks]}
+    return {"tasks": tasks}
 
 
 @router.get("/projects/active", tags=["projects"])
@@ -4588,13 +4565,11 @@ async def list_active_projects(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List active projects (status starts with 'active')."""
-    from models import Project
-
-    projects = db.execute(
-        select(Project).where(Project.status.like("active%"))
-    ).scalars().all()
-    return {"projects": [p.to_dict() for p in projects]}
+    """List active projects (status starts with 'active'). Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    projects = mock.get("projects", [])
+    active = [p for p in projects if (p.get("status") or "").startswith(("active", "in-progress"))]
+    return {"projects": active}
 
 
 @router.get("/tasks/plan", tags=["projects"])
@@ -4602,16 +4577,13 @@ async def list_planned_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Plan view: open tasks with deadlines, soonest first (source /tasks/plan)."""
-    from models import Task
-
-    tasks = db.execute(
-        select(Task)
-        .where(Task.status.in_(["todo", "in-progress"]))
-        .where(Task.deadline.is_not(None))
-        .order_by(Task.deadline.asc())
-    ).scalars().all()
-    return {"tasks": [t.to_dict() for t in tasks]}
+    """Plan view: open tasks with deadlines, soonest first (source /tasks/plan). Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    tasks = mock.get("tasks", [])
+    # Filter to open tasks with deadlines, sort by deadline ascending
+    planned = [t for t in tasks if t.get("status") in ("todo", "in-progress") and t.get("deadline")]
+    planned.sort(key=lambda t: t.get("deadline", ""))
+    return {"tasks": planned}
 
 
 @router.get("/reports/summary", tags=["projects"])
@@ -4619,83 +4591,9 @@ async def get_reports_summary(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Reports section: aggregated portfolio summary computed from synced data."""
-    from collections import Counter
-    from models import Project, Task
-
-    projects = db.execute(select(Project)).scalars().all()
-    tasks = db.execute(select(Task)).scalars().all()
-
-    now = datetime.now()
-
-    # Per-project aggregates
-    by_pm: Dict[str, int] = {}
-    by_status: Counter = Counter()
-    by_health: Counter = Counter()
-    by_gate: Counter = Counter()
-    by_budget: Counter = Counter()
-    total_value = 0.0
-    project_rows = []
-    for p in projects:
-        by_status[p.status or "unknown"] += 1
-        by_health[p.overall_health or "unknown"] += 1
-        by_budget[p.budget_status or "unknown"] += 1
-        if p.gate is not None:
-            by_gate[f"Gate {p.gate}"] += 1
-        if p.pm:
-            by_pm[p.pm] = by_pm.get(p.pm, 0) + 1
-        if p.value_rm:
-            total_value += p.value_rm
-        p_tasks = [t for t in tasks if t.project_id == p.id]
-        open_tasks = [t for t in p_tasks if t.status not in ("done", "cancelled")]
-        overdue = [
-            t for t in open_tasks
-            if t.deadline and t.deadline.replace(tzinfo=None) < now
-        ]
-        project_rows.append({
-            "id": p.id,
-            "name": p.name,
-            "client": p.client,
-            "pm": p.pm,
-            "status": p.status,
-            "overallHealth": p.overall_health,
-            "budgetStatus": p.budget_status,
-            "gate": p.gate,
-            "valueRm": p.value_rm,
-            "targetEnd": p.target_end.isoformat() if p.target_end else None,
-            "sourceLastUpdated": p.source_last_updated.isoformat() if p.source_last_updated else None,
-            "totalTasks": len(p_tasks),
-            "openTasks": len(open_tasks),
-            "overdueTasks": len(overdue),
-            "completionPct": round(len([t for t in p_tasks if t.status == "done"]) / len(p_tasks) * 100) if p_tasks else 0,
-        })
-
-    # Task aggregates
-    open_task_count = len([t for t in tasks if t.status not in ("done", "cancelled")])
-    overdue_count = len([
-        t for t in tasks
-        if t.status not in ("done", "cancelled")
-        and t.deadline and t.deadline.replace(tzinfo=None) < now
-    ])
-    by_priority: Counter = Counter(t.priority or "UNSET" for t in tasks if t.status not in ("done", "cancelled"))
-
-    return {
-        "totals": {
-            "projects": len(projects),
-            "activeProjects": len([p for p in projects if (p.status or "").startswith("active")]),
-            "totalValueRm": total_value,
-            "tasks": len(tasks),
-            "openTasks": open_task_count,
-            "overdueTasks": overdue_count,
-        },
-        "projectsByStatus": dict(by_status.most_common()),
-        "projectsByHealth": dict(by_health.most_common()),
-        "projectsByGate": dict(sorted(by_gate.items())),
-        "projectsByBudgetStatus": dict(by_budget.most_common()),
-        "projectsByPm": dict(sorted(by_pm.items(), key=lambda kv: -kv[1])),
-        "openTasksByPriority": dict(by_priority.most_common()),
-        "projects": project_rows,
-    }
+    """Reports section: aggregated portfolio summary computed from synced data. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    return mock.get("reportsSummary", {})
 
 
 @router.get("/support/tickets", tags=["projects"])
@@ -4706,18 +4604,19 @@ async def list_support_tickets(
     priority: Optional[str] = Query(None, description="Filter by priority (P1-P4)"),
     customer: Optional[str] = Query(None, description="Filter by customer"),
 ) -> dict:
-    """List support tickets (source /support section)."""
-    from models import SupportTicket
+    """List support tickets (source /support section). Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    tickets = mock.get("supportTickets", [])
 
-    query = select(SupportTicket)
+    # Apply filters
     if status:
-        query = query.where(SupportTicket.status == status)
+        tickets = [t for t in tickets if t.get("status") == status]
     if priority:
-        query = query.where(SupportTicket.priority == priority)
+        tickets = [t for t in tickets if t.get("priority") == priority]
     if customer:
-        query = query.where(SupportTicket.customer_slug == customer)
-    tickets = db.execute(query).scalars().all()
-    return {"tickets": [t.to_dict() for t in tickets], "total": len(tickets)}
+        tickets = [t for t in tickets if t.get("customerSlug") == customer or t.get("customer") == customer]
+
+    return {"tickets": tickets, "total": len(tickets)}
 
 
 @router.get("/support/stats", tags=["projects"])
@@ -4725,29 +4624,9 @@ async def get_support_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Support section statistics."""
-    from collections import Counter
-    from models import SupportTicket
-
-    tickets = db.execute(select(SupportTicket)).scalars().all()
-    by_status: Counter = Counter(t.status or "unknown" for t in tickets)
-    by_priority: Counter = Counter(t.priority or "unknown" for t in tickets)
-    by_customer: Counter = Counter(t.customer or "unknown" for t in tickets)
-    open_statuses = ("Open", "In Progress", "Waiting for Customer")
-    open_tickets = [t for t in tickets if t.status in open_statuses]
-    new_replies = len([t for t in tickets if t.new_reply])
-
-    return {
-        "totals": {
-            "tickets": len(tickets),
-            "open": len(open_tickets),
-            "closedOrResolved": len(tickets) - len(open_tickets),
-            "newReplies": new_replies,
-        },
-        "byStatus": dict(by_status.most_common()),
-        "byPriority": dict(by_priority.most_common()),
-        "topCustomers": dict(by_customer.most_common(10)),
-    }
+    """Support section statistics. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    return mock.get("supportStats", {})
 
 
 @router.get("/projects/{project_id}", tags=["projects"])
@@ -4756,14 +4635,14 @@ async def get_project(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get a single project with all nested data."""
-    from models import Project
-
-    project = db.get(Project, project_id)
+    """Get a single project with all nested data. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    projects = mock.get("projects", [])
+    project = next((p for p in projects if p.get("id") == project_id), None)
     if not project:
         raise HTTPException(status_code=404, detail="Project not found")
 
-    return project.to_dict()
+    return project
 
 
 @router.get("/projects/{project_id}/tasks", tags=["projects"])
@@ -4772,9 +4651,8 @@ async def list_project_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Get all tasks for a specific project."""
-    from models import Task
-
-    query = select(Task).where(Task.project_id == project_id)
-    tasks = db.execute(query).scalars().all()
-    return {"tasks": [t.to_dict() for t in tasks]}
+    """Get all tasks for a specific project. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    tasks = mock.get("tasks", [])
+    project_tasks = [t for t in tasks if t.get("projectId") == project_id]
+    return {"tasks": project_tasks}

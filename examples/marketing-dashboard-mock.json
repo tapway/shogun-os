@@ -237,7 +237,7 @@
   ],
   "eventsRemindersNote": "A cron job runs daily at 8:00 AM MYT. It checks upcoming events and sends Telegram reminders at the intervals you set (default: 7, 3, and 1 day(s) before). Missed runs are caught up on the next execution.",
   "seoConnected": false,
-  "seoMessage": "No keyword rankings, click-through rates, or position data is available. Connect the GSC API to populate this page with real data.",
+  "seoMessage": "No keyword rankings, click-through rates, or poElenaon data is available. Connect the GSC API to populate this page with real data.",
   "socialChannels": [
     {
       "platform": "X / Twitter",

@@ -430,7 +430,7 @@
     ],
     "chatInbox": [
       {
-        "customer": "Nurul Aina Binti Razali",
+        "customer": "Sophia Aina Binti Razali",
         "platform": "WhatsApp",
         "lastMessage": "Boleh hantar catalog & wholesale quotation untuk 200 set Autumn Jacket?",
         "responseMinutes": 3,
@@ -444,14 +444,14 @@
         "status": "Resolved"
       },
       {
-        "customer": "Priya Krishnan",
+        "customer": "Maya Krishnan",
         "platform": "Lazada",
         "lastMessage": "Adakah e-invoice LHDN sedia dihantar untuk pembelian korporat ini?",
         "responseMinutes": 4,
         "status": "AI Handling"
       },
       {
-        "customer": "Ahmad Zulkifli",
+        "customer": "Marcus Zulkifli",
         "platform": "FB Messenger",
         "lastMessage": "Nak semak stok Smart Home Audio unit di cawangan Mid Valley.",
         "responseMinutes": 6,
@@ -473,7 +473,7 @@
     {
       "slug": "deals/northern-mall-footfall-revamp",
       "title": "Northern Mall Footfall Analytics Revamp",
-      "customer": "Meridian Retail Group",
+      "customer": "Apex Retail Group Group",
       "owner": "Irene",
       "stage": "Quote",
       "created": "2026-08-18",
@@ -485,7 +485,7 @@
     {
       "slug": "deals/warehouse-automation-pilot",
       "title": "Warehouse Automation Pilot — Phase 1",
-      "customer": "Konsortium Logistik Sdn Bhd",
+      "customer": "Global Logistics Corp Sdn Bhd",
       "owner": "Nazrul",
       "stage": "Tender",
       "created": "2026-08-15",
@@ -593,18 +593,18 @@
   ],
   "companies": [
     {
-      "slug": "companies/meridian-retail-group",
-      "title": "Meridian Retail Group",
+      "slug": "companies/apex-retail-group",
+      "title": "Apex Retail Group Group",
       "industry": "Retail — Shopping Malls",
-      "website": "https://meridianretail.example",
+      "website": "https://apexretail.example",
       "source": "enrichment",
       "first_seen": "2026-05-02"
     },
     {
-      "slug": "companies/konsortium-logistik",
-      "title": "Konsortium Logistik Sdn Bhd",
+      "slug": "companies/global-logistik",
+      "title": "Global Logistics Corp Sdn Bhd",
       "industry": "Logistics & Warehousing",
-      "website": "https://konsortium-logistik.example",
+      "website": "https://global-logistik.example",
       "source": "partner referral",
       "first_seen": "2026-04-18"
     },
@@ -830,11 +830,11 @@
       "category": "deals"
     },
     {
-      "slug": "companies/meridian-retail-group",
-      "title": "Meridian Retail Group",
+      "slug": "companies/apex-retail-group",
+      "title": "Apex Retail Group Group",
       "frontmatter": {
         "industry": "Retail — Shopping Malls",
-        "website": "https://meridianretail.example"
+        "website": "https://apexretail.example"
       },
       "category": "companies"
     },
@@ -843,8 +843,8 @@
       "title": "Nadia Rahman",
       "frontmatter": {
         "role": "Procurement Lead",
-        "company": "Meridian Retail Group",
-        "email": "nadia@meridianretail.example"
+        "company": "Apex Retail Group Group",
+        "email": "nadia@apexretail.example"
       },
       "category": "persons"
     },
@@ -858,11 +858,11 @@
       "category": "partners"
     },
     {
-      "slug": "persons/ahmad-fauzi",
-      "title": "Ahmad Fauzi",
+      "slug": "persons/Marcus-fauzi",
+      "title": "Marcus Fauzi",
       "frontmatter": {
         "role": "Operations Director",
-        "company": "Konsortium Logistik Sdn Bhd"
+        "company": "Global Logistics Corp Sdn Bhd"
       },
       "category": "persons"
     },
@@ -1376,7 +1376,7 @@
         "tags": [
           "Packaging",
           "Warehousing",
-          "SamurAI"
+          "NovaAI"
         ],
         "openDeals": 4,
         "pipeline": "RM 4.2M",
@@ -1526,7 +1526,7 @@
             "note": "retain goal"
           },
           {
-            "label": "New acquisition at",
+            "label": "New acquiElenaon at",
             "value": "61%",
             "note": "of annual pace"
           },
@@ -1828,7 +1828,7 @@
         },
         {
           "title": "Approve August partner newsletter draft",
-          "detail": "Kizuna drafted: SamurAI Copilot update, Fujifilm win story, HRDC training dates, incentive milestones.",
+          "detail": "Kizuna drafted: NovaAI Copilot update, Fujifilm win story, HRDC training dates, incentive milestones.",
           "owner": "Kizuna",
           "due": "Done ✓",
           "ttl": "logged 09:12",
@@ -2005,7 +2005,7 @@
           "onTrack": true
         },
         {
-          "deal": "IK Serang (APP Serang) — SamurAI",
+          "deal": "IK Serang (APP Serang) — NovaAI",
           "value": "Value TBC",
           "stage": "Qualified stage",
           "partner": "Metrodata/MII",
@@ -2091,8 +2091,8 @@
                   "state": "pending"
                 },
                 {
-                  "text": "NDA countersigned by Tapway",
-                  "state": "tapway"
+                  "text": "NDA countersigned by TechVision Solutions",
+                  "state": "TechVision Solutions"
                 }
               ],
               "note": "Anwar · task auto-created"
@@ -2222,7 +2222,7 @@
         ],
         "checkmarks": [
           "✓ done",
-          "▸ Tapway's action pending",
+          "▸ TechVision Solutions's action pending",
           "◻ partner's action pending"
         ]
       }
@@ -2464,7 +2464,7 @@
           "tag": "DORMANT"
         },
         {
-          "title": "Syspex at 61% of annual Platinum acquisition goal",
+          "title": "Syspex at 61% of annual Platinum acquiElenaon goal",
           "detail": "LICENCE PACE · joint account plan on Thursday's agenda.",
           "owner": "AM: Anwar",
           "tag": "LICENCE PACE"
@@ -2522,7 +2522,7 @@
           "tagline": "Behavioural reasoning & AI"
         }
       ],
-      "bundleNote": "Each bundle includes the SamurAI Runner edge device (FOC), 4 cameras, and full Cloud SaaS platform. Minimum 3-year contract.",
+      "bundleNote": "Each bundle includes the NovaAI Runner edge device (FOC), 4 cameras, and full Cloud SaaS platform. Minimum 3-year contract.",
       "baseFeatures": [
         "People counting & footfall analytics",
         "Dwell time & zone occupancy",

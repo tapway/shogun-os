@@ -1,0 +1,171 @@
+{
+  "mock": true,
+  "projects": [
+    {
+      "id": "proj-001",
+      "name": "Retail POS Migration",
+      "client": "Apex Retail Group",
+      "pm": "Marcus",
+      "status": "active",
+      "overallHealth": "green",
+      "budgetStatus": "on-track",
+      "gate": 3,
+      "valueRm": 450000,
+      "targetEnd": "2026-12-15",
+      "sourceLastUpdated": "2026-09-01",
+      "totalTasks": 24,
+      "openTasks": 8,
+      "overdueTasks": 1,
+      "completionPct": 67
+    },
+    {
+      "id": "proj-002",
+      "name": "Warehouse Automation System",
+      "client": "Global Logistics Corp",
+      "pm": "Elena",
+      "status": "in-progress",
+      "overallHealth": "yellow",
+      "budgetStatus": "at-risk",
+      "gate": 2,
+      "valueRm": 780000,
+      "targetEnd": "2027-03-30",
+      "sourceLastUpdated": "2026-08-28",
+      "totalTasks": 32,
+      "openTasks": 18,
+      "overdueTasks": 3,
+      "completionPct": 44
+    },
+    {
+      "id": "proj-003",
+      "name": "Customer Analytics Platform",
+      "client": "TechVision Solutions",
+      "pm": "Sophia",
+      "status": "planning",
+      "overallHealth": "green",
+      "budgetStatus": "on-track",
+      "gate": 1,
+      "valueRm": 320000,
+      "targetEnd": "2027-06-30",
+      "sourceLastUpdated": "2026-09-02",
+      "totalTasks": 15,
+      "openTasks": 15,
+      "overdueTasks": 0,
+      "completionPct": 0
+    },
+    {
+      "id": "proj-004",
+      "name": "Mobile App Redesign",
+      "client": "NovaAI",
+      "pm": "Maya",
+      "status": "completed",
+      "overallHealth": "green",
+      "budgetStatus": "under-budget",
+      "gate": 5,
+      "valueRm": 280000,
+      "targetEnd": "2026-08-15",
+      "sourceLastUpdated": "2026-08-20",
+      "totalTasks": 20,
+      "openTasks": 0,
+      "overdueTasks": 0,
+      "completionPct": 100
+    },
+    {
+      "id": "proj-005",
+      "name": "ERP Integration Suite",
+      "client": "Apex Manufacturing",
+      "pm": "Jordan",
+      "status": "active",
+      "overallHealth": "red",
+      "budgetStatus": "over-budget",
+      "gate": 4,
+      "valueRm": 920000,
+      "targetEnd": "2026-11-30",
+      "sourceLastUpdated": "2026-09-01",
+      "totalTasks": 45,
+      "openTasks": 12,
+      "overdueTasks": 5,
+      "completionPct": 73
+    }
+  ],
+  "tasks": [
+    {"id": "task-001", "projectId": "proj-001", "title": "Database schema migration", "owner": "Alex", "priority": "high", "status": "in-progress", "deadline": "2026-09-10"},
+    {"id": "task-002", "projectId": "proj-001", "title": "API endpoint testing", "owner": "Ryan", "priority": "medium", "status": "todo", "deadline": "2026-09-15"},
+    {"id": "task-003", "projectId": "proj-002", "title": "Robot integration protocol", "owner": "Olivia", "priority": "critical", "status": "blocked", "deadline": "2026-09-05"},
+    {"id": "task-004", "projectId": "proj-002", "title": "Safety compliance audit", "owner": "David", "priority": "high", "status": "in-progress", "deadline": "2026-09-20"},
+    {"id": "task-005", "projectId": "proj-003", "title": "Requirements gathering", "owner": "Luna", "priority": "medium", "status": "in-progress", "deadline": "2026-09-30"}
+  ],
+  "stats": {
+    "projects": {"total": 5, "active": 3},
+    "tasks": {"total": 5, "completed": 0, "overdue": 1}
+  },
+  "reportsSummary": {
+    "totals": {
+      "projects": 5,
+      "activeProjects": 3,
+      "totalValueRm": 2750000,
+      "tasks": 136,
+      "openTasks": 53,
+      "overdueTasks": 9
+    },
+    "projectsByStatus": {"active": 2, "in-progress": 1, "planning": 1, "completed": 1},
+    "projectsByHealth": {"green": 3, "yellow": 1, "red": 1},
+    "projectsByGate": {"1": 1, "2": 1, "3": 1, "4": 1, "5": 1},
+    "projectsByBudgetStatus": {"on-track": 2, "at-risk": 1, "under-budget": 1, "over-budget": 1},
+    "projectsByPm": {"Marcus": 1, "Elena": 1, "Sophia": 1, "Maya": 1, "Jordan": 1},
+    "openTasksByPriority": {"critical": 1, "high": 2, "medium": 2},
+    "projects": []
+  },
+  "supportStats": {
+    "totals": {"tickets": 12, "open": 5, "closedOrResolved": 7, "newReplies": 2},
+    "byStatus": {"open": 5, "in-progress": 3, "resolved": 4},
+    "byPriority": {"critical": 2, "high": 4, "medium": 4, "low": 2},
+    "topCustomers": {"Apex Retail Group": 3, "Global Logistics Corp": 2, "TechVision Solutions": 2}
+  },
+  "supportTickets": [
+    {
+      "id": "ticket-001",
+      "title": "POS terminal not syncing",
+      "customer": "Apex Retail Group",
+      "linkedProject": "proj-001",
+      "reporter": "Store Manager",
+      "opened": "2026-09-01T09:30:00",
+      "priority": "high",
+      "priorityLabel": "High",
+      "category": "Hardware",
+      "tier": "Tier 2",
+      "assignedTo": "Alex",
+      "status": "open",
+      "lastUpdated": "2026-09-02T14:20:00",
+      "description": "Terminal #45 at KLCC outlet not syncing sales data to cloud",
+      "timeline": [
+        {"dateTime": "2026-09-01T09:30:00", "action": "Ticket created", "by": "Store Manager"},
+        {"dateTime": "2026-09-01T10:15:00", "action": "Assigned to Alex", "by": "System"}
+      ],
+      "ticketTasks": [],
+      "newReply": false
+    },
+    {
+      "id": "ticket-002",
+      "title": "Barcode scanner calibration",
+      "customer": "Global Logistics Corp",
+      "linkedProject": "proj-002",
+      "reporter": "Warehouse Supervisor",
+      "opened": "2026-08-30T11:00:00",
+      "priority": "medium",
+      "priorityLabel": "Medium",
+      "category": "Equipment",
+      "tier": "Tier 1",
+      "assignedTo": "Ryan",
+      "status": "in-progress",
+      "lastUpdated": "2026-09-01T16:45:00",
+      "description": "Scanner reading incorrect barcodes on incoming shipments",
+      "timeline": [
+        {"dateTime": "2026-08-30T11:00:00", "action": "Ticket created", "by": "Warehouse Supervisor"},
+        {"dateTime": "2026-08-30T14:00:00", "action": "Assigned to Ryan", "by": "System"},
+        {"dateTime": "2026-09-01T16:45:00", "action": "Calibration in progress", "by": "Ryan"}
+      ],
+      "ticketTasks": [{"num": 1, "task": "Test scanner with sample barcodes", "assignedTo": "Ryan", "due": "2026-09-03", "status": "in-progress"}],
+      "newReply": true
+    }
+  ]
+}
