@@ -40,6 +40,7 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
   const [error, setError] = useState("");
   const [reviewing, setReviewing] = useState<"" | "hr" | "manager">("");
   const [adding, setAdding] = useState(false);
+  const [showResume, setShowResume] = useState(false);
 
   const cand: HrCandidate =
     (stats.candidates || []).find((c) => c.id === candidateId) ?? fallbackCandidate;
@@ -152,9 +153,9 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
         </div>
         <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
           {cand.resume_url && (
-            <a href={cand.resume_url} target="_blank" rel="noreferrer" style={linkBtnStyle}>
+            <button type="button" onClick={() => setShowResume(true)} style={linkBtnStyle}>
               <FileText size={14} /> View Resume
-            </a>
+            </button>
           )}
           {cand.screening_answers_url && (
             <a href={cand.screening_answers_url} target="_blank" rel="noreferrer" style={linkBtnStyle}>
@@ -310,6 +311,40 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
         </p>
         <CandidateReviewsPanel events={stats.candidate_events || []} candidateId={candidateId} />
       </div>
+
+      {/* Resume PDF Viewer Modal */}
+      {showResume && cand.resume_url && (
+        <div
+          onClick={() => setShowResume(false)}
+          style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 60, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{ background: "var(--samurai-bg)", border: `1px solid ${BORDER}`, borderRadius: "0.75rem", width: "100%", maxWidth: 900, height: "85vh", display: "flex", flexDirection: "column" }}
+          >
+            <div style={{ display: "flex", alignItems: "center", padding: "0.75rem 1rem", borderBottom: `1px solid ${BORDER}` }}>
+              <FileText size={16} style={{ color: TEXT, marginRight: "0.5rem" }} />
+              <span style={{ fontSize: "0.9rem", fontWeight: 600, color: TEXT, marginRight: "auto" }}>
+                Resume — {cand.name}
+              </span>
+              <button
+                type="button"
+                onClick={() => setShowResume(false)}
+                style={{ borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.8rem", padding: "0.25rem 0.7rem", cursor: "pointer" }}
+              >
+                Close
+              </button>
+            </div>
+            <div style={{ flex: 1, minHeight: 0 }}>
+              <iframe
+                src={cand.resume_url}
+                title="Resume PDF"
+                style={{ width: "100%", height: "100%", border: "none", borderRadius: "0 0 0.75rem 0.75rem" }}
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
