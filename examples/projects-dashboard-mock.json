@@ -762,7 +762,168 @@
       "decisions": []
     }
   ],
-  "tasks": [],
+  "tasks": [
+    {
+      "projectId": "PRJ-050",
+      "projectName": "Apex Retail IOI PeopleTrack",
+      "task": {
+        "id": "TASK-003",
+        "title": "Deploy & configure PeopleTrack",
+        "owner": "Marcus",
+        "created": "",
+        "deadline": "2026-09-29",
+        "priority": "HIGH",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-050",
+      "projectName": "Apex Retail IOI PeopleTrack",
+      "task": {
+        "id": "TASK-005",
+        "title": "Client handover before store opening",
+        "owner": "Marcus",
+        "created": "",
+        "deadline": "2026-10-01",
+        "priority": "HIGH",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-045",
+      "projectName": "Health Dept Video Compliance",
+      "task": {
+        "id": "TASK-003",
+        "title": "Select NovaAI model",
+        "owner": "Marcus",
+        "created": "",
+        "deadline": "",
+        "priority": "HIGH",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-038",
+      "projectName": "FreshMart Store Analytics",
+      "task": {
+        "id": "TASK-002",
+        "title": "Store & Shopper Analytics with ReID",
+        "owner": "James",
+        "created": "",
+        "deadline": "2026-08-07",
+        "priority": "CRITICAL",
+        "status": "in-progress",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-038",
+      "projectName": "FreshMart Store Analytics",
+      "task": {
+        "id": "TASK-005",
+        "title": "NovaAI BEV module - Digital Twin",
+        "owner": "Lisa",
+        "created": "",
+        "deadline": "2026-08-21",
+        "priority": "CRITICAL",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-021",
+      "projectName": "Metropolitan Mall PeopleCount",
+      "task": {
+        "id": "TASK-005",
+        "title": "Sensor Installation (34 sensors)",
+        "owner": "Aria",
+        "created": "",
+        "deadline": "2026-09-25",
+        "priority": "HIGH",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-018",
+      "projectName": "ConnectTel Smart Security",
+      "task": {
+        "id": "T-037",
+        "title": "Deploy VLM for activity recognition",
+        "owner": "Jordan",
+        "created": "",
+        "deadline": "2026-07-28",
+        "priority": "HIGH",
+        "status": "done",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-002",
+      "projectName": "Evergreen Mall Happitat",
+      "task": {
+        "id": "T-046",
+        "title": "Deploy all models to all cameras",
+        "owner": "Jordan",
+        "created": "",
+        "deadline": "ASAP",
+        "priority": "CRITICAL",
+        "status": "done",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-001",
+      "projectName": "GreenFleet AI Monitoring",
+      "task": {
+        "id": "T-016",
+        "title": "Install NovaAI runner on all truck MDVRs",
+        "owner": "Aria",
+        "created": "",
+        "deadline": "2026-08-19",
+        "priority": "CRITICAL",
+        "status": "in-progress",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    },
+    {
+      "projectId": "PRJ-001",
+      "projectName": "GreenFleet AI Monitoring",
+      "task": {
+        "id": "T-018",
+        "title": "Model labeling & training",
+        "owner": "Luna",
+        "created": "",
+        "deadline": "2026-09-09",
+        "priority": "HIGH",
+        "status": "todo",
+        "notes": "",
+        "completed": "",
+        "dependsOn": ""
+      }
+    }
+  ],
   "stats": {
     "projects": {
       "total": 10,
@@ -925,7 +1086,13 @@
         "atRisk": 0,
         "totalValue": 29569.82
       }
-    ]
+    ],
+    "totalTasks": 10,
+    "todoTasks": 6,
+    "inProgressTasks": 2,
+    "doneTasks": 2,
+    "blockedTasks": 0,
+    "overdueTasks": 3
   },
   "reportsSummary": {},
   "supportStats": {},
