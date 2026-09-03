@@ -176,7 +176,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [stageFilter, setStageFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
-  const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
+  const [view, setView] = useState<"pipeline" | "schedule" | "calendar">("pipeline");
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   // Local stage overrides applied immediately on drop (optimistic) until the
@@ -350,6 +350,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         {([
           { id: "pipeline", label: "Pipeline Board" },
           { id: "schedule", label: `Interview Schedule (${interviews.filter((i) => i.status === "scheduled").length})` },
+          { id: "calendar", label: "Calendar View" },
         ] as const).map((v) => (
           <button
             key={v.id}
@@ -431,6 +432,134 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
           )}
         </div>
       )}
+
+      {/* Calendar View */}
+      {view === "calendar" && (() => {
+        const now = new Date();
+        const [calMonth, setCalMonth] = useState(now.getMonth());
+        const [calYear, setCalYear] = useState(now.getFullYear());
+
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+        const monthName = new Date(calYear, calMonth).toLocaleString("en-MY", { month: "long", year: "numeric" });
+
+        // Group interviews by date
+        const interviewsByDate: Record<string, typeof interviews> = {};
+        interviews.forEach((iv) => {
+          if (!iv.scheduled_at) return;
+          const d = new Date(iv.scheduled_at);
+          const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+          if (!interviewsByDate[key]) interviewsByDate[key] = [];
+          interviewsByDate[key].push(iv);
+        });
+
+        const prevMonth = () => {
+          if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
+          else setCalMonth(calMonth - 1);
+        };
+        const nextMonth = () => {
+          if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
+          else setCalMonth(calMonth + 1);
+        };
+
+        const dayNames = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+        const cells: (number | null)[] = [];
+        for (let i = 0; i < firstDayOfWeek; i++) cells.push(null);
+        for (let d = 1; d <= daysInMonth; d++) cells.push(d);
+        while (cells.length % 7 !== 0) cells.push(null);
+
+        const roundColor = (r: string) => r === "ceo" ? "var(--samurai-warning)" : r === "manager" ? "var(--samurai-lime)" : "var(--samurai-info, #60a5fa)";
+        const roundLabel = (r: string) => r === "ceo" ? "CEO" : r === "manager" ? "Mgr" : "HR";
+
+        return (
+          <div className="sd-chart-card">
+            <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+              <h3 className="sd-chart-title" style={{ margin: 0 }}>📅 Interview Calendar</h3>
+              <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <button type="button" onClick={prevMonth} style={{ border: `1px solid var(--samurai-border)`, background: "var(--samurai-surface-2)", color: "var(--samurai-text)", borderRadius: "0.3rem", padding: "0.2rem 0.5rem", cursor: "pointer", fontSize: "0.8rem" }}>←</button>
+                <span style={{ fontSize: "0.88rem", fontWeight: 700, color: "var(--samurai-text)", minWidth: "8rem", textAlign: "center" }}>{monthName}</span>
+                <button type="button" onClick={nextMonth} style={{ border: `1px solid var(--samurai-border)`, background: "var(--samurai-surface-2)", color: "var(--samurai-text)", borderRadius: "0.3rem", padding: "0.2rem 0.5rem", cursor: "pointer", fontSize: "0.8rem" }}>→</button>
+              </div>
+            </div>
+
+            {/* Day headers */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "1px", marginBottom: "1px" }}>
+              {dayNames.map((d) => (
+                <div key={d} style={{ textAlign: "center", fontSize: "0.7rem", fontWeight: 700, color: "var(--samurai-muted)", padding: "0.3rem 0", textTransform: "uppercase" }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "1px", background: "var(--samurai-border)", border: "1px solid var(--samurai-border)", borderRadius: "0.4rem", overflow: "hidden" }}>
+              {cells.map((day, i) => {
+                const dateKey = day ? `${calYear}-${String(calMonth + 1).padStart(2, "0")}-${String(day).padStart(2, "0")}` : "";
+                const dayInterviews = dateKey ? (interviewsByDate[dateKey] || []) : [];
+                const isToday = day === now.getDate() && calMonth === now.getMonth() && calYear === now.getFullYear();
+
+                return (
+                  <div key={i} style={{
+                    background: "var(--samurai-bg)", minHeight: "5.5rem", padding: "0.3rem",
+                    borderRight: (i + 1) % 7 !== 0 ? "1px solid var(--samurai-border)" : "none",
+                    borderBottom: i < cells.length - 7 ? "1px solid var(--samurai-border)" : "none",
+                  }}>
+                    {day && (
+                      <>
+                        <div style={{
+                          fontSize: "0.75rem", fontWeight: isToday ? 800 : 600, marginBottom: "0.25rem",
+                          color: isToday ? "var(--samurai-lime)" : "var(--samurai-text)",
+                          display: "flex", alignItems: "center", gap: "0.2rem",
+                        }}>
+                          {isToday && <span style={{ width: "0.4rem", height: "0.4rem", borderRadius: "50%", background: "var(--samurai-lime)", display: "inline-block" }} />}
+                          {day}
+                        </div>
+                        <div style={{ display: "flex", flexDirection: "column", gap: "0.2rem" }}>
+                          {dayInterviews.map((iv) => {
+                            const cand = candidates.find((c) => c.id === iv.candidate_id);
+                            const time = new Date(iv.scheduled_at).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" });
+                            const completed = iv.status === "completed";
+                            return (
+                              <div key={iv.id} style={{
+                                fontSize: "0.65rem", padding: "0.15rem 0.3rem", borderRadius: "0.25rem",
+                                background: completed ? "color-mix(in srgb, var(--samurai-ok) 15%, transparent)" : `color-mix(in srgb, ${roundColor(iv.round)} 15%, transparent)`,
+                                borderLeft: `2px solid ${completed ? "var(--samurai-ok)" : roundColor(iv.round)}`,
+                                color: "var(--samurai-text)", lineHeight: 1.2,
+                                opacity: completed ? 0.6 : 1,
+                              }}>
+                                <span style={{ fontWeight: 700 }}>{time}</span>{" "}
+                                <span>{cand?.name || `#${iv.candidate_id}`}</span>
+                                <span style={{
+                                  display: "inline-block", marginLeft: "0.15rem", fontSize: "0.55rem", fontWeight: 700,
+                                  padding: "0 0.2rem", borderRadius: "0.15rem",
+                                  background: roundColor(iv.round), color: "#0a0a0a",
+                                }}>{roundLabel(iv.round)}</span>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Legend */}
+            <div style={{ display: "flex", gap: "1rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+              {[
+                { label: "HR Round", color: "var(--samurai-info, #60a5fa)" },
+                { label: "Manager Round", color: "var(--samurai-lime)" },
+                { label: "CEO Round", color: "var(--samurai-warning)" },
+                { label: "Completed", color: "var(--samurai-ok)" },
+              ].map((l) => (
+                <div key={l.label} style={{ display: "flex", alignItems: "center", gap: "0.25rem", fontSize: "0.68rem", color: "var(--samurai-muted)" }}>
+                  <span style={{ width: "0.6rem", height: "0.6rem", borderRadius: "0.15rem", background: l.color, display: "inline-block" }} />
+                  {l.label}
+                </div>
+              ))}
+            </div>
+          </div>
+        );
+      })()}
 
       {/* Waiting panel */}
       {view === "pipeline" && waitingList.length > 0 && (
