@@ -3860,8 +3860,8 @@ async def schedule_hr_interview(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     rnd = (body.round or "").strip().lower()
-    if rnd not in ("first", "manager"):
-        raise HTTPException(status_code=422, detail="round must be 'first' or 'manager'")
+    if rnd not in ("first", "manager", "ceo"):
+        raise HTTPException(status_code=422, detail="round must be 'first', 'manager', or 'ceo'")
     when = (body.scheduled_at or "").strip()
     if not when:
         raise HTTPException(status_code=422, detail="Interview date/time is required")
@@ -3887,7 +3887,7 @@ async def schedule_hr_interview(
             job_id = job.id
 
     old = cand.status
-    new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
+    new_status = "1st Interview Scheduled" if rnd == "first" else ("Manager Interview Scheduled" if rnd == "manager" else "CEO Interview Scheduled")
     interview = HrInterview(
         tenant_id=tenant.id, candidate_id=candidate_id, job_id=job_id,
         round=rnd, scheduled_at=when,

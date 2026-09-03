@@ -127,6 +127,12 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const progress = stageIndex >= 0 ? stageIndex : 0;
   const isWaiting = Boolean(candidate.waiting_since);
   const waitingDays = daysWaiting(candidate.waiting_since);
+  
+  // CEO interview required only for Full Time and Contract positions
+  const requiresCeoInterview = useMemo(() => {
+    const ctype = (candidate.candidate_type || "").toLowerCase();
+    return ctype === "fulltime" || ctype === "contract";
+  }, [candidate.candidate_type]);
 
   async function refresh(updated?: HrCandidate) {
     if (updated) setCandidate({ ...candidate, ...updated });
@@ -182,7 +188,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     run(() => hrApi.candidateMove(department, candidate.id, "Interview Email Sent - Waiting Reply"), "Send interview email");
   };
 
-  const confirmSchedule = (round: "first" | "manager") => {
+  const confirmSchedule = (round: "first" | "manager" | "ceo") => {
     if (!schedAt) {
       setError("Pick an interview date & time first");
       return;
@@ -460,7 +466,79 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
             </div>
           )}
 
-          {stage === "Manager Interview Scheduled" && (
+          {/* For Full Time / Contract positions: Manager Interview → CEO Interview flow */}
+          {stage === "Manager Interview Scheduled" && requiresCeoInterview && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 7 — Manager interview scheduled</p>
+              {nextInterview && (
+                <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
+                  📅 {fmtDateTime(nextInterview.scheduled_at)}
+                  {nextInterview.interviewer_name ? ` · Interviewer: ${nextInterview.interviewer_name}` : ""}
+                  {nextInterview.location ? ` · ${nextInterview.location}` : ""}
+                </p>
+              )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Interview is set. After the manager interview, request CEO interview confirmation.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => decision("continue")} style={btnPrimary}>✓ Manager Interview Done — Request CEO Interview →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Waiting CEO Interview Confirm" && requiresCeoInterview && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for CEO interview confirmation</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Waiting for the CEO to confirm a date/time. Once confirmed, schedule it below.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>
+                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
+                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
+                  <datalist id="journey-interviewers">
+                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
+                  </datalist>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
+                  <input value={schedLocation} onChange={(e) => setSchedLocation(e.target.value)} placeholder="Office / Meet link" style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => confirmSchedule("ceo")} style={btnPrimary}>✓ CEO Confirmed — Schedule →</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "CEO Interview Scheduled" && requiresCeoInterview && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — CEO interview scheduled</p>
+              {nextInterview && (
+                <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
+                  📅 {fmtDateTime(nextInterview.scheduled_at)}
+                  {nextInterview.interviewer_name ? ` · Interviewer: ${nextInterview.interviewer_name}` : ""}
+                  {nextInterview.location ? ` · ${nextInterview.location}` : ""}
+                </p>
+              )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Interview is set. When it happens, mark that you are waiting for the interviewer's result.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {/* For non-CEO positions (Internship/Freelancer), Manager Interview goes directly to Waiting Result */}
+          {stage === "Manager Interview Scheduled" && !requiresCeoInterview && (
             <div>
               <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 7 — Manager interview scheduled</p>
               {nextInterview && (
