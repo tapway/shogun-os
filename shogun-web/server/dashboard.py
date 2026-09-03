@@ -2489,8 +2489,6 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
             "vendor": bill.get("contact_name", ""),
             "due_date": bill.get("due_date", ""),
             "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
-            "match_status": "Matched",
-            "approval_status": "Pending",
         })
 
     ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0

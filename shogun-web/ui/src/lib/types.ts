@@ -1154,8 +1154,6 @@ export interface ApBillItem {
   vendor: string;
   due_date: string;
   amount: number;
-  match_status: 'Matched' | 'PO Mismatch' | 'Missing GRN';
-  approval_status: 'Pending' | 'Approved' | 'Paid' | 'On Hold';
 }
 
 // ─── Email Templates ───
