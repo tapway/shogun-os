@@ -67,11 +67,6 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
     {
       label: "Open Positions",
       value: `${stats.total_job_openings}`,
-      sub:
-        stats.overdue_openings > 0
-          ? `${stats.overdue_openings} overdue`
-          : "All on track",
-      warn: stats.overdue_openings > 0,
       targetTab: "openings",
     },
     {

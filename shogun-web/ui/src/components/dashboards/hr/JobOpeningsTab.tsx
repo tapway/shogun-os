@@ -103,7 +103,6 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
 
   const draftCount = draftJobs.length;
   const activeCount = activeJobs.length;
-  const overdueCount = jobOpenings.filter((j) => j.overdue === "Overdue").length;
   const avgBudget = useMemo(() => {
     const budgets = jobOpenings.map((j) => j.budget_max).filter((b): b is number => b != null && !isNaN(b));
     return budgets.length === 0 ? 0 : budgets.reduce((s, b) => s + b, 0) / budgets.length;
@@ -112,12 +111,10 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
   const KPIs = [
     { label: "Draft", value: `${draftCount}`, sub: "not yet active" },
     { label: "Active", value: `${activeCount}`, sub: "accepting applications" },
-    { label: "Overdue", value: `${overdueCount}`, warn: overdueCount > 0 },
     { label: "Avg Budget", value: fmtMyr(avgBudget) },
   ];
 
   function renderJobRow(j: HrJobOpening) {
-    const isOverdue = j.overdue === "Overdue";
     const count = candidatesPerJob[j.id] || 0;
     const jobCandidates = findCandidatesForJob(j, allCandidates);
     const isExpanded = expandedJobId === j.id;
@@ -129,11 +126,10 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
           style={{
             borderBottom: `1px solid ${BORDER}`,
             cursor: "pointer",
-            background: isOverdue ? "color-mix(in srgb, var(--samurai-danger) 8%, transparent)" : undefined,
             transition: "background 0.2s",
           }}
-          onMouseEnter={(e) => { if (!isOverdue) e.currentTarget.style.background = SURFACE_2; }}
-          onMouseLeave={(e) => { if (!isOverdue) e.currentTarget.style.background = "transparent"; }}
+          onMouseEnter={(e) => { e.currentTarget.style.background = SURFACE_2; }}
+          onMouseLeave={(e) => { e.currentTarget.style.background = "transparent"; }}
         >
           <td style={tdStyle} onClick={(e) => { e.stopPropagation(); setExpandedJobId(expandedJobId === j.id ? null : j.id); }}>
             <span style={{ display: "inline-flex", alignItems: "center", color: LIME, cursor: "pointer" }}>
@@ -230,14 +226,6 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
                     <span style={{ color: MUTED, fontWeight: 600 }}>Application Start </span>
                     <span style={{ color: TEXT }}>{fmtDate(j.application_start)}</span>
                   </div>
-                  <div>
-                    <span style={{ color: MUTED, fontWeight: 600 }}>Deadline </span>
-                    <span style={{ color: isOverdue ? DANGER : TEXT }}>{fmtDate(j.deadline)}</span>
-                  </div>
-                  <div>
-                    <span style={{ color: MUTED, fontWeight: 600 }}>Days Left </span>
-                    <span style={{ color: isOverdue ? DANGER : TEXT, fontWeight: 700 }}>{j.days_left != null ? `${j.days_left} days` : "—"}</span>
-                  </div>
                 </div>
                 {j.jd_link || j.jd_file_url ? (
                   <div style={{ marginTop: "0.6rem", fontSize: "0.78rem" }}>
@@ -276,7 +264,7 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
         {KPIs.map((k) => (
           <div key={k.label} className="sd-kpi-card">
             <div className="sd-kpi-label">{k.label}</div>
-            <div className="sd-kpi-value" style={{ color: k.warn ? DANGER : TEXT }}>{k.value}</div>
+            <div className="sd-kpi-value" style={{ color: ("warn" in k && k.warn) ? DANGER : TEXT }}>{k.value}</div>
             {k.sub && <div style={{ fontSize: "0.7rem", color: MUTED, marginTop: "0.25rem" }}>{k.sub}</div>}
           </div>
         ))}
@@ -525,9 +513,6 @@ function CreateJobOpeningModal({
               <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
                 Add Job Opening
               </h2>
-              <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
-                Deadline is computed automatically as App Start + 90 days.
-              </p>
             </div>
             <button type="button" className="sd-icon-btn" onClick={onClose} aria-label="Close">
               <X className="h-5 w-5" />
