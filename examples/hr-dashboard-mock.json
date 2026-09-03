@@ -3403,17 +3403,6 @@
       ],
       "comment": "Good cultural fit. Solid marketing instincts. Approved for offer \u2014 Marketing Specialist role.",
       "rating": 4
-    },
-    {
-      "id": 35,
-      "candidate_id": 1,
-      "job_id": 1,
-      "round": "first",
-      "scheduled_at": "2026-09-05T10:00",
-      "interviewer_name": "Bob Manager",
-      "interviewer_employee_id": null,
-      "location": "Meet link",
-      "status": "scheduled"
     }
   ],
   "equipment_logs": [
