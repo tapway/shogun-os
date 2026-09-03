@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrCandidateEvent, HrDashboardStats, HrInterview, HrJobOpening } from "../../../lib/types";
+import { InterviewQuestionsPanel } from "./InterviewQuestionsPanel";
 
 interface Props {
   candidate: HrCandidate;
@@ -96,6 +97,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
   const [schedLocation, setSchedLocation] = useState("");
+  const [showQuestionsPanel, setShowQuestionsPanel] = useState(false);
 
   // Sync candidate from stats when it changes (e.g., after refetch)
   useEffect(() => {
@@ -420,9 +422,15 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               />
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
+                <button type="button" onClick={() => setShowQuestionsPanel(!showQuestionsPanel)} style={btnOutline}>📋 {showQuestionsPanel ? "Hide" : "Questions"}</button>
                 <button type="button" disabled={busy} onClick={saveFeedback} style={btnOutline}>💾 Save feedback only</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
+              {showQuestionsPanel && nextInterview && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <InterviewQuestionsPanel department={department} interview={nextInterview} onClose={() => setShowQuestionsPanel(false)} />
+                </div>
+              )}
             </div>
           )}
 
@@ -569,8 +577,14 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
+                <button type="button" onClick={() => setShowQuestionsPanel(!showQuestionsPanel)} style={btnOutline}>📋 {showQuestionsPanel ? "Hide" : "Questions"}</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
+              {showQuestionsPanel && nextInterview && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <InterviewQuestionsPanel department={department} interview={nextInterview} onClose={() => setShowQuestionsPanel(false)} />
+                </div>
+              )}
             </div>
           )}
 

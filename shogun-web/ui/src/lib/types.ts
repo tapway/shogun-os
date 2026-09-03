@@ -1687,6 +1687,19 @@ export interface HrInterview {
   interviewer_employee_id?: number;
   location: string;
   status: string;
+  questions?: string[];
+  comment?: string;
+  rating?: number;
+}
+
+export interface HrQuestionTemplate {
+  id: number;
+  department: string;
+  role_pattern: string;
+  round: string;
+  questions: string[];
+  created_at?: string;
+  updated_at?: string;
 }
 
 export interface HrResumeExtract {

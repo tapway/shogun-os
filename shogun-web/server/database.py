@@ -343,6 +343,9 @@ def init_db() -> None:
             ("hr_job_openings", "screening_email_body", "TEXT"),
             ("hr_job_openings", "closed_at", "VARCHAR(32)"),
             ("hr_candidates", "job_opening_id", "INTEGER"),
+            ("hr_interviews", "questions_json", "TEXT"),
+            ("hr_interviews", "comment", "TEXT"),
+            ("hr_interviews", "rating", "INTEGER"),
         ]:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:

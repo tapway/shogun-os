@@ -2421,11 +2421,21 @@ class HrInterview(Base):
     interviewer_employee_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled")
+    questions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     def to_dict(self) -> Dict[str, Any]:
+        import json as _json
+        questions = []
+        if self.questions_json:
+            try:
+                questions = _json.loads(self.questions_json)
+            except Exception:
+                questions = []
         return {
             "id": self.id,
             "candidate_id": self.candidate_id,
@@ -2436,29 +2446,44 @@ class HrInterview(Base):
             "interviewer_employee_id": self.interviewer_employee_id,
             "location": self.location,
             "status": self.status,
-            "title": self.title,
-            "customer": self.customer,
-            "customerSlug": self.customer_slug,
-            "linkedProject": self.linked_project,
-            "reporter": self.reporter,
-            "opened": self.opened.isoformat() if self.opened else None,
-            "targetResolve": self.target_resolve.isoformat() if self.target_resolve else None,
-            "priority": self.priority,
-            "priorityLabel": self.priority_label,
-            "category": self.category,
-            "tier": self.tier,
-            "assignedTo": self.assigned_to,
-            "status": self.status,
-            "lastUpdated": self.last_updated.isoformat() if self.last_updated else None,
-            "source": self.source,
-            "description": self.description,
-            "context": self.context,
-            "timeline": self.timeline or [],
-            "ticketTasks": self.ticket_tasks or [],
-            "resolutionNotes": self.resolution_notes,
-            "resolvedBy": self.resolved_by,
-            "resolvedDate": self.resolved_date.isoformat() if self.resolved_date else None,
-            "rootCause": self.root_cause,
-            "preventive": self.preventive,
-            "newReply": self.new_reply,
+            "questions": questions,
+            "comment": self.comment,
+            "rating": self.rating,
+        }
+
+
+class HrQuestionTemplate(Base):
+    """Reusable interview question templates per role/round."""
+
+    __tablename__ = "hr_question_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    department: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    role_pattern: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    round: Mapped[str] = mapped_column(String(16), nullable=False, default="first")
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        import json as _json
+        questions = []
+        if self.questions_json:
+            try:
+                questions = _json.loads(self.questions_json)
+            except Exception:
+                questions = []
+        return {
+            "id": self.id,
+            "department": self.department,
+            "role_pattern": self.role_pattern,
+            "round": self.round,
+            "questions": questions,
+            "created_at": self.created_at.isoformat() if self.created_at else None,
+            "updated_at": self.updated_at.isoformat() if self.updated_at else None,
         }

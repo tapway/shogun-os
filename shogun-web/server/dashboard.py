@@ -3958,6 +3958,268 @@ async def update_hr_interview_status(
     return {"ok": True, "interview": iv.to_dict()}
 
 
+# ── Interview Questions & Comments ─────────────────────────────────────
+
+class InterviewQuestionsBody(BaseModel):
+    questions: list[str]
+
+
+class InterviewCommentBody(BaseModel):
+    comment: str
+    rating: int | None = None
+
+
+@router.put("/hr/interviews/{interview_id}/questions")
+async def save_interview_questions(
+    interview_id: int,
+    body: InterviewQuestionsBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save edited interview questions for a specific interview."""
+    import json as _json
+    from models import HrInterview
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        # Try mock mode
+        mock = _load_hr_mock()
+        interviews = mock.get("interviews", [])
+        miv = next((i for i in interviews if i.get("id") == interview_id), None)
+        if miv:
+            miv["questions"] = body.questions
+            _save_hr_mock(mock)
+            return {"ok": True, "interview": miv}
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    iv.questions_json = _json.dumps(body.questions)
+    db.commit()
+    return {"ok": True, "interview": iv.to_dict()}
+
+
+@router.put("/hr/interviews/{interview_id}/comment")
+async def save_interview_comment(
+    interview_id: int,
+    body: InterviewCommentBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save post-interview comment and optional rating."""
+    from models import HrInterview
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        # Try mock mode
+        mock = _load_hr_mock()
+        interviews = mock.get("interviews", [])
+        miv = next((i for i in interviews if i.get("id") == interview_id), None)
+        if miv:
+            miv["comment"] = body.comment
+            miv["rating"] = body.rating
+            _save_hr_mock(mock)
+            return {"ok": True, "interview": miv}
+        raise HTTPException(status_code=404, detail="Interview not found")
+
+    iv.comment = body.comment
+    iv.rating = body.rating
+    db.commit()
+    return {"ok": True, "interview": iv.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/generate-questions")
+async def generate_interview_questions(
+    interview_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Generate 10 interview questions using AI based on resume + JD + round.
+    
+    Falls back to template-based generation when gbrain/Hermes is unavailable.
+    """
+    import json as _json
+    from models import HrInterview, HrCandidate, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    iv = db.get(HrInterview, interview_id)
+    cand = None
+    job = None
+
+    if iv and iv.tenant_id == tenant.id:
+        cand = db.get(HrCandidate, iv.candidate_id) if iv.candidate_id else None
+        job = db.get(HrJobOpening, iv.job_id) if iv.job_id else None
+    else:
+        # Mock mode
+        mock = _load_hr_mock()
+        interviews = mock.get("interviews", [])
+        miv = next((i for i in interviews if i.get("id") == interview_id), None)
+        if not miv:
+            raise HTTPException(status_code=404, detail="Interview not found")
+        candidates = mock.get("candidates", [])
+        cand_data = next((c for c in candidates if c.get("id") == miv.get("candidate_id")), None)
+        jobs = mock.get("job_openings", [])
+        job_data = next((j for j in jobs if j.get("id") == miv.get("job_id")), None)
+        rnd = miv.get("round", "first")
+
+        # Generate questions based on round type (fallback when AI unavailable)
+        questions = _generate_fallback_questions(rnd, job_data.get("job_title", "") if job_data else "", cand_data.get("name", "") if cand_data else "")
+        miv["questions"] = questions
+        _save_hr_mock(mock)
+        return {"ok": True, "questions": questions, "interview": miv}
+
+    # Live DB path
+    rnd = iv.round if iv else "first"
+    job_title = job.job_title if job else ""
+    candidate_name = cand.name if cand else ""
+    jd = job.job_description if job else ""
+
+    questions = _generate_fallback_questions(rnd, job_title, candidate_name)
+    
+    if iv:
+        iv.questions_json = _json.dumps(questions)
+        db.commit()
+        return {"ok": True, "questions": questions, "interview": iv.to_dict()}
+    
+    return {"ok": True, "questions": questions}
+
+
+def _generate_fallback_questions(round_type: str, job_title: str, candidate_name: str) -> list[str]:
+    """Generate role-appropriate interview questions when AI is unavailable."""
+    base_hr = [
+        f"Walk us through your background and what drew you to this {job_title} role.",
+        "Describe a time you handled a conflict with a coworker or manager.",
+        "What motivates you to do your best work?",
+        "How do you prioritize tasks when everything seems urgent?",
+        "Tell us about a mistake you made and what you learned from it.",
+        "Where do you see yourself in 3-5 years?",
+        "What kind of work environment do you thrive in?",
+        "How do you handle feedback or criticism?",
+        "Describe a project you're most proud of and why.",
+        "Do you have any questions for us about the role or company?",
+    ]
+    base_manager = [
+        f"What specific experience makes you a strong fit for this {job_title} position?",
+        "Describe a complex problem you solved — walk us through your approach.",
+        "How do you stay current with industry trends and skills?",
+        "Tell us about a time you had to learn something new quickly.",
+        "How do you measure success in your work?",
+        "Describe your ideal collaboration style with a manager.",
+        "What would your first 30 days look like in this role?",
+        "Give an example of how you've improved a process or workflow.",
+        "How do you handle competing priorities from different stakeholders?",
+        "What unique perspective or skill would you bring to our team?",
+    ]
+    base_ceo = [
+        "What does our company's mission mean to you personally?",
+        "How do you align your personal values with your professional work?",
+        "Describe a time you had to make a decision with incomplete information.",
+        "What does leadership mean to you, regardless of title?",
+        "How would you contribute to our company culture?",
+        "Tell us about a time you challenged the status quo constructively.",
+        "What legacy do you want to leave in your career?",
+        "How do you balance ambition with patience?",
+        "If you could change one thing about our industry, what would it be?",
+        "Why should we invest in you over other qualified candidates?",
+    ]
+    if round_type == "ceo":
+        return base_ceo
+    elif round_type == "manager":
+        return base_manager
+    return base_hr
+
+
+# ── Question Templates ─────────────────────────────────────────────────
+
+class QuestionTemplateBody(BaseModel):
+    department: str = ""
+    role_pattern: str = ""
+    round: str = "first"
+    questions: list[str]
+
+
+@router.get("/hr/question-templates")
+async def list_question_templates(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List all question templates for this tenant."""
+    from models import HrQuestionTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    templates = db.query(HrQuestionTemplate).filter(
+        HrQuestionTemplate.tenant_id == tenant.id
+    ).order_by(HrQuestionTemplate.updated_at.desc()).all()
+    return {"templates": [t.to_dict() for t in templates]}
+
+
+@router.post("/hr/question-templates")
+async def create_question_template(
+    body: QuestionTemplateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create or update a question template."""
+    import json as _json
+    from models import HrQuestionTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tmpl = HrQuestionTemplate(
+        tenant_id=tenant.id,
+        department=(body.department or "").strip(),
+        role_pattern=(body.role_pattern or "").strip(),
+        round=(body.round or "first").strip(),
+        questions_json=_json.dumps(body.questions),
+    )
+    db.add(tmpl)
+    db.commit()
+    db.refresh(tmpl)
+    return {"ok": True, "template": tmpl.to_dict()}
+
+
+@router.delete("/hr/question-templates/{template_id}")
+async def delete_question_template(
+    template_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a question template."""
+    from models import HrQuestionTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    tmpl = db.get(HrQuestionTemplate, template_id)
+    if tmpl is None or tmpl.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Template not found")
+
+    db.delete(tmpl)
+    db.commit()
+    return {"ok": True}
+
+
 @router.post("/hr/candidates/{candidate_id}/waiting")
 async def set_hr_candidate_waiting(
     candidate_id: int,

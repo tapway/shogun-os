@@ -983,6 +983,37 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/status`,
       { method: 'POST', body: JSON.stringify({ status }) },
     ),
+  // Interview questions & comments
+  generateQuestions: (dept: string, interviewId: number) =>
+    apiFetch<{ ok: boolean; questions: string[]; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/generate-questions`,
+      { method: 'POST' },
+    ),
+  saveQuestions: (dept: string, interviewId: number, questions: string[]) =>
+    apiFetch<{ ok: boolean; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/questions`,
+      { method: 'PUT', body: JSON.stringify({ questions }) },
+    ),
+  saveComment: (dept: string, interviewId: number, comment: string, rating?: number) =>
+    apiFetch<{ ok: boolean; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/comment`,
+      { method: 'PUT', body: JSON.stringify({ comment, rating }) },
+    ),
+  // Question templates
+  listTemplates: (dept: string) =>
+    apiFetch<{ templates: import('./types').HrQuestionTemplate[] }>(
+      `/api/departments/${dept}/dashboard/hr/question-templates`,
+    ),
+  createTemplate: (dept: string, payload: { department: string; role_pattern: string; round: string; questions: string[] }) =>
+    apiFetch<{ ok: boolean; template: import('./types').HrQuestionTemplate }>(
+      `/api/departments/${dept}/dashboard/hr/question-templates`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  deleteTemplate: (dept: string, templateId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/question-templates/${templateId}`,
+      { method: 'DELETE' },
+    ),
   candidateWaiting: (dept: string, id: number, note: string) =>
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(
       `/api/departments/${dept}/dashboard/hr/candidates/${id}/waiting`,
