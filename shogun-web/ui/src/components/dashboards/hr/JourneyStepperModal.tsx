@@ -41,6 +41,8 @@ const JOURNEY_STAGES = [
   { status: "HR Interview Done", label: "HR Interview Done" },
   { status: "Waiting Manager Interview Confirm", label: "Waiting Manager Confirm" },
   { status: "Manager Interview Scheduled", label: "Manager Interview Scheduled" },
+  { status: "Waiting CEO Interview Confirm", label: "Waiting CEO Confirm" },
+  { status: "CEO Interview Scheduled", label: "CEO Interview Scheduled" },
   { status: "Waiting Interview Result", label: "Waiting Result" },
   { status: "Waiting Offer Confirmation", label: "Waiting Offer Confirm" },
   { status: "Offer Sent - Waiting Reply", label: "Offer Sent" },
