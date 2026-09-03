@@ -33,6 +33,7 @@ import {
   Zap,
   Search,
   XCircle,
+  FileText,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import BrainViewer from "../components/BrainViewer";
@@ -41,6 +42,7 @@ import DepartmentConnectors from "../components/DepartmentConnectors";
 import DepartmentCrons from "../components/DepartmentCrons";
 import DepartmentSkills from "../components/DepartmentSkills";
 import { EmailTemplatesManager } from "../components/EmailTemplatesManager";
+import { QuestionTemplatesTab } from "../components/dashboards/hr/QuestionTemplatesTab";
 import { MyCommunicationTab } from "../components/MyCommunicationTab";
 import RightChatDock from "../components/RightChatDock";
 import { DashboardViewer } from "../components/dashboards/DashboardViewer";
@@ -610,7 +612,7 @@ export default function Department() {
   const color = department?.color || meta?.color || "#6366f1";
 
   // Sub-tab state inside Settings tab
-    const [settingsSubTab, setSettingsSubTab] = useState<"my-comm" | "comms" | "provider" | "email-templates">(
+    const [settingsSubTab, setSettingsSubTab] = useState<"my-comm" | "comms" | "provider" | "email-templates" | "question-templates">(
       "my-comm",
     );
 
@@ -963,6 +965,18 @@ export default function Department() {
                   >
                     <Mail className="h-4 w-4 text-amber-600 dark:text-amber-400" />
                     Email Templates
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setSettingsSubTab("question-templates")}
+                    className={`flex items-center gap-2 px-4 py-2 text-xs font-semibold rounded-xl transition-all ${
+                      settingsSubTab === "question-templates"
+                        ? "bg-brand text-white shadow-md shadow-brand/20"
+                        : "bg-slate-100 dark:bg-slate-800/80 text-slate-700 dark:text-slate-300 hover:bg-slate-200 dark:hover:bg-slate-700 hover:text-slate-900 dark:hover:text-white"
+                    }`}
+                  >
+                    <FileText className="h-4 w-4 text-purple-600 dark:text-purple-400" />
+                    Question Templates
                   </button>
                   <button
                     type="button"
@@ -1538,6 +1552,11 @@ export default function Department() {
             {/* SUB-TAB 2: Email Templates */}
             {settingsSubTab === "email-templates" && (
               <EmailTemplatesManager department={key} isAdmin={!!isAdmin} />
+            )}
+
+            {/* SUB-TAB: Question Templates */}
+            {settingsSubTab === "question-templates" && (
+              <QuestionTemplatesTab department={key} />
             )}
 
             {/* SUB-TAB 3: Provider Configuration */}
