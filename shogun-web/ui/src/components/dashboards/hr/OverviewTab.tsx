@@ -86,11 +86,6 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
       targetTab: "onboarding",
     },
     {
-      label: "Performance Reviews",
-      value: `${stats.total_reviews}`,
-      targetTab: "performance",
-    },
-    {
       label: "Equipment On Loan",
       value: `${stats.total_equipment}`,
       sub:
@@ -100,22 +95,12 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
       warn: stats.equipment_overdue > 0,
       targetTab: "equipment",
     },
-    {
-      label: "Training Programs",
-      value: `${stats.total_trainings}`,
-      targetTab: "training",
-    },
-    {
-      label: "Training Charges",
-      value: `RM ${(stats.training_total_charges || 0).toLocaleString("en-MY", { minimumFractionDigits: 0, maximumFractionDigits: 0 })}`,
-      targetTab: "training",
-    },
   ];
 
   return (
     <div className="sd-stack">
       {/* KPI Grid */}
-      <div className="sd-kpi-grid" style={{ gridTemplateColumns: "repeat(4, 1fr)" }}>
+      <div className="sd-kpi-grid" style={{ gridTemplateColumns: "repeat(5, 1fr)" }}>
         {KPIs.map((m) => (
           <div
             key={m.label}
