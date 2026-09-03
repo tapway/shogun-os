@@ -1797,20 +1797,27 @@ def _get_all_skills() -> List[Dict[str, Any]]:
 
 
 def _get_department_skills(dept_key: str, profile_name: str = "") -> List[Dict[str, Any]]:
-    """Get skills for a specific department — profile-specific + learned.
+    """Get skills for a specific department — profile-specific + relevant learned.
 
     Sources (in priority order):
       1. ~/.hermes/profiles/<profile_name>/skills/ — curated for this department
-      2. ~/.hermes/skills/ — learned/generated skills tagged as "Learned"
+      2. ~/.hermes/skills/ — learned/generated skills, filtered by relevance:
+         - Included if category matches dept_key (e.g. category=finance → finance dept)
+         - Included if category is "shared" or "productivity" (universal skills)
+         - Included if no category set (generic learned skills)
+         - Excluded if category belongs to a different department
 
-    Default Hermes skills (repo skills/) are excluded unless they also
-    exist in the profile or learned directories.
+    Default Hermes repo skills are excluded unless they also exist in the
+    profile or learned directories.
     """
     dept_key = dept_key.lower()
     skills: List[Dict[str, Any]] = []
     seen_ids: set = set()
 
-    # Source 1: Profile-specific skills
+    # Categories that are universal — always included regardless of department
+    _UNIVERSAL_CATEGORIES = {"shared", "productivity"}
+
+    # Source 1: Profile-specific skills (always included — explicitly curated)
     if profile_name:
         profile_skills_dir = Path.home() / ".hermes" / "profiles" / profile_name / "skills"
         if profile_skills_dir.is_dir():
@@ -1824,13 +1831,42 @@ def _get_department_skills(dept_key: str, profile_name: str = "") -> List[Dict[s
                 entry["department_key"] = dept_key
                 skills.append(entry)
 
-    # Source 2: Learned/generated skills from ~/.hermes/skills/
+    # Source 2: Learned/generated skills from ~/.hermes/skills/ (filtered)
+    # Only include skills NOT in the repo (truly learned/custom, not default copies)
     learned_dir = _installed_skills_root()
     if learned_dir.is_dir():
+        repo_root = _skills_repo_root()
+        repo_skill_ids: set = set()
+        if repo_root.is_dir():
+            for sp in _safe_rglob(repo_root, "SKILL.md"):
+                rid = str(sp.parent.name).lower().strip()
+                repo_skill_ids.add(rid)
+
         for skill_path in sorted(_safe_rglob(learned_dir, "SKILL.md")):
             entry = _scan_one_skill(skill_path, learned_dir.parent)
             if entry is None or entry["id"] in seen_ids:
                 continue
+
+            # Skip if this skill exists in the repo (it's a default, not learned)
+            if entry["id"] in repo_skill_ids:
+                continue
+
+            # Filter: only include if relevant to this department
+            skill_cat = (entry.get("category") or "").lower().strip()
+            skill_dept = (entry.get("department_key") or "").lower().strip()
+            # "general" is the default when _scan_one_skill finds no parent dir — treat as uncategorized
+            if skill_cat == "general":
+                skill_cat = ""
+            if skill_dept == "general":
+                skill_dept = ""
+            is_relevant = (
+                skill_cat == dept_key                              # exact category match
+                or skill_dept == dept_key                          # department_key match
+                or (skill_cat and skill_cat in _UNIVERSAL_CATEGORIES)  # universal category
+            )
+            if not is_relevant:
+                continue
+
             seen_ids.add(entry["id"])
             entry["source"] = "learned"
             entry["installed"] = True
