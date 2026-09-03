@@ -172,10 +172,8 @@ function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string |
 export function RecruitmentPipelineTab({ stats, department }: Props) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [jobTitleFilter, setJobTitleFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
-  const [trackerFilter, setTrackerFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
   const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
@@ -222,28 +220,12 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     }
   }
 
-  const roles = useMemo(() => {
-    const s = new Set<string>();
-    candidates.forEach((c) => c.role && s.add(c.role));
-    return Array.from(s).sort();
-  }, [candidates]);
-
   // Job titles from the Job Openings database.
   const jobTitles = useMemo(() => {
     const s = new Set<string>();
     jobOpenings.forEach((j) => j.job_title && s.add(j.job_title.trim()));
     return Array.from(s).sort();
   }, [jobOpenings]);
-
-  // Tracker types (fulltime / internship / freelancer) — virtual_bench is a
-  // holding bucket, not a recruitment tracker, so it is not offered as a filter.
-  const trackers = useMemo(() => {
-    const s = new Set<string>();
-    candidates.forEach((c) => {
-      if (c.candidate_type && c.candidate_type !== "virtual_bench") s.add(c.candidate_type);
-    });
-    return Array.from(s).sort();
-  }, [candidates]);
 
   // Pipeline stages — always show all active stages so users can drag to any column
   const stages = useMemo(() => {
@@ -267,9 +249,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (!c.in_pipeline && !isInActiveRecruitment(c, jobOpenings)) return false;
-      if (trackerFilter && c.candidate_type !== trackerFilter) return false;
       if (stageFilter && canonicalStatus(c.status) !== stageFilter) return false;
-      if (roleFilter && c.role !== roleFilter) return false;
       if (jobTitleFilter && !roleMatchesJobTitle(c.role, jobTitleFilter)) return false;
       if (!q) return true;
       return (
@@ -278,7 +258,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, jobOpenings]);
+  }, [candidates, search, jobTitleFilter, stageFilter, jobOpenings]);
 
   // Bucket candidates into the three position-based pipelines (with local
   // drag overrides applied).
@@ -362,15 +342,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
           />
         </div>
         <FilterSelect label="All Job Titles" value={jobTitleFilter} onChange={setJobTitleFilter} options={jobTitles} />
-        <FilterSelect label="All Roles" value={roleFilter} onChange={setRoleFilter} options={roles} />
         <FilterSelect label="All Stages" value={stageFilter} onChange={setStageFilter} options={stages} />
-        <FilterSelect
-          label="All Trackers"
-          value={trackerFilter}
-          onChange={setTrackerFilter}
-          options={trackers}
-          capitalize
-        />
       </div>
 
       {/* View toggle: pipeline vs interview schedule */}
