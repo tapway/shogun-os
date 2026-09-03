@@ -189,6 +189,7 @@ export interface Skill {
   size_bytes?: number;
   icon?: string;
   installed_departments?: string[];
+  source?: 'profile' | 'learned';
 }
 
 export interface SkillDetail {

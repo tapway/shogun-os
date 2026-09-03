@@ -1791,38 +1791,51 @@ def _get_all_skills() -> List[Dict[str, Any]]:
     return _scan_skills_on_disk()
 
 
-def _get_department_skills(dept_key: str) -> List[Dict[str, Any]]:
-    """Get skills for a specific department.
+def _get_department_skills(dept_key: str, profile_name: str = "") -> List[Dict[str, Any]]:
+    """Get skills for a specific department — profile-specific + learned.
 
-    If the department has curated installs, return only those.
-    If no installs yet (first-time), return ALL skills as installed —
-    the user sees everything available and can curate later.
+    Sources (in priority order):
+      1. ~/.hermes/profiles/<profile_name>/skills/ — curated for this department
+      2. ~/.hermes/skills/ — learned/generated skills tagged as "Learned"
+
+    Default Hermes skills (repo skills/) are excluded unless they also
+    exist in the profile or learned directories.
     """
     dept_key = dept_key.lower()
-    all_skills = _get_all_skills()
-    installs = _load_skill_installs()
-    installed_ids = installs.get(dept_key, set())
+    skills: List[Dict[str, Any]] = []
+    seen_ids: set = set()
 
-    if not installed_ids:
-        # First-time: show all skills as installed for this department
-        result = []
-        for s in all_skills:
-            entry = dict(s)
-            entry["department_key"] = dept_key
+    # Source 1: Profile-specific skills
+    if profile_name:
+        profile_skills_dir = Path.home() / ".hermes" / "profiles" / profile_name / "skills"
+        if profile_skills_dir.is_dir():
+            for skill_path in sorted(_safe_rglob(profile_skills_dir, "SKILL.md")):
+                entry = _scan_one_skill(skill_path, profile_skills_dir.parent)
+                if entry is None or entry["id"] in seen_ids:
+                    continue
+                seen_ids.add(entry["id"])
+                entry["source"] = "profile"
+                entry["installed"] = True
+                entry["department_key"] = dept_key
+                skills.append(entry)
+
+    # Source 2: Learned/generated skills from ~/.hermes/skills/
+    learned_dir = _installed_skills_root()
+    if learned_dir.is_dir():
+        for skill_path in sorted(_safe_rglob(learned_dir, "SKILL.md")):
+            entry = _scan_one_skill(skill_path, learned_dir.parent)
+            if entry is None or entry["id"] in seen_ids:
+                continue
+            seen_ids.add(entry["id"])
+            entry["source"] = "learned"
             entry["installed"] = True
-            result.append(entry)
-        return result
-
-    # Return only installed skills, enriched with department_key
-    result = []
-    for s in all_skills:
-        if s["id"] in installed_ids:
-            entry = dict(s)
             entry["department_key"] = dept_key
-            entry["installed"] = True
-            result.append(entry)
+            # Add "Learned" tag if not already present
+            if "Learned" not in entry.get("tags", []):
+                entry.setdefault("tags", []).append("Learned")
+            skills.append(entry)
 
-    return result
+    return skills
 
 
 def _invalidate_skills_cache() -> None:
@@ -1998,13 +2011,13 @@ async def list_department_skills(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> Dict[str, Any]:
-    """Return skills for a department — scanned from disk + runtime installs."""
+    """Return skills for a department — from profile skills dir + learned skills."""
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Tenant not found")
     dept = _get_dept(db, tenant.id, name)
     key = dept.name.lower()
-    skills = _get_department_skills(key)
+    skills = _get_department_skills(key, dept.profile_name)
     return {"skills": skills}
 
 
