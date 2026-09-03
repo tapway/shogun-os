@@ -177,6 +177,8 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
   const [view, setView] = useState<"pipeline" | "schedule" | "calendar">("pipeline");
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   // Local stage overrides applied immediately on drop (optimistic) until the
@@ -436,8 +438,6 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
       {/* Calendar View */}
       {view === "calendar" && (() => {
         const now = new Date();
-        const [calMonth, setCalMonth] = useState(now.getMonth());
-        const [calYear, setCalYear] = useState(now.getFullYear());
 
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
         const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
