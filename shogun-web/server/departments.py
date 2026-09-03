@@ -1820,6 +1820,22 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
                 entry.setdefault("tags", []).append("Learned")
             skills.append(entry)
 
+    # Source 3: Hermes built-in skills (~/AppData/Local/hermes/skills/)
+    hermes_skills_dir = Path.home() / "AppData" / "Local" / "hermes" / "skills"
+    if hermes_skills_dir.is_dir():
+        existing_ids = {s["id"] for s in skills}
+        for skill_path in sorted(_safe_rglob(hermes_skills_dir, "SKILL.md")):
+            entry = _scan_one_skill(skill_path, hermes_skills_dir)
+            if entry is None:
+                continue
+            if entry["id"] in existing_ids:
+                continue
+            existing_ids.add(entry["id"])
+            entry["source"] = "hermes"
+            entry["installed"] = _is_installed(entry)
+            entry["installed_departments"] = []
+            skills.append(entry)
+
     _SKILLS_CACHE = (skills, {s["id"]: s for s in skills}, root_mtime, installed_mtime, installs_mtime)
     return skills
 

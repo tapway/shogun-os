@@ -189,7 +189,7 @@ export interface Skill {
   size_bytes?: number;
   icon?: string;
   installed_departments?: string[];
-  source?: 'profile' | 'learned';
+  source?: 'profile' | 'learned' | 'hermes' | 'repo';
 }
 
 export interface SkillDetail {
