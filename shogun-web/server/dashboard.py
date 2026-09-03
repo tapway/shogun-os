@@ -4163,10 +4163,18 @@ async def list_question_templates(
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
+    # Try DB first
     templates = db.query(HrQuestionTemplate).filter(
         HrQuestionTemplate.tenant_id == tenant.id
     ).order_by(HrQuestionTemplate.updated_at.desc()).all()
-    return {"templates": [t.to_dict() for t in templates]}
+    
+    if templates:
+        return {"templates": [t.to_dict() for t in templates]}
+    
+    # Fallback to mock data
+    mock = _load_hr_mock()
+    mock_templates = mock.get("question_templates", [])
+    return {"templates": mock_templates}
 
 
 @router.post("/hr/question-templates")

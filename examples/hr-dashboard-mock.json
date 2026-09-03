@@ -406,7 +406,7 @@
       "screening_answers_url": null,
       "candidate_type": "fulltime",
       "date_entry": "2026-08-10",
-      "last_edited": "2026-09-02",
+      "last_edited": "2026-09-03",
       "ai_summary": "Strong Python and distributed systems background.",
       "ai_extract_json": null,
       "extracted_at": null,
@@ -2283,6 +2283,465 @@
       "actor_name": "Demo User",
       "actor_email": "demo@example.com",
       "created_at": "2026-09-02T15:40:17"
+    },
+    {
+      "id": 79,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T03:57:39"
+    },
+    {
+      "id": 80,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T03:57:42"
+    },
+    {
+      "id": 81,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T03:57:42"
+    },
+    {
+      "id": 82,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T03:57:42"
+    },
+    {
+      "id": 83,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T03:57:42"
+    },
+    {
+      "id": 84,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:04:47"
+    },
+    {
+      "id": 85,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:04:51"
+    },
+    {
+      "id": 86,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:04:51"
+    },
+    {
+      "id": 87,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:04:51"
+    },
+    {
+      "id": 88,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:04:51"
+    },
+    {
+      "id": 89,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:00"
+    },
+    {
+      "id": 90,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:03"
+    },
+    {
+      "id": 91,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:03"
+    },
+    {
+      "id": 92,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:03"
+    },
+    {
+      "id": 93,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:03"
+    },
+    {
+      "id": 94,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:47"
+    },
+    {
+      "id": 95,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:50"
+    },
+    {
+      "id": 96,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:50"
+    },
+    {
+      "id": 97,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:50"
+    },
+    {
+      "id": 98,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:06:50"
+    },
+    {
+      "id": 99,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:07:33"
+    },
+    {
+      "id": 100,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:07:35"
+    },
+    {
+      "id": 101,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:07:35"
+    },
+    {
+      "id": 102,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:07:35"
+    },
+    {
+      "id": 103,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:07:36"
+    },
+    {
+      "id": 104,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:14:09"
+    },
+    {
+      "id": 105,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:14:13"
+    },
+    {
+      "id": 106,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:14:13"
+    },
+    {
+      "id": 107,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:14:13"
+    },
+    {
+      "id": 108,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:14:13"
+    },
+    {
+      "id": 109,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:18:15"
+    },
+    {
+      "id": 110,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:18:18"
+    },
+    {
+      "id": 111,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:18:18"
+    },
+    {
+      "id": 112,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:18:18"
+    },
+    {
+      "id": 113,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:18:18"
+    },
+    {
+      "id": 114,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:37:23"
+    },
+    {
+      "id": 115,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:37:26"
+    },
+    {
+      "id": 116,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:37:26"
+    },
+    {
+      "id": 117,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:37:26"
+    },
+    {
+      "id": 118,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:37:26"
+    },
+    {
+      "id": 119,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Attached to job 'Backend Engineer' (re-invited from talent pool)",
+      "from_status": "Rejected",
+      "to_status": "Resume Received",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:40:41"
+    },
+    {
+      "id": 120,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Interview scheduled (first round) at 2026-09-05T10:00 with Bob Manager",
+      "from_status": "Resume Received",
+      "to_status": "1st Interview Scheduled",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:40:44"
+    },
+    {
+      "id": 121,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting: awaiting screening answers",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:40:44"
+    },
+    {
+      "id": 122,
+      "candidate_id": 1,
+      "event_type": "note",
+      "note": "Waiting cleared (replied / resolved)",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:40:44"
+    },
+    {
+      "id": 123,
+      "candidate_id": 1,
+      "event_type": "stage_move",
+      "note": "Removed: No response",
+      "from_status": "1st Interview Scheduled",
+      "to_status": "Rejected",
+      "actor_name": "Demo User",
+      "actor_email": "demo@example.com",
+      "created_at": "2026-09-03T07:40:44"
     }
   ],
   "interviews": [
@@ -2295,7 +2754,21 @@
       "interviewer_name": "Aria Foster",
       "interviewer_employee_id": 7,
       "location": "Office - Room 301",
-      "status": "scheduled"
+      "status": "scheduled",
+      "questions": [
+        "Walk us through your design portfolio and what drew you to this Product Designer role.",
+        "Describe a time you handled conflicting feedback from stakeholders on a design.",
+        "What motivates you to create great user experiences?",
+        "How do you prioritize design tasks when multiple projects are urgent?",
+        "Tell us about a design mistake you made and what you learned from it.",
+        "Where do you see your design career in 3-5 years?",
+        "What kind of design team culture do you thrive in?",
+        "How do you handle negative feedback on your designs?",
+        "Describe a project where your design directly improved a business metric.",
+        "Do you have any questions for us about the design team or process?"
+      ],
+      "comment": "Strong portfolio with good UX thinking. Shows empathy for users. Slightly weak on data-driven design decisions but eager to learn. Good culture fit.",
+      "rating": 4
     },
     {
       "id": 3,
@@ -2306,7 +2779,21 @@
       "interviewer_name": "Aria Foster",
       "interviewer_employee_id": 7,
       "location": "Virtual - Teams",
-      "status": "scheduled"
+      "status": "scheduled",
+      "questions": [
+        "Tell us about your background and why you're interested in this Product Designer position.",
+        "How do you approach designing for accessibility?",
+        "Describe your design process from brief to final delivery.",
+        "What tools do you use for prototyping and why?",
+        "How do you validate your design decisions with users?",
+        "Tell us about a time you had to compromise on a design due to technical constraints.",
+        "What design trends are you most excited about right now?",
+        "How do you collaborate with developers during implementation?",
+        "Describe a time you advocated for the user when business goals conflicted.",
+        "What would you hope to achieve in your first 90 days here?"
+      ],
+      "comment": "",
+      "rating": null
     },
     {
       "id": 4,
@@ -2317,7 +2804,21 @@
       "interviewer_name": "Bob Manager",
       "interviewer_employee_id": null,
       "location": "Meet link",
-      "status": "scheduled"
+      "status": "scheduled",
+      "questions": [
+        "Walk us through your backend development experience and tech stack.",
+        "Describe a time you debugged a critical production issue under pressure.",
+        "How do you ensure code quality in your daily workflow?",
+        "What's your approach to API design and documentation?",
+        "Tell us about a complex system you architected or significantly improved.",
+        "How do you stay current with backend technologies and best practices?",
+        "Describe your experience with CI/CD pipelines and DevOps practices.",
+        "How do you handle database performance optimization?",
+        "What's your approach to writing tests \u2014 unit, integration, e2e?",
+        "Do you have questions about our engineering culture or tech stack?"
+      ],
+      "comment": "Solid backend fundamentals. Strong Python and PostgreSQL experience. Good communicator. Recommended for manager round.",
+      "rating": 4
     },
     {
       "id": 5,
@@ -2464,6 +2965,230 @@
     },
     {
       "id": 18,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 19,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 20,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 21,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 22,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 23,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 24,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 25,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 26,
+      "candidate_id": 1,
+      "job_id": 1,
+      "round": "first",
+      "scheduled_at": "2026-09-05T10:00",
+      "interviewer_name": "Bob Manager",
+      "interviewer_employee_id": null,
+      "location": "Meet link",
+      "status": "scheduled"
+    },
+    {
+      "id": 30,
+      "candidate_id": 7,
+      "job_id": 1,
+      "round": "manager",
+      "scheduled_at": "2026-09-06T14:00:00",
+      "interviewer_name": "Elena Rodriguez",
+      "interviewer_employee_id": 3,
+      "location": "Office - Room 501",
+      "status": "scheduled",
+      "questions": [
+        "What specific backend architecture experience makes you a strong fit for our Backend Engineer role?",
+        "Describe a complex distributed system problem you solved \u2014 walk us through your approach.",
+        "How do you evaluate trade-offs between microservices and monolithic architecture?",
+        "Tell us about a time you mentored a junior developer through a difficult technical challenge.",
+        "How do you measure the success of a backend service you've built?",
+        "Describe your ideal collaboration style with product managers and frontend engineers.",
+        "What would your first 30 days look like joining our engineering team?",
+        "Give an example of how you've improved deployment frequency or reliability.",
+        "How do you handle on-call incidents and post-mortems?",
+        "What unique perspective would you bring to our backend team?"
+      ],
+      "comment": "",
+      "rating": null
+    },
+    {
+      "id": 31,
+      "candidate_id": 9,
+      "job_id": 2,
+      "round": "first",
+      "scheduled_at": "2026-09-02T09:00:00",
+      "interviewer_name": "Aria Foster",
+      "interviewer_employee_id": 7,
+      "location": "Virtual - Teams",
+      "status": "completed",
+      "questions": [
+        "Walk us through your background and what drew you to this Backend Engineer role.",
+        "Describe a time you handled a conflict with a coworker or manager.",
+        "What motivates you to do your best work?",
+        "How do you prioritize tasks when everything seems urgent?",
+        "Tell us about a mistake you made and what you learned from it.",
+        "Where do you see yourself in 3-5 years?",
+        "What kind of work environment do you thrive in?",
+        "How do you handle feedback or criticism?",
+        "Describe a project you're most proud of and why.",
+        "Do you have any questions for us about the role or company?"
+      ],
+      "comment": "Excellent communication skills. Strong cultural alignment. Technical depth looks promising \u2014 recommend proceeding to manager round.",
+      "rating": 5
+    },
+    {
+      "id": 32,
+      "candidate_id": 10,
+      "job_id": 3,
+      "round": "manager",
+      "scheduled_at": "2026-09-01T11:00:00",
+      "interviewer_name": "Marcus Chen",
+      "interviewer_employee_id": 5,
+      "location": "Office - Room 402",
+      "status": "completed",
+      "questions": [
+        "What specific experience makes you a strong fit for this Product Designer position?",
+        "Describe a complex design system you built or contributed to.",
+        "How do you balance aesthetic design with usability and accessibility?",
+        "Tell us about a time you had to learn a new design tool or framework quickly.",
+        "How do you measure the impact of your design work?",
+        "Describe your ideal collaboration style with engineers and PMs.",
+        "What would your first 30 days look like in this role?",
+        "Give an example of how you've improved a design workflow or process.",
+        "How do you handle competing design priorities from different stakeholders?",
+        "What unique perspective or skill would you bring to our design team?"
+      ],
+      "comment": "Very strong design systems thinking. Great portfolio. Excellent presentation during the interview. Highly recommended for offer.",
+      "rating": 5
+    },
+    {
+      "id": 33,
+      "candidate_id": 11,
+      "job_id": 4,
+      "round": "ceo",
+      "scheduled_at": "2026-08-28T16:00:00",
+      "interviewer_name": "Sarah Tan (CEO)",
+      "interviewer_employee_id": null,
+      "location": "CEO Office",
+      "status": "completed",
+      "questions": [
+        "What does our company's mission mean to you personally?",
+        "How do you align your personal values with your professional work?",
+        "Describe a time you had to make a decision with incomplete information.",
+        "What does leadership mean to you, regardless of title?",
+        "How would you contribute to our company culture?",
+        "Tell us about a time you challenged the status quo constructively.",
+        "What legacy do you want to leave in your career?",
+        "How do you balance ambition with patience?",
+        "If you could change one thing about our industry, what would it be?",
+        "Why should we invest in you over other qualified candidates?"
+      ],
+      "comment": "Impressive strategic thinking for an intern-level candidate. Shows maturity beyond years. Strong values alignment. Approved for offer.",
+      "rating": 5
+    },
+    {
+      "id": 34,
+      "candidate_id": 12,
+      "job_id": 1,
+      "round": "ceo",
+      "scheduled_at": "2026-08-25T10:00:00",
+      "interviewer_name": "Sarah Tan (CEO)",
+      "interviewer_employee_id": null,
+      "location": "Virtual - Zoom",
+      "status": "completed",
+      "questions": [
+        "What does our company's mission mean to you personally?",
+        "How do you align your personal values with your professional work?",
+        "Describe a time you had to make a decision with incomplete information.",
+        "What does leadership mean to you, regardless of title?",
+        "How would you contribute to our company culture?",
+        "Tell us about a time you challenged the status quo constructively.",
+        "What legacy do you want to leave in your career?",
+        "How do you balance ambition with patience?",
+        "If you could change one thing about our industry, what would it be?",
+        "Why should we invest in you over other qualified candidates?"
+      ],
+      "comment": "Good cultural fit. Solid marketing instincts. Approved for offer \u2014 Marketing Specialist role.",
+      "rating": 4
+    },
+    {
+      "id": 35,
       "candidate_id": 1,
       "job_id": 1,
       "round": "first",
@@ -2642,5 +3367,87 @@
       "completed_by": "Test Admin"
     }
   ],
-  "source": "mock_data"
+  "source": "mock_data",
+  "question_templates": [
+    {
+      "id": 1,
+      "department": "Engineering",
+      "role_pattern": "Backend Engineer",
+      "round": "first",
+      "questions": [
+        "Walk us through your backend development experience and primary tech stack.",
+        "Describe a time you debugged a critical production issue under pressure.",
+        "How do you ensure code quality and maintainability in your daily workflow?",
+        "What's your approach to RESTful API design and versioning?",
+        "Tell us about a complex system you architected or significantly improved.",
+        "How do you stay current with backend technologies and best practices?",
+        "Describe your experience with CI/CD pipelines and automated testing.",
+        "How do you approach database schema design and query optimization?",
+        "What's your strategy for writing tests \u2014 unit, integration, and end-to-end?",
+        "Do you have questions about our engineering culture, tech stack, or team structure?"
+      ],
+      "created_at": "2026-08-15T09:00:00",
+      "updated_at": "2026-08-20T14:30:00"
+    },
+    {
+      "id": 2,
+      "department": "Engineering",
+      "role_pattern": "Backend Engineer",
+      "round": "manager",
+      "questions": [
+        "What specific backend architecture experience makes you a strong fit for this role?",
+        "Describe a complex distributed system problem you solved end-to-end.",
+        "How do you evaluate trade-offs between microservices and monolithic approaches?",
+        "Tell us about a time you led a technical migration or major refactor.",
+        "How do you measure the reliability and performance of services you own?",
+        "Describe your ideal collaboration style with product and frontend teams.",
+        "What would your first 30/60/90 day plan look like?",
+        "Give an example of how you've improved deployment frequency or system reliability.",
+        "How do you handle on-call responsibilities and incident post-mortems?",
+        "What unique technical perspective would you bring to our backend team?"
+      ],
+      "created_at": "2026-08-15T09:30:00",
+      "updated_at": "2026-08-22T11:00:00"
+    },
+    {
+      "id": 3,
+      "department": "All",
+      "role_pattern": "",
+      "round": "ceo",
+      "questions": [
+        "What does our company's mission mean to you personally?",
+        "How do you align your personal values with your professional work?",
+        "Describe a time you had to make a high-stakes decision with incomplete information.",
+        "What does leadership mean to you, regardless of your official title?",
+        "How would you actively contribute to and shape our company culture?",
+        "Tell us about a time you challenged the status quo constructively.",
+        "What legacy do you want to leave in your career?",
+        "How do you balance ambition with patience in your professional growth?",
+        "If you could change one thing about our industry, what would it be and why?",
+        "Why should we invest in you over other equally qualified candidates?"
+      ],
+      "created_at": "2026-08-10T08:00:00",
+      "updated_at": "2026-08-10T08:00:00"
+    },
+    {
+      "id": 4,
+      "department": "Design",
+      "role_pattern": "Product Designer",
+      "round": "first",
+      "questions": [
+        "Walk us through your design portfolio and highlight your proudest project.",
+        "Describe your end-to-end design process from research to handoff.",
+        "How do you incorporate user research into your design decisions?",
+        "What tools do you use for prototyping and why do you prefer them?",
+        "How do you approach designing for accessibility and inclusive experiences?",
+        "Tell us about a time you received tough design feedback and how you responded.",
+        "How do you collaborate with engineers to ensure design fidelity?",
+        "Describe a time your design directly impacted a key business metric.",
+        "What design trends are you most excited about and why?",
+        "What would you hope to accomplish in your first 90 days here?"
+      ],
+      "created_at": "2026-08-18T10:00:00",
+      "updated_at": "2026-08-25T16:00:00"
+    }
+  ]
 }
