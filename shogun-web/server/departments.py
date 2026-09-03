@@ -1752,6 +1752,25 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
     skills: List[Dict[str, Any]] = []
     seen_ids: set = set()
 
+    # Build set of all known department keys from _CATEGORY_LABELS
+    _all_dept_keys = set(_CATEGORY_LABELS.keys())
+    _universal_cats = {"shared", "productivity"}
+
+    def _category_is_assigned(cat_str: str) -> bool:
+        """True if this category maps to at least one department."""
+        c = (cat_str or "").lower().strip()
+        if not c or c == "general":
+            return False
+        if c in _universal_cats:
+            return True
+        if c in _all_dept_keys:
+            return True
+        # Check display labels too (e.g. "CRM/Sales" → crm)
+        for dir_name, label in _CATEGORY_LABELS.items():
+            if c == label.lower():
+                return True
+        return False
+
     for skill_path in sorted(_safe_rglob(repo_root, "SKILL.md")):
         entry = _scan_one_skill(skill_path, repo_root)
         if entry is None:
@@ -1760,10 +1779,10 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
             continue
         seen_ids.add(entry["id"])
 
-        # Set installed status from persistent installs
         entry["source"] = "repo"
-        entry["installed"] = _is_skill_installed(entry["id"])
-        entry["installed_departments"] = _get_installed_depts_for_skill(entry["id"])
+        # Installed = category matches a department (not manual install tracking)
+        entry["installed"] = _category_is_assigned(entry.get("category", ""))
+        entry["installed_departments"] = []  # populated below if needed
         skills.append(entry)
 
     # Also scan ~/.hermes/skills/ for user-generated/learned skills (not in repo)
@@ -1778,8 +1797,8 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
                 continue
             repo_ids.add(entry["id"])
             entry["source"] = "learned"
-            entry["installed"] = _is_skill_installed(entry["id"])
-            entry["installed_departments"] = _get_installed_depts_for_skill(entry["id"])
+            entry["installed"] = _category_is_assigned(entry.get("category", ""))
+            entry["installed_departments"] = []
             # Add "Learned" tag if not already present
             if "Learned" not in entry.get("tags", []):
                 entry.setdefault("tags", []).append("Learned")
@@ -1797,25 +1816,47 @@ def _get_all_skills() -> List[Dict[str, Any]]:
 
 
 def _get_department_skills(dept_key: str, profile_name: str = "") -> List[Dict[str, Any]]:
-    """Get skills for a specific department — profile-specific + relevant learned.
+    """Get skills for a department — category-based matching.
 
-    Sources (in priority order):
-      1. ~/.hermes/profiles/<profile_name>/skills/ — curated for this department
-      2. ~/.hermes/skills/ — learned/generated skills, filtered by relevance:
-         - Included if category matches dept_key (e.g. category=finance → finance dept)
-         - Included if category is "shared" or "productivity" (universal skills)
-         - Included if no category set (generic learned skills)
-         - Excluded if category belongs to a different department
+    A skill belongs to a department if:
+      1. It's in the profile's skills dir (~/.hermes/profiles/<name>/skills/)
+      2. Its category matches the department (e.g. category=Finance → finance dept)
+      3. Its category is "Shared" or "Productivity" (universal skills)
 
-    Default Hermes repo skills are excluded unless they also exist in the
-    profile or learned directories.
+    Skills with no matching category (General/uncategorized) are excluded.
+    The skill-installs.json file is NOT used — category is authoritative.
     """
     dept_key = dept_key.lower()
     skills: List[Dict[str, Any]] = []
     seen_ids: set = set()
 
-    # Categories that are universal — always included regardless of department
+    # Build reverse map: display category label → dept_key
+    # e.g. "Finance" → "finance", "CRM/Sales" → "crm"
+    _cat_to_dept: Dict[str, str] = {}
+    for dir_name, label in _CATEGORY_LABELS.items():
+        _cat_to_dept[label.lower()] = dir_name
+    # Also map dir names directly
+    for dir_name in _CATEGORY_LABELS:
+        _cat_to_dept[dir_name.lower()] = dir_name
+
+    # Universal categories — included in every department
     _UNIVERSAL_CATEGORIES = {"shared", "productivity"}
+
+    def _skill_matches_dept(entry: dict) -> bool:
+        """Check if a skill's category matches this department."""
+        cat = (entry.get("category") or "").lower().strip()
+        if not cat or cat == "general":
+            return False  # uncategorized → no department
+        if cat in _UNIVERSAL_CATEGORIES:
+            return True
+        # Check if category maps to this dept
+        mapped_dept = _cat_to_dept.get(cat, "")
+        if mapped_dept == dept_key:
+            return True
+        # Direct match (category string == dept_key)
+        if cat == dept_key:
+            return True
+        return False
 
     # Source 1: Profile-specific skills (always included — explicitly curated)
     if profile_name:
@@ -1831,50 +1872,21 @@ def _get_department_skills(dept_key: str, profile_name: str = "") -> List[Dict[s
                 entry["department_key"] = dept_key
                 skills.append(entry)
 
-    # Source 2: Learned/generated skills from ~/.hermes/skills/ (filtered)
-    # Only include skills NOT in the repo (truly learned/custom, not default copies)
-    learned_dir = _installed_skills_root()
-    if learned_dir.is_dir():
-        repo_root = _skills_repo_root()
-        repo_skill_ids: set = set()
-        if repo_root.is_dir():
-            for sp in _safe_rglob(repo_root, "SKILL.md"):
-                rid = str(sp.parent.name).lower().strip()
-                repo_skill_ids.add(rid)
-
-        for skill_path in sorted(_safe_rglob(learned_dir, "SKILL.md")):
-            entry = _scan_one_skill(skill_path, learned_dir.parent)
-            if entry is None or entry["id"] in seen_ids:
-                continue
-
-            # Skip if this skill exists in the repo (it's a default, not learned)
-            if entry["id"] in repo_skill_ids:
-                continue
-
-            # Filter: only include if relevant to this department
-            skill_cat = (entry.get("category") or "").lower().strip()
-            skill_dept = (entry.get("department_key") or "").lower().strip()
-            # "general" is the default when _scan_one_skill finds no parent dir — treat as uncategorized
-            if skill_cat == "general":
-                skill_cat = ""
-            if skill_dept == "general":
-                skill_dept = ""
-            is_relevant = (
-                skill_cat == dept_key                              # exact category match
-                or skill_dept == dept_key                          # department_key match
-                or (skill_cat and skill_cat in _UNIVERSAL_CATEGORIES)  # universal category
-            )
-            if not is_relevant:
-                continue
-
-            seen_ids.add(entry["id"])
-            entry["source"] = "learned"
-            entry["installed"] = True
-            entry["department_key"] = dept_key
-            # Add "Learned" tag if not already present
-            if "Learned" not in entry.get("tags", []):
-                entry.setdefault("tags", []).append("Learned")
-            skills.append(entry)
+    # Source 2: All scanned skills (repo + learned) filtered by category match
+    all_skills = _get_all_skills()
+    for entry in all_skills:
+        if entry["id"] in seen_ids:
+            continue
+        if not _skill_matches_dept(entry):
+            continue
+        seen_ids.add(entry["id"])
+        entry = dict(entry)  # don't mutate cached copy
+        entry["source"] = entry.get("source", "repo")
+        entry["installed"] = True
+        entry["department_key"] = dept_key
+        if entry["source"] == "learned" and "Learned" not in entry.get("tags", []):
+            entry.setdefault("tags", []).append("Learned")
+        skills.append(entry)
 
     return skills
 
