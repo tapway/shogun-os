@@ -176,7 +176,8 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
   const [stageFilter, setStageFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
-  const [view, setView] = useState<"pipeline" | "schedule" | "calendar">("pipeline");
+  const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
+  const [scheduleSubView, setScheduleSubView] = useState<"list" | "calendar">("list");
   const [calMonth, setCalMonth] = useState(new Date().getMonth());
   const [calYear, setCalYear] = useState(new Date().getFullYear());
   const [dragId, setDragId] = useState<number | null>(null);
@@ -352,7 +353,6 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         {([
           { id: "pipeline", label: "Pipeline Board" },
           { id: "schedule", label: `Interview Schedule (${interviews.filter((i) => i.status === "scheduled").length})` },
-          { id: "calendar", label: "Calendar View" },
         ] as const).map((v) => (
           <button
             key={v.id}
@@ -382,12 +382,31 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
 
       {view === "schedule" && (
         <div className="sd-chart-card">
-          <h3 className="sd-chart-title" style={{ marginBottom: "0.75rem" }}>Interview Schedule</h3>
+          <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "0.75rem" }}>
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>Interview Schedule</h3>
+            <div style={{ display: "flex", gap: "0.3rem" }}>
+              {(["list", "calendar"] as const).map((sv) => (
+                <button
+                  key={sv}
+                  type="button"
+                  onClick={() => setScheduleSubView(sv)}
+                  style={{
+                    padding: "0.3rem 0.7rem", borderRadius: "0.4rem", fontSize: "0.75rem", fontWeight: 600, cursor: "pointer",
+                    border: `1px solid ${scheduleSubView === sv ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+                    background: scheduleSubView === sv ? "var(--samurai-surface-2)" : "transparent",
+                    color: scheduleSubView === sv ? "var(--samurai-lime)" : "var(--samurai-muted)",
+                  }}
+                >
+                  {sv === "list" ? "📋 List View" : "📅 Calendar View"}
+                </button>
+              ))}
+            </div>
+          </div>
           {interviews.length === 0 ? (
             <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
               No interviews scheduled yet — confirm a date/time from a Schedule stage card.
             </p>
-          ) : (
+          ) : scheduleSubView === "list" ? (
             <div style={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
                 <thead>
@@ -431,13 +450,11 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
                 </tbody>
               </table>
             </div>
-          )}
-        </div>
-      )}
-
-      {/* Calendar View */}
-      {view === "calendar" && (() => {
-        const now = new Date();
+          ) : (
+            <div>
+              {/* Calendar View — inline within Interview Schedule */}
+              {(() => {
+                const now = new Date();
 
         const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
         const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
@@ -559,7 +576,11 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
             </div>
           </div>
         );
-      })()}
+              })()}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Waiting panel */}
       {view === "pipeline" && waitingList.length > 0 && (
