@@ -1771,6 +1771,23 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
                 return True
         return False
 
+    # Build set of all skill IDs present in ANY profile dir
+    # These are always considered "installed" regardless of category
+    _profile_skill_ids: set = set()
+    profiles_dir = Path.home() / ".hermes" / "profiles"
+    if profiles_dir.is_dir():
+        for profile_dir in profiles_dir.iterdir():
+            p_skills = profile_dir / "skills"
+            if p_skills.is_dir():
+                for sp in _safe_rglob(p_skills, "SKILL.md"):
+                    _profile_skill_ids.add(str(sp.parent.name).lower().strip())
+
+    def _is_installed(entry: dict) -> bool:
+        """Installed if category matches a dept OR skill is in any profile."""
+        if entry["id"] in _profile_skill_ids:
+            return True
+        return _category_is_assigned(entry.get("category", ""))
+
     for skill_path in sorted(_safe_rglob(repo_root, "SKILL.md")):
         entry = _scan_one_skill(skill_path, repo_root)
         if entry is None:
@@ -1780,9 +1797,8 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
         seen_ids.add(entry["id"])
 
         entry["source"] = "repo"
-        # Installed = category matches a department (not manual install tracking)
-        entry["installed"] = _category_is_assigned(entry.get("category", ""))
-        entry["installed_departments"] = []  # populated below if needed
+        entry["installed"] = _is_installed(entry)
+        entry["installed_departments"] = []
         skills.append(entry)
 
     # Also scan ~/.hermes/skills/ for user-generated/learned skills (not in repo)
@@ -1797,7 +1813,7 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
                 continue
             repo_ids.add(entry["id"])
             entry["source"] = "learned"
-            entry["installed"] = _category_is_assigned(entry.get("category", ""))
+            entry["installed"] = _is_installed(entry)
             entry["installed_departments"] = []
             # Add "Learned" tag if not already present
             if "Learned" not in entry.get("tags", []):
