@@ -17,7 +17,6 @@ const BORDER = "var(--samurai-border)";
 const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
 const DANGER = "var(--samurai-danger)";
-const OK = "var(--samurai-ok)";
 
 const thStyle: React.CSSProperties = {
   textAlign: "left",
@@ -34,13 +33,16 @@ const tdStyle: React.CSSProperties = {
   fontSize: "0.8rem",
 };
 
-function statusChipClass(status: string | null | undefined): "ok" | "warn" | "bad" | "muted" {
-  const s = (status || "").toLowerCase();
-  if (s.includes("done")) return "ok";
-  if (s.includes("shortlisted")) return "ok";
-  if (s.includes("rejected") || s.includes("no response")) return "bad";
-  if (s.includes("resume received") || s.includes("screening") || s.includes("pending") || s.includes("review")) return "muted";
-  return "warn";
+/** A candidate belongs to the Talent Pool if they are NOT in an active recruitment pipeline.
+ *  i.e. they were rejected, hired/done, or their job was closed. */
+function isPastCandidate(c: HrCandidate, closedJobIds: Set<number>): boolean {
+  const status = (c.status || "").toLowerCase();
+  // Rejected or Done/Hired → always past
+  if (status.includes("rejected") || status.includes("done") || status.includes("hired")) return true;
+  // If attached to a closed job → past
+  if (c.job_opening_id != null && closedJobIds.has(c.job_opening_id)) return true;
+  // Otherwise they're in an active pipeline → NOT talent pool
+  return false;
 }
 
 export function GlobalTalentPoolTab({ stats, department }: Props) {
@@ -48,27 +50,31 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
   const allCandidates = stats.candidates || [];
   const jobs = stats.job_openings || [];
   const openJobs = jobs.filter((j) => !(j.job_status || "").startsWith("Closed"));
+  const closedJobIds = useMemo(
+    () => new Set(jobs.filter((j) => (j.job_status || "").startsWith("Closed")).map((j) => j.id)),
+    [jobs],
+  );
 
   const [search, setSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
   const [typeFilter, setTypeFilter] = useState("all");
   const [journeyCandidate, setJourneyCandidate] = useState<HrCandidate | null>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
-  const statuses = useMemo(
-    () => Array.from(new Set(allCandidates.map((c) => (c.status || "").trim()).filter(Boolean))).sort(),
-    [allCandidates],
+  // Only past candidates
+  const pastCandidates = useMemo(
+    () => allCandidates.filter((c) => isPastCandidate(c, closedJobIds)),
+    [allCandidates, closedJobIds],
   );
+
   const types = useMemo(
-    () => Array.from(new Set(allCandidates.map((c) => c.candidate_type).filter(Boolean))).sort(),
-    [allCandidates],
+    () => Array.from(new Set(pastCandidates.map((c) => c.candidate_type).filter(Boolean))).sort(),
+    [pastCandidates],
   );
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
-    return allCandidates.filter((c) => {
-      if (statusFilter !== "all" && (c.status || "").trim() !== statusFilter) return false;
+    return pastCandidates.filter((c) => {
       if (typeFilter !== "all" && c.candidate_type !== typeFilter) return false;
       if (!q) return true;
       return (
@@ -79,17 +85,19 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
         (c.source || "").toLowerCase().includes(q)
       );
     });
-  }, [allCandidates, search, statusFilter, typeFilter]);
+  }, [pastCandidates, search, typeFilter]);
 
-  const hiredCount = allCandidates.filter((c) => (c.status || "").toLowerCase().includes("done")).length;
-  const rejectedCount = allCandidates.filter((c) => (c.status || "").toLowerCase().includes("rejected")).length;
-  const activeCount = allCandidates.length - hiredCount - rejectedCount;
+  const hiredCount = pastCandidates.filter((c) => {
+    const s = (c.status || "").toLowerCase();
+    return s.includes("done") || s.includes("hired");
+  }).length;
+  const rejectedCount = pastCandidates.filter((c) => (c.status || "").toLowerCase().includes("rejected")).length;
 
   const KPIs = [
-    { label: "Total Candidates", value: `${allCandidates.length}`, sub: "all saved — nothing deleted" },
-    { label: "Active in Pipeline", value: `${activeCount}`, warn: false },
-    { label: "Done (Hired)", value: `${hiredCount}` },
+    { label: "Total in Talent Pool", value: `${pastCandidates.length}`, sub: "past candidates from closed / completed jobs" },
+    { label: "Hired (Past)", value: `${hiredCount}` },
     { label: "Rejected / Keep", value: `${rejectedCount}` },
+    { label: "Open Jobs Available", value: `${openJobs.length}`, sub: "for re-inviting candidates" },
   ];
 
   const reInvite = async (candidate: HrCandidate) => {
@@ -132,7 +140,7 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
       <div className="sd-chart-card">
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
           <h3 className="sd-chart-title" style={{ margin: 0, marginRight: "auto" }}>
-            Talent Pool — every candidate, searchable
+            Talent Pool — past candidates (rejected, hired, closed jobs)
           </h3>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.35rem 0.6rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
             <Search size={13} style={{ color: MUTED }} />
@@ -143,16 +151,6 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
               style={{ border: "none", background: "transparent", color: TEXT, fontSize: "0.8rem", outline: "none", width: "16rem" }}
             />
           </div>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, padding: "0.35rem 0.5rem", fontSize: "0.78rem" }}
-          >
-            <option value="all">All Status</option>
-            {statuses.map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
           <select
             value={typeFilter}
             onChange={(e) => setTypeFilter(e.target.value)}
@@ -169,23 +167,23 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
 
         {filtered.length === 0 ? (
           <p style={{ textAlign: "center", color: MUTED, padding: "2rem 0", fontSize: "0.85rem" }}>
-            No candidates match your search.
+            No past candidates match your search. Candidates in active job openings are shown in the Recruitment Pipeline instead.
           </p>
         ) : (
           <div style={{ overflowX: "auto" }}>
             <p style={{ fontSize: "0.72rem", color: MUTED, margin: "0 0 0.4rem" }}>
-              Showing {filtered.length} of {allCandidates.length} candidates
+              Showing {filtered.length} of {pastCandidates.length} past candidates
             </p>
             <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
               <thead>
                 <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
                   <th style={thStyle}>Name</th>
                   <th style={thStyle}>Role Applied</th>
-                  <th style={thStyle}>Status</th>
                   <th style={thStyle}>Source</th>
                   <th style={thStyle}>Contact</th>
-                  <th style={thStyle}>Date Entry</th>
+                  <th style={thStyle}>Date Apply</th>
                   <th style={thStyle}>Resume</th>
+                  <th style={thStyle}>Screening Answer</th>
                   <th style={thStyle}>Actions</th>
                 </tr>
               </thead>
@@ -200,9 +198,6 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
                   >
                     <td style={{ ...tdStyle, fontWeight: 600 }}>{c.name || "—"}</td>
                     <td style={tdStyle}>{c.role || "—"}</td>
-                    <td style={tdStyle}>
-                      <span className={`sd-chip ${statusChipClass(c.status)}`}>{c.status || "—"}</span>
-                    </td>
                     <td style={tdStyle}>{c.source || "—"}</td>
                     <td style={{ ...tdStyle, fontSize: "0.75rem" }}>
                       {c.email || "—"}{c.phone_no ? ` · ${c.phone_no}` : ""}
@@ -215,18 +210,23 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
                         </a>
                       ) : "—"}
                     </td>
+                    <td style={tdStyle}>
+                      {c.screening_answers_url ? (
+                        <a href={c.screening_answers_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: LIME, display: "inline-flex", alignItems: "center", gap: "0.25rem", fontWeight: 600 }}>
+                          <ExternalLink size={12} /> View
+                        </a>
+                      ) : "—"}
+                    </td>
                     <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
-                      {(c.status || "").toLowerCase().includes("rejected") && (
-                        <button
-                          type="button"
-                          disabled={busy}
-                          onClick={() => reInvite(c)}
-                          title="Attach this candidate to an open job and restart their journey"
-                          style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.55rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1, whiteSpace: "nowrap" }}
-                        >
-                          ↻ Re-invite to Job
-                        </button>
-                      )}
+                      <button
+                        type="button"
+                        disabled={busy}
+                        onClick={() => reInvite(c)}
+                        title="Attach this candidate to an open job and restart their journey"
+                        style={{ borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, padding: "0.2rem 0.55rem", cursor: busy ? "wait" : "pointer", opacity: busy ? 0.6 : 1, whiteSpace: "nowrap" }}
+                      >
+                        ↻ Re-invite to Job
+                      </button>
                     </td>
                   </tr>
                 ))}
