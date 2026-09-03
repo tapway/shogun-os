@@ -41,6 +41,7 @@ const JOURNEY_STAGES = [
   { status: "HR Interview Done", label: "HR Interview Done" },
   { status: "Waiting Manager Interview Confirm", label: "Waiting Manager Confirm" },
   { status: "Manager Interview Scheduled", label: "Manager Interview Scheduled" },
+  { status: "Manager Interview Done", label: "Manager Interview Done" },
   { status: "Waiting CEO Interview Confirm", label: "Waiting CEO Confirm" },
   { status: "CEO Interview Scheduled", label: "CEO Interview Scheduled" },
   { status: "Waiting Interview Result", label: "Waiting Result" },
@@ -489,9 +490,22 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
             </div>
           )}
 
+          {stage === "Manager Interview Done" && requiresCeoInterview && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Manager interview completed</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Manager interview is done. Request CEO interview confirmation to proceed.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => decision("continue")} style={btnPrimary}>✓ Request CEO Interview Confirm →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
           {stage === "Waiting CEO Interview Confirm" && requiresCeoInterview && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for CEO interview confirmation</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for CEO interview confirmation</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Waiting for the CEO to confirm a date/time. Once confirmed, schedule it below.
               </p>
@@ -521,7 +535,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "CEO Interview Scheduled" && requiresCeoInterview && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — CEO interview scheduled</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — CEO interview scheduled</p>
               {nextInterview && (
                 <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
                   📅 {fmtDateTime(nextInterview.scheduled_at)}
@@ -562,7 +576,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Interview Result" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for interview result</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 11 — Waiting for interview result</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Follow up with the interviewer. Once the result is in, confirm whether to proceed to offer.
               </p>
@@ -576,7 +590,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Offer Confirmation" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for offer confirmation</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 12 — Waiting for offer confirmation</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Confirm the offer details with management. Once confirmed, send the offer to the candidate.
               </p>
@@ -589,7 +603,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Offer Sent - Waiting Reply" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — Offer sent, waiting for reply</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 13 — Offer sent, waiting for reply</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Waiting for the candidate's answer. If they accept, mark Done — then close the job from Job Openings.
               </p>

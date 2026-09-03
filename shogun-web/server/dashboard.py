@@ -3207,9 +3207,15 @@ def _persist_candidate_decision_to_mock(candidate_id: int, decision: str, commen
             return None
         cur = (cand.get("status") or "").strip()
         if decision == "continue":
-            if cur.lower() != "hr interview done":
+            cur_lower = cur.lower()
+            if cur_lower == "hr interview done":
+                new_status = "Waiting Manager Interview Confirm"
+            elif cur_lower == "manager interview scheduled":
+                new_status = "Manager Interview Done"
+            elif cur_lower == "manager interview done":
+                new_status = "Waiting CEO Interview Confirm"
+            else:
                 return None  # let live endpoint handle validation error
-            new_status = "Waiting Manager Interview Confirm"
         elif decision == "offer":
             if cur.lower() != "waiting offer confirmation":
                 return None
@@ -3258,7 +3264,12 @@ def _persist_candidate_schedule_to_mock(candidate_id: int, rnd: str, scheduled_a
         if not cand:
             return None
         old = cand.get("status", "")
-        new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
+        if rnd == "first":
+            new_status = "1st Interview Scheduled"
+        elif rnd == "ceo":
+            new_status = "CEO Interview Scheduled"
+        else:
+            new_status = "Manager Interview Scheduled"
         cand["status"] = new_status
         cand["waiting_since"] = None
         cand["waiting_reason"] = None

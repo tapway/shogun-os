@@ -22,6 +22,7 @@ const STATUS_ORDER = [
   "HR Interview Done",
   "Waiting Manager Interview Confirm",
   "Manager Interview Scheduled",
+  "Manager Interview Done",
   "Waiting CEO Interview Confirm",
   "CEO Interview Scheduled",
   "Waiting Interview Result",
