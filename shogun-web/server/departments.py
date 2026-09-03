@@ -1761,11 +1761,12 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
         seen_ids.add(entry["id"])
 
         # Set installed status from persistent installs
+        entry["source"] = "repo"
         entry["installed"] = _is_skill_installed(entry["id"])
         entry["installed_departments"] = _get_installed_depts_for_skill(entry["id"])
         skills.append(entry)
 
-    # Also scan ~/.hermes/skills/ for user-generated skills (not in repo)
+    # Also scan ~/.hermes/skills/ for user-generated/learned skills (not in repo)
     installed_dir = _installed_skills_root()
     if installed_dir.is_dir():
         repo_ids = {s["id"] for s in skills}
@@ -1776,8 +1777,12 @@ def _scan_skills_on_disk() -> List[Dict[str, Any]]:
             if entry["id"] in repo_ids:
                 continue
             repo_ids.add(entry["id"])
+            entry["source"] = "learned"
             entry["installed"] = _is_skill_installed(entry["id"])
             entry["installed_departments"] = _get_installed_depts_for_skill(entry["id"])
+            # Add "Learned" tag if not already present
+            if "Learned" not in entry.get("tags", []):
+                entry.setdefault("tags", []).append("Learned")
             skills.append(entry)
 
     _SKILLS_CACHE = (skills, {s["id"]: s for s in skills}, root_mtime, installed_mtime, installs_mtime)

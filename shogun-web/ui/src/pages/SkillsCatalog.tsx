@@ -478,9 +478,17 @@ export default function SkillsCatalog() {
                             </div>
 
                             <div>
-                              <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand transition">
-                                {skill.name}
-                              </h3>
+                              <div className="flex items-center gap-1.5">
+                                <h3 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-brand transition">
+                                  {skill.name}
+                                </h3>
+                                {skill.source === 'learned' && (
+                                  <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                                    <Sparkles className="h-2.5 w-2.5" />
+                                    Learned
+                                  </span>
+                                )}
+                              </div>
                               <p className="mt-2 text-xs text-slate-600 dark:text-slate-300 leading-relaxed line-clamp-3">
                                 {skill.description}
                               </p>
@@ -609,9 +617,17 @@ export default function SkillsCatalog() {
                   );
                 })()}
                 <div>
-                  <h3 className="text-base font-bold text-slate-900 dark:text-white">
-                    {detailSkill.name}
-                  </h3>
+                  <div className="flex items-center gap-1.5">
+                    <h3 className="text-base font-bold text-slate-900 dark:text-white">
+                      {detailSkill.name}
+                    </h3>
+                    {detailSkill.source === 'learned' && (
+                      <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                        <Sparkles className="h-2.5 w-2.5" />
+                        Learned
+                      </span>
+                    )}
+                  </div>
                   <div className="flex flex-wrap gap-2 mt-0.5 text-[10px] text-slate-400 dark:text-slate-500">
                     <span className="font-mono">{detailSkill.id}</span>
                     {detailSkill.version && (
