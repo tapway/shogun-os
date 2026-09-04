@@ -84,69 +84,66 @@ def test_finance_aggregation_empty_pages_returns_safe_defaults():
 
 
 def test_finance_aggregation_reads_gbrain_snapshots():
-    """Snapshot pages (contract keys) flow through to the camelCase payload."""
+    """With accounting bridge unavailable, gbrain snapshots fill BvA/compliance.
+
+    Tabs 1-5 return empty-state (bridge not mocked), but BvA budget and
+    compliance data still come from gbrain snapshots.
+    """
     snaps = {
-        "finance/snapshots/cash": {
-            "total_liquid_cash": 1240000.0,
-            "net_monthly_burn": 95000.0,
-            "cash_runway_months": 13.0,
-            "bank_accounts": [{"name": "Maybank Current", "balance": 820000.0, "currency": "MYR"}],
+        "finance/snapshots/bva": {
+            "departments": [{"department": "Engineering", "variance_pct": 5.0}],
+            "line_items": [{"account_name": "Salaries", "budget_ytd": 100000}],
+            "unit_economics": {"gross_margin_pct": 42.0, "contribution_margin_pct": 28.0,
+                               "cac": 1200, "ltv": 8400, "ltv_cac_ratio": 7.0},
         },
-        "finance/snapshots/pl": {
-            "revenue_mtd": 410000.0,
-            "revenue_ytd": 2980000.0,
-            "gross_margin_pct": 42.0,
-            "ebitda_margin_pct": 18.0,
+        "finance/snapshots/compliance": {
+            "close_checklist": [{"task": "Bank reconciliation", "status": "Done"}],
+            "statutory_schedule": [{"filing": "SST-02", "due_date": "2026-10-31"}],
         },
-        "finance/snapshots/ar": {
-            "total_ar": 612000.0,
-            "bucket_0_30": 340000.0,
-            "bucket_31_60": 180000.0,
-            "bucket_61_90": 68000.0,
-            "bucket_90_plus": 24000.0,
-            "dso": 41.0,
-            "ar_invoices": [{
-                "invoice": "INV-2026-0888", "client": "Acme Corp",
-                "amount": 18000.0, "days_overdue": 96,
-            }],
-        },
-        "finance/snapshots/ap": {
-            "total_ap": 248000.0,
-            "ap_overdue": 32000.0,
-            "dpo": 38.0,
-            "bills": [{
-                "bill": "BILL-2026-0421", "vendor": "NexTech Distribution",
-                "amount": 12400.0, "due_date": "2026-08-12",
-            }],
+        "finance/snapshots/concentration": {
+            "clients": [{"name": "Acme Corp", "revenue_pct": 25.0}],
         },
     }
     with patch("dashboard._fetch_finance_snapshots", return_value=snaps):
         result = asyncio.run(dashboard._run_finance_aggregation([]))
-    assert result["dataSource"] == "gbrain"
+    # Accounting bridge not available in test → dataSource is "empty"
+    assert result["dataSource"] == "empty"
     assert result["mock"] is False
-    assert result["totalLiquidCash"] == 1240000.0
-    assert result["revenueYTD"] == 2980000.0
-    assert result["cashRunwayMonths"] == 13.0
-    # bank balance normalized to balance_myr for the UI
-    assert result["bankAccounts"][0]["balance_myr"] == 820000.0
-    # short contract keys normalized to the UI item shape
-    inv = result["arInvoices"][0]
-    assert inv["invoice_no"] == "INV-2026-0888"
-    assert inv["customer"] == "Acme Corp"
-    assert inv["bucket"] == "90+"
-    bill = result["apBills"][0]
-    assert bill["bill_no"] == "BILL-2026-0421"
-    assert bill["match_status"] == "Matched"
+    # Tabs 1-5 are zero/empty (no accounting bridge)
+    assert result["totalLiquidCash"] == 0.0
+    assert result["revenueYTD"] == 0.0
+    # But BvA budget + compliance still come from gbrain
+    assert len(result["bvaDepartments"]) == 1
+    assert result["bvaDepartments"][0]["department"] == "Engineering"
+    assert len(result["closeChecklist"]) == 1
+    assert result["unitEconomics"]["gross_margin_pct"] == 42.0
+    # Concentration risk alert generated
+    assert any(a["type"] == "concentration" for a in result["riskAlerts"])
 
 
-def test_finance_aggregation_never_calls_qbo():
-    """gbrain-only data path: QBO fetchers must never be invoked."""
+def test_finance_aggregation_calls_accounting_bridge():
+    """Accounting-first data path: bridge fetchers ARE invoked for tabs 1-5."""
+    mock_bs = {
+        "total_assets": 500000, "total_liabilities": 200000,
+        "total_equity": 300000, "total_current_liabilities": 80000,
+        "asset_accounts": [
+            {"account_name": "Cash - Maybank", "amount": 350000},
+            {"account_name": "Accounts Receivable", "amount": 150000},
+        ],
+    }
+    mock_pl = {"total_revenue": 100000, "total_expenses": 80000,
+               "net_profit": 20000, "revenue_accounts": [], "expense_accounts": []}
     with patch("dashboard._fetch_finance_snapshots", return_value={}), \
-         patch("dashboard._fetch_qbo_balance_sheet") as mock_bs, \
-         patch("dashboard._fetch_qbo_profit_loss") as mock_pl:
-        asyncio.run(dashboard._run_finance_aggregation([]))
-    mock_bs.assert_not_called()
-    mock_pl.assert_not_called()
+         patch("dashboard._fetch_accounting_balance_sheet", return_value=mock_bs), \
+         patch("dashboard._fetch_accounting_profit_loss", return_value=mock_pl), \
+         patch("dashboard._fetch_accounting_ar_invoices", return_value={"invoices": []}), \
+         patch("dashboard._fetch_accounting_ap_bills", return_value={"bills": []}):
+        result = asyncio.run(dashboard._run_finance_aggregation([]))
+    assert result["dataSource"] == "accounting"
+    assert result["revenueYTD"] == 100000
+    assert result["totalAssets"] == 500000
+    assert result["totalLiquidCash"] == 350000
+    assert result["totalLiabilities"] == 200000
 
 
 def test_procurement_aggregation_empty_pages_no_crash():

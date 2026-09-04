@@ -5,6 +5,7 @@ import { departmentsApi } from '../../../lib/api';
 import type { CrmDealListItem } from '../../../lib/types';
 import { CrmIcon } from './CrmIcons';
 import type { CrmIconName } from './CrmIcons';
+import { DealAttachmentsPanel } from './DealAttachmentsPanel';
 
 interface Props {
   dept: string;
@@ -95,6 +96,7 @@ export function DealsTab({ dept, color, initialOwner = '' }: Props) {
   if (selectedDeal) {
     return (
       <DealDetailView 
+        dept={dept}
         deal={selectedDeal} 
         color={color}
         onBack={() => setSelectedDeal(null)}
@@ -280,10 +282,12 @@ export function DealsTab({ dept, color, initialOwner = '' }: Props) {
 
 // Deal Detail View Component
 function DealDetailView({ 
+  dept,
   deal, 
   color, 
   onBack 
 }: { 
+  dept: string;
   deal: CrmDealListItem; 
   color: string;
   onBack: () => void;
@@ -334,6 +338,9 @@ function DealDetailView({
           <DetailField label="Created" value={deal.created || '—'} />
         </div>
       </div>
+
+      {/* Attachments */}
+      <DealAttachmentsPanel dept={dept} dealSlug={deal.slug} color={color} />
 
       {/* Raw Content */}
       {deal.compiled_truth && (

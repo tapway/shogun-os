@@ -267,6 +267,34 @@ cd server && python3 -m uvicorn main:app --host 0.0.0.0 --port 8000
 
 The full end-to-end setup playbook (Google DWD, Slack bot configuration, cron wiring) lives in [`SETUP.md`](SETUP.md).
 
+### Option C: Demo Mode (Mock Data — No QBO/gbrain Needed)
+
+Try the web portal instantly with realistic mock data. No external services required.
+
+```bash
+# 1. Clone and switch to demo branch
+git clone https://github.com/tapway/shogun-os.git
+cd shogun-os
+git checkout demo
+
+# 2. Install Python dependencies
+cd shogun-web/server
+python3 -m venv venv && source venv/bin/activate  # Linux/Mac
+# or: venv\Scripts\activate                        # Windows
+pip install -r requirements.txt
+
+# 3. Build the UI
+cd ../ui && npm install && npx vite build && cd ..
+
+# 4. Start the portal
+cd server && python3 main.py
+# Visit http://localhost:8787 → login with admin@localhost / admin123
+```
+
+**What you'll see:** All 10 department dashboards populated with realistic mock data — Finance (P&L, cash flow, AR/AP aging), CRM (pipeline, deals), Procurement (inventory, POs), HR (headcount, attendance), and more. Great for demos, evaluations, and understanding what Shogun OS looks like before connecting live systems.
+
+> **Switching to live data later?** Merge `feat/finance-ver2` into your deployment branch, set up gbrain + QBO bridge scripts, and the portal automatically switches from mock to real data. See [Finance Snapshot Architecture](recipes/FINANCE_SNAPSHOT_WRITER_SERVER_SPEC.md) for details.
+
 ---
 
 ## Web Portal Setup

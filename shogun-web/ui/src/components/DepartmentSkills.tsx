@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router-dom';
-import { Wrench, Trash2, Loader2, ShieldCheck, ArrowRight, Package } from 'lucide-react';
+import { Wrench, Trash2, Loader2, ShieldCheck, ArrowRight, Package, Sparkles } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { skillsApi } from '../lib/api';
 import type { Skill } from '../lib/types';
@@ -121,7 +121,15 @@ export default function DepartmentSkills({ department }: DepartmentSkillsProps) 
                         <Wrench className="h-5 w-5" />
                       </div>
                       <div>
-                        <h3 className="text-sm font-bold text-slate-900 dark:text-white">{skill.name}</h3>
+                        <div className="flex items-center gap-1.5">
+                          <h3 className="text-sm font-bold text-slate-900 dark:text-white">{skill.name}</h3>
+                          {skill.source === 'learned' && (
+                            <span className="inline-flex items-center gap-0.5 rounded bg-amber-50 dark:bg-amber-900/30 px-1.5 py-0.5 text-[9px] font-semibold text-amber-700 dark:text-amber-300 border border-amber-200 dark:border-amber-700/50">
+                              <Sparkles className="h-2.5 w-2.5" />
+                              Learned
+                            </span>
+                          )}
+                        </div>
                         <span className="text-[11px] font-medium text-slate-500 dark:text-slate-400">
                           {skill.author || 'Installed Skill'}
                         </span>

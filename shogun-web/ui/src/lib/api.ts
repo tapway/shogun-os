@@ -397,6 +397,23 @@ export const departmentsApi = {
     );
   },
 
+  // Deal attachments — stored inside the CRM brain (versioned beside each deal file)
+  dealAttachmentList: (dept: string, slug: string) =>
+    apiFetch<{ slug: string; attachments: { name: string; size: number; path: string; modified: string }[]; total: number }>(
+      `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments`,
+    ),
+  dealAttachmentUpload: (dept: string, slug: string, file: File, note = '') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('note', note);
+    return apiFetch<{ ok: boolean; slug: string; attachment: Record<string, unknown>; deal_file: string }>(
+      `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments`,
+      { method: 'POST', body: fd },
+    );
+  },
+  dealAttachmentUrl: (dept: string, slug: string, name: string) =>
+    `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(name)}`,
+
   crmSearch: (dept: string, query: string) =>
     apiFetch<{ results: CrmSearchResult[] }>(
       `/api/departments/${dept}/dashboard/search`,

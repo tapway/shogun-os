@@ -189,6 +189,7 @@ export interface Skill {
   size_bytes?: number;
   icon?: string;
   installed_departments?: string[];
+  source?: 'profile' | 'learned';
 }
 
 export interface SkillDetail {
@@ -1154,8 +1155,6 @@ export interface ApBillItem {
   vendor: string;
   due_date: string;
   amount: number;
-  match_status: 'Matched' | 'PO Mismatch' | 'Missing GRN';
-  approval_status: 'Pending' | 'Approved' | 'Paid' | 'On Hold';
 }
 
 // ─── Email Templates ───
