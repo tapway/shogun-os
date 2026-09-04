@@ -144,5 +144,6 @@ class TestDownloadHeaders:
         assert ct == "application/pdf"
         ct, _ = mimetypes.guess_type("photo.jpg")
         assert ct == "image/jpeg"
-        ct, _ = mimetypes.guess_type("unknown.xyz")
-        assert ct is None  # should fall back to octet-stream
+        # Unknown extension should return None or a non-html type
+        ct, _ = mimetypes.guess_type("data.qwerty123")
+        assert ct is None  # truly unknown extension
