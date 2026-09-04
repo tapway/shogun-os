@@ -195,6 +195,7 @@ export interface Skill {
 export interface SkillDetail {
   skill: Skill;
   skill_md: string;
+  readme_md?: string;
 }
 
 export interface GeneratedSkill {

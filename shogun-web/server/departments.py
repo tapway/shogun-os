@@ -2090,13 +2090,21 @@ async def get_skill_detail(
             break
 
     skill_md = ""
+    readme_md = ""
     if skill_path and skill_path.exists():
         try:
             skill_md = skill_path.read_text(encoding="utf-8", errors="replace")
         except Exception:
             skill_md = ""
+        # Read README.md if it exists alongside SKILL.md
+        readme_path = skill_path.parent / "README.md"
+        if readme_path.exists():
+            try:
+                readme_md = readme_path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                readme_md = ""
 
-    return {"skill": entry, "skill_md": skill_md}
+    return {"skill": entry, "skill_md": skill_md, "readme_md": readme_md}
 
 
 @skills_router.post("/install")

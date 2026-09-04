@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Sparkles,
   Search,
@@ -92,6 +94,7 @@ export default function SkillsCatalog() {
     useState<SkillRecommendation | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
+  const [detailTab, setDetailTab] = useState<"readme" | "skill">("readme");
 
   const skillsQuery = useQuery({
     queryKey: ["skills"],
@@ -540,7 +543,7 @@ export default function SkillsCatalog() {
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => setDetailSkill(skill)}
+                                onClick={() => { setDetailTab("readme"); setDetailSkill(skill); }}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition hover:bg-slate-50 dark:hover:bg-slate-800"
                               >
                                 <FileText className="h-3.5 w-3.5" />
@@ -677,11 +680,43 @@ export default function SkillsCatalog() {
               </p>
             </div>
 
-            {/* SKILL.md body (lazy loaded) */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-5">
+            {/* Tab toggle: README vs SKILL.md */}
+            <div className="flex items-center gap-1 px-5 pt-3 pb-0">
+              <button
+                type="button"
+                onClick={() => setDetailTab("readme")}
+                className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition ${
+                  detailTab === "readme"
+                    ? "bg-white dark:bg-slate-800 text-brand border-t border-x border-slate-200 dark:border-slate-700"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
+              >
+                📖 README
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailTab("skill")}
+                className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition ${
+                  detailTab === "skill"
+                    ? "bg-white dark:bg-slate-800 text-brand border-t border-x border-slate-200 dark:border-slate-700"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
+              >
+                ⚙️ SKILL.md
+              </button>
+            </div>
+
+            {/* Skill content (README or SKILL.md) */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 border-t border-slate-200 dark:border-slate-800">
               {detailQuery.isLoading ? (
                 <div className="flex justify-center py-8 text-slate-400 dark:text-slate-500">
                   <Loader2 className="h-6 w-6 animate-spin" />
+                </div>
+              ) : detailTab === "readme" && detailQuery.data?.readme_md ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-slate-900 dark:prose-headings:text-white prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-a:text-brand prose-strong:text-slate-800 dark:prose-strong:text-slate-200 prose-table:text-xs">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {detailQuery.data.readme_md}
+                  </ReactMarkdown>
                 </div>
               ) : detailQuery.data?.skill_md ? (
                 <pre className="text-xs text-slate-700 dark:text-slate-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
@@ -689,7 +724,9 @@ export default function SkillsCatalog() {
                 </pre>
               ) : (
                 <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
-                  SKILL.md content not available.
+                  {detailTab === "readme"
+                    ? "No README.md available for this skill. Switch to SKILL.md tab."
+                    : "SKILL.md content not available."}
                 </p>
               )}
             </div>
