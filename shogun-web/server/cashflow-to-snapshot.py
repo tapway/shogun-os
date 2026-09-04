@@ -185,7 +185,7 @@ def main():
     ar_total = float(dso_src.get("total_ar") or 0)
     pl_snap = get_snap("finance/snapshots/pl")
     rev_ytd = float(pl_snap.get("revenue_ytd") or 0)
-    dso = round(ar_total / (rev_ytd / 181), 1) if rev_ytd else 0.0
+    dso = round(ar_total / (rev_ytd / days_ytd), 1) if rev_ytd else 0.0
 
     # ── write back into cash + pl snapshots ──
     cash_snap["burn_trend"] = burn

@@ -18,11 +18,13 @@ concentration.clients[]:
   adds revenue_ytd per stream (from P&L YTD revenue lines) so the client-detail
   modal stops showing NaN. Percentages already match YTD revenue mix.
 """
-import base64, json, os, subprocess
+import json, os, subprocess
 import openpyxl
 
 XLSX = "/home/tapway/brain/finance/202606-management-report.xlsx"
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 
 
 def pg(sql):
