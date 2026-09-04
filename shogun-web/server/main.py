@@ -27,6 +27,7 @@ import email_templates
 
 import auth
 import dashboard
+import deal_attachments
 import departments
 import gateway
 import onboarding
@@ -129,6 +130,7 @@ def create_app() -> FastAPI:
     app.include_router(gateway.router, prefix="/api")
     app.include_router(registry.router, prefix="/api")
     app.include_router(dashboard.router, prefix="/api")
+    app.include_router(deal_attachments.router, prefix="/api")
     app.include_router(staff.router, prefix="/api")
     app.include_router(comms.router, prefix="/api")
     app.include_router(email_templates.router, prefix="/api")
