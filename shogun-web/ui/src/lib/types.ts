@@ -353,8 +353,8 @@ export const DEPARTMENT_CATALOG: Record<
   crm: {
     key: 'crm',
     name: 'CRM',
-    persona: 'Eigyo',
-    description: 'Pipeline, accounts, and sales intelligence.',
+    persona: 'Kizuna',
+    description: 'Client relationships and deal pipeline with Kizuna.',
     color: '#3b82f6',
     icon: 'Handshake',
     profile_name: 'crm-manager',
@@ -398,8 +398,8 @@ export const DEPARTMENT_CATALOG: Record<
   procurement: {
     key: 'procurement',
     name: 'Procurement',
-    persona: 'Chotatsu',
-    description: 'Purchase orders, vendors, and contract lifecycle.',
+    persona: 'Kura',
+    description: 'Purchase orders, vendors, and contract lifecycle with Kura.',
     color: '#ef4444',
     icon: 'Package',
     profile_name: 'procurement-manager',

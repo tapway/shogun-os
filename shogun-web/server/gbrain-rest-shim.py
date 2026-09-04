@@ -18,6 +18,7 @@ routes here through /mcp. Envelope: SSE "data: {json}".
 """
 import base64
 import json
+import re
 import os
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -43,8 +44,8 @@ DSN = {
 # per-dept sources). Anything unlisted defaults to "<name>/%" and "<name>-%".
 PREFIX_MAP = {
     "crm": ("deals/%", "companies/%", "partners/%", "partner/%"),
-    "finance": ("data/%", "wiki/finance%"),
-    "procurement": ("projects/%", "products/%"),
+    "finance": ("data/%", "wiki/finance%", "finance/%"),
+    "procurement": ("projects/%", "products/%", "procurement/%"),
 }
 
 PAGE_COLS = (
@@ -159,6 +160,55 @@ def _search(source: str, query: str, limit: int) -> dict:
     return {"results": [_serialize(r) for r in rows]}
 
 
+
+def _tasks(source: str, assignee: str = "") -> list:
+    """Parse ``## Tasks`` checklist sections from deal pages' compiled_truth.
+
+    Port of crm-dashboard /api/tasks: ``- [ ] task — @assignee`` lines inside
+    the ``## Tasks`` section of every deal page (backup slugs excluded).
+    Optional assignee filter (case-insensitive).
+    """
+    prefixes = PREFIX_MAP.get(source) or (f"{source}/%", f"{source}-%") if source else None
+    if prefixes:
+        where = " OR ".join("slug LIKE %s" for _ in prefixes)
+        sql = (
+            f"SELECT slug, title, compiled_truth FROM pages "
+            f"WHERE deleted_at IS NULL AND ({where}) AND compiled_truth LIKE '%%## Tasks%%'"
+        )
+        rows = _query(sql, list(prefixes))
+    else:
+        rows = _query(
+            "SELECT slug, title, compiled_truth FROM pages "
+            "WHERE deleted_at IS NULL AND slug LIKE 'deals/%' "
+            "AND compiled_truth LIKE '%## Tasks%'",
+        )
+
+    tasks = []
+    pattern = re.compile(r"-\s*\[([ x])\]\s*(.*?)\s*\u2014\s*@(\w+)", re.DOTALL)
+    for row in rows:
+        slug = row.get("slug") or ""
+        if "backups_" in slug or "_backup_" in slug:
+            continue
+        content = row.get("compiled_truth") or ""
+        m = re.search(r"## Tasks\s*([\s\S]*?)(?=##|$)", content)
+        if not m:
+            continue
+        for line in m.group(1).split("\n"):
+            mm = pattern.match(line.strip())
+            if not mm:
+                continue
+            who = mm.group(3)
+            if assignee and who.lower() != assignee.lower():
+                continue
+            tasks.append({
+                "description": mm.group(2).strip(),
+                "assignee": who,
+                "completed": mm.group(1) == "x",
+                "deal_slug": slug,
+                "deal_title": row.get("title") or "",
+            })
+    return tasks
+
 class Handler(BaseHTTPRequestHandler):
     protocol_version = "HTTP/1.1"
 
@@ -226,6 +276,10 @@ class Handler(BaseHTTPRequestHandler):
         qs = parse_qs(u.query)
         if u.path == "/health":
             return self._send_json(200, {"ok": True})
+        if u.path == "/api/tasks":
+            src = (qs.get("source_id") or qs.get("source") or ["crm"])[0]
+            who = (qs.get("assignee") or [""])[0]
+            return self._send_json(200, {"tasks": _tasks(src, who), "source": src})
         if u.path == "/api/pages":
             src = (qs.get("source_id") or qs.get("source") or ["default"])[0]
             limit = min(int((qs.get("limit") or ["50"])[0]), 500)
