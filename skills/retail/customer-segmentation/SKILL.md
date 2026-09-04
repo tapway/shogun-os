@@ -1,7 +1,7 @@
 ---
 name: customer-segmentation
 description: "RFM analysis (Recency/Frequency/Monetary), churn prediction, lookalike targeting, and campaign response scoring. Segments customers for targeted marketing."
-departments: [crm-loyalty]
+departments: [crm]
 version: 1.0.0
 tags: [retail, customer, segmentation, rfm, churn, marketing, analytics]
 triggers:

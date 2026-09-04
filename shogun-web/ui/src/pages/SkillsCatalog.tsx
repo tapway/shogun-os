@@ -87,7 +87,7 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
 const BUSINESS_DEPARTMENTS = new Set([
   "finance", "procurement", "crm", "retail", "manufacturing",
   "supply-chain", "production", "merchandising", "e-commerce",
-  "visual-merchandising", "quality", "maintenance", "crm-loyalty",
+  "visual-merchandising", "quality", "maintenance",
   "warehouse", "stores", "hse", "facility",
 ]);
 

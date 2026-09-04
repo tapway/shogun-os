@@ -1,7 +1,7 @@
 ---
 name: loyalty-program
 description: "Points accrual rules, tier management, birthday/promotion triggers, rewards catalog, and redemption tracking. Manages end-to-end customer loyalty program lifecycle."
-departments: [crm-loyalty]
+departments: [crm]
 version: 1.0.0
 tags: [retail, loyalty, rewards, points, tiers, customer, retention]
 triggers:
