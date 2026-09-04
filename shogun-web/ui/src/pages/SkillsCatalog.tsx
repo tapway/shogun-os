@@ -254,6 +254,16 @@ export default function SkillsCatalog() {
     return CATEGORY_ICONS[cat] || Wrench;
   };
 
+  // Strip YAML frontmatter (--- ... ---) from markdown content
+  const stripFrontmatter = (md: string): string => {
+    if (!md) return "";
+    const lines = md.split("\n");
+    if (lines[0].trim() !== "---") return md;
+    const endIdx = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
+    if (endIdx === -1) return md;
+    return lines.slice(endIdx + 1).join("\n").trimStart();
+  };
+
   const formatDate = (iso: string) => {
     if (!iso) return "";
     try {
@@ -766,7 +776,7 @@ export default function SkillsCatalog() {
                   prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
                 ">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {detailQuery.data.readme_md}
+                    {stripFrontmatter(detailQuery.data.readme_md)}
                   </ReactMarkdown>
                 </div>
               ) : detailQuery.data?.skill_md ? (
@@ -789,7 +799,7 @@ export default function SkillsCatalog() {
                   prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
                 ">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
-                    {detailQuery.data.skill_md}
+                    {stripFrontmatter(detailQuery.data.skill_md)}
                   </ReactMarkdown>
                 </div>
               ) : (
