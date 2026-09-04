@@ -87,7 +87,7 @@ When `comm_provider` is set, the state file stores provider-agnostic identifiers
 
 ### Slack Provider
 
-Location: `skills/department-scrum/scripts/comm/slack.py`
+Location: `skills/general/department-scrum/scripts/comm/slack.py`
 
 Uses `slack_sdk.WebClient` with `SLACK_BOT_TOKEN` from env.
 
@@ -99,7 +99,7 @@ Uses `slack_sdk.WebClient` with `SLACK_BOT_TOKEN` from env.
 
 ### Telegram Provider
 
-Location: `skills/department-scrum/scripts/comm/telegram.py`
+Location: `skills/general/department-scrum/scripts/comm/telegram.py`
 
 Uses `python-telegram-bot` with `TELEGRAM_BOT_TOKEN` from env.
 
@@ -111,7 +111,7 @@ Uses `python-telegram-bot` with `TELEGRAM_BOT_TOKEN` from env.
 
 ## Adding a New Provider
 
-Create `skills/department-scrum/scripts/comm/<name>.py`:
+Create `skills/general/department-scrum/scripts/comm/<name>.py`:
 
 ```python
 from .provider import CommProvider

@@ -11,7 +11,7 @@ Confirm: **mode=skill**, **skill name** (kebab-case), **owning profile** or `sha
 1. **Name?** lowercase hyphens, ≤64 chars  
 2. **Description?** trigger-focused, ≤1024 chars, prefer "Use when …"  
 3. **Category / folder?**  
-   - Shogun repo: top-level under `skills/` or `skills/<category>/`  
+   - Shogun repo: under `skills/<category>/` (e.g., `skills/finance/`, `skills/general/`, `skills/hermes/`)
    - Match existing peers when possible  
 4. **Department?** (REQUIRED)  
    - Which department(s) does this skill belong to?  
@@ -42,7 +42,7 @@ Confirm: **mode=skill**, **skill name** (kebab-case), **owning profile** or `sha
 
 ```
 # Repo (if shipping)
-~/shogun-os/skills/[category/]<name>/
+~/shogun-os/skills/<category>/<name>/
   SKILL.md
   scripts/ ...
   references/ ...

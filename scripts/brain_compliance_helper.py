@@ -54,10 +54,13 @@ from typing import Optional, List, Tuple
 
 BRAIN_DIR = Path(os.environ.get("BRAIN_DIR", os.path.expanduser("~/brain")))
 GBRAIN_BIN = os.environ.get("GBRAIN_BIN", os.path.expanduser("~/.local/bin/gbrain"))
-VALIDATOR = os.environ.get(
-    "BRAIN_VALIDATOR",
+# Validator script: check env var, then installed Hermes location, then categorized repo location
+_validator_candidates = [
+    os.environ.get("BRAIN_VALIDATOR", ""),
     os.path.expanduser("~/.hermes/skills/brain-compliance/scripts/validate-brain-page.py"),
-)
+    os.path.join(os.path.dirname(__file__), "..", "skills", "gbrain", "brain-compliance", "scripts", "validate-brain-page.py"),
+]
+VALIDATOR = next((p for p in _validator_candidates if p and os.path.isfile(p)), _validator_candidates[1])
 
 # Index page mapping — each category has a hub page that provides inbound links
 def _build_index_map():

@@ -23,7 +23,7 @@ hermes skills install tapway/shogun-os/accounting-provider
 
 ## Skills Available
 
-Approximate inventory: **~60+ installable skill packages** under `skills/` (including 22 finance domain skills under `skills/finance/`, nested manufacturing/retail/gbrain packs), plus **10 domain provider abstractions** under `recipes/`.
+Approximate inventory: **~60+ installable skill packages** under `skills/` organized into 12 category folders (`general/`, `hermes/`, `finance/`, `crm/`, `procurement/`, `manufacturing/`, `retail/`, `gbrain/`, `communication/`, `workspace/`, `software-development/`, `facilities/`), plus **10 domain provider abstractions** under `recipes/`.
 
 | Skill | Description |
 |-------|-------------|
@@ -78,7 +78,7 @@ Approximate inventory: **~60+ installable skill packages** under `skills/` (incl
 | `respondio-bridge` | Respond.io webhook → Hermes → reply / escalate |
 | `chatwoot-bridge` | Chatwoot webhook → draft/auto-reply + SLA |
 
-Industry packs (manufacturing, retail) and nested skills under `skills/crm/`, `skills/devops/`, etc. are also present in-repo; use `hermes skills search --source tapway/shogun-os` for the live tap listing.
+Industry packs (manufacturing, retail) and categorized skills under `skills/general/`, `skills/hermes/`, `skills/gbrain/`, etc. are also present in-repo; use `hermes skills search --source tapway/shogun-os` for the live tap listing.
 
 ## Web Portal (v3.10.0)
 
@@ -116,7 +116,7 @@ Full profile matrix: [`PROFILE_CATALOG.md`](PROFILE_CATALOG.md). Recipe graph: [
 ## Repository Structure
 
 ```
-skills/                         # Hermes skill tap packages (~40+ top-level entries)
+skills/                         # Hermes skill tap packages (12 category folders)
 ├── department-scrum/
 │   ├── SKILL.md
 │   ├── references/

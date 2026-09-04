@@ -17,7 +17,7 @@ Hermes is **profile-scoped**. `HERMES_HOME` for the default profile is `~/.herme
 
 | Artifact | Path |
 |----------|------|
-| Skills | `skills/<name>/SKILL.md` |
+| Skills | `skills/<category>/<name>/SKILL.md` (e.g., `skills/finance/my-skill/`) |
 | Scripts (cron no_agent) | `scripts/<file>.py` or `.sh` |
 | Cron jobs | `cron/jobs.json` |
 | Config | `config.yaml` |
@@ -36,7 +36,7 @@ Same layout **inside the profile directory**. Does **not** inherit parent `.env`
 
 | Artifact | Path |
 |----------|------|
-| Skills | `skills/<name>/` (often symlink → `~/.hermes/skills/<name>` or repo) |
+| Skills | `skills/<category>/<name>/` (e.g., `skills/finance/my-skill/`) |
 | Config | `config.yaml` — MCP servers, channel_prompts, models |
 | Secrets | `.env` — API keys for this bot only |
 | Cron | `cron/jobs.json` — only this profile's scheduler |
@@ -48,7 +48,7 @@ Same layout **inside the profile directory**. Does **not** inherit parent `.env`
 
 | Artifact | Path |
 |----------|------|
-| Shared skills | `skills/<name>/` or `skills/<category>/<name>/` |
+| Shared skills | `skills/general/<name>/` or `skills/<category>/<name>/` |
 | Provider abstractions | `recipes/<domain>/{CONTRACT,GENERIC_SKILL}.md`, `bridges/`, `plugins/`, `providers/` |
 | Classic recipes | `recipes/<name>.md` |
 | Profile templates | `templates/profiles/*.yaml` |

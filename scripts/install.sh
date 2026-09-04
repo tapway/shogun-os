@@ -236,28 +236,34 @@ section_skills() {
   if [[ -n "$PROFILE" ]]; then
     # Profile-specific: shared meta-skills needed on every profile (slash /shogunify)
     for required_skill in company-workflow shogunify department-scrum; do
-      if [[ -d "$skills_src/$required_skill" ]]; then
-        install_file "$skills_src/$required_skill" "$skills_dst/$required_skill" "$required_skill skill"
+      # Search recursively — skills are now categorized under general/, hermes/, etc.
+      local found
+      found="$(find "$skills_src" -maxdepth 3 -type d -name "$required_skill" | head -1)"
+      if [[ -n "$found" && -d "$found" ]]; then
+        install_file "$found" "$skills_dst/$required_skill" "$required_skill skill"
         COUNT_SKILLS=$((COUNT_SKILLS + 1))
       fi
     done
     # If the profile is "default" or "pipeline", install brain-ingest-pipeline
     if [[ "$PROFILE" == "default" || "$PROFILE" == "pipeline" ]]; then
-      if [[ -d "$skills_src/brain-ingest-pipeline" ]]; then
-        install_file "$skills_src/brain-ingest-pipeline" "$skills_dst/brain-ingest-pipeline" "brain-ingest-pipeline skill"
+      local found
+      found="$(find "$skills_src" -maxdepth 3 -type d -name "brain-ingest-pipeline" | head -1)"
+      if [[ -n "$found" && -d "$found" ]]; then
+        install_file "$found" "$skills_dst/brain-ingest-pipeline" "brain-ingest-pipeline skill"
         COUNT_SKILLS=$((COUNT_SKILLS + 1))
       fi
     fi
   else
-    # Full install: all skills
-    for skill_dir in "$skills_src"/*/; do
+    # Full install: all skills (recursive — find SKILL.md at any depth)
+    while IFS= read -r skill_md; do
+      local skill_dir
+      skill_dir="$(dirname "$skill_md")"
       local name
       name="$(basename "$skill_dir")"
       local dst="$skills_dst/$name"
-      local src="${skill_dir%/}"
-      install_file "$src" "$dst" "$name skill"
+      install_file "$skill_dir" "$dst" "$name skill"
       COUNT_SKILLS=$((COUNT_SKILLS + 1))
-    done
+    done < <(find "$skills_src" -name "SKILL.md" -type f | sort)
   fi
 }
 

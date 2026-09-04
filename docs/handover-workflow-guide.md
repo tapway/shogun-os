@@ -132,6 +132,6 @@ python3 sync-deal-activity.py --dm
 ## Related Skills
 
 - `skills/crm/handover-workflow` — This skill
-- `skills/department-scrum` — Daily scrum for project teams
-- `skills/brain-compliance` — Validate brain pages after creation
-- `skills/company-workflow` — General gate sequence for feature/bug work
+- `skills/general/department-scrum` — Daily scrum for project teams
+- `skills/gbrain/brain-compliance` — Validate brain pages after creation
+- `skills/general/company-workflow` — General gate sequence for feature/bug work

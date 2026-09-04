@@ -50,7 +50,7 @@ shogun-os/
 │   ├── verify-install.sh       # Full verification suite
 │   ├── backup-crons.py         # Export cron jobs to JSON
 │   └── restore-crons.py        # Restore cron jobs from backup
-├── skills/                 # 6 reusable Hermes skills
+├── skills/                 # Categorized Hermes skills (12 folders)
 ├── recipes/                # 8 integration recipes
 ├── templates/              # Profile config templates
 │   └── profiles/
@@ -89,7 +89,7 @@ hermes -p <dept>-manager --exec "mcp_gbrain_whoami"
 
 ```bash
 # Ensure /shogunify is on the target profile
-python3 skills/shogunify/scripts/install-to-profiles.py \
+python3 skills/hermes/shogunify/scripts/install-to-profiles.py \
   --skill shogunify --profiles all --force
 
 # Then in Hermes (any surface):
@@ -108,7 +108,7 @@ python3 skills/shogunify/scripts/install-to-profiles.py \
 # 3. Add to verify-install.sh's skill check list if core
 # 4. Install + link into profiles
 ./scripts/install.sh
-python3 skills/shogunify/scripts/install-to-profiles.py --skill <name> --profiles all --force
+python3 skills/hermes/shogunify/scripts/install-to-profiles.py --skill <name> --profiles all --force
 ```
 
 ### Backup and restore cron jobs

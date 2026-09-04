@@ -278,9 +278,15 @@ else
 fi
 
 if [[ ! -d "$REPO_ROOT/skills/shared" ]]; then
-  ok "skills/ is flat (no shared/ subdirectory)"
+  ok "skills/shared/ removed (merged into skills/general/)"
 else
-  fail "skills/shared/ still exists — run phase 1 restructure"
+  fail "skills/shared/ still exists — run restructure to merge into skills/general/"
+fi
+
+if [[ -d "$REPO_ROOT/skills/general" ]]; then
+  ok "skills/general/ exists (categorized structure)"
+else
+  warn "skills/general/ missing — expected in categorized structure"
 fi
 
 if [[ ! -f "$REPO_ROOT/recipes/email-to-brain.md" ]]; then

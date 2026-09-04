@@ -91,6 +91,7 @@ Emergency bypass: `git commit --no-verify`
 
 ```bash
 python3 ~/.hermes/skills/brain-compliance/scripts/validate-brain-page.py ~/brain --batch
+# Or from repo: python3 skills/gbrain/brain-compliance/scripts/validate-brain-page.py ~/brain --batch
 ```
 
 ---
@@ -123,7 +124,7 @@ The helper script respects these env vars:
 |---------|---------|---------|
 | `BRAIN_DIR` | `~/brain` | Root brain directory |
 | `GBRAIN_BIN` | `~/.local/bin/gbrain` | gbrain CLI path |
-| `BRAIN_VALIDATOR` | `~/.hermes/skills/brain-compliance/scripts/validate-brain-page.py` | Validator script path |
+| `BRAIN_VALIDATOR` | `~/.hermes/skills/brain-compliance/scripts/validate-brain-page.py` or `skills/gbrain/brain-compliance/scripts/validate-brain-page.py` | Validator script path |
 
 ---
 

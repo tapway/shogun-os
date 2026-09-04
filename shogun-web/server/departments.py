@@ -1342,19 +1342,26 @@ def _installed_skills_root() -> Path:
 
 # Category title-casing map (parent dir name → display label)
 _CATEGORY_LABELS: Dict[str, str] = {
+    # Department folders
     "finance": "Finance",
     "crm": "CRM/Sales",
     "hr": "HR",
     "procurement": "Procurement",
-    "coding": "Coding",
-    "software-development": "Software Development",
-    "operations": "Operations",
-    "executive": "Executive",
     "retail": "Retail",
     "manufacturing": "Manufacturing",
-    "devops": "DevOps",
+    "software-development": "Software Development",
+    # New categorized folders
+    "general": "General",
+    "hermes": "Hermes Platform",
     "gbrain": "Brain",
     "communication": "Communication",
+    "workspace": "Workspace Integrations",
+    "facilities": "Facilities",
+    # Legacy flat names (still work as fallback for installed skills)
+    "coding": "Coding",
+    "operations": "Operations",
+    "executive": "Executive",
+    "devops": "DevOps",
     "email": "Email",
     "mcp": "MCP",
     "note-taking": "Note Taking",
@@ -1388,7 +1395,6 @@ _CATEGORY_LABELS: Dict[str, str] = {
     "timeline-inject-v2": "Timeline Inject",
     "document-processing": "Document Processing",
     "coding-workflow": "Coding Workflow",
-    "general": "General",
 }
 
 
