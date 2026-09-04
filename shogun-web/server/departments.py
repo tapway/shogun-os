@@ -2135,14 +2135,35 @@ skills_router = APIRouter(prefix="/skills", tags=["skills"])
 
 @skills_router.get("")
 async def list_all_skills(user: User = Depends(get_current_user)) -> Dict[str, Any]:
-    """List Hermes original built-in skills only.
+    """List Hermes original built-in skills — department categories only.
 
-    These are the skills that come with Hermes Agent itself
-    (from ~/AppData/Local/hermes/skills/), not repo or learned skills.
+    Returns only Hermes skills whose category maps to an actual department.
+    Generic categories (General, Smart Home, Apple, .Archive, etc.) are excluded.
     """
     all_skills = _get_all_skills()
-    hermes_only = [s for s in all_skills if s.get("source") == "hermes"]
-    return {"skills": hermes_only}
+    # Only these categories represent actual departments
+    _DEPT_CATEGORIES = {
+        "finance", "crm", "hr", "procurement", "retail", "manufacturing",
+        "devops", "software-development", "coding", "operations", "executive",
+        "gbrain", "communication", "email", "mcp", "note-taking",
+        "productivity", "research", "media", "creative",
+        "search-router", "shogunify", "plan", "github",
+        "google-workspace", "lark-workspace",
+        # Display labels (lowercase)
+        "finance", "crm/sales", "hr", "procurement", "retail", "manufacturing",
+        "devops", "software development", "coding", "operations", "executive",
+        "brain", "communication", "email", "mcp", "note taking",
+        "productivity", "research", "media", "creative",
+        "search router", "shogunify", "planning", "github",
+        "google workspace", "lark workspace",
+    }
+
+    hermes_dept_only = [
+        s for s in all_skills
+        if s.get("source") == "hermes"
+        and (s.get("category") or "").lower().strip() in _DEPT_CATEGORIES
+    ]
+    return {"skills": hermes_dept_only}
 
 
 @skills_router.get("/{skill_id}")
