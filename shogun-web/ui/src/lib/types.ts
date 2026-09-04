@@ -181,6 +181,7 @@ export interface Skill {
   installing?: boolean;
   version?: string;
   department_key?: string;
+  departments?: string[];
   author?: string;
   tags?: string[];
   related_skills?: string[];

@@ -117,19 +117,26 @@ export default function SkillsCatalog() {
 
   const allSkills: Skill[] = Array.isArray(skillsQuery.data) ? skillsQuery.data : [];
 
-  // Dynamic categories derived from the data
-  const categories = useMemo(() => {
-    const cats = [...new Set(allSkills.map((s) => s.category))].sort();
-    return cats;
+  // Dynamic departments derived from frontmatter departments field
+  const departments = useMemo(() => {
+    const deptSet = new Set<string>();
+    for (const s of allSkills) {
+      if (Array.isArray(s.departments)) {
+        for (const d of s.departments) deptSet.add(d);
+      }
+    }
+    return [...deptSet].sort();
   }, [allSkills]);
 
-  // Skills grouped by category for the department layout
-  const skillsByCategory = useMemo(() => {
+  // Skills grouped by primary department for display
+  const skillsByDept = useMemo(() => {
     const grouped: Record<string, Skill[]> = {};
     for (const s of allSkills) {
-      const cat = s.category || "General";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(s);
+      const dept = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments[0]
+        : (s.department_key || "general");
+      if (!grouped[dept]) grouped[dept] = [];
+      grouped[dept].push(s);
     }
     return grouped;
   }, [allSkills]);
@@ -197,27 +204,31 @@ export default function SkillsCatalog() {
 
   const filteredSkills = useMemo(() => {
     return allSkills.filter((s) => {
-      const matchesCat =
-        selectedCategory === "All" ||
-        s.category.toLowerCase() === selectedCategory.toLowerCase();
+      const skillDepts = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments.map(d => d.toLowerCase())
+        : [(s.department_key || "general").toLowerCase()];
 
-      if (!searchQuery) return matchesCat;
+      const matchesDept =
+        selectedCategory === "All" ||
+        skillDepts.includes(selectedCategory.toLowerCase());
+
+      if (!searchQuery) return matchesDept;
 
       // If recommendation exists, prioritize top match IDs
       if (recommendation && Array.isArray(recommendation.recommendations) && recommendation.recommendations.length > 0) {
         const recommendedIds = new Set(
           recommendation.recommendations.map((r) => r.skill_id),
         );
-        if (recommendedIds.has(s.id)) return matchesCat;
+        if (recommendedIds.has(s.id)) return matchesDept;
       }
 
       const q = searchQuery.toLowerCase();
       const matchesQuery =
         s.name.toLowerCase().includes(q) ||
         s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
+        skillDepts.some(d => d.includes(q)) ||
         (Array.isArray(s.tags) ? s.tags : []).some((t) => t.toLowerCase().includes(q));
-      return matchesCat && matchesQuery;
+      return matchesDept && matchesQuery;
     });
   }, [allSkills, selectedCategory, searchQuery, recommendation]);
 
@@ -245,13 +256,15 @@ export default function SkillsCatalog() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Group filtered skills by category for display
-  const filteredByCategory = useMemo(() => {
+  // Group filtered skills by primary department for display
+  const filteredByDept = useMemo(() => {
     const grouped: Record<string, Skill[]> = {};
     for (const s of filteredSkills) {
-      const cat = s.category || "General";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(s);
+      const dept = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments[0]
+        : (s.department_key || "general");
+      if (!grouped[dept]) grouped[dept] = [];
+      grouped[dept].push(s);
     }
     return grouped;
   }, [filteredSkills]);
@@ -271,7 +284,7 @@ export default function SkillsCatalog() {
           </h1>
 
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Browse {allSkills.length} skills across {categories.length} departments.
+            Browse {allSkills.length} skills across {departments.length} departments.
             Describe your operational workflow requirement below — the AI Intent
             Engine will analyze your need, recommend matching skills, or trigger{" "}
             <strong>Shogunify</strong> (<code className="text-indigo-600 dark:text-indigo-300 font-mono">/shogunify</code>) to
@@ -389,7 +402,7 @@ export default function SkillsCatalog() {
               Available Skills Library
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              {allSkills.length} skills across {categories.length} departments —
+              {allSkills.length} skills across {departments.length} departments —
               live-scanned from the skills directory.
             </p>
           </div>
@@ -407,18 +420,18 @@ export default function SkillsCatalog() {
             >
               All Categories
             </button>
-            {categories.map((cat) => (
+            {departments.map((dept) => (
               <button
-                key={cat}
+                key={dept}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => setSelectedCategory(dept)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  selectedCategory === cat
+                  selectedCategory === dept
                     ? "bg-brand text-white shadow-xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
-                {cat} ({(skillsByCategory[cat] || []).length})
+                {dept.charAt(0).toUpperCase() + dept.slice(1)} ({(skillsByDept[dept] || []).length})
               </button>
             ))}
           </div>
@@ -439,14 +452,15 @@ export default function SkillsCatalog() {
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.entries(filteredByCategory).map(([cat, skills]) => {
-              const IconComponent = getCategoryIcon(cat);
+            {Object.entries(filteredByDept).map(([dept, skills]) => {
+              const deptLabel = dept.charAt(0).toUpperCase() + dept.slice(1);
+              const IconComponent = getCategoryIcon(deptLabel);
               return (
-                <div key={cat} className="space-y-3">
+                <div key={dept} className="space-y-3">
                   {/* Department header */}
                   <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <IconComponent className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{cat}</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{deptLabel}</h3>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
                       {skills.length} skill{skills.length !== 1 ? "s" : ""}
                     </span>
@@ -477,7 +491,9 @@ export default function SkillsCatalog() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                                  {skill.category}
+                                  {(Array.isArray(skill.departments) && skill.departments.length > 0)
+                                    ? skill.departments[0].charAt(0).toUpperCase() + skill.departments[0].slice(1)
+                                    : skill.category}
                                 </span>
                               </div>
                             </div>
