@@ -23,12 +23,14 @@ unit_economics (with real gross margin from GP/Revenue).
 
 Idempotent; re-run when a new budget file lands.
 """
-import base64, json, os, re, subprocess
+import json, os, re, subprocess
 from datetime import date
 import openpyxl
 
-XLSX = "/home/tapway/brain/finance/2026-budget-v3.xlsx"
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+XLSX = os.environ.get("FINANCE_BUDGET_XLSX", "/home/tapway/brain/finance/2026-budget-v3.xlsx")
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 SLUG = "finance/snapshots/bva"
 SLUG_BS = "finance/snapshots/balance-sheet"
 SLUG_PL = "finance/snapshots/pl"

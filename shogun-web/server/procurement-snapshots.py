@@ -17,11 +17,13 @@ Pages: source_id=default, data in FRONTMATTER (portal reader contract).
 Idempotent re-runnable. Mock flag flips off once inventory or PO snapshots
 exist — Kura's dashboard then serves real data.
 """
-import base64, json, re, subprocess, os
+import json, re, subprocess, os
 
 PG = ["psql", "-h", "127.0.0.1", "-U", "hermes", "-d", "gbrain", "-t", "-A"]
 env = dict(os.environ)
-env["PGPASSWORD"] = base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode()
+env["PGPASSWORD"] = os.environ.get("GBRAIN_PG_PASSWORD")
+if not env["PGPASSWORD"]:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 
 def sql(q, params=()):
     p = subprocess.run(PG + ["-v", "ON_ERROR_STOP=1"], input=q, text=True,
@@ -53,10 +55,12 @@ def put_snap(slug, title, data):
 # ─────────────────────────────────────────────────────────────
 ledger_md = fetch_md("procurement/inventory/inventory-ledger")
 po_md = fetch_md("gbrain/po-register") if False else fetch_md("procurement/inventory/po-register")
-ap_xlsx = "/home/tapway/brain/finance/202606-management-report.xlsx"
+ap_xlsx = os.environ.get("FINANCE_REPORT_XLSX", "/home/tapway/brain/finance/202606-management-report.xlsx")
 
 # products master for prices/categories
-products = json.load(open("/home/tapway/brain/procurement/products_raw.json"))["items"]
+_products_path = os.environ.get("PROCUREMENT_PRODUCTS_JSON", "/home/tapway/brain/procurement/products_raw.json")
+with open(_products_path) as _pf:
+    products = json.load(_pf)["items"]
 by_sku = {p["sku"]: p for p in products}
 
 # ───────────────────────────────────────── rows

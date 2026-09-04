@@ -14,12 +14,14 @@ finance/snapshots/ap page in gbrain:
 Frontmatter carries the full data dict (the portal reader prefers
 frontmatter). Idempotent; safe to re-run after each monthly report.
 """
-import base64, json, os, subprocess
+import json, os, subprocess
 from datetime import date
 import openpyxl
 
-XLSX = "/home/tapway/brain/finance/202606-management-report.xlsx"
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+XLSX = os.environ.get("FINANCE_REPORT_XLSX", "/home/tapway/brain/finance/202606-management-report.xlsx")
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 SLUG = "finance/snapshots/ap"
 PERIOD = "2026-06"
 BUCKET_COLS = ["CURRENT", "1 - 30", "31 - 60", "61 - 90", "91 AND OVER"]

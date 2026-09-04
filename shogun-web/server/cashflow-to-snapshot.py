@@ -16,13 +16,15 @@ Fill the Cash Flow tab's empty charts with REAL data + a labeled plan:
 
 Writes finance/snapshots/cash + finance/snapshots/pl. Idempotent.
 """
-import base64, json, os, re, subprocess
+import json, os, re, subprocess
 from datetime import datetime
 import openpyxl
 
-PWFILE = "/home/tapway/brain/finance/202606-management-report.xlsx"
-BUDGET_XLSX = "/home/tapway/brain/finance/2026-budget-v3.xlsx"
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+PWFILE = os.environ.get("FINANCE_REPORT_XLSX", "/home/tapway/brain/finance/202606-management-report.xlsx")
+BUDGET_XLSX = os.environ.get("FINANCE_BUDGET_XLSX", "/home/tapway/brain/finance/2026-budget-v3.xlsx")
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 MONTHS = ["2026-01","2026-02","2026-03","2026-04","2026-05","2026-06",
           "2026-07","2026-08","2026-09","2026-10","2026-11","2026-12"]
 MONTH_LBL = ["Jan","Feb","Mar","Apr","May","Jun","Jul","Aug","Sep","Oct","Nov","Dec"]
@@ -185,7 +187,11 @@ def main():
     ar_total = float(dso_src.get("total_ar") or 0)
     pl_snap = get_snap("finance/snapshots/pl")
     rev_ytd = float(pl_snap.get("revenue_ytd") or 0)
-    dso = round(ar_total / (rev_ytd / days_ytd), 1) if rev_ytd else 0.0
+    # Compute YTD days dynamically from reporting period
+    from datetime import date
+    _today = date.today()
+    _days_ytd = (_today - date(_today.year, 1, 1)).days + 1
+    dso = round(ar_total / (rev_ytd / _days_ytd), 1) if rev_ytd else 0.0
 
     # ── write back into cash + pl snapshots ──
     cash_snap["burn_trend"] = burn
