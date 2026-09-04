@@ -668,7 +668,7 @@ export default function SkillsCatalog() {
                         {formatDate(detailSkill.last_modified)}
                       </span>
                     )}
-                    {detailSkill.size_bytes ? (
+                    {detailSkill.size_bytes != null && detailSkill.size_bytes > 0 ? (
                       <span className="rounded bg-slate-50 dark:bg-slate-800/50 px-1.5 py-0.5">
                         {formatSize(detailSkill.size_bytes)}
                       </span>
@@ -747,15 +747,51 @@ export default function SkillsCatalog() {
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
               ) : detailTab === "readme" && detailQuery.data?.readme_md ? (
-                <div className="prose prose-sm dark:prose-invert max-w-none prose-headings:text-slate-900 dark:prose-headings:text-white prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-a:text-brand prose-strong:text-slate-800 dark:prose-strong:text-slate-200 prose-table:text-xs">
+                <div className="prose prose-sm dark:prose-invert max-w-none
+                  prose-headings:text-slate-900 dark:prose-headings:text-white
+                  prose-headings:font-bold prose-headings:tracking-tight
+                  prose-h1:text-xl prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-slate-200 dark:prose-h1:border-slate-700
+                  prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3
+                  prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                  prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
+                  prose-li:text-slate-600 dark:prose-li:text-slate-300 prose-li:my-0.5
+                  prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+                  prose-pre:bg-slate-900 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 prose-pre:rounded-lg
+                  prose-a:text-brand prose-a:no-underline hover:prose-a:underline
+                  prose-strong:text-slate-800 dark:prose-strong:text-slate-200
+                  prose-table:text-xs prose-table:w-full
+                  prose-th:bg-slate-50 dark:prose-th:bg-slate-800 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:border prose-th:border-slate-200 dark:prose-th:border-slate-700
+                  prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-slate-200 dark:prose-td:border-slate-700
+                  prose-blockquote:border-l-brand prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:rounded-r-lg
+                  prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
+                ">
                   <ReactMarkdown remarkPlugins={[remarkGfm]}>
                     {detailQuery.data.readme_md}
                   </ReactMarkdown>
                 </div>
               ) : detailQuery.data?.skill_md ? (
-                <pre className="text-xs text-slate-700 dark:text-slate-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
-                  {detailQuery.data.skill_md}
-                </pre>
+                <div className="prose prose-sm dark:prose-invert max-w-none
+                  prose-headings:text-slate-900 dark:prose-headings:text-white
+                  prose-headings:font-bold prose-headings:tracking-tight
+                  prose-h1:text-xl prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-slate-200 dark:prose-h1:border-slate-700
+                  prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3
+                  prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                  prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
+                  prose-li:text-slate-600 dark:prose-li:text-slate-300 prose-li:my-0.5
+                  prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+                  prose-pre:bg-slate-900 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 prose-pre:rounded-lg
+                  prose-a:text-brand prose-a:no-underline hover:prose-a:underline
+                  prose-strong:text-slate-800 dark:prose-strong:text-slate-200
+                  prose-table:text-xs prose-table:w-full
+                  prose-th:bg-slate-50 dark:prose-th:bg-slate-800 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:border prose-th:border-slate-200 dark:prose-th:border-slate-700
+                  prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-slate-200 dark:prose-td:border-slate-700
+                  prose-blockquote:border-l-brand prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:rounded-r-lg
+                  prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
+                ">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {detailQuery.data.skill_md}
+                  </ReactMarkdown>
+                </div>
               ) : (
                 <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
                   {detailTab === "readme"
