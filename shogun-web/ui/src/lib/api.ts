@@ -643,6 +643,31 @@ export const skillsApi = {
       method: 'POST',
       body: JSON.stringify({ skill, department, ...meta }),
     }),
+  // Enhance / Rollback / History
+  getEnhanceContext: (skillId: string) =>
+    apiFetch<{
+      ok: boolean;
+      skill_id: string;
+      skill_dir: string;
+      skill_md: string;
+      readme_md: string;
+      version: string;
+      departments: string[];
+      description: string;
+      history: Array<{ commit: string; version: string; description: string; user: string; timestamp: string; files_changed: string[] }>;
+      has_readme: boolean;
+    }>(`/api/skills/${skillId}/enhance-context`),
+  applyEnhancement: (skillId: string, payload: { skill_md: string; readme_md: string; description: string }) =>
+    apiFetch<{ ok: boolean; commit: string | null; files_changed: string[]; version?: string; message: string }>(`/api/skills/${skillId}/enhance`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  rollback: (skillId: string) =>
+    apiFetch<{ ok: boolean; rollback_commit?: string; reverted_commit?: string; message?: string; error?: string }>(`/api/skills/${skillId}/rollback`, {
+      method: 'POST',
+    }),
+  getEnhanceHistory: (skillId: string) =>
+    apiFetch<{ history: Array<{ commit: string; version: string; description: string; user: string; timestamp: string; files_changed: string[] }> }>(`/api/skills/${skillId}/enhance-history`),
 };
 
 export type ChatSocketEvent =

@@ -3147,6 +3147,69 @@ async def skill_intake(
     }
 
 
+# --- Skill Enhance / Rollback / History ---
+
+@skills_router.get("/{skill_id}/enhance-context")
+async def get_skill_enhance_context(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Load full context for enhancing a skill: SKILL.md, README.md, metadata, history."""
+    from .skill_enhance import get_enhance_context
+    try:
+        return {"ok": True, **get_enhance_context(skill_id)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.post("/{skill_id}/enhance")
+async def apply_skill_enhancement(
+    skill_id: str,
+    body: Dict[str, Any] = Body(...),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Apply changes to SKILL.md and README.md, git commit with tracking."""
+    from .skill_enhance import apply_enhancement
+    try:
+        result = apply_enhancement(
+            skill_id=skill_id,
+            skill_md=body.get("skill_md", ""),
+            readme_md=body.get("readme_md", ""),
+            description=body.get("description", "Enhanced via web portal"),
+            user_name=user.name or user.email or "Unknown",
+        )
+        # Invalidate skills cache so the updated content shows immediately
+        _invalidate_skills_cache()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.post("/{skill_id}/rollback")
+async def rollback_skill_enhancement(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Revert the last enhancement commit for a skill."""
+    from .skill_enhance import rollback_enhancement
+    try:
+        result = rollback_enhancement(skill_id)
+        _invalidate_skills_cache()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.get("/{skill_id}/enhance-history")
+async def get_skill_enhance_history(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get enhancement history for a skill."""
+    from .skill_enhance import get_enhance_history
+    return {"history": get_enhance_history(skill_id)}
+
+
 # --- Department Cron Jobs (persisted in SQLite via CronJob model) ---
 
 def _require_admin_or_dept_admin(user: User = Depends(get_current_user)) -> User:
