@@ -24,12 +24,14 @@ Writes the same AssetCategory contract the AssetTab UI renders:
 
 Idempotent; safe to re-run after each month's management report.
 """
-import base64, json, os, re, subprocess
+import json, os, re, subprocess
 from datetime import datetime
 import openpyxl
 
-XLSX = "/home/tapway/brain/finance/202606-management-report.xlsx"
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+XLSX = os.environ.get("FINANCE_REPORT_XLSX", "/home/tapway/brain/finance/202606-management-report.xlsx")
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 SLUG = "finance/snapshots/balance-sheet"
 PERIOD = "2026-06"
 
@@ -99,9 +101,9 @@ def parse_bs(path, out_rollups):
         if section is None:
             continue
 
-            # Normalize tabs to spaces for consistent indent detection
-            cell_val = str(cell.value or "").expandtabs(4)
-        indent = len(str(r[0] or "")) - len(str(r[0] or "").lstrip(" "))
+        # Normalize tabs to spaces for consistent indent detection
+        row_label = str(r[0] or "").expandtabs(4)
+        indent = len(row_label) - len(row_label.lstrip(" "))
 
         # category vs sub-item by indent
         if indent >= 9 and current_cat is not None:

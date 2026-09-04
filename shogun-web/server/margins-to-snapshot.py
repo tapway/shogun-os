@@ -21,7 +21,7 @@ concentration.clients[]:
 import json, os, subprocess
 import openpyxl
 
-XLSX = "/home/tapway/brain/finance/202606-management-report.xlsx"
+XLSX = os.environ.get("FINANCE_REPORT_XLSX", "/home/tapway/brain/finance/202606-management-report.xlsx")
 PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
 if not PGPW:
     raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
