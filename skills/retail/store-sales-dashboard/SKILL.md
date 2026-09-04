@@ -104,8 +104,6 @@ Per-staff sales metrics including total sales, transaction count, and average ba
 
 ## Related Skills
 
-- [store-staff-scheduling](../store-staff-scheduling/SKILL.md) — Shift planning and attendance tracking
-- [promo-planning](../promo-planning/SKILL.md) — Promotional calendar and post-promo analysis
 - [store-replenishment](../store-replenishment/SKILL.md) — Auto-reorder and stock allocation
 
 ## Pitfalls

@@ -49,7 +49,7 @@ Output:
 | Department | Retail |
 | Owning Profile | retail-manager / merchandising |
 | Slash Command | `/store-sales-dashboard` |
-| Related Skills | [store-staff-scheduling](../store-staff-scheduling/), [promo-planning](../promo-planning/) |
+| Related Skills | |
 
 ## Configuration
 

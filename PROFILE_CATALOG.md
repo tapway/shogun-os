@@ -192,7 +192,6 @@ Assign **unique gateway ports** above 9110 (or free ports) in the web portal dep
 |-------|-------|
 | Persona | Soko — Inventory, shipping, cycle counts |
 | gbrain source | `warehouse/` |
-| Skills | `warehouse-inventory`, `erp-connector` |
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Scrum | ❌ (on-demand) |
 | Extra Crons | Inventory status (6AM) |
@@ -203,7 +202,6 @@ Assign **unique gateway ports** above 9110 (or free ports) in the web portal dep
 |-------|-------|
 | Persona | Anzen — Safety, incidents, permits, environmental monitoring |
 | gbrain source | `hse/` |
-| Skills | `hse-incident` |
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Scrum | ❌ (on-demand) |
 | Extra Crons | Safety walk schedule (weekly Mon) |
@@ -220,7 +218,6 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 |-------|-------|
 | Persona | Tenpo — Store operations, daily sales, customer experience |
 | gbrain source | `stores/` |
-| Skills | `store-sales-dashboard`, `store-staff-scheduling`, `store-replenishment` |
 | Shared | `department-scrum`, `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Scrum | ✅ 3-tier |
 | Extra Crons | Daily sales report (6AM), staff scheduling (Mon 8AM) |
@@ -231,7 +228,6 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 |-------|-------|
 | Persona | Shohin — Buying, assortment, vendor negotiation, pricing |
 | gbrain source | `merchandising/` |
-| Skills | `assortment-planning`, `vendor-negotiation`, `promo-planning` |
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Extra Crons | Slow-movers report (Mon 6AM), vendor contract expiry (Mon 9AM) |
 
@@ -265,13 +261,11 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Extra Crons | Replenishment orders (daily 6AM) |
 
-### Visual Merchandising — Hyoji (表示 — "Display")
 
 | Field | Value |
 |-------|-------|
 | Persona | Hyoji — Store layouts, displays, planograms, signage |
 | gbrain source | `vm/` |
-| Skills | `planogram-compliance`, `promo-planning` |
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Extra Crons | Planogram compliance audit (Mon 7AM) |
 

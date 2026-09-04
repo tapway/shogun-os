@@ -57,7 +57,7 @@ capa dashboard --aging --closure-rate
 | Department | Manufacturing (Quality) |
 | Owning Profile | production-manager |
 | Slash Command | N/A |
-| Related Skills | quality-ncr, maintenance-pm, hse-incident |
+| Related Skills | quality-ncr, maintenance-pm |
 
 ## Configuration
 

@@ -111,7 +111,6 @@ Identify backlogged orders with aging analysis and escalation recommendations.
 
 - [erp-connector](../erp-connector/SKILL.md) — ERP integration for work order data
 - [production-oee](../production-oee/SKILL.md) — Production efficiency tracking
-- [warehouse-inventory](../warehouse-inventory/SKILL.md) — Material availability for work orders
 - [quality-ncr](../quality-ncr/SKILL.md) — NCRs linked to work orders
 
 ## Pitfalls

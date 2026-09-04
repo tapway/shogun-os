@@ -40,7 +40,6 @@ ncr aging --days-open 7
 
 **Don't use for:**
 - Root cause analysis workflows → use quality-capa
-- Safety-only incidents → use hse-incident
 
 ## Prerequisites
 
@@ -56,7 +55,7 @@ ncr aging --days-open 7
 | Department | Manufacturing (Quality) |
 | Owning Profile | production-manager |
 | Slash Command | N/A |
-| Related Skills | quality-capa, production-oee, erp-connector, hse-incident |
+| Related Skills | quality-capa, production-oee, erp-connector |
 
 ## Configuration
 

@@ -200,7 +200,6 @@ export type DepartmentKey =
   // Manufacturing
   | 'production' | 'quality' | 'maintenance' | 'warehouse' | 'hse'
   // Retail
-  | 'stores' | 'merchandising' | 'e-commerce' | 'crm-loyalty' | 'supply-chain' | 'visual-merchandising'
   // Plantation
   | 'estate-ops' | 'worker-welfare';
 ```

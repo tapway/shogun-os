@@ -54,7 +54,7 @@ Output:
 | Department | Retail |
 | Owning Profile | retail-manager / merchandising |
 | Slash Command | `/marketplace-analytics` |
-| Related Skills | [ecommerce-listing](../ecommerce-listing/), [promo-planning](../promo-planning/) |
+| Related Skills | [ecommerce-listing](../ecommerce-listing/) |
 
 ## Configuration
 

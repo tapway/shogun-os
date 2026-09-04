@@ -123,7 +123,6 @@ Voice: Quantity-aware, location-specific. "RM-4422: 124 units
 at Bin A-12. Reorder at 50. Lead time 7 days."
 
 Brain source: warehouse/
-Skills: warehouse-inventory, shipment-tracking, wms-connector
 ```
 
 ### Task 9: Create hse-manager profile (Anzen — 安全)
@@ -142,7 +141,6 @@ Voice: Serious, compliance-first, preventative. "Near-miss
 Safety walk scheduled for Friday."
 
 Brain source: hse/
-Skills: hse-incident, hse-permit, hse-environmental
 ```
 
 ---
@@ -221,11 +219,8 @@ Skills: hse-incident, hse-permit, hse-environmental
 - MTBF and MTTR calculation
 - Downtime cost estimation
 
-### Task 16: warehouse-inventory skill
 
 **Files:**
-- Create: `industries/manufacturing/skills/warehouse-inventory/SKILL.md`
-- Create: `industries/manufacturing/skills/warehouse-inventory/scripts/inventory-status.py`
 
 **SKILL.md content:**
 - Inventory levels by category (raw, WIP, finished)
@@ -233,11 +228,8 @@ Skills: hse-incident, hse-permit, hse-environmental
 - Reorder point alerts
 - Cycle count scheduling and variance reporting
 
-### Task 17: hse-incident skill
 
 **Files:**
-- Create: `industries/manufacturing/skills/hse-incident/SKILL.md`
-- Create: `industries/manufacturing/skills/hse-incident/scripts/incident-report.py`
 
 **SKILL.md content:**
 - Incident types: Near-miss, First Aid, Medical Treatment, Lost Time Injury, Fatality
@@ -292,7 +284,6 @@ Add manufacturing cron jobs:
 - OEE tracking (Kōjō — hourly)
 - PM schedule (Shūri — 6am)
 - Inventory status (Sōko — 6am)
-- HSE incident report (Anzen — daily)
 
 ### Task 22: Update install.sh
 

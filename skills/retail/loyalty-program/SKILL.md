@@ -117,7 +117,6 @@ Calculates program ROI by comparing incremental revenue from loyalty members aga
 ## Related Skills
 
 - [customer-segmentation](../customer-segmentation/SKILL.md) — RFM analysis for targeted loyalty offers
-- [promo-planning](../promo-planning/SKILL.md) — Promotional calendar integration with loyalty triggers
 - [store-sales-dashboard](../store-sales-dashboard/SKILL.md) — Sales impact of loyalty program
 
 ## Pitfalls

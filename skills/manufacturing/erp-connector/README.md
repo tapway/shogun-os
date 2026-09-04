@@ -54,7 +54,7 @@ erp sync --entities work_orders,inventory,boms --output-dir ./data/erp/
 | Department | Manufacturing |
 | Owning Profile | production-manager |
 | Slash Command | N/A |
-| Related Skills | work-order-tracking, warehouse-inventory, mes-connector, production-oee |
+| Related Skills | work-order-tracking, mes-connector, production-oee |
 
 ## Configuration
 

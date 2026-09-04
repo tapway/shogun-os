@@ -39,7 +39,6 @@ wo otd --from 2026-08-01 --to 2026-08-31
 
 **Don't use for:**
 - PM-generated maintenance work orders → use maintenance-pm
-- Material availability checks → use warehouse-inventory
 
 ## Prerequisites
 
@@ -55,7 +54,7 @@ wo otd --from 2026-08-01 --to 2026-08-31
 | Department | Manufacturing (Production) |
 | Owning Profile | production-manager |
 | Slash Command | N/A |
-| Related Skills | erp-connector, production-oee, warehouse-inventory, quality-ncr |
+| Related Skills | erp-connector, production-oee, quality-ncr |
 
 ## Configuration
 

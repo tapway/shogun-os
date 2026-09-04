@@ -109,7 +109,6 @@ Traces a SKU through its lifecycle from introduction to discontinuation. Calcula
 ## Related Skills
 
 - [store-replenishment](../store-replenishment/SKILL.md) — Auto-reorder based on assortment decisions
-- [promo-planning](../promo-planning/SKILL.md) — Promotional calendar for product launches
 - [vendor-negotiation](../vendor-negotiation/SKILL.md) — Vendor scorecards for new product sourcing
 
 ## Pitfalls

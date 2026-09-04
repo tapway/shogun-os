@@ -135,7 +135,6 @@ Scores the likelihood of a customer responding to a specific campaign. Uses hist
 ## Related Skills
 
 - [loyalty-program](../loyalty-program/SKILL.md) — Loyalty tier alignment with customer segments
-- [promo-planning](../promo-planning/SKILL.md) — Targeted promotions based on segments
 - [marketplace-analytics](../marketplace-analytics/SKILL.md) — Campaign performance measurement
 
 ## Pitfalls

@@ -36,7 +36,6 @@ Output:
 - Optimizing discount levels to balance lift and margin
 
 **Don't use for:**
-- Executing promotions → use promo-planning skill
 - Real-time flash sales requiring instant decisions
 - Products with insufficient sales history for lift estimation
 
@@ -53,7 +52,7 @@ Output:
 | Department | Retail |
 | Owning Profile | retail-manager / merchandising |
 | Slash Command | `/promo-recommender` |
-| Related Skills | [promo-planning](../promo-planning/), [product-margin-analyzer](../product-margin-analyzer/) |
+| Related Skills | [product-margin-analyzer](../product-margin-analyzer/) |
 
 ## Changelog
 

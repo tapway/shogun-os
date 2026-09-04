@@ -39,7 +39,6 @@ Output:
 
 **Don't use for:**
 - Store-level inventory management → use store-replenishment skill
-- Inventory counting or cycle counts → use warehouse-inventory skill
 - Wave planning without checking carrier cutoff times first
 
 ## Prerequisites

@@ -109,7 +109,6 @@ Track effectiveness check results with pass/fail rate by action type.
 
 - [quality-ncr](../quality-ncr/SKILL.md) — NCRs trigger CAPA workflows
 - [maintenance-pm](../maintenance-pm/SKILL.md) — CAPA may result in PM changes
-- [hse-incident](../hse-incident/SKILL.md) — Combined quality-safety CAPA investigations
 
 ## Pitfalls
 
