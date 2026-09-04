@@ -1,248 +1,260 @@
-# Tax Rates by Region — Invoice Generator Reference
+# Malaysia Tax & Finance Reference — Invoice Generator
 
-Detailed tax rates, legal requirements, and invoice format variations by country. Load this when generating invoices for specific jurisdictions.
+Detailed SST rates, e-Invoice requirements, withholding tax rules, and compliance references for Malaysian invoicing. Load this when generating invoices for Malaysian entities.
 
-## United States
+## SST (Sales and Service Tax) Overview
 
-### Federal
-- No federal invoice format requirement
-- EIN required for B2B transactions
-- 1099-NEC reporting threshold: $600+ paid to contractors in a calendar year
+SST replaced GST on September 1, 2018. It is a **single-stage tax** (not multi-stage like GST), applied at the manufacturer or service provider level only. No input tax credit mechanism exists.
 
-### State Sales Tax (Selected)
+### Service Tax
 
-| State | Base Rate | Max w/ Local | Notes |
-|-------|-----------|--------------|-------|
-| California | 7.25% | 10.75% | Local add-ons vary by county/city |
-| Texas | 6.25% | 8.25% | Local sales tax up to 2% |
-| New York | 4.00% | 8.875% | NYC metro area highest |
-| Florida | 6.00% | 7.50% | County discretionary surtax |
-| Illinois | 6.25% | 10.25% | Chicago among highest |
-| Washington | 6.50% | 10.35% | No income tax, higher sales tax |
-| Oregon | 0% | 0% | No state or local sales tax |
-| Montana | 0% | 0% | No sales tax |
-| Delaware | 0% | 0% | No sales tax |
-| New Hampshire | 0% | 0% | No sales tax |
+| Category | Rate | Effective Date | Examples |
+|----------|------|----------------|----------|
+| Standard services | 6% | Sep 2018 | Consulting, legal, accounting, IT, advertising |
+| Selected services (increased) | 8% | Jul 1, 2024 | Logistics, telecommunications, parking, brokerage |
+| Digital services (foreign) | 6% | Jan 1, 2020 | Streaming, cloud, software subscriptions from abroad |
+| Hospitality / accommodation | 6% | Sep 2018 | Hotels, Airbnb (if registered) |
+| Insurance / takaful | 6% | Sep 2018 | General insurance, family takaful premiums |
+| Financial services | Exempt | — | Banking fees, loan processing, life insurance |
+| Education | Exempt | — | Tuition at approved institutions |
+| Healthcare | Exempt | — | Licensed medical practitioners, hospitals |
 
-### Invoice Requirements
-- Business name and address
-- Client name and address
-- Description of goods/services
-- Amount charged
-- Date of transaction
-- EIN (Employer Identification Number) for B2B
+**Registration threshold:** RM500,000 annual revenue for service providers. Voluntary registration allowed below threshold.
 
-### Late Payment
-- Generally enforceable up to 18-24% annually
-- Must be stated on invoice to be enforceable
-- Some states cap late fees (check state law)
+**Filing frequency:** Bi-monthly (every 2 months). Due date: last day of the month following the taxable period.
 
----
+**Form:** SST-02 return via MySST portal (mysstext.customs.gov.my).
 
-## European Union
+### Sales Tax
 
-### VAT Standard Rates
-
-| Country | Standard Rate | Reduced Rate(s) | Notes |
-|---------|---------------|-----------------|-------|
-| Germany | 19% | 7% | Food, books, transport |
-| France | 20% | 10%, 5.5%, 2.1% | Multiple reduced tiers |
-| Italy | 22% | 10%, 5%, 4% | Four-tier system |
-| Spain | 21% | 10%, 4% | Super-reduced rate |
-| Netherlands | 21% | 9% | Reduced rate increased 2019 |
-| Belgium | 21% | 12%, 6% | Three tiers |
-| Poland | 23% | 8%, 5% | Multiple reduced rates |
-| Sweden | 25% | 12%, 6% | Food, hotels, transport |
-| Austria | 20% | 13%, 10% | Wine, food, accommodation |
-| Portugal | 23% | 13%, 6% | Mainland; islands differ |
-| Czech Republic | 21% | 12% | Single reduced rate |
-| Hungary | 27% | 18%, 5% | Highest standard rate in EU |
-| Romania | 19% | 9%, 5% | Reduced rates for essentials |
-| Greece | 24% | 13%, 6% | Islands may have lower rates |
-| Finland | 25.5% | 14%, 10% | Increased from 24% in 2024 |
-| Denmark | 25% | None | No reduced rates |
-| Ireland | 23% | 13.5%, 9%, 4.8% | Multiple reduced tiers |
-| Luxembourg | 17% | 14%, 8%, 3% | Lowest standard rate in EU |
-| Malta | 18% | 7%, 5% | Reduced rates limited |
-| Cyprus | 19% | 9%, 5% | Reduced for hospitality |
-| Estonia | 22% | 9% | Increased from 20% in 2024 |
-| Latvia | 21% | 12%, 5% | Books, medicine, heating |
-| Lithuania | 21% | 9%, 5% | Reduced for essentials |
-| Slovakia | 23% | 13%, 10% | Increased from 20% in 2025 |
-| Slovenia | 22% | 9.5%, 5% | Reduced rates |
-| Croatia | 25% | 13%, 5% | Tourism, food reduced |
-| Bulgaria | 20% | 9% | Tourism reduced rate |
-
-### EU Invoice Legal Requirements
-- Seller name, address, VAT number
-- Buyer name, address, VAT number (B2B)
-- Sequential invoice number (no gaps allowed)
-- Issue date and supply date (if different)
-- Description of goods/services
-- Quantity and unit price
-- Taxable amount per rate
-- VAT rate applied
-- VAT amount payable
-- Total amount including VAT
-
-### Reverse Charge Mechanism (Cross-Border B2B)
-When seller and buyer are in different EU countries:
-- Seller does NOT charge VAT
-- Buyer accounts for VAT in their own country
-- Invoice MUST include: **"Reverse Charge — VAT to be paid by recipient"**
-- Both parties' VAT numbers must appear on invoice
-
-### Post-Brexit UK
-- UK VAT is separate from EU VAT system
-- Standard rate: 20%
-- Reduced rate: 5% (energy-saving materials, children's car seats)
-- Zero rate: 0% (food, books, children's clothing)
-- UK VAT number format: GB + 9 digits
-- Northern Ireland has special dual status (EU goods rules apply)
-
----
-
-## China
-
-### VAT Rates
-
-| Category | Rate | Examples |
-|----------|------|----------|
-| General Goods | 13% | Manufacturing, wholesale, retail |
-| Services | 6% | Consulting, IT, financial services |
-| Transport/Postal | 9% | Logistics, construction, real estate |
-| Small-scale Taxpayers | 3% | Annual revenue below threshold |
-| Exports | 0% | Zero-rated with refund eligibility |
-
-### Invoice Types
-1. **Regular Invoice (普通发票)** — for non-VAT-deductible transactions
-2. **VAT Special Invoice (增值税专用发票 / fapiao)** — allows input VAT deduction
-   - MUST be issued through official tax authority system (Golden Tax System)
-   - Cannot be self-generated
-   - Required for B2B transactions where buyer claims input credit
-
-### Legal Requirements
-- Unified Social Credit Code (18-digit business registration number)
-- Official fapiao for deductible transactions
-- Invoice must match actual transaction exactly
-- Electronic fapiao increasingly mandatory
-
-### Important Notes
-- Self-generated invoices are NOT valid for tax deduction purposes
-- Fapiao quotas are controlled by tax authorities
-- Cross-border services may be subject to withholding tax
-
----
-
-## Australia
-
-### GST (Goods and Services Tax)
-- Standard rate: **10%**
-- ABN (Australian Business Number) required if registered
-- GST-free categories: basic food, exports, medical services, education
-- Input tax credits available for GST paid on business purchases
-
-### Invoice Requirements
-- Seller name and ABN
-- Buyer name (and ABN if B2B over $82.50 incl. GST)
-- Description of supply
-- GST amount shown separately OR statement "Total price includes GST"
-- Date of issue
-- Invoice label ("Tax Invoice" if over $82.50)
-
-### Thresholds
-- Registration required: turnover ≥ $75,000/year ($150,000 for non-profits)
-- Tax invoice required: supplies > $82.50 (incl. GST)
-
----
-
-## Malaysia
-
-### SST (Sales and Service Tax) — Replaced GST Sept 2018
-
-| Tax Type | Rate | Scope |
+| Category | Rate | Scope |
 |----------|------|-------|
-| Service Tax | 6% | Professional services, hospitality, insurance, telecom |
-| Sales Tax | 5% | Selected manufactured goods |
-| Sales Tax | 10% | Most taxable goods |
-| Exempt | 0% | Essential goods, exports, certain services |
+| Most taxable goods | 10% | Manufactured goods not in exempt list |
+| Selected goods | 5% | Basic food items, building materials, machinery |
+| Petroleum products | Varies | RON95 subsidised; diesel, jet fuel taxed |
+| Exempt goods | 0% | Essential food, medicines, educational materials, exports |
 
-### Invoice Requirements
-- SST registration number
-- Business name and address
-- Customer name and address
-- Description of taxable service/goods
-- Amount excluding SST
-- SST amount
-- Total amount including SST
-- Date of supply
+**Registration threshold:** RM500,000 annual revenue for manufacturers. Different thresholds for specific industries.
 
-### Key Differences from Former GST
-- SST is single-stage tax (not multi-stage like GST)
-- No input tax credit mechanism
-- Narrower scope than former 6% GST
-- Digital services tax 6% applies to foreign digital service providers
+**Filing frequency:** Monthly. Due date: last day of the month following the taxable period.
 
----
+**Form:** SST-01 return via MySST portal.
 
-## Singapore
+### SST Registration Number Format
 
-### GST (Goods and Services Tax)
-- Current rate: **9%** (increased from 8% on Jan 1, 2024)
-- Previous rates: 7% (before 2023), 8% (2023)
-- Registration threshold: S$1 million annual turnover
-- Zero-rated: exports, international services
-- Exempt: financial services, residential property, healthcare
+```
+W10-1809-32000123
+│    │      │
+│    │      └── Sequential number
+│    └───────── State code + year
+└────────────── Tax type (W = Service Tax, B = Sales Tax)
+```
 
-### Invoice Requirements
-- GST registration number
-- "Tax Invoice" heading
-- Supplier name, address, GST number
-- Customer name and address
-- Description of supply
-- Quantity and unit price
-- Total amount excluding GST
-- GST rate and amount
-- Total amount including GST
+State codes: W=KL, B=Selangor, J=Johor, P=Penang, K=Kedah, etc.
 
 ---
 
-## Japan
+## e-Invoice (MyInvois) Requirements
 
-### Consumption Tax
-- Standard rate: **10%**
-- Reduced rate: **8%** (food/beverages excluding dining out, newspapers)
-- Qualified Invoice System (Oct 2023): requires registered invoice issuer number
-- Format: T + 13 digits (registration number)
+LHDN's MyInvois system mandates electronic invoicing in phases:
 
-### Invoice Requirements (Qualified Invoice)
-- Issuer's qualified invoice registration number
-- Date of supply
-- Description of goods/services
-- Amount excluding tax (broken down by rate)
-- Tax rate applied
-- Tax amount (broken down by rate)
-- Recipient name (for B2B)
+### Phasing Schedule
+
+| Phase | Criteria | Effective Date | Status |
+|-------|----------|----------------|--------|
+| Phase 1 | Annual revenue > RM100 million | Aug 1, 2024 | Active |
+| Phase 2 | Annual revenue RM25M – RM100M | Jan 1, 2025 | Active |
+| Phase 3 | All taxpayers | Jul 1, 2025 | Active |
+| MSME voluntary | Below RM25M | Anytime | Optional |
+
+### Mandatory e-Invoice Fields
+
+| Field | Format | Notes |
+|-------|--------|-------|
+| Supplier TIN | C + 10 digits | Issued by LHDN upon registration |
+| Supplier BRN | SSM format | e.g., 1234567-W, 202401001234 |
+| Supplier MSIC Code | 5 digits | From msic.stats.gov.my |
+| Buyer TIN | C + 10 digits | Required for B2B; EI00000000010 for individuals without TIN |
+| Buyer BRN | SSM format | Required for B2B |
+| Invoice Type Code | 2 digits | 01=Invoice, 02=Credit Note, 03=Debit Note, 04=Refund Note |
+| Issue Date/Time | ISO 8601 | YYYY-MM-DDTHH:MM:SS |
+| Line Item Unit Price | Decimal | Before tax |
+| Line Item Quantity | Decimal | Can be fractional |
+| Line Item Tax Rate | Percentage | 0, 5, 6, 8, 10 |
+| Line Item Tax Amount | Decimal | Calculated per line |
+| Total Excluding Tax | Decimal | Sum of line subtotals |
+| Total Tax Amount | Decimal | Sum of line tax amounts |
+| Total Including Tax | Decimal | Total excl. tax + total tax |
+| Currency Code | ISO 4217 | MYR default; USD, SGD, etc. for foreign |
+| Payment Terms | Text | Net 30, COD, etc. |
+
+### Self-Billed e-Invoices
+
+Allowed in specific scenarios:
+- Purchases from unregistered suppliers (individuals/small biz without TIN)
+- Expense claims from employees
+- Agent commissions
+- Profit distribution to owners
+
+The buyer issues the invoice on behalf of the supplier. Must still be validated through MyInvois.
+
+### e-Invoice Validation Flow
+
+```
+1. Generate invoice JSON/XML → 2. Submit to MyInvois API → 
+3. LHDN validates → 4. Returns Unique ID + QR code + digital signature → 
+5. Embed QR/signature in invoice → 6. Deliver to buyer
+```
+
+**API endpoint:** https://api.myinvois.hasil.gov.my (production)
+**Sandbox:** https://preprod-api.myinvois.hasil.gov.my (testing)
 
 ---
 
-## Quick Lookup: Currency Codes
+## Withholding Tax (WHT)
 
-| Currency | Code | Symbol | Countries |
-|----------|------|--------|-----------|
-| US Dollar | USD | $ | USA, Ecuador, Panama |
-| Euro | EUR | € | EU member states |
-| British Pound | GBP | £ | United Kingdom |
-| Chinese Yuan | CNY | ¥ | China |
-| Japanese Yen | JPY | ¥ | Japan |
-| Australian Dollar | AUD | A$ | Australia |
-| Malaysian Ringgit | MYR | RM | Malaysia |
-| Singapore Dollar | SGD | S$ | Singapore |
-| Canadian Dollar | CAD | C$ | Canada |
-| Swiss Franc | CHF | Fr. | Switzerland |
-| Indian Rupee | INR | ₹ | India |
-| South Korean Won | KRW | ₩ | South Korea |
-| Thai Baht | THB | ฿ | Thailand |
-| Indonesian Rupiah | IDR | Rp | Indonesia |
-| Philippine Peso | PHP | ₱ | Philippines |
-| Vietnamese Dong | VND | ₫ | Vietnam |
+Under the Income Tax Act 1967 (ITA), payers must deduct WHT on certain payments to non-residents:
+
+### WHT Rates by Payment Type
+
+| Payment Type | WHT Rate | ITA Section | Filing Deadline |
+|-------------|----------|-------------|-----------------|
+| Technical/management fees | 10% | s.109B | Within 1 month of payment |
+| Royalties / use of movable property | 10% | s.109 | Within 1 month of payment |
+| Interest | 15% | s.109 | Within 1 month of payment |
+| Contract payments (services) | 10% | s.109B | Within 1 month of payment |
+| Contract payments (materials/supplies) | 3% | s.109B | Within 1 month of payment |
+| Rental of movable property | 10% | s.109 | Within 1 month of payment |
+| Special classes of income | 10% | s.109F | Within 1 month of payment |
+| Public entertainment / athletes | Variable | s.109A | Within 1 month of payment |
+
+### Double Taxation Agreements (DTA)
+
+Malaysia has DTAs with 70+ countries that may reduce WHT rates:
+
+| Country | Technical Fees | Royalties | Interest | Dividends |
+|---------|---------------|-----------|----------|-----------|
+| Singapore | 10% | 10% | 10% | 10% |
+| UK | 10% | 8% | 10% | 10% |
+| USA | 10% | 10% | 10% | 10% |
+| Japan | 10% | 10% | 10% | 10% |
+| Australia | 10% | 10% | 10% | 15% |
+| China | 10% | 10% | 10% | 10% |
+| Indonesia | 10% | 10% | 10% | 10% |
+| Germany | 10% | 8% | 10% | 10% |
+| France | 10% | 10% | 10% | 10% |
+| India | 10% | 10% | 10% | 10% |
+| UAE | 10% | 10% | 10% | 10% |
+| Netherlands | 10% | 8% | 10% | 10% |
+
+**To claim DTA reduced rate:** Non-resident must provide Certificate of Residence (COR) from their home country tax authority. Submit Form CA-1 to LHDN.
+
+### WHT Penalty
+
+Failure to deduct/remit WHT:
+- Penalty: 10% of unpaid WHT amount
+- Additional penalty: 5% if not paid within 30 days of first penalty
+- The payer (not the payee) is liable for undeducted WHT
+
+---
+
+## Corporate Tax Reference
+
+### Corporate Income Tax (CIT)
+
+| Entity Type | Rate | Notes |
+|-------------|------|-------|
+| Standard company | 24% | On chargeable income |
+| SME (first RM150K) | 15% | Paid-up capital ≤ RM2.5M, gross income ≤ RM50M |
+| SME (RM150K–RM600K) | 17% | Same eligibility criteria |
+| SME (above RM600K) | 24% | Balance taxed at standard rate |
+| Labuan entity | 3% | On net profits from trading activities |
+| REIT | 24% | Distributed income taxed at unit holder level |
+
+### CP204 Estimated Tax
+
+Companies must submit estimated tax payable (CP204) before the start of each basis period. Revision allowed in month 6 and month 9. Underestimation penalty: 10% if actual tax exceeds estimate by >30%.
+
+### Key Deadlines
+
+| Obligation | Deadline |
+|------------|----------|
+| CP204 submission | 30 days before basis period starts |
+| Monthly instalment (CP205) | 15th of each month |
+| Annual tax return (Form C) | Within 7 months after basis period ends |
+| SST-02 return | Last day of month following taxable period |
+| WHT remittance | Within 1 month of payment to non-resident |
+| e-Invoice validation | Real-time (within 72 hours of issuance) |
+
+---
+
+## Bank Details Format (Malaysia)
+
+### Major Banks SWIFT/BIC Codes
+
+| Bank | SWIFT/BIC | Account Format |
+|------|-----------|----------------|
+| Maybank | MBBEMYKL | 10-12 digits |
+| CIMB | CIBBMYKL | 10-12 digits |
+| Public Bank | PBBEMYKL | 10-12 digits |
+| RHB | RHBBMYKL | 10-12 digits |
+| Hong Leong Bank | HLBMYKL | 10-12 digits |
+| AmBank | ARBKMYKL | 10-12 digits |
+| Alliance Bank | MFBBMYKL | 10-12 digits |
+| Bank Islam | BIMBMYKL | 10-12 digits |
+| Affin Bank | ABBMYKL | 10-12 digits |
+| OCBC Malaysia | OCBCMYKL | 10-12 digits |
+| HSBC Malaysia | HBMWMYKL | 10-12 digits |
+| Standard Chartered MY | SCBLMYKL | 10-12 digits |
+
+### DuitNow / Instant Transfer
+
+- All major banks support DuitNow instant transfers
+- Proxy identifiers: NRIC, passport, mobile number, email, army number
+- Maximum per transaction: RM50,000 (varies by bank)
+- Available 24/7 including weekends and public holidays
+
+### FPX (Financial Process Exchange)
+
+- Direct bank debit for online payments
+- Supported by all major Malaysian banks
+- No credit card required
+- Transaction limit: RM30,000 per transaction (varies by bank)
+- Commonly used for e-commerce, government payments, utility bills
+
+---
+
+## Currency Reference (Common in Malaysian Invoicing)
+
+| Currency | Code | Symbol | Typical Use Case |
+|----------|------|--------|------------------|
+| Malaysian Ringgit | MYR | RM | Default domestic currency |
+| US Dollar | USD | US$ | International trade, tech services |
+| Singapore Dollar | SGD | S$ | Cross-border with Singapore |
+| British Pound | GBP | £ | UK clients, legacy contracts |
+| Euro | EUR | € | EU clients |
+| Chinese Yuan | CNY | ¥ | China trade, manufacturing |
+| Japanese Yen | JPY | ¥ | Japan trade, electronics |
+| Australian Dollar | AUD | A$ | Australia/NZ clients |
+| Indonesian Rupiah | IDR | Rp | Indonesia trade |
+| Thai Baht | THB | ฿ | Thailand trade |
+| Brunei Dollar | BND | B$ | Brunei (interchangeable with SGD) |
+
+**Exchange rate source:** Bank Negara Malaysia (BNM) daily rates at bnm.gov.my/exchange-rates
+
+**Foreign currency invoicing:** Allowed for export/import transactions. Domestic transactions between Malaysian residents should generally be in MYR unless exempted by BNM.
+
+---
+
+## Useful Government Portals
+
+| Portal | URL | Purpose |
+|--------|-----|---------|
+| MySST | mysstext.customs.gov.my | SST registration, filing, payment |
+| MyInvois | myinvois.hasil.gov.my | e-Invoice submission, validation |
+| LHDN e-Filing | mytax.hasil.gov.my | Corporate/individual tax returns |
+| SSM e-Info | einfo.ssm.com.my | Business registration verification |
+| MSIC Lookup | msic.stats.gov.my | Industry classification codes |
+| BNM Exchange Rates | bnm.gov.my/exchange-rates | Official daily exchange rates |
+| Customs Tariff | dagangan.miti.gov.my | Import/export tariff lookup |
+| MDEC Digital Tax | mdec.my/digital-tax | Digital service tax guidance |
