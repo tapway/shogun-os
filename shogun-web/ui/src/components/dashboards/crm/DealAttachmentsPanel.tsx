@@ -60,7 +60,15 @@ export function DealAttachmentsPanel({ dept, dealSlug, color }: Props) {
       headers: token ? { Authorization: `Bearer ${token}` } : {},
     })
       .then(async (res) => {
-        if (!res.ok) throw new Error('Failed to download');
+        if (!res.ok) {
+          const status = res.status;
+          let msg = 'Download failed';
+          if (status === 401) msg = 'Session expired — please log in again';
+          else if (status === 403) msg = 'Access denied — insufficient permissions';
+          else if (status === 404) msg = 'File not found — may have been deleted';
+          else if (status >= 500) msg = 'Server error — try again later';
+          throw new Error(msg);
+        }
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const a = document.createElement('a');
@@ -71,7 +79,7 @@ export function DealAttachmentsPanel({ dept, dealSlug, color }: Props) {
         a.remove();
         URL.revokeObjectURL(url);
       })
-      .catch((e) => setError(String(e?.message || e)));
+      .catch((e) => setError(e instanceof Error ? e.message : String(e)));
   };
 
   return (

@@ -13,9 +13,11 @@ Each is a JSON object in the page frontmatter.
 Run:  python3 finance-infographic-to-snapshots.py
 Idempotent — upserts pages; safe to re-run.
 """
-import base64, copy, json, os, re, subprocess, sys
+import copy, json, os, re, subprocess, sys
 
-PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb25zXzIwMjY=").decode())
+PGPW = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PGPW:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 PG = ["psql", "-h", "127.0.0.1", "-U", "hermes", "-d", "gbrain", "-t", "-A"]
 
 

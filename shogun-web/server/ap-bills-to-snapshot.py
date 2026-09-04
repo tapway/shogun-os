@@ -26,6 +26,11 @@ BUCKET_COLS = ["CURRENT", "1 - 30", "31 - 60", "61 - 90", "91 AND OVER"]
 
 
 def bucket_label(col_idx: int) -> str:
+    """Map aging column index to bucket label.
+    
+    Index 0=CURRENT and 1=1-30 are both mapped to "0-30" per QBO convention
+    where CURRENT means not yet due (effectively 0 days overdue).
+    """
     return ["0-30", "0-30", "31-60", "61-90", "90+"][col_idx]
 
 

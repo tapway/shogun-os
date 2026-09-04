@@ -153,7 +153,7 @@ for p in products:
 total_valuation = round(sum(cost * r["current_qty"] for r in catalog), 2)
 n_skus = len(catalog)
 out_skus = sum(1 for r in catalog if "OUT" in r["status"])
-low = sum(1 for r in warehouse_rows) if False else 0  # placeholder fixed below
+# Dead code removed — referenced warehouse_rows before definition  # placeholder fixed below
 
 # ───────── leftover: warehouse capacity — honest: single storehouse, no bin data
 warehouse_rows = [{"location": "Tapway Storehouse (single site)", "used": 0, "capacity": None, "utilisation_pct": 0.0}]

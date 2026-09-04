@@ -50,6 +50,7 @@ def name_icon(name: str) -> str:
     return "Wallet"
 
 
+# NOTE: out_rollups param is unused — consider removing for clarity
 def parse_bs(path, out_rollups):
     """Parse the BS sheet of one management-report xlsx into rollup buckets."""
     wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
@@ -98,6 +99,8 @@ def parse_bs(path, out_rollups):
         if section is None:
             continue
 
+            # Normalize tabs to spaces for consistent indent detection
+            cell_val = str(cell.value or "").expandtabs(4)
         indent = len(str(r[0] or "")) - len(str(r[0] or "").lstrip(" "))
 
         # category vs sub-item by indent

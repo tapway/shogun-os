@@ -54,6 +54,14 @@ def _safe_slug(slug: str) -> str:
     return s[:120]
 
 
+def _normalize_slug(slug: str) -> str:
+    """Normalize slug once at request entry — strip deals/ prefix and sanitize."""
+    s = slug.strip().lstrip("/")
+    if s.startswith("deals/"):
+        s = s[len("deals/"):]
+    return _safe_slug(s)
+
+
 def _resolve_deal_file(slug: str) -> Path:
     """Return the brain deal markdown file for ``slug``, or 404.
 
@@ -61,10 +69,7 @@ def _resolve_deal_file(slug: str) -> Path:
     prefixed (``deals/<slug>``). The deal file must exist and carry deal
     frontmatter before any attachment is accepted.
     """
-    slug = slug.strip().lstrip("/")
-    if slug.startswith("deals/"):
-        slug = slug[len("deals/"):]
-    safe = _safe_slug(slug)
+    safe = _normalize_slug(slug)
     if not safe or not _re.match(r"^[A-Za-z0-9._-]+\Z", safe):
         raise HTTPException(status_code=400, detail="Invalid deal slug")
 
@@ -77,12 +82,19 @@ def _resolve_deal_file(slug: str) -> Path:
             status_code=404,
             detail=f"Deal '{slug}' not found in the CRM brain",
         )
+    # Verify it has YAML frontmatter (deal marker)
+    text = deal_file.read_text(encoding="utf-8")
+    if not text.startswith("---"):
+        raise HTTPException(
+            status_code=400,
+            detail=f"File '{safe}.md' is not a valid deal (missing frontmatter)",
+        )
     return deal_file
 
 
 def _attachments_dir_for_slug(slug: str) -> Path:
     """Ensure the versioned attachment folder exists for a deal slug."""
-    safe = _safe_slug(slug)
+    safe = _normalize_slug(slug)
     cfg = get_config()
     adir = Path(cfg.brain_root).expanduser() / "deals" / "attachments" / safe
     adir.mkdir(parents=True, exist_ok=True)
@@ -90,7 +102,12 @@ def _attachments_dir_for_slug(slug: str) -> Path:
 
 
 def _append_attachment_to_frontmatter(deal_file: Path, entry: dict) -> str:
-    """Rewrite a deal file's frontmatter to include an ``attachments:`` entry."""
+    """Rewrite a deal file's frontmatter to include an ``attachments:`` entry.
+
+    Atomic: writes to temp file then renames. Fails fast on YAML parse error
+    instead of wiping metadata.
+    """
+    import tempfile
     import yaml as _yaml
 
     original = deal_file.read_text(encoding="utf-8")
@@ -98,11 +115,18 @@ def _append_attachment_to_frontmatter(deal_file: Path, entry: dict) -> str:
     if not m:
         raise HTTPException(status_code=500, detail="Deal frontmatter could not be parsed")
     try:
-        fm = _yaml.safe_load(m.group(1)) or {}
-    except Exception:
-        fm = {}
-    if not isinstance(fm, dict):
-        fm = {}
+        fm = _yaml.safe_load(m.group(1))
+    except _yaml.YAMLError as exc:
+        # FAIL FAST — do NOT wipe existing metadata on parse failure
+        raise HTTPException(
+            status_code=500,
+            detail=f"Deal frontmatter YAML parse error: {exc}",
+        )
+    if not fm or not isinstance(fm, dict):
+        raise HTTPException(
+            status_code=500,
+            detail="Deal frontmatter is empty or not a mapping",
+        )
 
     # If attachments is a string or bad shape, reset to a list.
     existing = fm.get("attachments")
@@ -119,7 +143,20 @@ def _append_attachment_to_frontmatter(deal_file: Path, entry: dict) -> str:
         + "\n---\n"
     )
     new_text = new_fm + original[m.end():]
-    deal_file.write_text(new_text, encoding="utf-8")
+
+    # Atomic write: temp file + rename prevents partial writes
+    fd, tmp_path = tempfile.mkstemp(dir=deal_file.parent, suffix=".tmp", prefix=".deal_")
+    try:
+        with open(fd, "w", encoding="utf-8") as f:
+            f.write(new_text)
+        # Windows: can't rename over existing file — unlink first
+        if deal_file.exists():
+            deal_file.unlink()
+        Path(tmp_path).rename(deal_file)
+    except Exception:
+        # Clean up temp file on failure
+        Path(tmp_path).unlink(missing_ok=True)
+        raise
     return new_text
 
 
@@ -164,6 +201,14 @@ async def upload_deal_attachment(
             detail=f"File type '.{ext}' not allowed. Allowed: {', '.join(sorted(ALLOWED_EXTENSIONS))}",
         )
 
+    # SF4: Check Content-Length header first to avoid reading huge files into memory
+    content_length = file.size  # FastAPI sets this from Content-Length header
+    if content_length is not None and content_length > MAX_UPLOAD_BYTES:
+        raise HTTPException(
+            status_code=413,
+            detail=f"File exceeds {MAX_UPLOAD_BYTES // (1024 * 1024)} MB limit",
+        )
+
     data = await file.read()
     if not data:
         raise HTTPException(status_code=400, detail="Empty file")
@@ -196,8 +241,8 @@ async def upload_deal_attachment(
 
     try:
         _append_attachment_to_frontmatter(deal_file, entry)
-    except HTTPException:
-        # If we could not write frontmatter, still keep the bytes but be honest.
+    except Exception:
+        # Roll back uploaded bytes on ANY failure (not just HTTPException)
         dest.unlink(missing_ok=True)
         raise
 
@@ -254,4 +299,14 @@ async def serve_deal_attachment(
     file_path = adir / safe_name
     if not file_path.is_file():
         raise HTTPException(status_code=404, detail="Attachment not found")
-    return FileResponse(file_path, filename=safe_name)
+    # SF2: Set proper Content-Type and Content-Disposition for safe downloads
+    import mimetypes
+    content_type, _ = mimetypes.guess_type(safe_name)
+    if content_type is None:
+        content_type = "application/octet-stream"
+    return FileResponse(
+        file_path,
+        filename=safe_name,
+        media_type=content_type,
+        headers={"Content-Disposition": f'attachment; filename="{safe_name}"'},
+    )

@@ -32,6 +32,7 @@ PGPW = os.environ.get("GBRAIN_PG_PASSWORD", base64.b64decode("aGVybWVzX3Mzc3Npb2
 SLUG = "finance/snapshots/bva"
 SLUG_BS = "finance/snapshots/balance-sheet"
 SLUG_PL = "finance/snapshots/pl"
+# NOTE: MONTH_IDX is module-level state; refactor to parameter for re-entrancy
 MONTH_IDX = date.today().month  # YTD window Jan..current month
 
 SECTION_OF = {}  # row-name → section, filled while walking
