@@ -1,7 +1,7 @@
 ---
-name: dashboard-snapshot-writer
+name: procurement-dashboard-snapshot
 description: "Use when refreshing the Procurement dashboard with live system data. Calls proc_* MCP tools, computes the 5-tab payload, and writes JSON snapshots to <dept>/snapshots/*.json gbrain pages. Idempotent + empty-brain-safe. Standalone script: scripts/write_snapshots.py. Slash trigger: /refresh-procurement-dashboard."
-departments: [finance, procurement]
+departments: [procurement]
 version: 1.0.0
 author: Shogun OS
 license: MIT
@@ -29,7 +29,7 @@ back to `examples/procurement-mock.json` (unchanged graceful degradation).
 
 - Daily 7am cron (before the 9am scrum) refreshes all 5 snapshot pages.
 - On-demand via `/refresh-procurement-dashboard` slash trigger.
-- Manually: `python skills/procurement/dashboard-snapshot-writer/scripts/write_snapshots.py`
+- Manually: `python skills/procurement/procurement-dashboard-snapshot/scripts/write_snapshots.py`
   (supports `--dry-run` to print payloads without writing).
 
 ## Prerequisites

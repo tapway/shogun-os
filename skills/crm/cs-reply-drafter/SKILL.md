@@ -1,7 +1,7 @@
 ---
 name: cs-reply-drafter
 description: "Use when drafting customer service replies from enquiries. Checks stock, price, credit via AutoCount, prepares a contextual reply draft for staff review."
-departments: [crm, e-commerce]
+departments: [crm]
 version: 1.0.0
 author: Shogun OS
 license: MIT
@@ -170,7 +170,7 @@ Each template uses `{{variables}}` populated from the draft object.
 
 ## Verification Checklist
 
-- [ ] Skill installed under owning profile `skills/cs-reply-drafter/`
+- [ ] Skill installed under owning profile `skills/cs-reply-drafter/` (moved from retail/ to crm/)
 - [ ] `/cs-reply-drafter` loads on the `kizuna` or `retail-manager` profile
 - [ ] Happy-path: enquiry with known SKU + known customer → draft produced with
       stock + price + credit attached

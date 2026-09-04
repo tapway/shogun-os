@@ -2702,7 +2702,7 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     has_real_data = bool(inventory_snap or po_snap)
 
     if has_real_data:
-        # Pull from the live gbrain snapshots written by dashboard-snapshot-writer
+        # Pull from the live gbrain snapshots written by finance-dashboard-snapshot / procurement-dashboard-snapshot
         total_inventory_valuation = _safe_float(inventory_snap.get("total_inventory_valuation"))
         total_active_skus = _safe_float(inventory_snap.get("total_active_skus"))
         low_stock_alerts = _safe_float(inventory_snap.get("low_stock_alerts"))

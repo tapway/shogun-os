@@ -279,9 +279,9 @@ UI, so writers may use either spelling:
 
 ## Skills that write snapshots
 
-- `skills/procurement/dashboard-snapshot-writer/` — writes the 5 procurement
+- `skills/procurement/procurement-dashboard-snapshot/` — writes the 5 procurement
   snapshots above on a daily cron + `/refresh-procurement-dashboard` trigger.
-- `skills/finance/dashboard-snapshot-writer/` — writes the 7 finance snapshots
+- `skills/finance/finance-dashboard-snapshot/` — writes the 7 finance snapshots
   above on a daily cron + `/refresh-finance-dashboard` trigger.
 
 Both skills are idempotent and empty-brain-safe (Karpathy: empty input → write
