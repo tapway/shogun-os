@@ -366,8 +366,6 @@ DEFAULT_DEPARTMENTS: List[Dict[str, Any]] = [
         "port_offset": 8,
     },
     {
-    },
-    {
         "name": "projects",
         "profile_name": "projects-manager",
         "label": "Projects",
