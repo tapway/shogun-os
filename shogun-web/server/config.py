@@ -399,7 +399,7 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "label": "Manufacturing",
         "description": "Factory, production, OEM",
         "icon": "🏭",
-        "departments": ["production", "quality", "maintenance", "warehouse", "hse"],
+        "departments": ["production", "quality", "maintenance"],
     },
     {
         "slug": "retail",
@@ -407,8 +407,8 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "description": "Stores, e-commerce, omnichannel",
         "icon": "🛒",
         "departments": [
-            "stores", "merchandising", "e-commerce",
-            "crm-loyalty", "supply-chain", "visual-merchandising",
+            "merchandising", "e-commerce",
+            "supply-chain",
         ],
     },
     {
@@ -442,16 +442,11 @@ INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
         {"name": "production", "profile_name": "production-manager", "label": "Production", "port_offset": 11},
         {"name": "quality", "profile_name": "quality-manager", "label": "Quality", "port_offset": 12},
         {"name": "maintenance", "profile_name": "maintenance-manager", "label": "Maintenance", "port_offset": 13},
-        {"name": "warehouse", "profile_name": "warehouse-manager", "label": "Warehouse", "port_offset": 14},
-        {"name": "hse", "profile_name": "hse-manager", "label": "HSE", "port_offset": 15},
     ],
     "retail": [
-        {"name": "stores", "profile_name": "stores-manager", "label": "Stores", "port_offset": 11},
         {"name": "merchandising", "profile_name": "merchandising-manager", "label": "Merchandising", "port_offset": 12},
         {"name": "e-commerce", "profile_name": "ecommerce-manager", "label": "E-commerce", "port_offset": 13},
-        {"name": "crm-loyalty", "profile_name": "crm-loyalty-manager", "label": "CRM/Loyalty", "port_offset": 14},
         {"name": "supply-chain", "profile_name": "supply-chain-manager", "label": "Supply Chain", "port_offset": 15},
-        {"name": "visual-merchandising", "profile_name": "vm-manager", "label": "Visual Merchandising", "port_offset": 16},
     ],
     "plantation": [
         {"name": "facility", "profile_name": "facility-manager", "label": "Facility Management", "port_offset": 11},

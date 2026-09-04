@@ -17,15 +17,10 @@ export type DepartmentKey =
   | 'production'
   | 'quality'
   | 'maintenance'
-  | 'warehouse'
-  | 'hse'
   // Retail industry
-  | 'stores'
   | 'merchandising'
   | 'e-commerce'
-  | 'crm-loyalty'
   | 'supply-chain'
-  | 'visual-merchandising'
   // Plantation industry
   | 'facility';
 
@@ -49,13 +44,13 @@ export const INDUSTRY_CATALOG: Record<
     label: 'Manufacturing',
     description: 'Factory, production, OEM',
     icon: '🏭',
-    departments: ['production', 'quality', 'maintenance', 'warehouse', 'hse'],
+    departments: ['production', 'quality', 'maintenance'],
   },
   retail: {
     label: 'Retail',
     description: 'Stores, e-commerce, omnichannel',
     icon: '🛒',
-    departments: ['stores', 'merchandising', 'e-commerce', 'crm-loyalty', 'supply-chain', 'visual-merchandising'],
+    departments: ['merchandising', 'e-commerce', 'supply-chain'],
   },
   plantation: {
     label: 'Plantation',
@@ -456,34 +451,7 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Wrench',
     profile_name: 'maintenance-manager',
   },
-  warehouse: {
-    key: 'warehouse',
-    name: 'Warehouse',
-    persona: 'Soko',
-    description: 'Inventory, shipping, cycle counts.',
-    color: '#a855f7',
-    icon: 'Warehouse',
-    profile_name: 'warehouse-manager',
-  },
-  hse: {
-    key: 'hse',
-    name: 'HSE',
-    persona: 'Anzen',
-    description: 'Safety, incidents, permits, environmental monitoring.',
-    color: '#dc2626',
-    icon: 'AlertTriangle',
-    profile_name: 'hse-manager',
-  },
   // ── Retail industry ──
-  stores: {
-    key: 'stores',
-    name: 'Stores',
-    persona: 'Tenpo',
-    description: 'Store operations, daily sales, customer experience.',
-    color: '#0284c7',
-    icon: 'Store',
-    profile_name: 'stores-manager',
-  },
   merchandising: {
     key: 'merchandising',
     name: 'Merchandising',
@@ -502,15 +470,6 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'ShoppingCart',
     profile_name: 'ecommerce-manager',
   },
-  'crm-loyalty': {
-    key: 'crm-loyalty',
-    name: 'CRM/Loyalty',
-    persona: 'Kokyaku',
-    description: 'Loyalty programs, customer segmentation.',
-    color: '#059669',
-    icon: 'Gift',
-    profile_name: 'crm-loyalty-manager',
-  },
   'supply-chain': {
     key: 'supply-chain',
     name: 'Supply Chain',
@@ -519,15 +478,6 @@ export const DEPARTMENT_CATALOG: Record<
     color: '#d97706',
     icon: 'Truck',
     profile_name: 'supply-chain-manager',
-  },
-  'visual-merchandising': {
-    key: 'visual-merchandising',
-    name: 'Visual Merchandising',
-    persona: 'Hyoji',
-    description: 'Shelf layouts, planograms, display compliance.',
-    color: '#9333ea',
-    icon: 'LayoutGrid',
-    profile_name: 'vm-manager',
   },
   // ── Plantation industry ──
   'facility': {
