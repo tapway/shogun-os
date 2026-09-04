@@ -696,7 +696,7 @@ export default function SkillsCatalog() {
             </div>
 
             {/* Tags + related skills */}
-            {((Array.isArray(detailSkill.tags) && detailSkill.tags.length) || (Array.isArray(detailSkill.related_skills) && detailSkill.related_skills.length)) && (
+            {((Array.isArray(detailSkill.tags) && detailSkill.tags.length > 0) || (Array.isArray(detailSkill.related_skills) && detailSkill.related_skills.length > 0)) ? (
               <div className="flex flex-wrap gap-2 p-4 border-b border-slate-200 dark:border-slate-800">
                 {Array.isArray(detailSkill.tags) && detailSkill.tags.map((tag: string) => (
                   <span
@@ -715,7 +715,7 @@ export default function SkillsCatalog() {
                   </span>
                 ))}
               </div>
-            )}
+            ) : null}
 
             {/* Description */}
             <div className="p-4 border-b border-slate-200 dark:border-slate-800">
