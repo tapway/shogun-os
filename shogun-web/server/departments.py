@@ -2135,35 +2135,86 @@ skills_router = APIRouter(prefix="/skills", tags=["skills"])
 
 @skills_router.get("")
 async def list_all_skills(user: User = Depends(get_current_user)) -> Dict[str, Any]:
-    """List Hermes original built-in skills — department categories only.
+    """List Hermes original built-in skills — mapped to Shogun departments.
 
-    Returns only Hermes skills whose category maps to an actual department.
-    Generic categories (General, Smart Home, Apple, .Archive, etc.) are excluded.
+    Each Hermes skill is assigned to the closest Shogun department based on
+    its category. Skills are returned with their category replaced by the
+    matching Shogun department label for consistent grouping.
     """
+    from config import DEFAULT_DEPARTMENTS
+
     all_skills = _get_all_skills()
-    # Only these categories represent actual departments
-    _DEPT_CATEGORIES = {
-        "finance", "crm", "hr", "procurement", "retail", "manufacturing",
-        "devops", "software-development", "coding", "operations", "executive",
-        "gbrain", "communication", "email", "mcp", "note-taking",
-        "productivity", "research", "media", "creative",
-        "search-router", "shogunify", "plan", "github",
-        "google-workspace", "lark-workspace",
-        # Display labels (lowercase)
-        "finance", "crm/sales", "hr", "procurement", "retail", "manufacturing",
-        "devops", "software development", "coding", "operations", "executive",
-        "brain", "communication", "email", "mcp", "note taking",
-        "productivity", "research", "media", "creative",
-        "search router", "shogunify", "planning", "github",
-        "google workspace", "lark workspace",
+
+    # Map Hermes categories → Shogun department name
+    _HERMES_TO_DEPT: Dict[str, str] = {
+        "finance": "finance",
+        "crm/sales": "crm",
+        "crm": "crm",
+        "hr": "hr",
+        "procurement": "procurement",
+        "retail": "procurement",
+        "manufacturing": "procurement",
+        "devops": "coding",
+        "software development": "coding",
+        "software-development": "coding",
+        "coding": "coding",
+        "github": "coding",
+        "brain": "executive",
+        "gbrain": "executive",
+        "executive": "executive",
+        "creative": "marketing",
+        "media": "marketing",
+        "social media": "marketing",
+        "communication": "marketing",
+        "productivity": "projects",
+        "research": "projects",
+        "plan": "projects",
+        "planning": "projects",
+        "projects": "projects",
+        "compliance": "compliance",
+        "customer support": "customer-support",
+        "email": "customer-support",
+        "mcp": "coding",
+        "note taking": "projects",
+        "note-taking": "projects",
+        "search-router": "coding",
+        "shogunify": "coding",
+        "google workspace": "projects",
+        "google-workspace": "projects",
+        "lark workspace": "projects",
+        "lark-workspace": "projects",
+        "slack formatting": "communication",
+        "slack-formatting": "communication",
+        "lark formatting": "communication",
+        "lark-formatting": "communication",
+        "company workflow": "projects",
+        "company-workflow": "projects",
+        "department scrum": "projects",
+        "department-scrum": "projects",
+        "systematic debugging": "coding",
+        "systematic-debugging": "coding",
+        "verify first": "coding",
+        "verify-first": "coding",
     }
 
-    hermes_dept_only = [
-        s for s in all_skills
-        if s.get("source") == "hermes"
-        and (s.get("category") or "").lower().strip() in _DEPT_CATEGORIES
-    ]
-    return {"skills": hermes_dept_only}
+    # Build dept label lookup
+    _dept_labels: Dict[str, str] = {}
+    for dept in DEFAULT_DEPARTMENTS:
+        _dept_labels[dept["name"]] = dept["label"]
+
+    hermes_mapped = []
+    for s in all_skills:
+        if s.get("source") != "hermes":
+            continue
+        cat = (s.get("category") or "").lower().strip()
+        dept_name = _HERMES_TO_DEPT.get(cat)
+        if not dept_name:
+            continue  # Skip unmapped categories (Apple, Smart Home, .Archive, etc.)
+        entry = dict(s)
+        entry["category"] = _dept_labels.get(dept_name, dept_name.title())
+        hermes_mapped.append(entry)
+
+    return {"skills": hermes_mapped}
 
 
 @skills_router.get("/{skill_id}")
