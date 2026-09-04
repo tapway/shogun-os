@@ -82,6 +82,15 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "Coding Workflow": Code2,
 };
 
+// Business departments to show in the Skills Library.
+// Platform/tooling categories (shared, coding, etc.) are excluded.
+const BUSINESS_DEPARTMENTS = new Set([
+  "finance", "procurement", "crm", "retail", "manufacturing",
+  "supply-chain", "production", "merchandising", "e-commerce",
+  "visual-merchandising", "quality", "maintenance", "crm-loyalty",
+  "warehouse", "stores", "hse", "facility",
+]);
+
 export default function SkillsCatalog() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -115,14 +124,24 @@ export default function SkillsCatalog() {
     },
   });
 
-  const allSkills: Skill[] = Array.isArray(skillsQuery.data) ? skillsQuery.data : [];
+  const allSkillsRaw: Skill[] = Array.isArray(skillsQuery.data) ? skillsQuery.data : [];
 
-  // Dynamic departments derived from frontmatter departments field
+  // Only show skills that belong to a business department
+  const allSkills = useMemo(() => {
+    return allSkillsRaw.filter((s) => {
+      if (!Array.isArray(s.departments) || s.departments.length === 0) return false;
+      return s.departments.some((d) => BUSINESS_DEPARTMENTS.has(d.toLowerCase()));
+    });
+  }, [allSkillsRaw]);
+
+  // Dynamic departments derived from frontmatter departments field (business only)
   const departments = useMemo(() => {
     const deptSet = new Set<string>();
     for (const s of allSkills) {
       if (Array.isArray(s.departments)) {
-        for (const d of s.departments) deptSet.add(d);
+        for (const d of s.departments) {
+          if (BUSINESS_DEPARTMENTS.has(d.toLowerCase())) deptSet.add(d);
+        }
       }
     }
     return [...deptSet].sort();
