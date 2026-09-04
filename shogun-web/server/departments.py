@@ -2135,8 +2135,14 @@ skills_router = APIRouter(prefix="/skills", tags=["skills"])
 
 @skills_router.get("")
 async def list_all_skills(user: User = Depends(get_current_user)) -> Dict[str, Any]:
-    """List all available skills — scanned from disk with mtime cache."""
-    return {"skills": _get_all_skills()}
+    """List Hermes original built-in skills only.
+
+    These are the skills that come with Hermes Agent itself
+    (from ~/AppData/Local/hermes/skills/), not repo or learned skills.
+    """
+    all_skills = _get_all_skills()
+    hermes_only = [s for s in all_skills if s.get("source") == "hermes"]
+    return {"skills": hermes_only}
 
 
 @skills_router.get("/{skill_id}")
