@@ -321,26 +321,26 @@ function CsvViewer({
       <div className="flex items-center justify-between gap-3">
         <div className="flex items-center gap-2 text-xs font-semibold text-slate-700 dark:text-slate-200">
           <Table className="h-4 w-4 text-emerald-600 dark:text-emerald-400" />
-          Data Table ({dataRows.length} rows)
+          Data Table ({dataRows.length} rows, {headers.length} columns)
         </div>
         <input
           type="text"
           value={csvFilter}
           onChange={(e) => setCsvFilter(e.target.value)}
           placeholder="Filter rows..."
-          className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1 text-xs focus:outline-none dark:bg-slate-800 dark:text-slate-100"
+          className="rounded-lg border border-slate-200 dark:border-slate-700 px-3 py-1.5 text-xs focus:outline-none focus:ring-2 focus:ring-brand/20 dark:bg-slate-800 dark:text-slate-100"
         />
       </div>
 
-      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-sm">
-        <table className="w-full text-left text-xs text-slate-700 dark:text-slate-300">
-          <thead className="bg-slate-50 dark:bg-slate-800 border-b border-slate-200 dark:border-slate-700 text-slate-900 dark:text-slate-100 font-semibold">
-            <tr>
-              <th className="px-3 py-2 w-10 text-slate-400 dark:text-slate-500">#</th>
+      <div className="overflow-x-auto rounded-xl border border-slate-200 dark:border-slate-700 bg-white dark:bg-slate-900 shadow-md">
+        <table className="w-full text-left text-xs border-collapse">
+          <thead>
+            <tr className="bg-gradient-to-r from-emerald-50 to-teal-50 dark:from-slate-800 dark:to-slate-800/80 border-b-2 border-slate-200 dark:border-slate-600">
+              <th className="px-4 py-3 w-12 text-[10px] uppercase tracking-wider text-slate-500 dark:text-slate-400 font-semibold text-center">#</th>
               {headers.map((h, i) => (
                 <th
                   key={i}
-                  className="px-3 py-2 border-r last:border-0 border-slate-200 dark:border-slate-700 whitespace-nowrap"
+                  className="px-4 py-3 border-r last:border-0 border-slate-200 dark:border-slate-700 whitespace-nowrap font-bold text-slate-800 dark:text-slate-100 uppercase tracking-wide"
                 >
                   <HighlightedText text={h} highlight={activeQuery} />
                 </th>
@@ -349,14 +349,17 @@ function CsvViewer({
           </thead>
           <tbody className="divide-y divide-slate-100 dark:divide-slate-800">
             {filteredData.map((row, rIdx) => (
-              <tr key={rIdx} className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60">
-                <td className="px-3 py-2 text-[10px] text-slate-400 dark:text-slate-500 font-mono">
+              <tr 
+                key={rIdx} 
+                className={`hover:bg-emerald-50/50 dark:hover:bg-slate-800/40 transition-colors ${rIdx % 2 === 0 ? 'bg-white dark:bg-slate-900' : 'bg-slate-50/30 dark:bg-slate-800/20'}`}
+              >
+                <td className="px-4 py-2.5 text-[10px] text-slate-400 dark:text-slate-500 font-mono text-center">
                   {rIdx + 1}
                 </td>
                 {headers.map((_, cIdx) => (
                   <td
                     key={cIdx}
-                    className="px-3 py-2 border-r last:border-0 border-slate-100 dark:border-slate-800 whitespace-nowrap"
+                    className="px-4 py-2.5 border-r last:border-0 border-slate-100 dark:border-slate-800 align-middle max-w-md truncate"
                   >
                     <HighlightedText
                       text={row[cIdx] !== undefined ? row[cIdx] : ""}
@@ -369,6 +372,12 @@ function CsvViewer({
           </tbody>
         </table>
       </div>
+      
+      {filteredData.length === 0 && dataRows.length > 0 && (
+        <p className="text-xs text-slate-500 dark:text-slate-400 text-center py-4">
+          No rows match filter "{csvFilter}"
+        </p>
+      )}
     </div>
   );
 }
