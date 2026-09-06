@@ -451,6 +451,12 @@ export const departmentsApi = {
     apiFetch<{ ok: boolean }>(`/api/departments/${dept}/crons/${cronId}`, {
       method: 'DELETE',
     }),
+  runCron: (dept: string, cronId: string) =>
+    apiFetch<{ ok: boolean; run_id: number; status: string }>(`/api/departments/${dept}/crons/${cronId}/run`, {
+      method: 'POST',
+    }),
+  getCronHistory: (dept: string, cronId: string) =>
+    apiFetch<{ ok: boolean; runs: import('../lib/types').CronRunRecord[] }>(`/api/departments/${dept}/crons/${cronId}/history`),
 
   // Comms channel management — test bot tokens + discover chat IDs
   testChannel: (dept: string, channelId: string) =>

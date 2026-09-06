@@ -222,10 +222,21 @@ export interface CronJob {
   skill_id?: string;
   enabled: boolean;
   last_run?: string;
+  last_run_status?: string;   // ok, error, running
+  last_run_output?: string;
   created_at?: string;
   // Delivery target — which comms channel the cron output is posted to
   deliver_channel_id?: string;   // CommsChannelConfig.id
   deliver_channel_name?: string; // Convenience: channel name (e.g. "HR Telegram")
+}
+
+export interface CronRunRecord {
+  id: number;
+  cron_job_id: string;
+  status: string;       // running, ok, error
+  output: string;
+  started_at: string;
+  finished_at?: string;
 }
 
 export interface CommsChannelConfig {

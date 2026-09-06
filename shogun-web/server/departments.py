@@ -3354,3 +3354,103 @@ async def delete_department_cron(
     db.delete(target)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{department_name}/crons/{cron_id}/run")
+async def run_department_cron_now(
+    department_name: str,
+    cron_id: str,
+    user: User = Depends(_require_admin_or_dept_admin),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Trigger a cron job to run immediately. Creates a history record and executes the prompt via subprocess."""
+    from models import CronRunHistory
+    dept = department_name.lower()
+    target = db.execute(
+        select(CronJob).where(CronJob.id == cron_id, CronJob.department == dept)
+    ).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Cron job not found")
+
+    # Create history record
+    run = CronRunHistory(cron_job_id=cron_id, status="running")
+    db.add(run)
+    db.flush()
+    run_id = run.id
+
+    # Update cron job status
+    target.last_run_status = "running"
+    target.last_run = datetime.now(timezone.utc).isoformat()
+    db.commit()
+
+    # Execute the prompt as a hermes one-shot in background
+    import subprocess, threading
+
+    def _execute():
+        try:
+            cmd = ["hermes", "-p", dept, "--one-shot", target.prompt]
+            if target.skill_id:
+                cmd.extend(["--skill", target.skill_id])
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=300, cwd=str(Path(__file__).parent.parent)
+            )
+            output = (result.stdout or "") + (result.stderr or "")
+            status = "ok" if result.returncode == 0 else "error"
+        except subprocess.TimeoutExpired:
+            output = "Execution timed out after 5 minutes"
+            status = "error"
+        except FileNotFoundError:
+            output = "hermes CLI not found — cannot execute"
+            status = "error"
+        except Exception as exc:
+            output = str(exc)
+            status = "error"
+
+        # Update DB with results
+        from server.database import get_engine
+        from sqlalchemy.orm import Session as SASession
+        engine = get_engine()
+        with SASession(engine) as session:
+            h = session.get(CronRunHistory, run_id)
+            if h:
+                h.status = status
+                h.output = output[:10000]  # Cap at 10KB
+                h.finished_at = datetime.now(timezone.utc)
+            c = session.get(CronJob, cron_id)
+            if c:
+                c.last_run_status = status
+                c.last_run_output = output[:10000]
+                c.last_run = datetime.now(timezone.utc).isoformat()
+            session.commit()
+
+    threading.Thread(target=_execute, daemon=True).start()
+
+    return {"ok": True, "run_id": run_id, "status": "running"}
+
+
+@router.get("/{department_name}/crons/{cron_id}/history")
+async def get_cron_run_history(
+    department_name: str,
+    cron_id: str,
+    limit: int = 20,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get run history for a specific cron job."""
+    from models import CronRunHistory
+    dept = department_name.lower()
+    # Verify cron belongs to this department
+    target = db.execute(
+        select(CronJob).where(CronJob.id == cron_id, CronJob.department == dept)
+    ).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Cron job not found")
+
+    rows = db.execute(
+        select(CronRunHistory)
+        .where(CronRunHistory.cron_job_id == cron_id)
+        .order_by(CronRunHistory.started_at.desc())
+        .limit(limit)
+    ).scalars().all()
+
+    return {"ok": True, "runs": [r.to_dict() for r in rows]}

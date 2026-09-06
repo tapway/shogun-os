@@ -291,6 +291,28 @@ def init_db() -> None:
                 updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        # Add new columns to existing cron_jobs table (idempotent)
+        for col_sql in [
+            "ALTER TABLE cron_jobs ADD COLUMN last_run_status VARCHAR(32)",
+            "ALTER TABLE cron_jobs ADD COLUMN last_run_output TEXT",
+            "ALTER TABLE cron_jobs ADD COLUMN deliver_channel_name VARCHAR(256) NOT NULL DEFAULT ''",
+            "ALTER TABLE cron_jobs ADD COLUMN last_run VARCHAR(64)",
+        ]:
+            try:
+                conn.execute(text(col_sql))
+            except Exception:
+                pass  # Column already exists
+        # Create run history table
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS cron_run_history (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                cron_job_id VARCHAR(128) NOT NULL REFERENCES cron_jobs(id) ON DELETE CASCADE,
+                status VARCHAR(32) NOT NULL DEFAULT 'running',
+                output TEXT,
+                started_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+                finished_at DATETIME
+            )
+        """))
         conn.execute(text("""
             CREATE TABLE IF NOT EXISTS site_inspection_units (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
