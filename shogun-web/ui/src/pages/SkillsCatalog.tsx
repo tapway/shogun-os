@@ -717,13 +717,6 @@ export default function SkillsCatalog() {
               </div>
             ) : null}
 
-            {/* Description */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {detailSkill.description}
-              </p>
-            </div>
-
             {/* Tab toggle: README vs SKILL.md */}
             <div className="flex items-center gap-1 px-5 pt-3 pb-0">
               <button
