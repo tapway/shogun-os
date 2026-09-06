@@ -309,7 +309,7 @@ export default function DepartmentCrons({ department }: DepartmentCronsProps) {
               <tr>
                 <th className="px-4 py-3.5">Cron Name & Description</th>
                 <th className="px-4 py-3.5 min-w-[200px]">Schedule Text</th>
-                <th className="px-4 py-3.5 min-w-[200px]">Target Skill</th>
+                <th className="px-4 py-3.5 min-w-[200px]">Skill</th>
                 <th className="px-4 py-3.5 min-w-[160px]">Deliver To</th>
                 <th className="px-4 py-3.5">Verification & Status</th>
                 <th className="px-4 py-3.5 text-right">Actions</th>
@@ -517,7 +517,7 @@ export default function DepartmentCrons({ department }: DepartmentCronsProps) {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
-                  Associated Skill (Optional)
+                  Skill (Optional)
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-brand focus:outline-none"
@@ -622,7 +622,7 @@ export default function DepartmentCrons({ department }: DepartmentCronsProps) {
                   </span>
                 </div>
                 <div className="rounded-xl bg-slate-50 dark:bg-slate-800/50 p-3 border border-slate-200 dark:border-slate-800">
-                  <div className="text-slate-500 dark:text-slate-400 text-[11px] font-semibold mb-1">Target Skill</div>
+                  <div className="text-slate-500 dark:text-slate-400 text-[11px] font-semibold mb-1">Skill</div>
                   {viewingCron.skill_id ? (
                     <span className="font-mono text-indigo-600 dark:text-indigo-300 font-medium text-xs rounded bg-indigo-500/10 px-2 py-0.5 border border-indigo-500/20">
                       {viewingCron.skill_id}
@@ -758,7 +758,7 @@ export default function DepartmentCrons({ department }: DepartmentCronsProps) {
 
               <div>
                 <label className="block text-xs font-semibold uppercase tracking-wider text-slate-700 dark:text-slate-300 mb-1">
-                  Associated Skill (Optional)
+                  Skill (Optional)
                 </label>
                 <select
                   className="w-full rounded-xl border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800/80 px-3.5 py-2.5 text-sm text-slate-900 dark:text-white focus:border-brand focus:outline-none"
