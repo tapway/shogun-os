@@ -30,7 +30,11 @@ export default function TrainSkill() {
   const navigate = useNavigate();
   const location = useLocation();
   const { user } = useAuth();
-  const prefilledPrompt = (location.state as { prompt?: string } | null)?.prompt || '';
+  const locationState = location.state as { prompt?: string; enhanceSkillId?: string; enhanceSkillName?: string } | null;
+  const prefilledPrompt = locationState?.prompt || '';
+  const enhanceSkillId = locationState?.enhanceSkillId || '';
+  const enhanceSkillName = locationState?.enhanceSkillName || '';
+  const isEnhanceMode = !!enhanceSkillId;
 
   const [department, setDepartment] = useState('finance');
   const [messages, setMessages] = useState<Message[]>([]);
@@ -66,14 +70,19 @@ export default function TrainSkill() {
       const initialGreeting: Message = {
         id: 'msg-welcome',
         role: 'assistant',
-        content: prefilledPrompt
-          ? `I noticed you want to train a skill based on: "${prefilledPrompt}". Could you specify the step-by-step procedure and trigger conditions for this skill?`
-          : `Hello ${user?.name || ''}! I'm your Shogun OS Skill Architect powered by GLM-5.2. What type of operational skill do you want to train for the ${department} department?`,
+        content: isEnhanceMode
+          ? `I've loaded the current SKILL.md and README.md for **${enhanceSkillName}**. I would like to enhance or modify this skill. Shogunify the process.\n\nWhat changes would you like to make?`
+          : prefilledPrompt
+            ? `I noticed you want to train a skill based on: "${prefilledPrompt}". Could you specify the step-by-step procedure and trigger conditions for this skill?`
+            : `Hello ${user?.name || ''}! I'm your Shogun OS Skill Architect powered by GLM-5.2. What type of operational skill do you want to train for the ${department} department?`,
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
       };
       setMessages([initialGreeting]);
 
-      if (prefilledPrompt) {
+      if (isEnhanceMode) {
+        // In enhance mode, skip intake — user already has a skill to modify
+        setIsReady(true);
+      } else if (prefilledPrompt) {
         // Initial intake evaluation for prefilled prompt
         intakeMutation.mutate({
           history: [{ role: 'user', content: prefilledPrompt }],
@@ -245,26 +254,35 @@ export default function TrainSkill() {
       <div className="flex items-center justify-between border-b border-slate-200 dark:border-slate-800 pb-3">
         <button
           type="button"
-          onClick={() => navigate('/skills')}
+          onClick={() => navigate(isEnhanceMode ? '/skills' : '/skills')}
           className="flex items-center gap-1.5 text-xs text-slate-500 dark:text-slate-400 hover:text-slate-900 dark:hover:text-white transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to Skills Catalog
+          {isEnhanceMode ? `Back to ${enhanceSkillName}` : 'Back to Skills Catalog'}
         </button>
         <div className="flex items-center gap-3">
-          <label className="text-xs text-slate-500 dark:text-slate-400">Department:</label>
-          <select
-            value={department}
-            onChange={(e) => setDepartment(e.target.value)}
-            className="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs text-slate-900 dark:text-white focus:border-brand focus:outline-none"
-          >
-            {allDepts.map((d) => (
-              <option key={d.name} value={d.name}>
-                {d.label || d.name}
-              </option>
-            ))}
-            <option value="operations">Operations</option>
-          </select>
+          {isEnhanceMode && (
+            <span className="rounded-full bg-indigo-500/10 px-2.5 py-0.5 text-[10px] font-semibold text-indigo-600 dark:text-indigo-400 border border-indigo-500/20">
+              ✏️ Enhancing: {enhanceSkillName}
+            </span>
+          )}
+          {!isEnhanceMode && (
+            <>
+              <label className="text-xs text-slate-500 dark:text-slate-400">Department:</label>
+              <select
+                value={department}
+                onChange={(e) => setDepartment(e.target.value)}
+                className="rounded-lg border border-slate-300 dark:border-slate-700 bg-slate-100 dark:bg-slate-800 px-3 py-1 text-xs text-slate-900 dark:text-white focus:border-brand focus:outline-none"
+              >
+                {allDepts.map((d) => (
+                  <option key={d.name} value={d.name}>
+                    {d.label || d.name}
+                  </option>
+                ))}
+                <option value="operations">Operations</option>
+              </select>
+            </>
+          )}
         </div>
       </div>
 
@@ -278,13 +296,17 @@ export default function TrainSkill() {
             </div>
             <div>
               <div className="flex items-center gap-2">
-                <h1 className="text-sm font-bold text-slate-900 dark:text-white">Shogun OS Skill Architect</h1>
+                <h1 className="text-sm font-bold text-slate-900 dark:text-white">
+                  {isEnhanceMode ? 'Skill Enhancement Studio' : 'Shogun OS Skill Architect'}
+                </h1>
                 <span className="rounded-full bg-emerald-500/10 px-2 py-0.5 text-[10px] font-semibold text-emerald-600 dark:text-emerald-400 border border-emerald-500/20">
-                  GLM-5.2 AI · /learn
+                  {isEnhanceMode ? '✏️ Enhance Mode' : 'GLM-5.2 AI · /learn'}
                 </span>
               </div>
               <p className="text-[11px] text-slate-500 dark:text-slate-400">
-                Interactive skill training chatbot for {department}
+                {isEnhanceMode
+                  ? `Modifying ${enhanceSkillName} — describe changes below`
+                  : `Interactive skill training chatbot for ${department}`}
               </p>
             </div>
           </div>
