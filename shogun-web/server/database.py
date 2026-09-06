@@ -17,75 +17,8 @@ from models import Base, CronJob, Department, OnboardingState, Tenant, User, utc
 logger = logging.getLogger(__name__)
 
 
-# Seed crons inserted once on init (id is the stable key — row is skipped if id already exists).
-DEFAULT_CRONS_SEED: list[dict] = [
-    {
-        "id": "fin-burn-rate",
-        "department": "finance",
-        "name": "Daily Burn Rate Forecasting",
-        "schedule": "0 8 * * *",
-        "prompt": "Run daily burn rate forecasting and check cash runway status.",
-        "skill_id": "cash-runway-forecasting",
-        "enabled": True,
-        "last_run": "2026-08-08T08:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-    {
-        "id": "fin-invoice-aging",
-        "department": "finance",
-        "name": "Invoice Aging Watchdog",
-        "schedule": "0 8 * * 1",
-        "prompt": "Check overdue accounts receivable aging and draft polite collection reminders.",
-        "skill_id": "ar-credit-control",
-        "enabled": True,
-        "last_run": "2026-08-03T08:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-    {
-        "id": "proc-reorder-watchdog",
-        "department": "procurement",
-        "name": "Reorder Alert Watchdog",
-        "schedule": "0 8 * * 1-5",
-        "prompt": "Check SKU inventory thresholds and issue reorder alerts for low stock items.",
-        "skill_id": "reorder-alert-watchdog",
-        "enabled": True,
-        "last_run": "2026-08-08T08:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-    {
-        "id": "proc-inv-val",
-        "department": "procurement",
-        "name": "Weekly Inventory Valuation",
-        "schedule": "0 17 * * 5",
-        "prompt": "Calculate total stock asset value and record valuation report.",
-        "skill_id": "weekly-inventory-valuation",
-        "enabled": True,
-        "last_run": "2026-08-07T17:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-    {
-        "id": "crm-deal-sync",
-        "department": "crm",
-        "name": "Deal Activity Hourly Sync",
-        "schedule": "0 9-18 * * 1-5",
-        "prompt": "Sync CRM deal pipeline updates and highlight high-value stale leads.",
-        "skill_id": "",
-        "enabled": True,
-        "last_run": "2026-08-08T18:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-    {
-        "id": "hr-candidate-watchdog",
-        "department": "hr",
-        "name": "Candidate Pipeline Sync",
-        "schedule": "0 10 * * 1",
-        "prompt": "Sync recruitment candidate applications and stage updates.",
-        "skill_id": "",
-        "enabled": True,
-        "last_run": "2026-08-03T10:00:00Z",
-        "created_at": "2026-07-26T00:00:00Z",
-    },
-]
+# Seed crons — empty by default. Users add their own via the Cron Schedule UI.
+DEFAULT_CRONS_SEED: list[dict] = []
 
 _engine: Optional[Engine] = None
 _SessionLocal: Optional[sessionmaker] = None
