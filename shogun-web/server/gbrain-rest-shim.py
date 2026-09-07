@@ -17,8 +17,10 @@ The dashboard's gbrain_client uses gbrain_read_preference=mcp, so traffic
 routes here through /mcp. Envelope: SSE "data: {json}".
 """
 import json
+import logging
 import re
 import os
+import threading
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from typing import Optional
@@ -27,6 +29,8 @@ from urllib.parse import urlparse, parse_qs
 import psycopg2
 import psycopg2.extras
 import psycopg2.pool
+
+logger = logging.getLogger(__name__)
 
 # Canonical credential — MUST be set via environment variable
 PG_PASS = os.environ.get("GBRAIN_PG_PASSWORD")
@@ -43,12 +47,15 @@ DSN = {
 
 # Connection pool — avoids opening/closing a connection per query
 _pool: Optional[psycopg2.pool.ThreadedConnectionPool] = None
+_pool_lock = threading.Lock()
 
 
 def _get_pool() -> psycopg2.pool.ThreadedConnectionPool:
     global _pool
     if _pool is None or _pool.closed:
-        _pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=5, **DSN)
+        with _pool_lock:
+            if _pool is None or _pool.closed:
+                _pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=10, **DSN)
     return _pool
 
 # Department source -> real slug prefixes (single `default` brain has no
@@ -67,13 +74,17 @@ PAGE_COLS = (
 
 def _query(sql: str, params=()):
     pool = _get_pool()
-    conn = pool.getconn()
+    try:
+        conn = pool.getconn()
+    except psycopg2.pool.PoolError:
+        logger.warning("Connection pool exhausted; returning empty result")
+        return []
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(sql, params)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        pool.putconn(conn)
+        pool.putconn(conn, close=bool(conn.closed))
 
 
 def _iso(v):

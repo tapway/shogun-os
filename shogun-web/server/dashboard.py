@@ -1434,7 +1434,7 @@ def _build_pricing_summary(pricing: dict) -> dict:
     """Derive pricing summary from live pricing data; fall back to defaults."""
     bundles = pricing.get("bundles") or []
     base_bundle = next((b for b in bundles if b.get("name", "").lower() == "base"), None)
-    bundle_price = _safe_int((base_bundle or {}).get("price"), 500) if base_bundle else 500
+    bundle_price = _safe_int((base_bundle or {}).get("price"), 500)
     setup = pricing.get("setup") or {}
     setup_price = _safe_int(setup.get("price"), 400)
     addon = pricing.get("addonCameras") or {}
@@ -1449,7 +1449,7 @@ def _build_pricing_summary(pricing: dict) -> dict:
     monthly_recurring = bundle_price + (addon_price * addon_count)
     one_time = setup_price + pm_total + custom_total + consult_total + outstation_total
     total_first = monthly_recurring + one_time
-    spread36 = round(total_first / 36) if total_first else 0
+    spread36 = round(monthly_recurring + one_time / 36) if (monthly_recurring or one_time) else 0
     return {
         "bundle": {"label": f"Bundle ({base_bundle['name'] if base_bundle else 'Base'})", "value": f"RM {bundle_price}", "monthly": True},
         "setup": {"label": "Setup", "value": f"RM {setup_price}", "monthly": False},
