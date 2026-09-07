@@ -90,9 +90,9 @@ No URL parsing needed.
 
 If you want to do it manually:
 
-1. Open this URL:
+1. Open this URL (replace `<your_client_id>` with your actual Intuit Client ID):
    ```
-   https://appcenter.intuit.com/connect/oauth2?client_id=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl&state=random123
+   https://appcenter.intuit.com/connect/oauth2?client_id=<your_client_id>&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl&state=random123
    ```
 
 2. Sign in → Select company → Click Allow
@@ -129,9 +129,9 @@ The realmId is an **API-only identifier**. Intuit doesn't expose it in the accou
 Once you have a realmId, test it immediately:
 
 ```bash
-# Set credentials
-export ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
-export ACCT_CLIENT_SECRET=LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf
+# Set credentials (replace with your actual values)
+export ACCT_CLIENT_ID=<your_client_id>
+export ACCT_CLIENT_SECRET=<your_client_secret>
 export ACCT_REFRESH_TOKEN=<your_refresh_token>
 export ACCT_COMPANY_ID=<your_realmId>
 export ACCT_SANDBOX=false
