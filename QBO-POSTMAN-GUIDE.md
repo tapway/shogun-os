@@ -24,7 +24,7 @@ If you can't find realmId in the OAuth Playground, use Postman instead. It shows
 | **Auth URL** | `https://appcenter.intuit.com/connect/oauth2` |
 | **Access Token URL** | `https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer` |
 | **Client ID** | `ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d` |
-| **Client Secret** | `LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf` |
+| **Client Secret** | `<your_acct_qbo_client_secret>` |
 | **Scope** | `com.intuit.quickbooks.accounting openid profile email` |
 | **State** | `random123` |
 | **Client Authentication** | Send as Basic Auth header |
@@ -90,7 +90,7 @@ After authorizing, copy the `code` parameter from the redirect URL.
 curl -X POST https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer \
   -H "Accept: application/json" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -u "ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d:LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf" \
+  -u "ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d:<your_acct_qbo_client_secret>" \
   -d "grant_type=authorization_code&code=YOUR_CODE_HERE&redirect_uri=https://oauth.pstmn.io/v1/callback"
 ```
 
@@ -118,7 +118,7 @@ Update your `.env` file:
 
 ```bash
 ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
-ACCT_CLIENT_SECRET=LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf
+ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<paste_refresh_token>
 ACCT_COMPANY_ID=<paste_realmId>
 ACCT_SANDBOX=false

@@ -37,7 +37,7 @@ I've created a script that tells you definitively:
 # Add your credentials to .env
 cat > .env << EOF
 ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
-ACCT_CLIENT_SECRET=LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf
+ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<your_refresh_token_from_oauth>
 ACCT_COMPANY_ID=<your_company_id_from_oauth>
 ACCT_SANDBOX=false
@@ -182,7 +182,7 @@ https://appcenter.intuit.com/connect/oauth2?client_id=ABVpYJ2qbgMn0M7kuzXCXlPiZF
 
 ```bash
 ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
-ACCT_CLIENT_SECRET=LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf
+ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<paste_refresh_token_here>
 ACCT_COMPANY_ID=<paste_realmId_here>
 ACCT_SANDBOX=false
@@ -256,7 +256,7 @@ You are connected to your REAL QuickBooks accounting data.
 
 ⚠️ **Your credentials are sensitive:**
 - Client ID: `ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d`
-- Client Secret: `LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf`
+- Client Secret: `<your_acct_qbo_client_secret>`
 
 **Do:**
 - Store in `.env` file (already in `.gitignore`)
