@@ -125,8 +125,8 @@ Edit `~/.hermes/profiles/finance-manager/.env`:
 ACCT_PROVIDER=quickbooks
 ACCT_SANDBOX=false
 ACCT_CLIENT_ID=your_production_client_id
-ACCT_CLIENT_SECRET=your_production_client_secret
-ACCT_REFRESH_TOKEN=your_production_refresh_token
+ACCT_CLIENT_SECRET=<your_client_secret>
+ACCT_REFRESH_TOKEN=<your_refresh_token>
 ACCT_COMPANY_ID=your_production_realm_id
 ```
 

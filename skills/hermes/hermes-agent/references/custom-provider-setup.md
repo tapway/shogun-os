@@ -18,7 +18,7 @@ The `custom_providers` block **must** be a YAML list (items with `- name:` prefi
 custom_providers:
   - name: dashscope-anthropic
     base_url: https://dashscope-intl.aliyuncs.com/apps/anthropic
-    api_key: sk-6ea5b78644a940bfa37f266cea896499
+    api_key: <your_api_key>
     provider_type: anthropic
 ```
 
@@ -80,11 +80,11 @@ DashScope also exposes an OpenAI-compatible endpoint at `/compatible-mode/v1`. T
 custom_providers:
   - name: dashscope-anthropic
     base_url: https://dashscope-intl.aliyuncs.com/apps/anthropic
-    api_key: sk-6ea5b78644a940bfa37f266cea896499
+    api_key: <your_api_key>
     provider_type: anthropic
   - name: dashscope-openai
     base_url: https://dashscope-intl.aliyuncs.com/compatible-mode/v1
-    api_key: sk-6ea5b78644a940bfa37f266cea896499
+    api_key: <your_api_key>
     provider_type: openai
 ```
 
@@ -102,7 +102,7 @@ hermes config set auxiliary.title_generation.model deepseek-v4-flash
 ```bash
 curl -s --max-time 15 https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer sk-6ea5b78644a940bfa37f266cea896499" \
+  -H "Authorization: Bearer <your_api_key>" \
   -d '{"model":"deepseek-v4-flash","messages":[{"role":"user","content":"Hi"}],"max_tokens":10}'
 ```
 
