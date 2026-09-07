@@ -2087,6 +2087,25 @@ export interface ProjectItem {
 export interface ProjectStats {
   projects: { total: number; active: number };
   tasks: { total: number; completed: number; overdue: number };
+  atRisk?: number;
+  blocked?: number;
+  overdue?: number;
+  pipelineValue?: number;
+  overallProgress?: number;
+  projectsByHealth?: Record<string, number>;
+  portfolioByStatus?: Record<string, number>;
+  tasksByStatus?: Record<string, number>;
+  openTasksByOwner?: { owner: string; count: number }[];
+  topProjectsByProgress?: { name: string; progress: number }[];
+  slippingVsGoLive?: { name: string; daysLate: number }[];
+  upcomingDeadlines?: { name: string; date: string }[];
+  projectsByPm?: { pm: string; projects: number; atRisk: number; totalValue: number }[];
+  totalTasks?: number;
+  todoTasks?: number;
+  inProgressTasks?: number;
+  doneTasks?: number;
+  blockedTasks?: number;
+  overdueTasks?: number;
 }
 
 // ─── Support Tickets & Reports (external tracker sections) ───
