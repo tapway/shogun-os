@@ -43,7 +43,7 @@ When you exchange the authorization code for tokens, the API returns:
   "token_type": "bearer",
   "expires_in": 3600,
   "refresh_token": "L0123456789abcdef...",
-  "access_token": "eyJlbmMiOiJBMTI4R0NNIiwiYWxnIjoiZGlyIn0...",
+  "access_token": "<your_token>...",
   "x_refresh_token_expires_in": 8726400,
   "realmId": "123145789012345"    ← HERE IT IS!
 }
