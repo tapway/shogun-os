@@ -353,12 +353,229 @@ export function SupportTab({ dept, color }: Props) {
       )}
 
       {tab === 'email' && (
-        <div className="sd-chart-card" style={{ padding: '32px', textAlign: 'center' }}>
-          <p style={{ color: MUTED }}>Email inbox integration coming soon.</p>
-        </div>
+        <EmailInboxView dept={dept} color={color} />
       )}
 
       {selected && <TicketDetailModal ticket={selected} onClose={() => setSelected(null)} />}
+    </div>
+  );
+}
+
+// ─── Email Inbox View ────────────────────────────────────────────────────────
+
+interface EmailItem {
+  id: string;
+  subject: string;
+  sender: string;
+  senderEmail: string;
+  timestamp: string;
+  unread: boolean;
+  isNewTicket: boolean;
+  body?: string;
+}
+
+const MOCK_EMAILS: EmailItem[] = [
+  { id: '1', subject: 'Re: [Support] [TS-2026-371] 1ST FLOOR DOOR CANNOT CLOSE DUE TO SENSOR PROBLEM - URGENT', sender: 'Tapway Support', senderEmail: 'support@gotapway.com', timestamp: 'Mon, 7 Sep 2026 00:28:58 -0700', unread: false, isNewTicket: false },
+  { id: '2', subject: '[Tapway] Please moderate: "Technical Support Engineer (On-site Support) - Contract"', sender: 'Site Mailer', senderEmail: 'site-39c73e45@em0001.sitemailerservice.com', timestamp: 'Mon, 07 Sep 2026 06:10:44 +0000 (UTC)', unread: true, isNewTicket: true, body: 'A new comment on the post "Technical Support Engineer (On-site Support) - Contract" is waiting for your approval.\n\nhttps://gotapway.com/technology-team/technical-support-engineer-on-site-support-contract\n\nAuthor: jiliokvip\nIP address: 152.0.45.0.46.121' },
+  { id: '3', subject: '[Tapway] Please moderate: "AI Vision in Southeast Asia: $25.7B Market by 2030"', sender: 'Site Mailer', senderEmail: 'site-39c73e45@em0001.sitemailerservice.com', timestamp: 'Mon, 07 Sep 2026 05:31:26 +0000 (UTC)', unread: true, isNewTicket: true, body: 'Market research report on AI Vision adoption across Southeast Asia.' },
+  { id: '4', subject: 'Re:INC-09729 | REID and Recognition Zone Alignment Issue', sender: 'Payne Zhai via Support', senderEmail: 'support@gotapway.com', timestamp: 'Mon, 7 Sep 2026 12:24:11 +0800', unread: false, isNewTicket: true, body: 'Follow-up on recognition zone alignment issue.' },
+  { id: '5', subject: 'INC-09729 | Re: REID and Recognition Zone Alignment Issue', sender: 'HelpDesk via Support', senderEmail: 'support@gotapway.com', timestamp: 'Mon, 7 Sep 2026 11:30:27 +0800', unread: false, isNewTicket: true, body: 'Internal escalation for INC-09729.' },
+  { id: '6', subject: 'REID and Recognition Zone Alignment Issue', sender: 'Abdul Azeem', senderEmail: 'azeem@gotapway.com', timestamp: 'Mon, 7 Sep 2026 11:27:37 +0800', unread: true, isNewTicket: true, body: 'Initial report of REID alignment issue at client site.' },
+];
+
+function EmailInboxView({ dept, color }: { dept: string; color: string }) {
+  const [newTicketEmail, setNewTicketEmail] = useState<EmailItem | null>(null);
+
+  return (
+    <div className="sd-stack">
+      {/* Header */}
+      <div className="sd-chart-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: NAVY, margin: 0 }}>support@gotapway.com — Recent Emails</h3>
+        <button style={{ background: 'none', border: 'none', color: BLUE, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>Refresh</button>
+      </div>
+
+      {/* Email list */}
+      <div className="sd-chart-card" style={{ padding: 0 }}>
+        {MOCK_EMAILS.map((email, i) => (
+          <div
+            key={email.id}
+            onClick={() => email.isNewTicket && setNewTicketEmail(email)}
+            style={{
+              padding: '14px 20px',
+              borderBottom: i < MOCK_EMAILS.length - 1 ? `1px solid ${BORDER}` : 'none',
+              background: email.unread ? '#f0f7ff' : '#fff',
+              cursor: email.isNewTicket ? 'pointer' : 'default',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: '4px',
+            }}
+          >
+            {/* Subject line */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              {email.unread && <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: BLUE, flexShrink: 0 }} />}
+              <span style={{
+                flex: 1,
+                fontSize: '0.85rem',
+                fontWeight: email.unread ? 700 : 400,
+                color: email.unread ? NAVY : TEXT,
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap',
+              }}>
+                {email.subject}
+              </span>
+              {email.isNewTicket && (
+                <span style={{
+                  fontSize: '0.65rem',
+                  fontWeight: 700,
+                  padding: '3px 10px',
+                  borderRadius: '12px',
+                  background: GREEN,
+                  color: '#fff',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '4px',
+                  flexShrink: 0,
+                }}>
+                  🎫 New Ticket
+                </span>
+              )}
+              <span style={{ fontSize: '0.72rem', color: MUTED, flexShrink: 0 }}>{email.timestamp}</span>
+            </div>
+            {/* Sender line */}
+            <div style={{ fontSize: '0.75rem', color: MUTED, paddingLeft: email.unread ? '16px' : 0 }}>
+              {email.sender} &lt;{email.senderEmail}&gt;
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* New Ticket Modal */}
+      {newTicketEmail && (
+        <NewTicketFromEmailModal email={newTicketEmail} onClose={() => setNewTicketEmail(null)} dept={dept} />
+      )}
+    </div>
+  );
+}
+
+// ─── New Ticket from Email Modal ─────────────────────────────────────────────
+
+function NewTicketFromEmailModal({ email, onClose, dept }: { email: EmailItem; onClose: () => void; dept: string }) {
+  const [title, setTitle] = useState(email.subject);
+  const [priority, setPriority] = useState('P3');
+  const [category, setCategory] = useState('Other');
+  const [description, setDescription] = useState(email.body || '');
+
+  const selectStyle: React.CSSProperties = {
+    background: '#fff',
+    border: `1px solid ${BORDER}`,
+    color: TEXT,
+    borderRadius: '6px',
+    padding: '10px 12px',
+    fontSize: '0.85rem',
+    flex: 1,
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: '6px',
+    display: 'block',
+  };
+
+  function handleCreate() {
+    // In a real app, this would call an API to create the ticket
+    console.log('Creating ticket:', { title, priority, category, description, sourceEmail: email.id });
+    onClose();
+  }
+
+  return (
+    <div style={{
+      position: 'fixed', inset: 0, zIndex: 1000,
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: 'rgba(0,0,0,0.5)',
+    }} onClick={onClose}>
+      <div
+        onClick={e => e.stopPropagation()}
+        style={{
+          background: '#f8f9fa',
+          borderRadius: '12px',
+          width: '100%',
+          maxWidth: '600px',
+          maxHeight: '90vh',
+          overflow: 'auto',
+          boxShadow: '0 20px 60px rgba(0,0,0,0.3)',
+        }}
+      >
+        {/* Header */}
+        <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: NAVY, margin: 0 }}>New Ticket from Email</h3>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: MUTED, cursor: 'pointer' }}>✕</button>
+        </div>
+
+        {/* Email preview */}
+        <div style={{ margin: '20px 24px', padding: '14px 16px', background: '#e9ecef', borderRadius: '8px' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: NAVY, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            {email.subject}
+          </div>
+          <div style={{ fontSize: '0.75rem', color: MUTED }}>
+            {email.sender} &lt;{email.senderEmail}&gt;
+          </div>
+        </div>
+
+        {/* Form fields */}
+        <div style={{ padding: '0 24px 20px' }}>
+          <div style={{ marginBottom: '16px' }}>
+            <label style={labelStyle}>Title</label>
+            <input
+              type="text"
+              value={title}
+              onChange={e => setTitle(e.target.value)}
+              style={{ ...selectStyle, width: '100%' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '16px', marginBottom: '16px' }}>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Priority</label>
+              <select value={priority} onChange={e => setPriority(e.target.value)} style={selectStyle}>
+                <option value="P1">P1</option>
+                <option value="P2">P2</option>
+                <option value="P3">P3</option>
+                <option value="P4">P4</option>
+              </select>
+            </div>
+            <div style={{ flex: 1 }}>
+              <label style={labelStyle}>Category</label>
+              <select value={category} onChange={e => setCategory(e.target.value)} style={selectStyle}>
+                <option value="Other">Other</option>
+                <option value="Network">Network</option>
+                <option value="Software">Software</option>
+                <option value="Hardware">Hardware</option>
+              </select>
+            </div>
+          </div>
+
+          <div style={{ marginBottom: '20px' }}>
+            <label style={labelStyle}>Description</label>
+            <textarea
+              value={description}
+              onChange={e => setDescription(e.target.value)}
+              rows={6}
+              style={{ ...selectStyle, width: '100%', resize: 'vertical' }}
+            />
+          </div>
+
+          {/* Footer buttons */}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px' }}>
+            <button onClick={onClose} style={{ background: 'none', border: 'none', color: MUTED, fontSize: '0.85rem', fontWeight: 600, cursor: 'pointer', padding: '10px 16px' }}>Cancel</button>
+            <button onClick={handleCreate} style={{ background: NAVY, border: 'none', color: '#fff', fontSize: '0.85rem', fontWeight: 700, cursor: 'pointer', padding: '10px 24px', borderRadius: '8px' }}>Create Ticket</button>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
