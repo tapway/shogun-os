@@ -77,14 +77,14 @@ ACTIVE_STAGES = {"Lead", "Prospecting", "Qualified", "Quote", "Tender", "Confirm
 PRODUCT_PATTERNS: list[tuple[str, str]] = []
 
 
-def _canonical_owner(raw) -> str:
+def _canonical_owner(raw: Optional[str]) -> str:
     # Null-safe: brain frontmatter may carry None/null owner (server crash guard)
     raw = str(raw or "")
     key = raw.strip().lower()
     return OWNER_ALIASES.get(key, raw.strip() or "Unassigned")
 
 
-def _canonical_stage(raw) -> str:
+def _canonical_stage(raw: Optional[str]) -> str:
     raw = str(raw or "")
     s = raw.strip().lower()
     for known in STAGE_ORDER:
@@ -487,7 +487,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     )
 
     at_risk_by_manager = sorted(
-        [{"owner": o, "atRiskDeals": int(v["count"]), "atRiskValue": v["value"]}
+        [{"owner": o, "atRiskDeals": _safe_int(v.get("count")), "atRiskValue": v["value"]}
          for o, v in at_risk_by_owner.items()],
         key=lambda x: -x["atRiskValue"],
     )
@@ -495,7 +495,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     at_risk_by_partner_result = sorted(
         [
             {
-                "partner": p, "atRiskDeals": int(v["count"]), "atRiskValue": v["value"],
+                "partner": p, "atRiskDeals": _safe_int(v.get("count")), "atRiskValue": v["value"],
                 "primaryOwner": (
                     sorted(partner_owner_counts.get(p, {}).items(), key=lambda x: -x[1])[0][0]
                     if partner_owner_counts.get(p) else ""
@@ -979,11 +979,11 @@ _ONBOARDING_STAGES = [
 
 def _default_onboarding_stage(p: dict) -> int:
     """Stage-seeding rules — ported from the reference onboarding.html."""
-    if int(p.get("won_count") or 0) > 0:
+    if _safe_int(p.get("won_count")) > 0:
         return 4  # Activated
     signed = str(p.get("signed") or "").lower().startswith("yes")
     active = str(p.get("sheet_status") or "").lower() == "active"
-    has_deals = int(p.get("open_deals") or 0) > 0
+    has_deals = _safe_int(p.get("open_deals")) > 0
     if signed and active and has_deals:
         return 3  # Technical Enablement (deploying)
     if signed and has_deals:
@@ -1021,8 +1021,8 @@ def _build_partner_onboarding() -> Optional[dict]:
     for p in partners:
         stage = _default_onboarding_stage(p)
         age = p.get("days_since_activity")
-        health = "danger" if (age is not None and int(age) > 60 and int(p.get("open_deals") or 0) > 0) else (
-            "warn" if age is not None and int(age) > 21 else "good"
+        health = "danger" if (age is not None and _safe_int(age) > 60 and _safe_int(p.get("open_deals")) > 0) else (
+            "warn" if age is not None and _safe_int(age) > 21 else "good"
         )
         pipeline = p.get("pipeline_rm") or 0
         pipeline_txt = (
@@ -1037,8 +1037,8 @@ def _build_partner_onboarding() -> Optional[dict]:
             "health": health,
             "checklist": [
                 {"text": "Agreement + NDA signed", "state": "done" if str(p.get("signed") or "").lower().startswith("yes") else "pending"},
-                {"text": "Open deals registered", "state": "done" if int(p.get("open_deals") or 0) > 0 else "pending"},
-                {"text": "First deal won", "state": "done" if int(p.get("won_count") or 0) > 0 else "pending"},
+                {"text": "Open deals registered", "state": "done" if _safe_int(p.get("open_deals")) > 0 else "pending"},
+                {"text": "First deal won", "state": "done" if _safe_int(p.get("won_count")) > 0 else "pending"},
             ],
             "note": f"{p.get('open_deals') or 0} open · {p.get('won_count') or 0} won",
             "detail": f"{pipeline_txt} pipeline · {p.get('open_deals') or 0} open · AM {(p.get('am') or _EMDASH)}",
@@ -1046,7 +1046,7 @@ def _build_partner_onboarding() -> Optional[dict]:
         }
         cols[stage].append(card)
 
-    total_open = sum(int(p.get("open_deals") or 0) for p in partners)
+    total_open = sum(_safe_int(p.get("open_deals")) for p in partners)
     stages_out = [
         {
             "key": key,
@@ -1107,8 +1107,8 @@ def _build_command_center() -> Optional[dict]:
     closing = data.get("closing_soon") or []
     now = datetime.now()
 
-    stalled = [p for p in partners if int(p.get("open_deals") or 0) > 0
-               and p.get("days_since_activity") is not None and int(p["days_since_activity"]) > 21]
+    stalled = [p for p in partners if _safe_int(p.get("open_deals")) > 0
+               and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 21]
     stalled.sort(key=lambda p: p.get("pipeline_rm") or 0, reverse=True)
     overdue = [
         {"title": f"{p.get('name')} \u2014 re-engagement",
@@ -1126,16 +1126,16 @@ def _build_command_center() -> Optional[dict]:
     today += [
         {"title": f"Close-out push \u2014 {c.get('deal', c.get('text', ''))}",
          "detail": f"Closes in {c.get('days')}d", "owner": "", "state": f"{c.get('days')}D"}
-        for c in closing if int(c.get("days") or 0) <= 7
+        for c in closing if _safe_int(c.get("days")) <= 7
     ][:4]
 
     upcoming = []
     for c in closing:
-        gap = int(c.get("days") or 0)
+        gap = _safe_int(c.get("days"))
         if 7 < gap <= 45:
             upcoming.append({"title": str(c.get("deal") or c.get("text") or ""),
                              "detail": f"Expected close in {gap}d", "owner": "", "state": f"{gap}D"})
-    upcoming.sort(key=lambda x: int(x["state"].rstrip("D") or 0))
+    upcoming.sort(key=lambda x: _safe_int(x.get("state", "").rstrip("D") or 0))
 
     rituals = []
     for p in partners:
@@ -1244,24 +1244,24 @@ def _build_qbr() -> Optional[dict]:
     data = _load_tps("partners-data.json")
     if not data:
         return None
-    partners = [p for p in (data.get("partners") or []) if int(p.get("total_deals") or 0) > 0 or int(p.get("open_deals") or 0) > 0]
+    partners = [p for p in (data.get("partners") or []) if _safe_int(p.get("total_deals")) > 0 or _safe_int(p.get("open_deals")) > 0]
     partners.sort(key=lambda p: p.get("pipeline_rm") or 0, reverse=True)
 
     rows = []
     for p in partners[:25]:
-        wins = int(p.get("won_count") or 0)
+        wins = _safe_int(p.get("won_count"))
         age = p.get("days_since_activity")
         flags_good, flags_bad = [], []
-        if age is not None and int(age) <= 7:
+        if age is not None and _safe_int(age) <= 7:
             flags_good.append(f"Active engagement ({age}d ago)")
         else:
             emdash = "\u2014"
             flags_bad.append(f"No touch in {age if age is not None else emdash}d")
-        if int(p.get("open_deals") or 0) >= 3:
+        if _safe_int(p.get("open_deals")) >= 3:
             flags_good.append(f"{p.get('open_deals')} live deals")
         if wins > 0:
             flags_good.append(f"{wins} won \u00b7 {_rm_fmt(p.get('won_rm'))}")
-        elif int(p.get("total_deals") or 0) >= 3:
+        elif _safe_int(p.get("total_deals")) >= 3:
             flags_bad.append(f"No closes despite {p.get('total_deals')} historical deals")
         score = min(100, max(0, 50 + (10 if flags_good else 0) - (15 if len(flags_bad) > 1 else 0)))
         rows.append({
@@ -1276,7 +1276,7 @@ def _build_qbr() -> Optional[dict]:
         })
 
     top = partners[0] if partners else {}
-    wins_top = int(top.get("won_count") or 0)
+    wins_top = _safe_int(top.get("won_count"))
     preview = {
         "title": f"QBR \u2014 {top.get('name', 'Partner')}",
         "meta": f"tier {top.get('tier', _EMDASH)} \u00b7 AM {top.get('am', _EMDASH)} \u00b7 generated from live snapshot",
@@ -1299,10 +1299,14 @@ def _build_qbr() -> Optional[dict]:
             "Re-engagement plan if relationship cooling",
         ],
     }
+    now = datetime.now()
+    current_q = (now.month - 1) // 3 + 1
+    prev_q = current_q - 1 if current_q > 1 else 4
+    prev_year = now.year if current_q > 1 else now.year - 1
     return {
-        "cycle": datetime.now().strftime("%Y Q%q").replace("Q%q", f"Q{(datetime.now().month - 1)//3 + 1}"),
-        "quarters": [f"Q{(datetime.now().month - 1)//3} {datetime.now().year}",
-                     f"Q{(datetime.now().month - 1)//3 + 1} {datetime.now().year}"],
+        "cycle": f"{now.year} Q{current_q}",
+        "quarters": [f"Q{prev_q} {prev_year}",
+                     f"Q{current_q} {now.year}"],
         "generateAll": False,
         "partners": rows,
         "preview": preview,
@@ -1327,8 +1331,8 @@ def _build_ceo_digest() -> Optional[dict]:
          "owner": f"AM {r0.get('am')}", "due": "", "emoji": "\U0001F6E0", "tag": r0.get("class")}
         for r0 in cooling
     ]
-    stalled_top = [p for p in partners if int(p.get("open_deals") or 0) > 0
-                   and p.get("days_since_activity") is not None and int(p["days_since_activity"]) > 30]
+    stalled_top = [p for p in partners if _safe_int(p.get("open_deals")) > 0
+                   and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 30]
     decisions = [
         {"title": f"{p.get('name')} \u2014 {p.get('open_deals')} deals stalled >30d",
          "detail": f"Pipeline {_rm_fmt(p.get('pipeline_rm'))} \u00b7 decide: revive or archive.",
@@ -1339,7 +1343,7 @@ def _build_ceo_digest() -> Optional[dict]:
         {"title": f"{p.get('name')} \u2014 {p.get('won_count')} wins",
          "detail": f"Won YTD {_rm_fmt(p.get('won_rm'))}", "owner": f"AM {p.get('am')}", "due": "", "emoji": "\U0001F3C6"}
         for p in sorted(partners, key=lambda x: x.get("won_rm") or 0, reverse=True)[:3]
-        if int(p.get("won_count") or 0) > 0
+        if _safe_int(p.get("won_count")) > 0
     ]
 
     am_scorecard = []
@@ -1422,20 +1426,43 @@ async def _build_pricing() -> Optional[dict]:
         "addonCameras": pricing.get("addonCameras") or {"price": 150, "unit": "per camera/mo", "count": 0, "note": ""},
         "services": pricing.get("services") or [],
         "outstation": pricing.get("outstation") or [],
-        "summary": {
-            "bundle": {"label": "Bundle (Base)", "value": "RM 500", "monthly": True},
-            "setup": {"label": "Setup", "value": "RM 400", "monthly": False},
-            "addonCameras": {"label": "Add-on cameras", "value": "RM 0", "monthly": True},
-            "pm": {"label": "PM visits", "value": "RM 0", "monthly": False},
-            "customisation": {"label": "Customisation", "value": "RM 0", "monthly": False},
-            "consulting": {"label": "Consulting", "value": "RM 0", "monthly": False},
-            "outstation": {"label": "Outstation", "value": "RM 0", "monthly": False},
-            "monthlyRecurring": "RM 500",
-            "oneTime": "RM 400",
-            "totalFirstMonth": "RM 900",
-            "perOutletMonth": "RM 500",
-            "spread36": "RM 511",
-        },
+        "summary": _build_pricing_summary(pricing),
+    }
+
+
+def _build_pricing_summary(pricing: dict) -> dict:
+    """Derive pricing summary from live pricing data; fall back to defaults."""
+    bundles = pricing.get("bundles") or []
+    base_bundle = next((b for b in bundles if b.get("name", "").lower() == "base"), None)
+    bundle_price = _safe_int((base_bundle or {}).get("price"), 500) if base_bundle else 500
+    setup = pricing.get("setup") or {}
+    setup_price = _safe_int(setup.get("price"), 400)
+    addon = pricing.get("addonCameras") or {}
+    addon_count = _safe_int(addon.get("count"), 0)
+    addon_price = _safe_int(addon.get("price"), 150)
+    services = pricing.get("services") or []
+    pm_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "maintenance" in s.get("name", "").lower())
+    custom_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "custom" in s.get("name", "").lower())
+    consult_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "consult" in s.get("name", "").lower())
+    outstation_list = pricing.get("outstation") or []
+    outstation_total = sum(_safe_int(o.get("trip")) * _safe_int(o.get("trips")) + _safe_int(o.get("night")) * _safe_int(o.get("nights")) for o in outstation_list)
+    monthly_recurring = bundle_price + (addon_price * addon_count)
+    one_time = setup_price + pm_total + custom_total + consult_total + outstation_total
+    total_first = monthly_recurring + one_time
+    spread36 = round(total_first / 36) if total_first else 0
+    return {
+        "bundle": {"label": f"Bundle ({base_bundle['name'] if base_bundle else 'Base'})", "value": f"RM {bundle_price}", "monthly": True},
+        "setup": {"label": "Setup", "value": f"RM {setup_price}", "monthly": False},
+        "addonCameras": {"label": "Add-on cameras", "value": f"RM {addon_price * addon_count}", "monthly": True},
+        "pm": {"label": "PM visits", "value": f"RM {pm_total}", "monthly": False},
+        "customisation": {"label": "Customisation", "value": f"RM {custom_total}", "monthly": False},
+        "consulting": {"label": "Consulting", "value": f"RM {consult_total}", "monthly": False},
+        "outstation": {"label": "Outstation", "value": f"RM {outstation_total}", "monthly": False},
+        "monthlyRecurring": f"RM {monthly_recurring}",
+        "oneTime": f"RM {one_time}",
+        "totalFirstMonth": f"RM {total_first}",
+        "perOutletMonth": f"RM {bundle_price}",
+        "spread36": f"RM {spread36}",
     }
 
 def _initials(name: str) -> str:
@@ -1469,10 +1496,10 @@ def _build_master_list() -> list:
             "status": status,
             "statusFlag": _status_flag(status),
             "tags": [p.get("tier")] if p.get("tier") else [],
-            "openDeals": int(p.get("open_deals") or 0),
+            "openDeals": _safe_int(p.get("open_deals")),
             "pipeline": _rm_fmt(p.get("pipeline_rm")),
             "licences": "\u2014",
-            "score": min(100, max(0, 100 - int(p.get("days_since_activity") or 0))) if p.get("days_since_activity") is not None else 50,
+            "score": min(100, max(0, 100 - _safe_int(p.get("days_since_activity")))) if p.get("days_since_activity") is not None else 50,
             "lastActivity": (f"{p.get('days_since_activity')}d ago" if p.get("days_since_activity") is not None else "\u2014"),
         })
     return out
@@ -1487,19 +1514,19 @@ def _build_overview() -> Optional[dict]:
     partners = data.get("partners") or []
     kpis_src = data.get("kpis") or {}
 
-    open_deals = sum(int(p.get("open_deals") or 0) for p in partners)
+    open_deals = sum(_safe_int(p.get("open_deals")) for p in partners)
     at_risk = sum(1 for p in partners if p.get("days_since_activity") is not None
-                  and int(p["days_since_activity"]) > 21 and int(p.get("open_deals") or 0) > 0)
+                  and _safe_int(p.get("days_since_activity")) > 21 and _safe_int(p.get("open_deals")) > 0)
 
     kpis = [
         {"label": "Partner pipeline", "value": _rm_fmt(kpis_src.get("partner_pipeline_rm")), "note": f"{open_deals} open deals"},
         {"label": "Active partners", "value": str(kpis_src.get("partners_count") or len(partners)), "note": f"{at_risk} need attention"},
         {"label": "Partners at risk", "value": str(kpis_src.get("partners_at_risk") or at_risk), "note": "stalled >21d with pipeline"},
-        {"label": "Won YTD", "value": str(sum(int(p.get("won_count") or 0) for p in partners)), "note": "across all partners"},
+        {"label": "Won YTD", "value": str(sum(_safe_int(p.get("won_count")) for p in partners)), "note": "across all partners"},
     ]
 
     am_coverage = [
-        {"am": am, "pipeline": _rm_fmt(v.get("pipeline_rm")), "deals": int(v.get("open_deals") or 0),
+        {"am": am, "pipeline": _rm_fmt(v.get("pipeline_rm")), "deals": _safe_int(v.get("open_deals")),
          "notes": [f"{v.get('partners')} partners"]}
         for am, v in (data.get("by_am") or {}).items()
     ]
@@ -1511,7 +1538,7 @@ def _build_overview() -> Optional[dict]:
     tier_board = [
         {"tier": t, "partners": [
             {"name": p.get("name"), "regions": p.get("region") or "",
-             "score": min(100, max(0, 100 - int(p.get("days_since_activity") or 0))) if p.get("days_since_activity") is not None else 50,
+             "score": min(100, max(0, 100 - _safe_int(p.get("days_since_activity")))) if p.get("days_since_activity") is not None else 50,
              "pillars": {"activity": None, "pipeline": None, "pocCraft": None, "closure": None},
              "archetype": p.get("status") or "Active"}
             for p in sorted(rows, key=lambda x: x.get("pipeline_rm") or 0, reverse=True)[:6]
@@ -1521,7 +1548,7 @@ def _build_overview() -> Optional[dict]:
 
     stage_counts: dict = {}
     for s, n in (data.get("deal_counts_by_stage") or {}).items():
-        stage_counts[str(s)] = int(n)
+        stage_counts[str(s)] = _safe_int(n)
     total_deals = sum(stage_counts.values()) or 1
     funnel = [{"stage": s, "count": n, "pct": f"{round(n/total_deals*100)}%"}
               for s, n in sorted(stage_counts.items(), key=lambda kv: -kv[1])][:8]
@@ -1529,25 +1556,25 @@ def _build_overview() -> Optional[dict]:
     leak_points = [
         {"partner": p.get("name"), "drop": f"{p.get('open_deals')} deals stalled >30d",
          "action": "Run a close-plan review; revive or archive."}
-        for p in partners if int(p.get("open_deals") or 0) > 0
-        and p.get("days_since_activity") is not None and int(p["days_since_activity"]) > 30
+        for p in partners if _safe_int(p.get("open_deals")) > 0
+        and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 30
     ][:5]
 
     open_pipeline = [
-        {"partner": p.get("name"), "openDeals": int(p.get("open_deals") or 0),
+        {"partner": p.get("name"), "openDeals": _safe_int(p.get("open_deals")),
          "openValue": _rm_fmt(p.get("pipeline_rm")),
-         "weighted": _rm_fmt(int(p.get("pipeline_rm") or 0) * 0.4),
+         "weighted": _rm_fmt(_safe_int(p.get("pipeline_rm")) * 0.4),
          "stalled": sum(1 for d0 in (p.get("top_open") or []) if str(d0.get("stage", "")).lower() in ("quote", "poc", "proposal")),
          "nextStepCoverage": "partial",
-         "status": ("Stalled" if (p.get("days_since_activity") is not None and int(p["days_since_activity"]) > 21) else "Active")}
-        for p in sorted(partners, key=lambda x: x.get("pipeline_rm") or 0, reverse=True) if int(p.get("open_deals") or 0) > 0
+         "status": ("Stalled" if (p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 21) else "Active")}
+        for p in sorted(partners, key=lambda x: x.get("pipeline_rm") or 0, reverse=True) if _safe_int(p.get("open_deals")) > 0
     ][:12]
 
     brief_kpis = kpis[:3]
     hot = [p for p in partners if (p.get("top_open") or [])]
     narrative = (
         f"Channel is live: {_rm_fmt(kpis_src.get('partner_pipeline_rm'))} across {open_deals} open deals "
-        f"from {len([p for p in partners if int(p.get('open_deals') or 0) > 0])} active partners. "
+        f"from {len([p for p in partners if _safe_int(p.get('open_deals')) > 0])} active partners. "
         f"{at_risk} partners are cooling (no touch >21d with open pipeline) \u2014 prioritise re-engagement."
     )
     return {
@@ -1588,7 +1615,7 @@ async def _build_profile() -> Optional[dict]:
     data = _load_tps("partners-data.json")
     if not data:
         return None
-    partners = [p for p in (data.get("partners") or []) if int(p.get("open_deals") or 0) > 0]
+    partners = [p for p in (data.get("partners") or []) if _safe_int(p.get("open_deals")) > 0]
     if not partners:
         partners = data.get("partners") or []
     if not partners:
@@ -1656,7 +1683,7 @@ async def _build_profile() -> Optional[dict]:
             "certifications": "—",
             "cadence": _tier_cadence(tier),
         },
-        "score": {"value": int(top.get("days_since_activity") is not None and max(0, 100 - int(top["days_since_activity"])) or 60), "delta": "—"},
+        "score": {"value": _safe_int(max(0, 100 - _safe_int(top["days_since_activity"])) if top.get("days_since_activity") is not None else 60), "delta": "—"},
         "brief": {
             "kpis": [
                 {"label": "Open pipeline", "value": _rm_fmt(top.get("pipeline_rm")), "note": f"{len(open_deals)} open deals"},

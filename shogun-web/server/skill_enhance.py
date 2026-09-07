@@ -23,8 +23,16 @@ HISTORY_FILENAME = ".enhance-history.json"
 
 def _find_skill_dir(skill_id: str) -> Optional[Path]:
     """Find the directory containing a skill's SKILL.md by name."""
+    # Guard against path traversal in skill_id
+    if ".." in skill_id or "/" in skill_id or "\\" in skill_id:
+        return None
     for skill_md in SKILLS_DIR.rglob("SKILL.md"):
         if skill_md.parent.name.lower() == skill_id.lower():
+            # Verify resolved path stays under SKILLS_DIR
+            try:
+                skill_md.parent.relative_to(SKILLS_DIR)
+            except ValueError:
+                return None
             return skill_md.parent
     return None
 

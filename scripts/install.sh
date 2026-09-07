@@ -255,11 +255,18 @@ section_skills() {
     fi
   else
     # Full install: all skills (recursive — find SKILL.md at any depth)
+    declare -A _seen_skill_names
     while IFS= read -r skill_md; do
       local skill_dir
       skill_dir="$(dirname "$skill_md")"
       local name
       name="$(basename "$skill_dir")"
+      # Collision check: warn if same-named skill exists in another category
+      if [[ -n "${_seen_skill_names[$name]+x}" ]]; then
+        echo -e "  ${YELLOW}⚠ Skipping duplicate skill '$name' (already installed from ${_seen_skill_names[$name]})${NC}"
+        continue
+      fi
+      _seen_skill_names[$name]="$skill_dir"
       local dst="$skills_dst/$name"
       install_file "$skill_dir" "$dst" "$name skill"
       COUNT_SKILLS=$((COUNT_SKILLS + 1))

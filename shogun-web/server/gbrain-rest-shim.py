@@ -16,21 +16,22 @@ Tools implemented:
 The dashboard's gbrain_client uses gbrain_read_preference=mcp, so traffic
 routes here through /mcp. Envelope: SSE "data: {json}".
 """
-import base64
 import json
 import re
 import os
 from datetime import datetime, timezone
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+from typing import Optional
 from urllib.parse import urlparse, parse_qs
 
 import psycopg2
 import psycopg2.extras
+import psycopg2.pool
 
-# Canonical credential (same fallback chain as crm-dashboard/lib/db.ts)
-PG_PASS = os.environ.get("GBRAIN_PG_PASSWORD") or base64.b64decode(
-    "aGVybWVzX3Mzc3Npb25zXzIwMjY="
-).decode()
+# Canonical credential — MUST be set via environment variable
+PG_PASS = os.environ.get("GBRAIN_PG_PASSWORD")
+if not PG_PASS:
+    raise RuntimeError("GBRAIN_PG_PASSWORD environment variable is required but not set")
 
 DSN = {
     "host": os.environ.get("GBRAIN_PG_HOST", "127.0.0.1"),
@@ -39,6 +40,16 @@ DSN = {
     "password": PG_PASS,
     "dbname": os.environ.get("GBRAIN_PG_DB", "gbrain"),
 }
+
+# Connection pool — avoids opening/closing a connection per query
+_pool: Optional[psycopg2.pool.ThreadedConnectionPool] = None
+
+
+def _get_pool() -> psycopg2.pool.ThreadedConnectionPool:
+    global _pool
+    if _pool is None or _pool.closed:
+        _pool = psycopg2.pool.ThreadedConnectionPool(minconn=1, maxconn=5, **DSN)
+    return _pool
 
 # Department source -> real slug prefixes (single `default` brain has no
 # per-dept sources). Anything unlisted defaults to "<name>/%" and "<name>-%".
@@ -55,13 +66,14 @@ PAGE_COLS = (
 
 
 def _query(sql: str, params=()):
-    conn = psycopg2.connect(**DSN)
+    pool = _get_pool()
+    conn = pool.getconn()
     try:
         with conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
             cur.execute(sql, params)
             return [dict(r) for r in cur.fetchall()]
     finally:
-        conn.close()
+        pool.putconn(conn)
 
 
 def _iso(v):

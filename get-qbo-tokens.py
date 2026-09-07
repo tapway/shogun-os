@@ -30,8 +30,10 @@ import time
 
 # ── Configuration ────────────────────────────────────────────────────────
 
-CLIENT_ID = "ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d"
-CLIENT_SECRET = "LWLdPnm5sVtsauTANmrX9M15kcZbHqrQDSO0TQHf"
+CLIENT_ID = os.environ.get("QBO_CLIENT_ID", "")
+CLIENT_SECRET = os.environ.get("QBO_CLIENT_SECRET", "")
+if not CLIENT_ID or not CLIENT_SECRET:
+    raise SystemExit("ERROR: QBO_CLIENT_ID and QBO_CLIENT_SECRET must be set in environment or .env file")
 REDIRECT_URI = "http://localhost:8080/callback"
 PORT = 8080
 
