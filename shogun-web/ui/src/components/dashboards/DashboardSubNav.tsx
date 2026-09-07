@@ -5,11 +5,14 @@ interface DashboardSubNavProps {
   tabs: DashboardTab[];
   active: string;
   onChange: (id: string) => void;
+  /** Compact pill variant — same design & selection effect as the Onboarding
+      sub-tabs (Status / Checklist). Used for second-level group tabs. */
+  compact?: boolean;
 }
 
-export function DashboardSubNav({ tabs, active, onChange }: DashboardSubNavProps) {
+export function DashboardSubNav({ tabs, active, onChange, compact = false }: DashboardSubNavProps) {
   return (
-    <div className="sd-subnav-bar">
+    <div className={clsx(compact ? 'sd-subnav-pill-group' : 'sd-subnav-bar')}>
       {tabs.map((tab) => (
         <button
           key={tab.id}

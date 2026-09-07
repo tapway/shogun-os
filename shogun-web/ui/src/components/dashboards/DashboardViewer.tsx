@@ -6,11 +6,13 @@ import { CrmDashboard } from './crm/CrmDashboard';
 import { FinanceDashboard } from './finance/FinanceDashboard';
 import { PlantationDashboard } from './plantation/PlantationDashboard';
 import { ProcurementDashboard } from './procurement/ProcurementDashboard';
+import { HrDashboard } from './hr/HrDashboard';
 
 const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: string; color: string }>> = {
   crm: CrmDashboard,
   finance: FinanceDashboard,
   procurement: ProcurementDashboard,
+  hr: HrDashboard,
   'facility': PlantationDashboard,
 };
 

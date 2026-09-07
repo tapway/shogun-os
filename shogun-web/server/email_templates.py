@@ -112,6 +112,133 @@ _DEFAULT_TEMPLATES: List[dict] = [
 ]
 
 
+# Recruitment-workflow templates seeded for the HR department. Placeholders are
+# substituted by _fallback_draft (or filled by the LLM) from the draft context:
+#   screening:    candidate_name, job_title, screening_link, hr_name, company_name
+#   interview:    candidate_name, job_title, interview_datetime, interview_location, interviewer_name
+#   feedback:     candidate_name, job_title, interview_round, outcome, next_steps
+#   offer:        candidate_name, job_title, salary, start_date, offer_expiry
+#   welcome:      employee_name, company, start_date, department, manager
+#   rejection:    candidate_name, job_title
+_HR_RECRUITMENT_TEMPLATES: List[dict] = [
+    {
+        "id": "recruitment-screening-questions",
+        "name": "Screening — Ask Candidate to Fill In Questions",
+        "scenario": "recruitment_screening",
+        "subject_template": "Screening Questions — {job_title} Application",
+        "body_template": (
+            "Dear {candidate_name},\n\n"
+            "Thank you for applying for the {job_title} position. As the next step in our "
+            "screening process, please fill in the standard screening questions at the link below:\n\n"
+            "{screening_link}\n\n"
+            "Kindly complete and return your answers within 3 working days. If you have any "
+            "questions, feel free to reply to this email.\n\n"
+            "We look forward to hearing from you.\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+    {
+        "id": "recruitment-interview-schedule",
+        "name": "Interview — Ask Candidate for Date & Time",
+        "scenario": "recruitment_interview",
+        "subject_template": "Interview Invitation — {job_title}",
+        "body_template": (
+            "Dear {candidate_name},\n\n"
+            "Thank you for your application for the {job_title} position. We would like to invite "
+            "you for an interview and would like to arrange a suitable time with you.\n\n"
+            "Proposed details:\n"
+            "Date & Time: {interview_datetime}\n"
+            "Location / Platform: {interview_location}\n"
+            "Interviewer: {interviewer_name}\n\n"
+            "Please reply to confirm your availability, or suggest 2-3 alternative slots if the "
+            "proposed time does not work for you.\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+    {
+        "id": "recruitment-interview-feedback",
+        "name": "Interview Result — Feedback to Candidate",
+        "scenario": "recruitment_feedback",
+        "subject_template": "Your Interview Outcome — {job_title}",
+        "body_template": (
+            "Dear {candidate_name},\n\n"
+            "Thank you for taking the time to attend the {interview_round} interview for the "
+            "{job_title} position.\n\n"
+            "Outcome: {outcome}\n\n"
+            "{next_steps}\n\n"
+            "We appreciate your interest and the effort you put into the process. Please feel free "
+            "to reach out if you have any questions.\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+    {
+        "id": "recruitment-offer-letter",
+        "name": "Job Offer",
+        "scenario": "recruitment_offer",
+        "subject_template": "Job Offer — {job_title}",
+        "body_template": (
+            "Dear {candidate_name},\n\n"
+            "Congratulations! Following your successful interviews, we are delighted to offer you "
+            "the position of {job_title}.\n\n"
+            "Key terms:\n"
+            "Salary: {salary}\n"
+            "Proposed Start Date: {start_date}\n\n"
+            "This offer is valid until {offer_expiry}. Please review the terms and confirm your "
+            "acceptance by replying to this email. The official offer letter will follow upon your "
+            "acceptance.\n\n"
+            "We are excited about the prospect of you joining our team!\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+    {
+        "id": "recruitment-welcome-new-hire",
+        "name": "Welcome Email — New Hire",
+        "scenario": "onboarding",
+        "subject_template": "Welcome to the Team, {employee_name}!",
+        "body_template": (
+            "Dear {employee_name},\n\n"
+            "Welcome to {company}! We are thrilled to have you joining us.\n\n"
+            "Your first day details:\n"
+            "Start Date: {start_date}\n"
+            "Department: {department}\n"
+            "Reporting To: {manager}\n\n"
+            "Please arrive by 9:00 AM and bring your IC and bank details. Our HR team will guide "
+            "you through the onboarding checklist and help you get set up.\n\n"
+            "See you soon!\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+    {
+        "id": "recruitment-rejection",
+        "name": "Application — Not Proceeding",
+        "scenario": "recruitment_rejection",
+        "subject_template": "Your Application — {job_title}",
+        "body_template": (
+            "Dear {candidate_name},\n\n"
+            "Thank you for your interest in the {job_title} position and for the time you invested "
+            "in our recruitment process.\n\n"
+            "After careful consideration, we have decided not to proceed with your application at "
+            "this time. This decision does not reflect on your abilities, and we encourage you to "
+            "apply for future openings that match your profile.\n\n"
+            "We wish you every success in your job search.\n\n"
+            "Best regards,\n"
+            "{hr_name}\n"
+            "Human Resources, {company_name}"
+        ),
+    },
+]
+
+
 def _load_templates() -> Dict[str, List[dict]]:
     """Load all templates from the JSON file. Returns {dept_key: [templates]}."""
     if not _TEMPLATES_FILE.exists():
@@ -130,11 +257,22 @@ def _save_templates(data: Dict[str, List[dict]]) -> None:
 
 
 def _get_dept_templates(dept_key: str) -> List[dict]:
-    """Get templates for a department, seeding defaults on first access."""
+    """Get templates for a department, seeding defaults on first access.
+
+    The HR department additionally gets the recruitment-workflow templates
+    (screening, interview, feedback, offer, welcome, rejection) seeded once —
+    never re-added if the user deleted any of them.
+    """
     all_templates = _load_templates()
     if dept_key not in all_templates:
         all_templates[dept_key] = list(_DEFAULT_TEMPLATES)
         _save_templates(all_templates)
+    if dept_key == "hr":
+        existing_ids = {t.get("id") for t in all_templates.get("hr", [])}
+        rec_ids = {t["id"] for t in _HR_RECRUITMENT_TEMPLATES}
+        if not (existing_ids & rec_ids):
+            all_templates["hr"] = all_templates.get("hr", []) + list(_HR_RECRUITMENT_TEMPLATES)
+            _save_templates(all_templates)
     return all_templates[dept_key]
 
 

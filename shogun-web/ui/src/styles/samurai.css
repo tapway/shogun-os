@@ -1229,6 +1229,35 @@ html[data-theme="light"] .sd-sidebar-head img {
   border-color: var(--samurai-accent-fill);
 }
 
+/* compact pill group — second-level tabs inside a group page
+   (Onboarding Status/Checklist, Employees, Recruitment).
+   Matches the Onboarding sub-tab design & selection effect. */
+.sd-subnav-pill-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: -0.4rem;
+}
+.sd-subnav-pill-group .sd-subnav-pill {
+  padding: 0.3rem 0.8rem;
+  border-radius: 0.45rem;
+  font-size: 0.78rem;
+  font-weight: 500;
+  color: var(--samurai-muted);
+  background: transparent;
+  border: 1px solid var(--samurai-border);
+}
+.sd-subnav-pill-group .sd-subnav-pill:hover {
+  color: var(--samurai-text);
+  background: var(--samurai-hover-ui);
+}
+.sd-subnav-pill-group .sd-subnav-pill.active {
+  border: 2px solid var(--samurai-accent-fill);
+  background: color-mix(in srgb, var(--samurai-accent-fill) 10%, transparent);
+  color: var(--samurai-text);
+  font-weight: 700;
+}
+
 /* KPI tiles */
 .sd-kpi-grid {
   display: grid;
