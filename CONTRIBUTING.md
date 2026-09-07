@@ -24,7 +24,7 @@ Shogun OS is a **reference architecture** — not a shipped product. Contributio
 ```
 shogun-os/
 ├── scripts/              # Bash/Python provisioning scripts
-├── skills/               # Reusable Hermes skills (SKILL.md format)
+├── skills/               # Categorized Hermes skills (12 folders: general/, hermes/, finance/, etc.)
 ├── recipes/              # Integration recipes (gbrain-recipe format)
 ├── templates/            # Profile config templates
 │   └── profiles/         # base-config.yaml, coding-config.yaml
@@ -119,7 +119,7 @@ python3 -c "import yaml; yaml.safe_load(open('templates/profiles/base-config.yam
 
 ## Adding a New Skill
 
-1. Create `skills/<name>/SKILL.md` with frontmatter + body
+1. Create `skills/<category>/<name>/SKILL.md` with frontmatter + body (e.g., `skills/finance/my-skill/`)
 2. Add to `scripts/install.sh`'s full-install loop (auto-picked by the `for` loop)
 3. Add to `scripts/verify-install.sh`'s skill check list
 4. Add to `HUB.md` skill table

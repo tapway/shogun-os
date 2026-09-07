@@ -168,12 +168,12 @@ PROFILE_EXTRA_CRONS = {
             "name": "{profile}-dashboard-snapshot",
             "schedule": "0 7 * * *",
             "prompt": (
-                "Run the dashboard-snapshot-writer skill to refresh the Finance dashboard with live system data. "
+                "Run the finance-dashboard-snapshot skill to refresh the Finance dashboard with live system data. "
                 "Compute the 5-tab payload from acct_* MCP tools and write JSON snapshots to "
                 "finance/snapshots/*.json so the portal dashboard shows real data instead of mock. "
                 "Idempotent and empty-brain-safe."
             ),
-            "skills": ["dashboard-snapshot-writer"],
+            "skills": ["finance-dashboard-snapshot"],
             "deliver": "local",
             "slash_trigger": "refresh-finance-dashboard",
         },
@@ -272,12 +272,12 @@ PROFILE_EXTRA_CRONS = {
             "name": "{profile}-dashboard-snapshot",
             "schedule": "0 7 * * *",
             "prompt": (
-                "Run the dashboard-snapshot-writer skill to refresh the Procurement dashboard with live system data. "
+                "Run the procurement-dashboard-snapshot skill to refresh the Procurement dashboard with live system data. "
                 "Compute the 5-tab payload from proc_* MCP tools and write JSON snapshots to "
                 "procurement/snapshots/*.json so the portal dashboard shows real data instead of mock. "
                 "Idempotent and empty-brain-safe."
             ),
-            "skills": ["dashboard-snapshot-writer"],
+            "skills": ["procurement-dashboard-snapshot"],
             "deliver": "local",
             "slash_trigger": "refresh-procurement-dashboard",
         },

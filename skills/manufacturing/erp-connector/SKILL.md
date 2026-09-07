@@ -150,7 +150,6 @@ Scheduled sync engine that pulls data from ERP to local storage.
 ## Related Skills
 
 - [work-order-tracking](../work-order-tracking/SKILL.md) — Work orders from ERP
-- [warehouse-inventory](../warehouse-inventory/SKILL.md) — Inventory levels from ERP
 - [mes-connector](../mes-connector/SKILL.md) — Production data may need ERP reference
 - [production-oee](../production-oee/SKILL.md) — BOM and routing data for OEE calculation
 

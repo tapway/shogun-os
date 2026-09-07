@@ -22,7 +22,6 @@
 | `ecommerce-listing` | retail | Listing sync, image compliance, SEO (Shopee/Lazada) |
 | `marketplace-analytics` | retail | Sales by platform, ad ROI, competitor pricing |
 | `dead-slow-stock-detector` | procurement | Dead/slow stock detection + flush recommendations |
-| `promo-planning` | retail | Promo calendar, signage, post-promo analysis |
 | `product-price-monitor` | productivity | Watches external prices (read-only) |
 | `comfyui` / `claude-design` | creative | Image/HTML generation building blocks |
 

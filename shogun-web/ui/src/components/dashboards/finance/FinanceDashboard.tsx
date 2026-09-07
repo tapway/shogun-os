@@ -52,16 +52,22 @@ export function FinanceDashboard({ department, color }: FinanceDashboardProps) {
     return (
       <div className="sd-empty">
         <h2>Unable to load Finance dashboard data</h2>
-        <p>The finance snapshot could not be retrieved. Try refreshing the page.</p>
+        <p>The finance snapshot could not be retrieved. Check that the accounting bridge is connected, then refresh the page.</p>
       </div>
     );
   }
 
   return (
     <div className="sd-stack">
+      {stats.dataSource === 'empty' && (
+        <div className="sd-empty" style={{ marginBottom: '1rem' }}>
+          📡 Waiting for accounting data — no live connection to QBO yet. Check the accounting bridge
+          configuration and credentials, then refresh the page.
+        </div>
+      )}
       {stats.mock && (
         <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-          ⚠️ DEMO DATA — some figures loaded from sample data. Connect QBO + gbrain snapshots for live financials.
+          ⚠️ DEMO DATA — some figures loaded from sample data. Connect QBO for live financials.
         </div>
       )}
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />

@@ -31,7 +31,7 @@ You are working on the `shogun-os` repo — a reference architecture for deployi
 ## References
 
 - [`docs/architecture/`](docs/architecture/) — detailed design docs
-- [`skills/`](skills/) — 6 reusable Hermes skills
+- [`skills/`](skills/) — Categorized Hermes skills (12 folders)
 - [`recipes/`](recipes/) — 8 integration recipes with dependency order
 - [`templates/`](templates/) — profile config templates
 - [`examples/scrum-configs/`](examples/scrum-configs/) — 9 scrum config templates

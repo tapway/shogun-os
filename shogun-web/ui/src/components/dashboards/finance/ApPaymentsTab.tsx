@@ -11,14 +11,6 @@ const TEXT = 'var(--samurai-text)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 
-const MATCH_CHIP: Record<string, string> = {
-  Matched: 'ok', 'PO Mismatch': 'warn', 'Missing GRN': 'bad',
-};
-
-const APPROVAL_CHIP: Record<string, string> = {
-  Pending: 'muted', Approved: 'ok', Paid: 'ok', 'On Hold': 'bad',
-};
-
 export function ApPaymentsTab({ stats }: Props) {
   const [billTarget, setBillTarget] = useState<ApBillItem | null>(null);
 
@@ -27,12 +19,6 @@ export function ApPaymentsTab({ stats }: Props) {
     { label: 'AP Overdue', value: fmtMyr(stats.apOverdue), warn: stats.apOverdue > 0 },
     { label: 'DPO', value: stats.dpo > 0 ? `${(stats.dpo || 0).toFixed(0)} days` : '—', warn: false },
   ];
-
-  // Summary stats for visual bar
-  const totalBills = stats.apBills.length;
-  const matched = stats.apBills.filter((b) => b.match_status === 'Matched').length;
-  const pendingApproval = stats.apBills.filter((b) => b.approval_status === 'Pending').length;
-  const matchPct = totalBills > 0 ? (matched / totalBills) * 100 : 0;
 
   return (
     <div className="sd-stack">
@@ -43,23 +29,6 @@ export function ApPaymentsTab({ stats }: Props) {
             <div className="sd-kpi-value" style={{ color: m.warn ? 'var(--samurai-danger)' : TEXT }}>{m.value}</div>
           </div>
         ))}
-      </div>
-
-      {/* 3-Way Match Progress Bar — visual summary */}
-      <div className="sd-chart-card">
-        <h3 className="sd-chart-title">3-Way Match Progress</h3>
-        <p className="sd-chart-sub">PO ↔ GRN ↔ Invoice — matched vs pending</p>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '0.5rem' }}>
-          <div style={{ flex: 1, height: '1.5rem', borderRadius: '0.4rem', overflow: 'hidden', background: SURFACE_2 }}>
-            <div style={{ height: '100%', width: `${matchPct}%`, borderRadius: '0.4rem', background: 'var(--samurai-ok)', transition: 'width 0.3s' }} />
-          </div>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{matchPct.toFixed(0)}%</div>
-        </div>
-        <div style={{ display: 'flex', gap: '1.5rem', fontSize: '0.75rem', color: MUTED }}>
-          <span><strong style={{ color: 'var(--samurai-ok)' }}>{matched}</strong> Matched</span>
-          <span><strong style={{ color: 'var(--samurai-warning)' }}>{totalBills - matched}</strong> Pending Match</span>
-          <span><strong style={{ color: TEXT }}>{pendingApproval}</strong> Pending Approval</span>
-        </div>
       </div>
 
       {/* Bills Table */}
@@ -75,9 +44,8 @@ export function ApPaymentsTab({ stats }: Props) {
                 <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <th className="pb-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Vendor</th>
                   <th className="pb-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Bill #</th>
+                  <th className="pb-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Due Date</th>
                   <th className="pb-2 text-right" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Amount</th>
-                  <th className="pb-2 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>3-Way Match</th>
-                  <th className="pb-2 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Approval</th>
                 </tr>
               </thead>
               <tbody>
@@ -89,13 +57,8 @@ export function ApPaymentsTab({ stats }: Props) {
                   >
                     <td className="py-2" style={{ fontWeight: 600, color: TEXT }}>{bill.vendor}</td>
                     <td className="py-2" style={{ color: MUTED }}>{bill.bill_no}</td>
+                    <td className="py-2" style={{ color: MUTED }}>{bill.due_date}</td>
                     <td className="py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{fmtMyr(bill.amount)}</td>
-                    <td className="py-2 text-center">
-                      <span className={`sd-chip ${MATCH_CHIP[bill.match_status] ?? 'muted'}`}>{bill.match_status}</span>
-                    </td>
-                    <td className="py-2 text-center">
-                      <span className={`sd-chip ${APPROVAL_CHIP[bill.approval_status] ?? 'muted'}`}>{bill.approval_status}</span>
-                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -120,16 +83,6 @@ export function ApPaymentsTab({ stats }: Props) {
             <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
               <div style={{ fontSize: '0.72rem', color: MUTED }}>Due Date</div>
               <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT, fontSize: '1rem' }}>{billTarget.due_date}</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', gap: '0.5rem', marginBottom: '0.75rem' }}>
-            <div style={{ flex: 1, borderRadius: '0.5rem', background: SURFACE_2, padding: '0.5rem 0.75rem' }}>
-              <div style={{ fontSize: '0.72rem', color: MUTED }}>3-Way Match</div>
-              <span className={`sd-chip ${MATCH_CHIP[billTarget.match_status] ?? 'muted'}`}>{billTarget.match_status}</span>
-            </div>
-            <div style={{ flex: 1, borderRadius: '0.5rem', background: SURFACE_2, padding: '0.5rem 0.75rem' }}>
-              <div style={{ fontSize: '0.72rem', color: MUTED }}>Approval</div>
-              <span className={`sd-chip ${APPROVAL_CHIP[billTarget.approval_status] ?? 'muted'}`}>{billTarget.approval_status}</span>
             </div>
           </div>
           <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem' }}>

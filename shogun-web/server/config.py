@@ -6,6 +6,7 @@ Loads settings from ``~/.shogun-os/web.json`` and overlays environment variables
 from __future__ import annotations
 
 import json
+import math
 import os
 import secrets
 from dataclasses import asdict, dataclass, field
@@ -53,6 +54,23 @@ def _env_int(name: str, default: int) -> int:
         return default
 
 
+def _env_float(name: str, default: float) -> float:
+    """Parse a float env var — garbage values degrade to the default instead of a boot crash.
+
+    Same contract as _env_int (see its docstring). NaN and inf are rejected — they would
+    silently defeat cache expiration semantics."""
+    raw = os.environ.get(name)
+    if raw is None or not raw.strip():
+        return default
+    try:
+        val = float(raw)
+        if not math.isfinite(val):
+            return default
+        return val
+    except ValueError:
+        return default
+
+
 @dataclass
 class WebConfig:
     """Typed configuration for the per-tenant web portal."""
@@ -79,8 +97,11 @@ class WebConfig:
     brain_root: str = str(Path.home() / "brain")
     gbrain_read_preference: str = os.environ.get("GBRAIN_READ_PREFERENCE", "filesystem")
     # MCP-only sources: cap per-fetch enrichment of metadata-only list_pages rows.
-    # Raise above the source size for large remote brains (each enrich = 1 get_page).
-    gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 50)
+    # Default 500 prevents N+1 explosion on large brains (10k+ pages). Set to 0 for
+    # unbounded enrichment (small deployments only), or a positive value to cap.
+    gbrain_mcp_enrich_cap: int = _env_int("GBRAIN_MCP_ENRICH_CAP", 500)
+    gbrain_mcp_enrich_concurrency: int = _env_int("GBRAIN_MCP_ENRICH_CONCURRENCY", 16)
+    gbrain_page_cache_ttl: float = _env_float("GBRAIN_PAGE_CACHE_TTL", 300.0)
     # Filesystem mirror staleness guard (minutes, default 60 = ON). When the
     # newest markdown is older than this the mirror defers to MCP (guards
     # against a failed put_page sync mirror serving stale data indefinitely).
@@ -345,12 +366,6 @@ DEFAULT_DEPARTMENTS: List[Dict[str, Any]] = [
         "port_offset": 8,
     },
     {
-        "name": "executive",
-        "profile_name": "executive-manager",
-        "label": "Executive",
-        "port_offset": 9,
-    },
-    {
         "name": "projects",
         "profile_name": "projects-manager",
         "label": "Projects",
@@ -378,7 +393,7 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "label": "Manufacturing",
         "description": "Factory, production, OEM",
         "icon": "🏭",
-        "departments": ["production", "quality", "maintenance", "warehouse", "hse"],
+        "departments": ["production", "quality", "maintenance"],
     },
     {
         "slug": "retail",
@@ -386,8 +401,8 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "description": "Stores, e-commerce, omnichannel",
         "icon": "🛒",
         "departments": [
-            "stores", "merchandising", "e-commerce",
-            "crm-loyalty", "supply-chain", "visual-merchandising",
+            "merchandising", "e-commerce",
+            "supply-chain",
         ],
     },
     {
@@ -421,16 +436,11 @@ INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
         {"name": "production", "profile_name": "production-manager", "label": "Production", "port_offset": 11},
         {"name": "quality", "profile_name": "quality-manager", "label": "Quality", "port_offset": 12},
         {"name": "maintenance", "profile_name": "maintenance-manager", "label": "Maintenance", "port_offset": 13},
-        {"name": "warehouse", "profile_name": "warehouse-manager", "label": "Warehouse", "port_offset": 14},
-        {"name": "hse", "profile_name": "hse-manager", "label": "HSE", "port_offset": 15},
     ],
     "retail": [
-        {"name": "stores", "profile_name": "stores-manager", "label": "Stores", "port_offset": 11},
         {"name": "merchandising", "profile_name": "merchandising-manager", "label": "Merchandising", "port_offset": 12},
         {"name": "e-commerce", "profile_name": "ecommerce-manager", "label": "E-commerce", "port_offset": 13},
-        {"name": "crm-loyalty", "profile_name": "crm-loyalty-manager", "label": "CRM/Loyalty", "port_offset": 14},
         {"name": "supply-chain", "profile_name": "supply-chain-manager", "label": "Supply Chain", "port_offset": 15},
-        {"name": "visual-merchandising", "profile_name": "vm-manager", "label": "Visual Merchandising", "port_offset": 16},
     ],
     "plantation": [
         {"name": "facility", "profile_name": "facility-manager", "label": "Facility Management", "port_offset": 11},

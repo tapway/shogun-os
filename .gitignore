@@ -36,3 +36,7 @@ Thumbs.db
 
 # Build output
 out/
+
+# Runtime SQLite databases
+shogun.db
+*.db

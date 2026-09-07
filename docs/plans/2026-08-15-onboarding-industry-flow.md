@@ -70,7 +70,6 @@ Step 0: Industry     →  Step 1: Departments  →  Step 2: Company  →  Step 3
 |----------|------|-------------|-------------------------------|
 | General / Services | `general` | Consulting, software, agencies | Projects, Product |
 | Manufacturing | `manufacturing` | Factory, production, OEM | Production, Quality, Maintenance, Warehouse, HSE |
-| Retail | `retail` | Stores, e-commerce, omnichannel | Stores, Merchandising, E-commerce, CRM-Loyalty, Supply Chain, Visual Merchandising |
 | Plantation | `plantation` | Estate, mill, agriculture | Estate Operations, Worker Welfare |
 
 ### Department Catalog (restructured by industry)
@@ -82,7 +81,6 @@ SHARED (always shown, regardless of industry):
 INDUSTRY-SPECIFIC (only shown when industry selected):
   General:       Projects, Product
   Manufacturing: Production, Quality, Maintenance, Warehouse, HSE
-  Retail:        Stores, Merchandising, E-commerce, CRM-Loyalty, Supply Chain, Visual Merchandising
   Plantation:    Estate Operations, Worker Welfare
 ```
 
@@ -235,7 +233,6 @@ INDUSTRY_CATALOG: List[Dict[str, Any]] = [
         "label": "Retail",
         "description": "Stores, e-commerce, omnichannel",
         "icon": "🛒",
-        "departments": ["stores", "merchandising", "e-commerce", "crm-loyalty", "supply-chain", "visual-merchandising"],
     },
     {
         "slug": "plantation",
@@ -275,9 +272,7 @@ INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
         {"name": "stores", "profile_name": "stores-manager", "label": "Stores", "port_offset": 11},
         {"name": "merchandising", "profile_name": "merchandising-manager", "label": "Merchandising", "port_offset": 12},
         {"name": "e-commerce", "profile_name": "ecommerce-manager", "label": "E-commerce", "port_offset": 13},
-        {"name": "crm-loyalty", "profile_name": "crm-loyalty-manager", "label": "CRM/Loyalty", "port_offset": 14},
         {"name": "supply-chain", "profile_name": "supply-chain-manager", "label": "Supply Chain", "port_offset": 15},
-        {"name": "visual-merchandising", "profile_name": "vm-manager", "label": "Visual Merchandising", "port_offset": 16},
     ],
     "plantation": [
         {"name": "estate-ops", "profile_name": "estate-ops-manager", "label": "Estate Operations", "port_offset": 11},
@@ -319,7 +314,6 @@ export const INDUSTRY_CATALOG: Record<IndustryKey, {
     label: 'Retail',
     description: 'Stores, e-commerce, omnichannel',
     icon: '🛒',
-    departments: ['stores', 'merchandising', 'e-commerce', 'crm-loyalty', 'supply-chain', 'visual-merchandising'],
   },
   plantation: {
     label: 'Plantation',
@@ -342,7 +336,6 @@ export type DepartmentKey =
   // Manufacturing
   | 'production' | 'quality' | 'maintenance' | 'warehouse' | 'hse'
   // Retail
-  | 'stores' | 'merchandising' | 'e-commerce' | 'crm-loyalty' | 'supply-chain' | 'visual-merchandising'
   // Plantation
   | 'estate-ops' | 'worker-welfare';
 

@@ -84,7 +84,7 @@ export function CashFlowTab({ stats, color }: Props) {
           Cash Flow Management Dashboard
         </h2>
         <p style={{ fontSize: '0.72rem', color: MUTED, margin: '0.15rem 0 0' }}>
-          Live data from QuickBooks Online — bank balances, receivables, burn rate, and 6-month forecast
+          Live data from QBO — bank balances, receivables, burn rate, and 6-month forecast
         </p>
       </div>
 
@@ -93,7 +93,7 @@ export function CashFlowTab({ stats, color }: Props) {
         {/* Column 1: Core Financial Metrics (vertical stack) */}
         <div className="sd-chart-card" style={{ flex: '0 0 22%', minWidth: '220px' }}>
           <h3 className="sd-chart-title">Core Financial Metrics</h3>
-          <p className="sd-chart-sub">Live QBO KPIs — click for detail</p>
+          <p className="sd-chart-sub">Live KPIs from QBO — click for detail</p>
           <div className="sd-stack" style={{ gap: '0.5rem', marginTop: '0.4rem' }}>
             {coreMetrics.map((kpi) => (
               <button
@@ -598,7 +598,7 @@ export function CashFlowTab({ stats, color }: Props) {
       {activeModal === 'burnTrend' && (
         <FinanceDetailModal
           title="Monthly Burn Trend (Last 6 Months)"
-          subtitle="Total expenses per month from live QBO P&L"
+          subtitle="Total expenses per month from live QBO"
           onClose={() => setActiveModal(null)}
           maxWidth="44rem"
         >

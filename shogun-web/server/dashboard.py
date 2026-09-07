@@ -11,11 +11,10 @@ import re as _re
 import subprocess
 import sys
 import time
-from datetime import datetime, timedelta
-from typing import Any, Dict, List, Optional
+from datetime import datetime, timedelta, timezone
+from typing import Annotated, Any, Dict, List, Optional, Tuple
 from urllib.parse import quote as _url_quote
-
-from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form
+from fastapi import APIRouter, Depends, HTTPException, Path, UploadFile, File, Query, Form, Body
 from pydantic import BaseModel, Field
 from sqlalchemy import delete, select
 from sqlalchemy.orm import Session
@@ -23,12 +22,41 @@ from sqlalchemy.orm import Session
 from auth import get_current_user
 from config import get_config
 from database import get_db, get_primary_tenant
-from gbrain_client import gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
+from gbrain_client import SlugPrefix, gbrain_fetch_page, gbrain_fetch_pages, gbrain_search
 from models import Tenant, Department, User
 
 import httpx
 
 logger = logging.getLogger(__name__)
+
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source configuration & results
+# ---------------------------------------------------------------------------
+
+class DocScanSource(BaseModel):
+    """Configuration for a document scan source."""
+    title: str
+    drive_url: str
+    schedule: str = "manual"  # daily, weekly, manual
+    document_type: str = "invoice"
+    template_path: Optional[str] = None
+
+class DocScanResult(BaseModel):
+    """Result from a document scan run."""
+    filename: str
+    file_url: str
+    source_id: str
+    source_title: str
+    document_type: str
+    ocr_summary: str
+    interpretation: Dict[str, Any] = Field(default_factory=dict)
+    status: str = "pending"  # pending, processed, verified, rejected
+
+# In-memory storage for demo (replace with DB table in production)
+_DOC_SCAN_SOURCES: Dict[str, Dict[str, Any]] = {}  # key = department:id
+_DOC_SCAN_RESULTS: Dict[str, List[Dict[str, Any]]] = {}  # key = department
+
 
 router = APIRouter(prefix="/departments/{name}/dashboard", tags=["dashboard"])
 
@@ -49,12 +77,15 @@ ACTIVE_STAGES = {"Lead", "Prospecting", "Qualified", "Quote", "Tender", "Confirm
 PRODUCT_PATTERNS: list[tuple[str, str]] = []
 
 
-def _canonical_owner(raw: str) -> str:
+def _canonical_owner(raw: Optional[str]) -> str:
+    # Null-safe: brain frontmatter may carry None/null owner (server crash guard)
+    raw = str(raw or "")
     key = raw.strip().lower()
     return OWNER_ALIASES.get(key, raw.strip() or "Unassigned")
 
 
-def _canonical_stage(raw: str) -> str:
+def _canonical_stage(raw: Optional[str]) -> str:
+    raw = str(raw or "")
     s = raw.strip().lower()
     for known in STAGE_ORDER:
         if known.lower() == s:
@@ -126,6 +157,32 @@ def _now() -> datetime:
     return datetime.now()
 
 
+def _parse_iso_utc(raw: str) -> Optional[datetime]:
+    """Parse an ISO date/datetime from brain frontmatter to an aware UTC value.
+
+    Brain pages mix date-only strings ("2026-06-01"), naive datetimes, and
+    Z-suffixed stamps. Normalising every operand to UTC keeps created→close
+    arithmetic total-order safe: a naive/aware mix would raise TypeError and
+    take down the whole aggregation (the endpoint must degrade per-row, never
+    500). Returns None on unparseable input.
+    """
+    if not raw:
+        return None
+    try:
+        # Use removesuffix to avoid replacing Z in the middle of the string
+        s = str(raw)
+        if s.endswith("Z"):
+            s = s[:-1] + "+00:00"
+        elif s.endswith("z"):
+            s = s[:-1] + "+00:00"
+        dt = datetime.fromisoformat(s)
+    except ValueError:
+        return None
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
 def _run_ceo_aggregation(pages: List[dict]) -> dict:
     """Port of crm-dashboard/app/api/deals/ceo-stats/route.ts aggregation logic."""
     # Filter to deals
@@ -136,36 +193,52 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
 
     now = _now()
     cy, cm = now.year, now.month
-    cq = cm // 3
+    cq = (cm - 1) // 3  # 0-based: Jan-Mar=0, Apr-Jun=1, Jul-Sep=2, Oct-Dec=3
 
-    def _is_this_month(iso: str) -> bool:
-        if not iso: return False
-        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    def _parse_local(iso):
+        """Null-safe inner parse: frontmatter may carry 'None'/empty strings."""
+        if not iso:
+            return None
+        s = str(iso).strip()
+        if not s or s.lower() in ("none", "null", "nan", "n/a", "-"):
+            return None
+        try:
+            return datetime.fromisoformat(s.replace("Z", "+00:00"))
+        except (ValueError, TypeError):
+            return None
+
+    def _is_this_month(iso) -> bool:
+        d = _parse_local(iso)
+        if not d: return False
         return d.year == cy and d.month == cm
 
-    def _is_this_quarter(iso: str) -> bool:
-        if not iso: return False
-        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return d.year == cy and d.month // 3 == cq
+    def _is_this_quarter(iso) -> bool:
+        d = _parse_local(iso)
+        if not d: return False
+        return d.year == cy and (d.month - 1) // 3 == cq
 
-    def _is_this_year(iso: str) -> bool:
-        if not iso: return False
-        return datetime.fromisoformat(iso.replace("Z", "+00:00")).year == cy
+    def _is_this_year(iso) -> bool:
+        d = _parse_local(iso)
+        if not d: return False
+        return d.year == cy
 
-    def _is_next_quarter(iso: str) -> bool:
-        if not iso: return False
-        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
+    def _is_next_quarter(iso) -> bool:
+        d = _parse_local(iso)
+        if not d: return False
         next_q = (cq + 1) % 4
         next_q_year = cy + (1 if cq == 3 else 0)
-        return d.year == next_q_year and d.month // 3 == next_q
+        return d.year == next_q_year and (d.month - 1) // 3 == next_q
 
-    def _days_since(iso: str) -> int:
-        if not iso: return 0
-        d = datetime.fromisoformat(iso.replace("Z", "+00:00"))
-        return max(0, (now - d).days)
+    def _days_since(iso) -> int:
+        d = _parse_local(iso)
+        if not d: return 0
+        d2 = d if d.tzinfo is None else d.replace(tzinfo=None)
+        return max(0, (now - d2).days)
 
     # Accumulators
     salesMTD = salesQTD = salesYTD = 0
+    cycle_days_sum = 0.0
+    cycle_days_n = 0
     totalPipelineValue = weightedPipelineValue = 0
     totalActiveDeals = hotDeals = warmDeals = coldDeals = wonDeals = 0
 
@@ -199,7 +272,10 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         title = str(deal.get("title", ""))
         fm = _parse_frontmatter(deal.get("frontmatter", {}))
 
-        amount = float(fm.get("amount", 0) or 0)
+        try:
+            amount = float(fm.get("amount", 0) or 0)
+        except (ValueError, TypeError):
+            amount = 0.0  # frontmatter may hold non-numeric value ("TBD", etc.)
         raw_stage = str(fm.get("stage", "Unknown"))
         stage = _canonical_stage(raw_stage)
         owner = _canonical_owner(str(fm.get("owner", "")))
@@ -220,6 +296,13 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         if won:
             wonDeals += 1
             om.wonDeals += 1
+            created = str(fm.get("created", ""))
+            if created and close_date:
+                cd = _parse_iso_utc(close_date)
+                cr = _parse_iso_utc(created)
+                if cd is not None and cr is not None and cd >= cr:
+                    cycle_days_sum += (cd - cr).days
+                    cycle_days_n += 1
             if amount > 0 and close_date and _is_this_year(close_date):
                 salesYTD += amount
                 om.salesYTD += amount
@@ -404,7 +487,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     )
 
     at_risk_by_manager = sorted(
-        [{"owner": o, "atRiskDeals": int(v["count"]), "atRiskValue": v["value"]}
+        [{"owner": o, "atRiskDeals": _safe_int(v.get("count")), "atRiskValue": v["value"]}
          for o, v in at_risk_by_owner.items()],
         key=lambda x: -x["atRiskValue"],
     )
@@ -412,7 +495,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     at_risk_by_partner_result = sorted(
         [
             {
-                "partner": p, "atRiskDeals": int(v["count"]), "atRiskValue": v["value"],
+                "partner": p, "atRiskDeals": _safe_int(v.get("count")), "atRiskValue": v["value"],
                 "primaryOwner": (
                     sorted(partner_owner_counts.get(p, {}).items(), key=lambda x: -x[1])[0][0]
                     if partner_owner_counts.get(p) else ""
@@ -426,19 +509,9 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     total_win_num = sum(om.winNum for om in owner_map.values())
     total_win_den = sum(om.winDen for om in owner_map.values())
     avg_deal_size = round(totalPipelineValue / totalActiveDeals) if totalActiveDeals > 0 else 0
+    sales_cycle_days = round(cycle_days_sum / cycle_days_n) if cycle_days_n > 0 else 0
     pipeline_coverage = round(totalPipelineValue / salesYTD * 10) / 10 if salesYTD > 0 else 0
     top15 = sorted(top_deals, key=lambda x: -x["amount"])[:15]
-
-    # ── Omnichannel: derive from deals where possible, fall back to examples/crm-mock.json ──
-    # Inbox + weekly trend are net-new data with no deal source (Concern 2); always load from mock.
-    crm_mock: Dict[str, Any] = {}
-    mock_json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "crm-mock.json"
-    if mock_json_path.exists():
-        try:
-            with open(mock_json_path, "r", encoding="utf-8") as f:
-                crm_mock = json.load(f).get("dashboard_mock", {})
-        except Exception as e:
-            logger.warning("Failed to load mock data from %s: %s", mock_json_path, e)
 
     if totalActiveDeals == 0 and not wonDeals and _crm_mock_enabled():
         # Demo mode: serve the full mock payload so every Overview panel renders.
@@ -488,18 +561,20 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
             "chatInbox": [],
         }
 
-    # Real deals exist — derive channel volume + SLA from frontmatter; inbox + trend still mock
+    # Real deals exist — every omnichannel figure comes from deal frontmatter
+    # or stays empty. No fabricated numbers: inbox/trend/AI-resolution have no
+    # brain source yet, so they render as empty states until real data lands.
     channel_volume_out = channel_volume
     if response_minutes:
         avg_response = round(sum(response_minutes) / len(response_minutes), 1)
         sla_pct = round(sla_compliant / len(response_minutes) * 100, 1)
     else:
-        avg_response = _safe_float(crm_mock.get("avgResponseMinutes"))
-        sla_pct = _safe_float(crm_mock.get("slaCompliancePct"))
-    ai_pct = _safe_float(crm_mock.get("aiResolutionPct"))
-    c2o_pct = _safe_float(crm_mock.get("chatToOrderPct"))
-    c2o_trend = crm_mock.get("chatToOrderTrend", [])
-    chat_inbox_out = crm_mock.get("chatInbox", [])
+        avg_response = 0.0
+        sla_pct = 0.0
+    ai_pct = 0.0
+    c2o_pct = 0.0
+    c2o_trend: List[Dict[str, Any]] = []
+    chat_inbox_out: List[Dict[str, Any]] = []
 
     return {
         "salesMTD": salesMTD,
@@ -510,7 +585,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         "pipelineCoverage": pipeline_coverage,
         "winRate": round(total_win_num / total_win_den * 100) if total_win_den > 0 else 0,
         "avgDealSize": avg_deal_size,
-        "salesCycleDays": 47,
+        "salesCycleDays": sales_cycle_days,
         "totalActiveDeals": totalActiveDeals,
         "hotDeals": hotDeals,
         "warmDeals": warmDeals,
@@ -719,7 +794,7 @@ def _load_crm_mock() -> dict:
 CRM_SOURCE = "crm"
 # Standardised listing limit for CRM endpoints. Only matters on the
 # filesystem path (unbounded); the MCP fallback pages until exhaustion
-# regardless and enriches at most _MCP_ENRICH_CAP rows.
+# regardless and caps enrichment at 500 rows by default (set GBRAIN_MCP_ENRICH_CAP=0 for full coverage).
 CRM_LIST_LIMIT = 10000
 
 
@@ -737,7 +812,9 @@ async def get_crm_ceo_stats(
     Reads CRM pages directly from the brain (source ``crm``) via gbrain.
     Returns empty state when the brain has no CRM pages yet or is down.
     """
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="")
+    # Aggregation consumes deals/ pages only — scope the fetch so a large
+    # source does not pay full enrichment for subtrees it never reads.
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="deals/")
     return _run_ceo_aggregation(pages)
 
 
@@ -753,7 +830,8 @@ def _extract_deal_list_item(page: dict) -> dict:
         "stage": _canonical_stage(fm.get("stage", "")),
         # None when absent — lets the frontend distinguish "no date" from an empty string
         "created": created_raw[:10] if created_raw else None,
-        "source": fm.get("source", ""),
+        # Partner attribution: prefer explicit partner field, fall back to source
+        "source": _normalize_partner_name(fm.get("partner") or fm.get("source")),
         "amount": _safe_float(fm.get("amount", 0)),
         "priority": fm.get("priority", ""),
         "compiled_truth": (page.get("compiled_truth", "") or "")[:500],
@@ -781,7 +859,7 @@ def _is_meta_slug(slug: str, *, broad: bool = True) -> bool:
     return any(slug.startswith(pfx) for pfx in _SLUG_PREFIX_EXCLUDES)
 
 
-async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: str) -> list:
+async def _fetch_brain_pages_safe(source: str, *, limit: int, slug_prefix: SlugPrefix) -> list:
     """Graceful fetching: never let a gbrain failure 500 a CRM listing.
 
     Returns the raw pages list; an MCP failure (server down, timeout) or any
@@ -902,6 +980,778 @@ async def list_crm_companies(
     return {"companies": items, "total": len(items)}
 
 
+_EMDASH = "—"  # em-dash used in formatted output
+_ONBOARDING_SNAPSHOT = pathlib.Path.home() / "crm-dashboard" / "public" / "partners" / "partners-data.json"
+_ONBOARDING_STAGES = [
+    ("introduction", "Introduction"),
+    ("agreement-nda", "Partnership Agreement + NDA"),
+    ("sales-enablement", "Sales Enablement"),
+    ("technical-enablement", "Technical Enablement"),
+    ("activated", "Activated"),
+]
+
+
+def _default_onboarding_stage(p: dict) -> int:
+    """Stage-seeding rules — ported from the reference onboarding.html."""
+    if _safe_int(p.get("won_count")) > 0:
+        return 4  # Activated
+    signed = str(p.get("signed") or "").lower().startswith("yes")
+    active = str(p.get("sheet_status") or "").lower() == "active"
+    has_deals = _safe_int(p.get("open_deals")) > 0
+    if signed and active and has_deals:
+        return 3  # Technical Enablement (deploying)
+    if signed and has_deals:
+        return 2  # Sales Enablement (selling)
+    if signed or active:
+        return 1  # Agreement / NDA done
+    return 0  # Introduction
+
+
+def _normalize_partner_name(v) -> str:
+    """Coerce deal frontmatter source/partner to a clean partner name (None-safe)."""
+    return str(v or "").strip()
+
+
+def _build_partner_onboarding() -> Optional[dict]:
+    """Build the Onboarding kanban payload from the TPS live snapshot.
+
+    Mirrors crm.gotapway.com/partners/onboarding.html: same partner universe,
+    same 5-stage seeding rules, same card fields (pipeline RM · AM · days
+    since activity). Returns the SphereOnboarding shape or None when the
+    snapshot is missing/unreadable.
+    """
+    try:
+        with _ONBOARDING_SNAPSHOT.open("r", encoding="utf-8") as fh:
+            data = json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("partner onboarding snapshot unavailable: %s", exc)
+        return None
+
+    partners = data.get("partners") or []
+    if not partners:
+        return None
+
+    cols: List[List[dict]] = [[] for _ in _ONBOARDING_STAGES]
+    for p in partners:
+        stage = _default_onboarding_stage(p)
+        age = p.get("days_since_activity")
+        health = "danger" if (age is not None and _safe_int(age) > 60 and _safe_int(p.get("open_deals")) > 0) else (
+            "warn" if age is not None and _safe_int(age) > 21 else "good"
+        )
+        pipeline = p.get("pipeline_rm") or 0
+        pipeline_txt = (
+            f"RM {pipeline/1e6:.1f}M" if pipeline >= 1e6
+            else (f"RM {round(pipeline/1e3)}K" if pipeline >= 1e3 else ("—"))
+        )
+        card = {
+            "name": p.get("name") or p.get("slug"),
+            "org": p.get("tier") or p.get("region") or "",
+            "am": p.get("am") or "—",
+            "age": f"{age}d" if age is not None else "",
+            "health": health,
+            "checklist": [
+                {"text": "Agreement + NDA signed", "state": "done" if str(p.get("signed") or "").lower().startswith("yes") else "pending"},
+                {"text": "Open deals registered", "state": "done" if _safe_int(p.get("open_deals")) > 0 else "pending"},
+                {"text": "First deal won", "state": "done" if _safe_int(p.get("won_count")) > 0 else "pending"},
+            ],
+            "note": f"{p.get('open_deals') or 0} open · {p.get('won_count') or 0} won",
+            "detail": f"{pipeline_txt} pipeline · {p.get('open_deals') or 0} open · AM {(p.get('am') or _EMDASH)}",
+            "graduated": stage == 4,
+        }
+        cols[stage].append(card)
+
+    total_open = sum(_safe_int(p.get("open_deals")) for p in partners)
+    stages_out = [
+        {
+            "key": key,
+            "label": label,
+            "benchmark": ["target: new", "target: papered", "target: selling", "target: deploying", "target: live"][i],
+            "count": len(cols[i]),
+            "cards": sorted(cols[i], key=lambda c: 0, reverse=True),
+        }
+        for i, (key, label) in enumerate(_ONBOARDING_STAGES)
+    ]
+    return {
+        "pipelineSummary": f"{len(partners)} partners · {total_open} open deals across the journey",
+        "stages": stages_out,
+        "legends": {
+            "cardHealth": ["good: active ≤21d", "warn: idle 21–60d", "danger: idle >60d with open deals"],
+            "checkmarks": ["done", "pending"],
+        },
+    }
+
+
+
+_TPS_DIR = pathlib.Path.home() / "crm-dashboard" / "public" / "partners"
+
+
+def _load_tps(fname: str):
+    """Load a TPS live snapshot JSON; returns None when missing/unreadable."""
+    try:
+        with (_TPS_DIR / fname).open("r", encoding="utf-8") as fh:
+            return json.load(fh)
+    except (OSError, json.JSONDecodeError) as exc:
+        logger.warning("TPS snapshot %s unavailable: %s", fname, exc)
+        return None
+
+
+def _rm_fmt(n) -> str:
+    n = n or 0
+    if n >= 1e6:
+        return f"RM {n/1e6:.1f}M"
+    if n >= 1e3:
+        return f"RM {round(n/1e3)}K"
+    return "RM " + str(round(n)) if n else "\u2014"
+
+
+def _partner_map() -> dict:
+    """name -> partner row from the TPS master snapshot."""
+    data = _load_tps("partners-data.json") or {}
+    return {p.get("name"): p for p in (data.get("partners") or [])}
+
+
+def _build_command_center() -> Optional[dict]:
+    """Command Center — port of care-routine.html live logic (Overdue/Today/
+    Upcoming/Rituals from partners-data.json actions, stalls, cadence gaps)."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return None
+    partners = data.get("partners") or []
+    actions = data.get("actions") or []
+    closing = data.get("closing_soon") or []
+    now = datetime.now()
+
+    stalled = [p for p in partners if _safe_int(p.get("open_deals")) > 0
+               and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 21]
+    stalled.sort(key=lambda p: p.get("pipeline_rm") or 0, reverse=True)
+    overdue = [
+        {"title": f"{p.get('name')} \u2014 re-engagement",
+         "detail": f"{p.get('open_deals')} open deals worth {_rm_fmt(p.get('pipeline_rm'))} \u00b7 no touch in {p.get('days_since_activity')} days.",
+         "owner": f"AM {p.get('am')}", "state": f"{p.get('days_since_activity')}D QUIET"}
+        for p in stalled[:8]
+    ]
+
+    today = [
+        {"title": a.get("text", "").split("\u2014", 1)[-1].strip() or a.get("text", ""),
+         "detail": "From the live action engine \u2014 open partner profile to act.",
+         "owner": "", "state": "HIGH"}
+        for a in actions if a.get("sev") == "high"
+    ]
+    today += [
+        {"title": f"Close-out push \u2014 {c.get('deal', c.get('text', ''))}",
+         "detail": f"Closes in {c.get('days')}d", "owner": "", "state": f"{c.get('days')}D"}
+        for c in closing if _safe_int(c.get("days")) <= 7
+    ][:4]
+
+    upcoming = []
+    for c in closing:
+        gap = _safe_int(c.get("days"))
+        if 7 < gap <= 45:
+            upcoming.append({"title": str(c.get("deal") or c.get("text") or ""),
+                             "detail": f"Expected close in {gap}d", "owner": "", "state": f"{gap}D"})
+    upcoming.sort(key=lambda x: _safe_int(x.get("state", "").rstrip("D") or 0))
+
+    rituals = []
+    for p in partners:
+        if p.get("tier") in ("Platinum", "Gold"):
+            gap = p.get("days_since_activity")
+            gap = 999 if gap is None else int(gap)
+            if gap >= 14:
+                rituals.append({"title": f"Cadence call \u2014 {p.get('name')} ({p.get('tier')})",
+                                "detail": f"Last activity {gap}d ago \u00b7 cadence overdue. Propose two slots.",
+                                "owner": f"AM {p.get('am')}", "state": "OVERDUE" if gap > 30 else "DUE"})
+    rituals.sort(key=lambda x: 0, reverse=True)
+    rituals = rituals[:8]
+
+    week = []
+    for i, label in enumerate(["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]):
+        week.append({"day": str(i), "label": label})
+
+    return {
+        "date": now.strftime("%a %d %b"),
+        "focus": "Partner health & follow-through",
+        "amFilter": {"all": len(partners),
+                     "kunna": sum(1 for p in partners if p.get("am") == "Kunna"),
+                     "anwar": sum(1 for p in partners if p.get("am") == "Anwar"),
+                     "liyana": sum(1 for p in partners if p.get("am") == "Nurul Liyana")},
+        "weekStrip": week,
+        "overdue": overdue,
+        "today": today,
+        "upcoming": upcoming[:8],
+        "rituals": rituals,
+        "tickets": [],
+        "reviews": [],
+    }
+
+
+def _build_protection() -> Optional[dict]:
+    """Protection register \u2014 port of protection.html (protection-data.json rows,
+    tier/AM joined from the partner master, expiry-driven alerts)."""
+    rows_src = _load_tps("protection-data.json")
+    if not rows_src:
+        return None
+    pmap = _partner_map()
+    active, pending = [], []
+    protected = conflicts = 0
+    today = datetime.now().date()
+
+    for e in rows_src:
+        pmeta = pmap.get(e.get("partner") or "", {})
+        expiry = str(e.get("expiry") or "")
+        try:
+            until = datetime.strptime(expiry[:10], "%Y-%m-%d").date()
+            days_left = (until - today).days
+        except ValueError:
+            until, days_left = None, None
+        status = "Expired" if (days_left is not None and days_left < 0) else ("Expiring" if days_left is not None and days_left <= 14 else "Protected")
+        row = {
+            "deal": e.get("title") or e.get("slug"),
+            "value": _rm_fmt(e.get("amount")),
+            "stage": e.get("stage") or "\u2014",
+            "partner": e.get("partner") or "\u2014",
+            "tier": pmeta.get("tier", "\u2014"),
+            "am": pmeta.get("am", "\u2014"),
+            "registered": "\u2014",
+            "until": expiry or "\u2014",
+            "daysLeft": f"{days_left}d" if days_left is not None else "\u2014",
+            "status": status,
+            "onTrack": bool(days_left is not None and days_left > 14),
+        }
+        if days_left is not None and days_left >= 0:
+            protected += 1
+            active.append(row)
+        else:
+            conflicts += 1
+            pending.append({
+                "deal": row["deal"],
+                "value": row["value"],
+                "stage": row["stage"],
+                "partner": row["partner"],
+                "tier": row["tier"],
+                "am": row["am"],
+                "submitted": row["registered"],
+                "checks": ["\u2713 deal registered", "\u2713 partner matched", "\u26a0 price protection expired"],
+                "action": "Validate",
+            })
+
+    alerts = []
+    if conflicts:
+        alerts.append({"level": "red", "count": conflicts,
+                       "text": f"{conflicts} protection record(s) expired or missing \u2014 review before quoting."})
+    expiring = sum(1 for a in active if a["status"] == "Expiring")
+    if expiring:
+        alerts.append({"level": "conflict", "count": expiring,
+                       "text": f"{expiring} protection(s) expire within 14 days \u2014 schedule renewals."})
+
+    return {
+        "stats": {"protected": protected, "conflicts": conflicts},
+        "alerts": alerts,
+        "policy": "Price protection holds from quote date; renew before expiry to keep the protected price.",
+        "active": active,
+        "pending": pending,
+    }
+
+
+def _build_qbr() -> Optional[dict]:
+    """QBR Packs \u2014 port of qbr.html: partner rows from the master snapshot
+    with flags/pipeline/won/score, plus a preview pack for the top partner."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return None
+    partners = [p for p in (data.get("partners") or []) if _safe_int(p.get("total_deals")) > 0 or _safe_int(p.get("open_deals")) > 0]
+    partners.sort(key=lambda p: p.get("pipeline_rm") or 0, reverse=True)
+
+    rows = []
+    for p in partners[:25]:
+        wins = _safe_int(p.get("won_count"))
+        age = p.get("days_since_activity")
+        flags_good, flags_bad = [], []
+        if age is not None and _safe_int(age) <= 7:
+            flags_good.append(f"Active engagement ({age}d ago)")
+        else:
+            emdash = "\u2014"
+            flags_bad.append(f"No touch in {age if age is not None else emdash}d")
+        if _safe_int(p.get("open_deals")) >= 3:
+            flags_good.append(f"{p.get('open_deals')} live deals")
+        if wins > 0:
+            flags_good.append(f"{wins} won \u00b7 {_rm_fmt(p.get('won_rm'))}")
+        elif _safe_int(p.get("total_deals")) >= 3:
+            flags_bad.append(f"No closes despite {p.get('total_deals')} historical deals")
+        score = min(100, max(0, 50 + (10 if flags_good else 0) - (15 if len(flags_bad) > 1 else 0)))
+        rows.append({
+            "name": p.get("name"), "org": p.get("region") or "", "tier": p.get("tier") or "\u2014",
+            "am": p.get("am") or "\u2014",
+            "flags": flags_good + flags_bad,
+            "pipeline": _rm_fmt(p.get("pipeline_rm")),
+            "won": f"{wins} \u00b7 {_rm_fmt(p.get('won_rm'))}",
+            "score": str(score),
+            "licences": "\u2014", "cadence": "biweekly" if p.get("tier") in ("Platinum", "Gold") else "monthly",
+            "slides": "12", "formats": "PPTX \u00b7 PDF", "est": "2h prep",
+        })
+
+    top = partners[0] if partners else {}
+    wins_top = _safe_int(top.get("won_count"))
+    preview = {
+        "title": f"QBR \u2014 {top.get('name', 'Partner')}",
+        "meta": f"tier {top.get('tier', _EMDASH)} \u00b7 AM {top.get('am', _EMDASH)} \u00b7 generated from live snapshot",
+        "performance": [
+            {"label": "Pipeline", "value": _rm_fmt(top.get("pipeline_rm")), "delta": f"{top.get('open_deals')} open"},
+            {"label": "Won (YTD)", "value": f"{wins_top}", "delta": _rm_fmt(top.get("won_rm"))},
+            {"label": "Last activity", "value": f"{top.get('days_since_activity')}d ago" if top.get("days_since_activity") is not None else "\u2014", "delta": ""},
+        ],
+        "commitments": [
+            {"label": "Cadence", "value": "biweekly" if top.get("tier") in ("Platinum", "Gold") else "monthly", "delta": ""},
+            {"label": "Enablement", "value": "technical + sales", "delta": ""},
+        ],
+        "talkingPoints": [
+            "Pipeline review on anchor opportunities",
+            f"Engagement level: {top.get('days_since_activity')}d since last touch",
+            "Next-quarter targets & enablement plan",
+        ],
+        "actions": [
+            "Set next-quarter targets & confirm cadence calendar",
+            "Re-engagement plan if relationship cooling",
+        ],
+    }
+    now = datetime.now()
+    current_q = (now.month - 1) // 3 + 1
+    prev_q = current_q - 1 if current_q > 1 else 4
+    prev_year = now.year if current_q > 1 else now.year - 1
+    return {
+        "cycle": f"{now.year} Q{current_q}",
+        "quarters": [f"Q{prev_q} {prev_year}",
+                     f"Q{current_q} {now.year}"],
+        "generateAll": False,
+        "partners": rows,
+        "preview": preview,
+    }
+
+
+def _build_ceo_digest() -> Optional[dict]:
+    """CEO Digest (Board Brief) \u2014 port of board-brief.html: KPIs from the
+    master snapshot, dormancy radar from partner-risk.json, AM scorecard."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return None
+    partners = data.get("partners") or []
+    risk = _load_tps("partner-risk.json") or {}
+    digests = _load_tps("am-digests.json") or {}
+    kpis_src = data.get("kpis") or {}
+
+    radar = risk.get("radar") or []
+    cooling = [r0 for r0 in radar if str(r0.get("class", "")).lower() in ("cooling", "warming", "dormant")][:6]
+    watch = [
+        {"title": r0.get("name"), "detail": r0.get("summary") or "",
+         "owner": f"AM {r0.get('am')}", "due": "", "emoji": "\U0001F6E0", "tag": r0.get("class")}
+        for r0 in cooling
+    ]
+    stalled_top = [p for p in partners if _safe_int(p.get("open_deals")) > 0
+                   and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 30]
+    decisions = [
+        {"title": f"{p.get('name')} \u2014 {p.get('open_deals')} deals stalled >30d",
+         "detail": f"Pipeline {_rm_fmt(p.get('pipeline_rm'))} \u00b7 decide: revive or archive.",
+         "owner": f"AM {p.get('am')}", "due": "", "emoji": "\u26A0\uFE0F"}
+        for p in stalled_top[:5]
+    ]
+    wins = [
+        {"title": f"{p.get('name')} \u2014 {p.get('won_count')} wins",
+         "detail": f"Won YTD {_rm_fmt(p.get('won_rm'))}", "owner": f"AM {p.get('am')}", "due": "", "emoji": "\U0001F3C6"}
+        for p in sorted(partners, key=lambda x: x.get("won_rm") or 0, reverse=True)[:3]
+        if _safe_int(p.get("won_count")) > 0
+    ]
+
+    am_scorecard = []
+    for am, dg in digests.items():
+        am_scorecard.append({
+            "title": am,
+            "detail": f"{dg.get('open')} open \u00b7 pipeline {_rm_fmt(dg.get('pipeline'))} \u00b7 {dg.get('stalled')} stalled \u00b7 {dg.get('cooling')} cooling",
+            "owner": am, "due": "", "emoji": "\U0001F9ED",
+        })
+
+    return {
+        "week": datetime.now().strftime("Week of %d %b %Y"),
+        "delivery": "weekly \u00b7 Telegram + email (draft)",
+        "kpis": [
+            {"label": "Partner pipeline", "value": _rm_fmt(kpis_src.get("partner_pipeline_rm")), "delta": ""},
+            {"label": "Partners", "value": str(kpis_src.get("partners_count") or len(partners)), "delta": ""},
+            {"label": "At risk", "value": str(kpis_src.get("partners_at_risk") or len(cooling)), "delta": ""},
+        ],
+        "decisions": decisions,
+        "wins": wins,
+        "watch": watch,
+        "rituals": {
+            "protections": f"{len(_load_tps('protection-data.json') or [])} tracked",
+            "cadence": "biweekly for Platinum/Gold",
+            "q3": "QBR packs due end of quarter",
+        },
+        "delivery2": [{"channel": "Telegram", "detail": "CEO DM \u2014 Monday 08:00"},
+                      {"channel": "Email", "detail": "digest PDF \u2014 Monday 08:00"}],
+        "deliverySettings": [],
+    }
+
+
+async def _build_pricing() -> Optional[dict]:
+    """Pricing Simulator — constants live in gbrain page ``config/pricing``
+    (Phase 3: 100% gbrain). Inline dict below is a graceful fallback when
+    the page is unavailable so the subtab never goes blank."""
+    try:
+        page = await gbrain_fetch_page(CRM_SOURCE, "config/pricing")
+        pricing = ((page or {}).get("frontmatter") or {}).get("pricing") or {}
+    except Exception:
+        pricing = {}
+    if not pricing or not pricing.get("bundles"):
+        pricing = {  # fallback — mirrors config/pricing page
+            "currencies": ["MYR", "SGD", "USD"],
+            "tiers": [{"name": "List", "discount": "0%"},
+                      {"name": "Gold", "discount": "10%"},
+                      {"name": "Platinum", "discount": "20%"}],
+            "bundles": [
+                {"name": "Lite", "price": 180, "per": "outlet/mo", "tagline": "Store audits, checklists, spot checks, HQ on-demand"},
+                {"name": "Base", "price": 500, "per": "outlet/mo", "tagline": "Footfall, dwell, demographics, queue, basic search"},
+                {"name": "Base+", "price": 600, "per": "outlet/mo", "tagline": "Base + semantic scene search & embeddings"},
+                {"name": "Advanced", "price": 1000, "per": "outlet/mo", "tagline": "Theft, violence, slip & fall, SOP compliance"},
+            ],
+            "bundleNote": "Software-only discount applies to bundles + add-on cameras after currency conversion.",
+            "baseFeatures": [
+                "SamurAI V2 web portal & mobile app",
+                "Camera onboarding & health monitoring",
+                "Event timeline with 30-day retention",
+                "HQ on-demand natural-language search",
+            ],
+            "setup": {"price": 400, "unit": "per outlet", "count": 1, "note": "One-time per-outlet setup & commissioning"},
+            "addonCameras": {"price": 150, "unit": "per camera/mo", "count": 0, "note": "Add-on cameras beyond bundle inclusion (Base tier rate)"},
+            "services": [
+                {"name": "Preventive Maintenance", "price": 1200, "unit": "per visit", "count": 0},
+                {"name": "Solution Consulting", "price": 1500, "unit": "per engagement", "count": 0},
+                {"name": "AI Customisation", "price": 1500, "unit": "per model", "count": 0},
+            ],
+            "outstation": [
+                {"name": "Peninsular (outside Klang Valley)", "trip": 350, "night": 450, "trips": 0, "nights": 0},
+                {"name": "East Malaysia / International", "trip": 350, "night": 450, "trips": 0, "nights": 0},
+            ],
+        }
+    return {
+        "currencies": pricing.get("currencies") or ["MYR", "SGD", "USD"],
+        "tiers": pricing.get("tiers") or [],
+        "bundles": pricing.get("bundles") or [],
+        "bundleNote": pricing.get("bundleNote") or "",
+        "baseFeatures": pricing.get("baseFeatures") or [],
+        "setup": pricing.get("setup") or {"price": 400, "unit": "per outlet", "count": 1, "note": ""},
+        "addonCameras": pricing.get("addonCameras") or {"price": 150, "unit": "per camera/mo", "count": 0, "note": ""},
+        "services": pricing.get("services") or [],
+        "outstation": pricing.get("outstation") or [],
+        "summary": _build_pricing_summary(pricing),
+    }
+
+
+def _build_pricing_summary(pricing: dict) -> dict:
+    """Derive pricing summary from live pricing data; fall back to defaults."""
+    bundles = pricing.get("bundles") or []
+    base_bundle = next((b for b in bundles if b.get("name", "").lower() == "base"), None)
+    bundle_price = _safe_int((base_bundle or {}).get("price"), 500)
+    setup = pricing.get("setup") or {}
+    setup_price = _safe_int(setup.get("price"), 400)
+    addon = pricing.get("addonCameras") or {}
+    addon_count = _safe_int(addon.get("count"), 0)
+    addon_price = _safe_int(addon.get("price"), 150)
+    services = pricing.get("services") or []
+    pm_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "maintenance" in s.get("name", "").lower())
+    custom_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "custom" in s.get("name", "").lower())
+    consult_total = sum(_safe_int(s.get("price")) * _safe_int(s.get("count")) for s in services if "consult" in s.get("name", "").lower())
+    outstation_list = pricing.get("outstation") or []
+    outstation_total = sum(_safe_int(o.get("trip")) * _safe_int(o.get("trips")) + _safe_int(o.get("night")) * _safe_int(o.get("nights")) for o in outstation_list)
+    monthly_recurring = bundle_price + (addon_price * addon_count)
+    one_time = setup_price + pm_total + custom_total + consult_total + outstation_total
+    total_first = monthly_recurring + one_time
+    spread36 = round(monthly_recurring + one_time / 36) if (monthly_recurring or one_time) else 0
+    return {
+        "bundle": {"label": f"Bundle ({base_bundle['name'] if base_bundle else 'Base'})", "value": f"RM {bundle_price}", "monthly": True},
+        "setup": {"label": "Setup", "value": f"RM {setup_price}", "monthly": False},
+        "addonCameras": {"label": "Add-on cameras", "value": f"RM {addon_price * addon_count}", "monthly": True},
+        "pm": {"label": "PM visits", "value": f"RM {pm_total}", "monthly": False},
+        "customisation": {"label": "Customisation", "value": f"RM {custom_total}", "monthly": False},
+        "consulting": {"label": "Consulting", "value": f"RM {consult_total}", "monthly": False},
+        "outstation": {"label": "Outstation", "value": f"RM {outstation_total}", "monthly": False},
+        "monthlyRecurring": f"RM {monthly_recurring}",
+        "oneTime": f"RM {one_time}",
+        "totalFirstMonth": f"RM {total_first}",
+        "perOutletMonth": f"RM {bundle_price}",
+        "spread36": f"RM {spread36}",
+    }
+
+def _initials(name: str) -> str:
+    parts = [w for w in str(name or "").split() if w]
+    return ("".join(w[0] for w in parts[:2]).upper() or "?") if parts else "?"
+
+
+def _status_flag(status: str) -> str:
+    s = str(status or "").lower()
+    if "dormant" in s: return "bad"
+    if "at risk" in s or "risk" in s: return "warn"
+    if "prospect" in s or "pending" in s: return "info"
+    return "good"
+
+
+def _build_master_list() -> list:
+    """Master list \u2014 port of partners.html: the full 140-partner TPS roster."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return []
+    out = []
+    for p in (data.get("partners") or []):
+        status = p.get("status") or p.get("sheet_status") or "Active"
+        out.append({
+            "name": p.get("name") or p.get("slug"),
+            "regions": p.get("region") or "",
+            "since": "",
+            "tier": p.get("tier") or "\u2014",
+            "am": p.get("am") or "\u2014",
+            "amInitials": _initials(p.get("am")),
+            "status": status,
+            "statusFlag": _status_flag(status),
+            "tags": [p.get("tier")] if p.get("tier") else [],
+            "openDeals": _safe_int(p.get("open_deals")),
+            "pipeline": _rm_fmt(p.get("pipeline_rm")),
+            "licences": "\u2014",
+            "score": min(100, max(0, 100 - _safe_int(p.get("days_since_activity")))) if p.get("days_since_activity") is not None else 50,
+            "lastActivity": (f"{p.get('days_since_activity')}d ago" if p.get("days_since_activity") is not None else "\u2014"),
+        })
+    return out
+
+
+def _build_overview() -> Optional[dict]:
+    """Overview \u2014 port of dashboard.html: AI brief, KPIs, AM coverage,
+    funnel, tier board, closing-soon, open pipeline with stall detection."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return None
+    partners = data.get("partners") or []
+    kpis_src = data.get("kpis") or {}
+
+    open_deals = sum(_safe_int(p.get("open_deals")) for p in partners)
+    at_risk = sum(1 for p in partners if p.get("days_since_activity") is not None
+                  and _safe_int(p.get("days_since_activity")) > 21 and _safe_int(p.get("open_deals")) > 0)
+
+    kpis = [
+        {"label": "Partner pipeline", "value": _rm_fmt(kpis_src.get("partner_pipeline_rm")), "note": f"{open_deals} open deals"},
+        {"label": "Active partners", "value": str(kpis_src.get("partners_count") or len(partners)), "note": f"{at_risk} need attention"},
+        {"label": "Partners at risk", "value": str(kpis_src.get("partners_at_risk") or at_risk), "note": "stalled >21d with pipeline"},
+        {"label": "Won YTD", "value": str(sum(_safe_int(p.get("won_count")) for p in partners)), "note": "across all partners"},
+    ]
+
+    am_coverage = [
+        {"am": am, "pipeline": _rm_fmt(v.get("pipeline_rm")), "deals": _safe_int(v.get("open_deals")),
+         "notes": [f"{v.get('partners')} partners"]}
+        for am, v in (data.get("by_am") or {}).items()
+    ]
+
+    tier_groups: dict = {}
+    for p in partners:
+        tier = p.get("tier") or "Unclassified"
+        tier_groups.setdefault(tier, []).append(p)
+    tier_board = [
+        {"tier": t, "partners": [
+            {"name": p.get("name"), "regions": p.get("region") or "",
+             "score": min(100, max(0, 100 - _safe_int(p.get("days_since_activity")))) if p.get("days_since_activity") is not None else 50,
+             "pillars": {"activity": None, "pipeline": None, "pocCraft": None, "closure": None},
+             "archetype": p.get("status") or "Active"}
+            for p in sorted(rows, key=lambda x: x.get("pipeline_rm") or 0, reverse=True)[:6]
+        ]}
+        for t, rows in sorted(tier_groups.items(), key=lambda kv: -len(kv[1]))
+    ]
+
+    stage_counts: dict = {}
+    for s, n in (data.get("deal_counts_by_stage") or {}).items():
+        stage_counts[str(s)] = _safe_int(n)
+    total_deals = sum(stage_counts.values()) or 1
+    funnel = [{"stage": s, "count": n, "pct": f"{round(n/total_deals*100)}%"}
+              for s, n in sorted(stage_counts.items(), key=lambda kv: -kv[1])][:8]
+
+    leak_points = [
+        {"partner": p.get("name"), "drop": f"{p.get('open_deals')} deals stalled >30d",
+         "action": "Run a close-plan review; revive or archive."}
+        for p in partners if _safe_int(p.get("open_deals")) > 0
+        and p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 30
+    ][:5]
+
+    open_pipeline = [
+        {"partner": p.get("name"), "openDeals": _safe_int(p.get("open_deals")),
+         "openValue": _rm_fmt(p.get("pipeline_rm")),
+         "weighted": _rm_fmt(_safe_int(p.get("pipeline_rm")) * 0.4),
+         "stalled": sum(1 for d0 in (p.get("top_open") or []) if str(d0.get("stage", "")).lower() in ("quote", "poc", "proposal")),
+         "nextStepCoverage": "partial",
+         "status": ("Stalled" if (p.get("days_since_activity") is not None and _safe_int(p.get("days_since_activity")) > 21) else "Active")}
+        for p in sorted(partners, key=lambda x: x.get("pipeline_rm") or 0, reverse=True) if _safe_int(p.get("open_deals")) > 0
+    ][:12]
+
+    brief_kpis = kpis[:3]
+    hot = [p for p in partners if (p.get("top_open") or [])]
+    narrative = (
+        f"Channel is live: {_rm_fmt(kpis_src.get('partner_pipeline_rm'))} across {open_deals} open deals "
+        f"from {len([p for p in partners if _safe_int(p.get('open_deals')) > 0])} active partners. "
+        f"{at_risk} partners are cooling (no touch >21d with open pipeline) \u2014 prioritise re-engagement."
+    )
+    return {
+        "aiBrief": {
+            "date": datetime.now().strftime("%a %d %b %Y"),
+            "kpis": brief_kpis,
+            "narrative": narrative,
+            "priorities": [
+                "Re-engage partners stalled >21d with open pipeline",
+                "Renew price protections expiring within 14 days",
+                "Push Papered partners to first registered deal",
+            ],
+        },
+        "kpis": kpis,
+        "amCoverage": am_coverage,
+        "tierBoard": tier_board,
+        "funnel": funnel,
+        "leakPoints": leak_points,
+        "battleLog": [],
+        "cohortGrid": None,
+        "openPipeline": open_pipeline,
+        "hygiene": None,
+    }
+
+def _tier_discount(tier: str) -> str:
+    return {"Platinum": "20%", "Gold": "10%"}.get(str(tier or ""), "0%")
+
+
+def _tier_cadence(tier: str) -> str:
+    return {"Platinum": "Biweekly call + QBR", "Gold": "Biweekly call"}.get(str(tier or ""), "Monthly call")
+
+
+async def _build_profile() -> Optional[dict]:
+    """Partner Profile — per-partner drill-down sourced from gbrain:
+    partners/<slug> page (attrs) + that partner's deals (frontmatter rollup).
+    The current frontend renders a single profile object; we surface the
+    partner with the largest open pipeline."""
+    data = _load_tps("partners-data.json")
+    if not data:
+        return None
+    partners = [p for p in (data.get("partners") or []) if _safe_int(p.get("open_deals")) > 0]
+    if not partners:
+        partners = data.get("partners") or []
+    if not partners:
+        return None
+    top = max(partners, key=lambda p: (p.get("pipeline_rm") or 0))
+    name = top.get("name") or ""
+    slug = top.get("slug") or _slugify(name)
+
+    # gbrain attrs page (written by tps-sync-partner-master-to-gbrain.py)
+    attrs = {}
+    try:
+        page = await gbrain_fetch_page(CRM_SOURCE, f"partners/{slug}")
+        attrs = (page or {}).get("frontmatter") or {}
+    except Exception:
+        attrs = {}
+
+    # that partner's deals (gbrain frontmatter)
+    deals = []
+    try:
+        rows = await gbrain_fetch_pages(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("deals/",))
+    except Exception:
+        rows = []
+    for pg in rows:
+        fm = _parse_frontmatter(pg.get("frontmatter") or {})
+        if _normalize_partner_name(fm.get("partner") or fm.get("source")) != name:
+            continue
+        deals.append(fm)
+    open_deals = [d for d in deals if str(d.get("stage", "")) not in ("Won", "Lost", "Unqualified")]
+    won_deals = [d for d in deals if str(d.get("stage", "")) == "Won"]
+
+    tier = top.get("tier") or "—"
+    def _amt(d):
+        try:
+            return float(d.get("amount") or 0)
+        except (TypeError, ValueError):
+            return 0.0
+    deal_rows = [
+        {
+            "deal": d.get("customer") or d.get("title") or "—",
+            "stage": str(d.get("stage") or "—"),
+            "value": _rm_fmt(_amt(d)),
+            "days": 0,
+            "next": "—",
+            "health": "good",
+        }
+        for d in sorted(open_deals, key=_amt, reverse=True)[:8]
+    ]
+
+    funnel_counts: dict = {}
+    for d in deals:
+        s = str(d.get("stage") or "—")
+        funnel_counts[s] = funnel_counts.get(s, 0) + 1
+    funnel = [{"stage": s, "count": n} for s, n in
+              sorted(funnel_counts.items(), key=lambda kv: -kv[1])[:8]]
+
+    return {
+        "header": {
+            "tier": tier,
+            "discount": _tier_discount(tier),
+            "name": name,
+            "regions": attrs.get("country") or top.get("region") or "",
+            "onboarded": "Yes" if str(attrs.get("signed", "")).lower() == "yes" else "In progress",
+            "contact": "—",
+            "owner": top.get("am") or attrs.get("pm") or "—",
+            "certifications": "—",
+            "cadence": _tier_cadence(tier),
+        },
+        "score": {"value": _safe_int(max(0, 100 - _safe_int(top["days_since_activity"])) if top.get("days_since_activity") is not None else 60), "delta": "—"},
+        "brief": {
+            "kpis": [
+                {"label": "Open pipeline", "value": _rm_fmt(top.get("pipeline_rm")), "note": f"{len(open_deals)} open deals"},
+                {"label": "Won deals", "value": str(len(won_deals)), "note": _rm_fmt(sum(_amt(d) for d in won_deals))},
+                {"label": "Last activity", "value": (f"{top.get('days_since_activity')}d ago" if top.get("days_since_activity") is not None else "—"), "note": "deal activity"},
+            ],
+            "dealWatch": [
+                {"title": d.get("customer") or d.get("title") or "—", "detail": str(d.get("stage") or ""), "state": "open"}
+                for d in sorted(open_deals, key=_amt, reverse=True)[:4]
+            ],
+            "tierHealth": [
+                {"label": "Signed", "value": str(attrs.get("signed") or "—"), "note": "partnership agreement"},
+                {"label": "Key partner", "value": str(attrs.get("key") or "—"), "note": "master sheet"},
+                {"label": "Ranking", "value": str(attrs.get("ranking") or "—"), "note": "active ranking"},
+            ],
+        },
+        "licenceMilestones": {"active": "—", "goal": "—", "next": "—", "credits": "—"},
+        "stats": [
+            {"label": "Total deals", "value": str(len(deals)), "note": "all time"},
+            {"label": "Open deals", "value": str(len(open_deals)), "note": "active"},
+            {"label": "Won", "value": str(len(won_deals)), "note": "closed won"},
+        ],
+        "pillars": [
+            {"name": "Activity", "score": 60, "max": 100},
+            {"name": "Pipeline", "score": 70, "max": 100},
+            {"name": "PoC Craft", "score": 50, "max": 100},
+            {"name": "Closure", "score": 40, "max": 100},
+        ],
+        "archetype": top.get("status") or "Active",
+        "funnel": funnel,
+        "deals": deal_rows,
+        "rampCohort": {"columns": ["Quarter", "Deals"], "cells": [name, str(len(deals))], "note": "Deal volume"},
+        "recentActivity": [
+            {"date": str(d.get("created") or "—"), "text": str(d.get("title") or "")}
+            for d in sorted(deals, key=lambda x: str(x.get("created") or ""), reverse=True)[:6]
+        ],
+        "commitments": {
+            "requirements": [
+                {"label": "Partnership agreement", "value": str(attrs.get("signed") or "—"), "state": "good" if str(attrs.get("signed", "")).lower() == "yes" else "pending"},
+                {"label": "Key partner", "value": str(attrs.get("key") or "—"), "state": "good" if str(attrs.get("key", "")).lower() == "yes" else "pending"},
+            ],
+            "entitlements": [
+                {"label": "Tier", "value": tier, "note": f"discount {_tier_discount(tier)}"},
+                {"label": "Cadence", "value": _tier_cadence(tier), "note": "AM-led"},
+            ],
+        },
+        "protectionRegister": [
+            {"deal": d.get("title") or "—", "state": "active", "until": "—"}
+            for d in open_deals[:4]
+        ],
+    }
+
+
+
 @router.get("/partner-sphere")
 async def get_partner_sphere(
     name: str = Path(...),
@@ -928,7 +1778,13 @@ async def get_partner_sphere(
         "pricing": None,
         "mock": False,
     }
-    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    partners = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
+
+    # Overview + masterList — Option B: TPS live snapshot (same data as the
+    # reference dashboard.html/partners.html pages). Brain-derived values
+    # below remain as fallback when the snapshot is unavailable.
+    tps_master = _build_master_list()
+    tps_overview = _build_overview()
 
     if partners:
         # Narrow meta filter keeps a partners/readme page from inflating the
@@ -988,6 +1844,46 @@ async def get_partner_sphere(
             "aiBrief": None,
         }
 
+    # Onboarding — Option B: derive from the TPS live snapshot
+    # (partners-data.json, regenerated every 30 min by tps-live-metrics.py
+    # from gbrain Postgres deals + the partner master sheet). Same source the
+    # reference page crm.gotapway.com/partners/onboarding.html renders.
+    if tps_master:
+        result["masterList"] = tps_master
+    if tps_overview:
+        result["overview"] = tps_overview
+
+    onboarding = _build_partner_onboarding()
+    if onboarding:
+        result["onboarding"] = onboarding
+
+    command_center = _build_command_center()
+    if command_center:
+        result["commandCenter"] = command_center
+
+    protection = _build_protection()
+    if protection:
+        result["protection"] = protection
+
+    qbr = _build_qbr()
+    if qbr:
+        result["qbr"] = qbr
+
+    ceo_digest = _build_ceo_digest()
+    if ceo_digest:
+        result["ceoDigest"] = ceo_digest
+
+    try:
+        profile = await _build_profile()
+    except Exception:
+        profile = None
+    if profile:
+        result["profile"] = profile
+
+    pricing = await _build_pricing()
+    if pricing:
+        result["pricing"] = pricing
+
     if _crm_mock_enabled():
         mock_sphere = _load_crm_mock().get("partner_sphere") or {}
         filled = False
@@ -1009,7 +1905,7 @@ async def list_crm_partners(
     db: Session = Depends(get_db),
 ) -> dict:
     """List CRM partners direct from the brain (source ``crm``, slug ``partners/*``)."""
-    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix="partners/")
+    pages = await _fetch_brain_pages_safe(CRM_SOURCE, limit=CRM_LIST_LIMIT, slug_prefix=("partners/", "partner/"))
 
     items = []
     for p in pages:
@@ -1052,7 +1948,33 @@ async def list_crm_tasks(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """List CRM tasks direct from the brain (``crm/tasks-index`` page)."""
+    """List CRM tasks by parsing ``## Tasks`` sections from deal pages.
+
+    Delegates to the gbrain shim's ``/api/tasks`` (same parse as the
+    reference crm.gotapway.com/tasks page: 178 tasks from deal
+    compiled_truth, backup slugs excluded). Falls back to the legacy
+    ``crm/tasks-index`` page when the shim is unreachable.
+    """
+    import httpx
+    try:
+        base = get_config().gbrain_base_url.rstrip("/")
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            resp = await client.get(
+                f"{base}/api/tasks",
+                params={"source_id": CRM_SOURCE, **({"assignee": assignee} if assignee else {})},
+            )
+            resp.raise_for_status()
+            shim_tasks = (resp.json() or {}).get("tasks") or []
+        if completed is not None:
+            shim_tasks = [t for t in shim_tasks if bool(t.get("completed")) == completed]
+        if deal:
+            cd = deal.lower()
+            shim_tasks = [t for t in shim_tasks
+                          if cd in str(t.get("deal_slug", "")).lower() or cd in str(t.get("deal_title", "")).lower()]
+        return {"tasks": shim_tasks, "total": len(shim_tasks)}
+    except Exception as exc:  # shim down / path missing -> legacy fallback
+        logger.warning("shim /api/tasks unavailable, falling back to tasks-index: %s", exc)
+
     try:
         index = await gbrain_fetch_page(CRM_SOURCE, "tasks-index")
     except Exception as exc:  # pragma: no cover - transport/protocol failures
@@ -1142,7 +2064,7 @@ async def crm_search(
                 row["category"] = "deals"
             elif slug.startswith("companies/"):
                 row["category"] = "companies"
-            elif slug.startswith("partners/"):
+            elif slug.startswith(("partners/", "partner/")):
                 row["category"] = "partners"
             elif slug.startswith("persons/"):
                 row["category"] = "persons"
@@ -1308,10 +2230,13 @@ def _safe_int(val: Any, default: int = 0) -> int:
         return default
 
 
-# ─── QBO live fetch helpers ──────────────────────────────────────────────
+# ─── Accounting bridge live fetch helpers ────────────────────────────────
 # These functions shell out to the accounting MCP bridge (acct-bridge.py)
-# to fetch live QuickBooks Online data. Results are cached for 5 minutes
-# to avoid hammering the QBO API on every dashboard refresh.
+# to fetch live data from the configured accounting provider (QBO, Bukku,
+# Xero — selected via ACCT_PROVIDER env var). Results are cached for 5
+# minutes to avoid hammering the API on every dashboard refresh.
+# Provider-neutral naming: when you switch providers, zero code changes
+# needed here — the bridge handles provider selection transparently.
 #
 # Bridge protocol: JSON-RPC over stdio. One request per line on stdin,
 # one response per line on stdout. Request shape:
@@ -1323,8 +2248,8 @@ def _safe_int(val: Any, default: int = 0) -> int:
 
 _ACCT_BRIDGE = pathlib.Path.home() / ".hermes" / "scripts" / "accounting" / "acct-bridge.py"
 _ACCT_ENV_FILE = pathlib.Path.home() / ".hermes" / "profiles" / "finance-manager" / ".env"
-_QBO_CACHE: Dict[str, dict] = {}  # key -> {"data": ..., "ts": epoch}
-_QBO_CACHE_TTL = 300  # 5 minutes
+_ACCT_CACHE: Dict[str, dict] = {}  # key -> {"data": ..., "ts": epoch}
+_ACCT_CACHE_TTL = 300  # 5 minutes
 
 # Asset trend cache — historical data, doesn't change often (1 hour TTL)
 _ASSET_TREND_CACHE: dict = {"data": [], "ts": 0}
@@ -1418,68 +2343,68 @@ def _call_acct_bridge(tool: str, arguments: dict) -> dict:
         return {"error": f"bridge content not JSON for {tool}"}
 
 
-def _fetch_qbo_balance_sheet(as_of_date: str | None = None) -> dict:
-    """Fetch live QBO balance sheet. Cached for 5 min under key 'bs:<date>'."""
+def _fetch_accounting_balance_sheet(as_of_date: str | None = None) -> dict:
+    """Fetch live balance sheet from accounting provider. Cached 5 min."""
     today = as_of_date or datetime.now().strftime("%Y-%m-%d")
     cache_key = f"bs:{today}"
-    cached = _QBO_CACHE.get(cache_key)
-    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+    cached = _ACCT_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _ACCT_CACHE_TTL:
         return cached["data"]
 
     args = {"as_of_date": today}
     result = _call_acct_bridge("acct_get_balance_sheet", args)
     if "error" in result:
-        logger.info("QBO BS fetch failed: %s", result["error"])
+        logger.info("Accounting BS fetch failed: %s", result["error"])
     else:
-        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+        _ACCT_CACHE[cache_key] = {"data": result, "ts": time.time()}
     return result
 
 
-def _fetch_qbo_profit_loss(date_from: str, date_to: str) -> dict:
-    """Fetch live QBO P&L for a date range. Cached for 5 min."""
+def _fetch_accounting_profit_loss(date_from: str, date_to: str) -> dict:
+    """Fetch live P&L from accounting provider for a date range. Cached 5 min."""
     cache_key = f"pl:{date_from}:{date_to}"
-    cached = _QBO_CACHE.get(cache_key)
-    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+    cached = _ACCT_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _ACCT_CACHE_TTL:
         return cached["data"]
 
     args = {"date_from": date_from, "date_to": date_to}
     result = _call_acct_bridge("acct_get_profit_loss", args)
     if "error" in result:
-        logger.info("QBO PL fetch failed: %s", result["error"])
+        logger.info("Accounting PL fetch failed: %s", result["error"])
     else:
-        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+        _ACCT_CACHE[cache_key] = {"data": result, "ts": time.time()}
     return result
 
 
-def _fetch_qbo_ar_invoices() -> dict:
-    """Fetch outstanding (status='ready') AR invoices from QBO. Cached 5 min."""
+def _fetch_accounting_ar_invoices() -> dict:
+    """Fetch outstanding AR invoices from accounting provider. Cached 5 min."""
     cache_key = "ar:ready"
-    cached = _QBO_CACHE.get(cache_key)
-    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+    cached = _ACCT_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _ACCT_CACHE_TTL:
         return cached["data"]
 
     args = {"status": "ready", "limit": 100}
     result = _call_acct_bridge("acct_list_sales_invoices", args)
     if "error" in result:
-        logger.info("QBO AR fetch failed: %s", result["error"])
+        logger.info("Accounting AR fetch failed: %s", result["error"])
     else:
-        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+        _ACCT_CACHE[cache_key] = {"data": result, "ts": time.time()}
     return result
 
 
-def _fetch_qbo_ap_bills() -> dict:
-    """Fetch outstanding (status='ready') AP bills from QBO. Cached 5 min."""
+def _fetch_accounting_ap_bills() -> dict:
+    """Fetch outstanding AP bills from accounting provider. Cached 5 min."""
     cache_key = "ap:ready"
-    cached = _QBO_CACHE.get(cache_key)
-    if cached and (time.time() - cached["ts"]) < _QBO_CACHE_TTL:
+    cached = _ACCT_CACHE.get(cache_key)
+    if cached and (time.time() - cached["ts"]) < _ACCT_CACHE_TTL:
         return cached["data"]
 
     args = {"status": "ready", "limit": 100}
     result = _call_acct_bridge("acct_list_purchase_bills", args)
     if "error" in result:
-        logger.info("QBO AP fetch failed: %s", result["error"])
+        logger.info("Accounting AP fetch failed: %s", result["error"])
     else:
-        _QBO_CACHE[cache_key] = {"data": result, "ts": time.time()}
+        _ACCT_CACHE[cache_key] = {"data": result, "ts": time.time()}
     return result
 
 
@@ -1801,7 +2726,7 @@ def _build_asset_trend() -> List[dict]:
         as_of = (month_start + timedelta(days=32)).replace(day=1) - timedelta(days=1)
         as_of_str = as_of.strftime("%Y-%m-%d")
 
-        bs = _fetch_qbo_balance_sheet(as_of_str)
+        bs = _fetch_accounting_balance_sheet(as_of_str)
         if "error" in bs:
             return []  # bail — caller will use snapshot/mock trend
 
@@ -1997,7 +2922,7 @@ def _build_monthly_pl_trend(months: int = 6) -> List[dict]:
         date_from = month_dt.strftime("%Y-%m-%d")
         date_to = last_day.strftime("%Y-%m-%d")
 
-        pl = _fetch_qbo_profit_loss(date_from, date_to)
+        pl = _fetch_accounting_profit_loss(date_from, date_to)
         if "error" in pl:
             return []  # bail — caller will use mock/snapshot trend
 
@@ -2039,7 +2964,7 @@ def _build_burn_trend(months: int = 6) -> List[dict]:
         date_from = month_dt.strftime("%Y-%m-%d")
         date_to = last_day.strftime("%Y-%m-%d")
 
-        pl = _fetch_qbo_profit_loss(date_from, date_to)
+        pl = _fetch_accounting_profit_loss(date_from, date_to)
         if "error" in pl:
             return []
 
@@ -2069,7 +2994,7 @@ def _build_cash_flow_forecast(months: int = 6) -> List[dict]:
     """
     now = datetime.now()
     # Current liquid cash — fetch live BS to get the starting point
-    bs = _fetch_qbo_balance_sheet(now.strftime("%Y-%m-%d"))
+    bs = _fetch_accounting_balance_sheet(now.strftime("%Y-%m-%d"))
     if "error" in bs:
         return []  # caller falls back to mock
 
@@ -2181,19 +3106,302 @@ def _build_cash_flow_breakdown(pl_ytd: dict, pl_mtd: dict) -> dict:
     }
 
 
-async def _run_finance_aggregation(pages: List[dict]) -> dict:
-    """Aggregate gbrain finance pages into structured dashboard stats.
+# ─── Finance snapshot fetch — gbrain snapshots for budget + compliance ────
+# These snapshot reads are retained for BvA budget data (from Excel via
+# gbrain) and compliance items (Malaysian statutory — not in accounting
+# software). Tabs 1-5 now come from the accounting provider via bridge.
 
-    Data source: gbrain snapshots only. When no snapshots are available,
-    returns an empty-state payload (zeros + empty lists) so the UI shows
-    "no data yet" — does NOT load mock/example data.
+_FIN_SNAPSHOT_NAMES = (
+    "cash", "pl", "balance-sheet", "ar", "ap", "bva", "concentration", "compliance",
+)
+_FIN_SNAP_CACHE: Dict[str, Any] = {"data": {}, "ts": 0.0}
+_FIN_SNAP_TTL = 60.0  # seconds — the dashboard refetches every 120s
+
+
+async def _fetch_one_snapshot(name: str) -> Optional[Tuple[str, dict]]:
+    """Fetch one finance snapshot page from gbrain (try all slug spellings).
+
+    Returns ``(cache_key, frontmatter_or_body_dict)`` or None when the page
+    is missing/empty. Never raises — a failed page simply yields None.
+    """
+    for slug in (
+        f"finance/snapshots/{name}", f"finance/snapshots/{name}.json",
+        f"snapshots/{name}", f"snapshots/{name}.json",
+    ):
+        try:
+            page = await gbrain_fetch_page("finance", slug)
+        except Exception:
+            page = None
+        if not page:
+            continue
+        fm = _parse_frontmatter(page.get("frontmatter", {}))
+        if not fm:
+            body = (page.get("content") or page.get("body")
+                    or page.get("compiled_truth") or "")
+            try:
+                fm = json.loads(body) if body.strip().startswith("{") else {}
+            except (json.JSONDecodeError, TypeError):
+                fm = {}
+        if fm:
+            key = slug[:-5] if slug.endswith(".json") else slug
+            return key, fm
+    return None
+
+
+async def _fetch_finance_snapshots() -> Dict[str, dict]:
+    """Fetch the 8 finance snapshot pages from gbrain (60s cache).
+
+    All 8 fetches run concurrently so a cold cache costs one round-trip
+    batch, not eight sequential ones. Never raises — missing pages degrade
+    to the empty-state dashboard.
+    """
+    if _FIN_SNAP_CACHE["ts"] and (time.time() - _FIN_SNAP_CACHE["ts"]) < _FIN_SNAP_TTL:
+        return dict(_FIN_SNAP_CACHE["data"])
+
+    results = await asyncio.gather(
+        *(_fetch_one_snapshot(n) for n in _FIN_SNAPSHOT_NAMES),
+        return_exceptions=True,
+    )
+    snaps: Dict[str, dict] = {}
+    for r in results:
+        if isinstance(r, tuple) and len(r) == 2:
+            snaps[r[0]] = r[1]
+
+    _FIN_SNAP_CACHE["data"] = snaps
+    _FIN_SNAP_CACHE["ts"] = time.time()
+    return dict(snaps)
+
+
+async def _run_finance_aggregation(pages: List[dict]) -> dict:
+    """Aggregate Finance dashboard stats — accounting bridge first, gbrain for budget/compliance.
+
+    Data source priority:
+      - Tabs 1-5 (Overview, CashFlow, AR, AP, Assets): live from accounting
+        provider via bridge (QBO/Bukku/Xero — transparent via ACCT_PROVIDER).
+      - BvA budget data: from gbrain snapshots (budget lives in Excel, not
+        in accounting software). Actuals come from the accounting provider.
+      - Compliance (Close & Tax): from gbrain snapshots (Malaysian statutory
+        data is structurally NOT in any accounting software).
+      - Doc Scan: unrelated to this function (separate endpoint).
+
+    Falls back to empty-state (zeros + empty lists) when the accounting
+    bridge is unavailable. Never serves fabricated mock data.
     """
     now = _now()
     cy, cm = now.year, now.month
 
-    # ── Pull snapshot pages (finance agent writes these) ──
-    snapshot_map: Dict[str, dict] = {}
-    for p in pages:
+    # ── Date ranges for P&L queries ──
+    ytd_start = f"{cy}-01-01"
+    today_str = now.strftime("%Y-%m-%d")
+    month_start = now.replace(day=1).strftime("%Y-%m-%d")
+
+    # ══════════════════════════════════════════════════════════════════════
+    # SECTION 1: Fetch live data from accounting provider (tabs 1-5)
+    # ══════════════════════════════════════════════════════════════════════
+
+    bs = _fetch_accounting_balance_sheet(today_str)
+    pl_ytd = _fetch_accounting_profit_loss(ytd_start, today_str)
+    pl_mtd = _fetch_accounting_profit_loss(month_start, today_str)
+    ar_data = _fetch_accounting_ar_invoices()
+    ap_data = _fetch_accounting_ap_bills()
+
+    acct_ok = "error" not in bs and "error" not in pl_ytd
+    data_source = "accounting" if acct_ok else "empty"
+
+    # ── Balance Sheet derived values ──
+    if acct_ok:
+        live_assets = _build_live_assets(bs)
+        current_assets = live_assets.get("currentAssets", [])
+        non_current_assets = live_assets.get("nonCurrentAssets", [])
+        total_current_assets = live_assets.get("totalCurrentAssets", 0.0)
+        total_non_current_assets = live_assets.get("totalNonCurrentAssets", 0.0)
+        total_assets_val = live_assets.get("totalAssets", 0.0)
+        bank_accounts = live_assets.get("bankAccounts", [])
+
+        total_liabilities = _safe_float(bs.get("total_liabilities"))
+        total_equity = _safe_float(bs.get("total_equity"))
+        total_current_liabilities = _safe_float(bs.get("total_current_liabilities"))
+        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
+        equity_ratio = (total_equity / total_assets_val) if total_assets_val else 0.0
+        net_working_capital = total_current_assets - total_current_liabilities
+        gross_working_capital = total_current_assets
+
+        # Total liquid cash = sum of bank/cash accounts
+        total_liquid_cash = sum(
+            _safe_float(a.get("balance", 0)) for a in bank_accounts
+        )
+        if total_liquid_cash == 0:
+            total_liquid_cash = _safe_float(bs.get("total_assets", 0))
+    else:
+        current_assets = []
+        non_current_assets = []
+        total_current_assets = 0.0
+        total_non_current_assets = 0.0
+        total_assets_val = 0.0
+        bank_accounts = []
+        total_liabilities = 0.0
+        total_equity = 0.0
+        total_current_liabilities = 0.0
+        debt_to_equity = 0.0
+        equity_ratio = 0.0
+        net_working_capital = 0.0
+        gross_working_capital = 0.0
+        total_liquid_cash = 0.0
+
+    # ── P&L derived values ──
+    if "error" not in pl_ytd:
+        revenue_ytd = _safe_float(pl_ytd.get("total_revenue"))
+        expenses_ytd = _safe_float(pl_ytd.get("total_expenses"))
+        net_profit_ytd = _safe_float(pl_ytd.get("net_profit"))
+    else:
+        revenue_ytd = 0.0
+        expenses_ytd = 0.0
+        net_profit_ytd = 0.0
+
+    if "error" not in pl_mtd:
+        revenue_mtd = _safe_float(pl_mtd.get("total_revenue"))
+        expenses_mtd = _safe_float(pl_mtd.get("total_expenses"))
+    else:
+        revenue_mtd = 0.0
+        expenses_mtd = 0.0
+
+    net_monthly_burn = expenses_mtd
+    cash_runway_months = (total_liquid_cash / net_monthly_burn) if net_monthly_burn > 0 else 0.0
+
+    if cash_runway_months == 0:
+        runway_status = "unknown"
+    elif cash_runway_months < 3:
+        runway_status = "critical"
+    elif cash_runway_months < 6:
+        runway_status = "caution"
+    else:
+        runway_status = "healthy"
+
+    # Gross margin from P&L: need COGS. Try to find it in expense accounts.
+    cogs = 0.0
+    if "error" not in pl_ytd:
+        for acct in pl_ytd.get("expense_accounts", []):
+            n = _normalize_account_name(acct.get("account_name", ""))
+            if any(kw in n for kw in ("cogs", "cost of goods", "cost of sales", "direct cost")):
+                cogs += _safe_float(acct.get("amount", 0))
+    gross_margin = ((revenue_ytd - cogs) / revenue_ytd * 100) if revenue_ytd else 0.0
+    ebitda_margin = (net_profit_ytd / revenue_ytd * 100) if revenue_ytd else 0.0
+    gross_profit_margin = gross_margin
+
+    # ── Trends (computed from accounting provider) ──
+    asset_trend = await _build_asset_trend_async() if acct_ok else []
+    monthly_pl_trend = _build_monthly_pl_trend(6) if acct_ok else []
+    burn_trend = _build_burn_trend(6) if acct_ok else []
+    cash_flow_forecast = _build_cash_flow_forecast(6) if acct_ok else []
+    cash_flow_breakdown = _build_cash_flow_breakdown(pl_ytd, pl_mtd) if acct_ok else {}
+
+    # ── AR data ──
+    ar_invoices_raw = ar_data.get("invoices", []) if "error" not in ar_data else []
+    total_ar = sum(_safe_float(inv.get("balance_due", inv.get("total", 0))) for inv in ar_invoices_raw)
+    ar_aging_by_target = _build_aging_by_target(ar_invoices_raw) if ar_invoices_raw else []
+
+    # DSO = (AR / Revenue) × days_in_period
+    days_ytd = (now - datetime(cy, 1, 1)).days or 1
+    dso = (total_ar / revenue_ytd * days_ytd) if revenue_ytd else 0.0
+
+    # AR aging buckets (legacy shape for backward compat)
+    ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
+    for bucket in ar_aging_by_target:
+        label = bucket.get("label", "")
+        amt = _safe_float(bucket.get("amount", 0))
+        if "1-30" in label:
+            ar_aging["bucket_0_30"] = amt
+        elif "31-60" in label:
+            ar_aging["bucket_31_60"] = amt
+        elif "61-90" in label:
+            ar_aging["bucket_61_90"] = amt
+        elif "90+" in label:
+            ar_aging["bucket_90_plus"] = amt
+
+    ar_overdue_30 = ar_aging["bucket_31_60"] + ar_aging["bucket_61_90"] + ar_aging["bucket_90_plus"]
+
+    # Normalize AR invoices to UI shape
+    ar_invoices_list: List[dict] = []
+    dunning_queue: List[dict] = []
+    for inv in ar_invoices_raw:
+        due_str = inv.get("due_date", "")
+        balance = _safe_float(inv.get("balance_due", inv.get("total", 0)))
+        aging_days = 0
+        if due_str:
+            try:
+                due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
+                aging_days = max(0, (now - due_dt).days)
+            except (ValueError, TypeError):
+                pass
+        bucket = ("0-30" if aging_days <= 30 else "31-60" if aging_days <= 60
+                  else "61-90" if aging_days <= 90 else "90+")
+        row = {
+            "invoice_no": inv.get("number", inv.get("number2", "")),
+            "customer": inv.get("contact_name", ""),
+            "due_date": due_str,
+            "amount": balance,
+            "aging_days": aging_days,
+            "bucket": bucket,
+            "dunning_status": "Overdue" if aging_days > 0 else "Current",
+        }
+        ar_invoices_list.append(row)
+        if aging_days > 0:
+            dunning_queue.append(row)
+
+    # ── AP data ──
+    ap_bills_raw = ap_data.get("bills", []) if "error" not in ap_data else []
+    total_ap = sum(_safe_float(bill.get("balance_due", bill.get("total", 0))) for bill in ap_bills_raw)
+    ap_aging_by_target = _build_aging_by_target(ap_bills_raw) if ap_bills_raw else []
+
+    # DPO = (AP / Expenses) × days_in_period
+    dpo = (total_ap / expenses_ytd * days_ytd) if expenses_ytd else 0.0
+    ap_overdue = sum(
+        _safe_float(b.get("amount", 0)) for b in ap_aging_by_target
+        if "1-30" not in b.get("label", "")
+    )
+
+    # Normalize AP bills to UI shape
+    ap_bills: List[dict] = []
+    for bill in ap_bills_raw:
+        ap_bills.append({
+            "bill_no": bill.get("number", bill.get("number2", "")),
+            "vendor": bill.get("contact_name", ""),
+            "due_date": bill.get("due_date", ""),
+            "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
+        })
+
+    ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
+
+    # Risk alerts from accounting data
+    risk_alerts: List[dict] = []
+    if ar_aging["bucket_90_plus"] > 0:
+        risk_alerts.append({
+            "type": "ar_overdue",
+            "level": "critical" if ar_aging["bucket_90_plus"] > 50000 else "warning",
+            "message": f"RM {ar_aging['bucket_90_plus']:,.0f} in receivables overdue >90 days",
+        })
+    if cash_runway_months > 0 and cash_runway_months < 3:
+        risk_alerts.append({
+            "type": "cash_runway",
+            "level": "critical",
+            "message": f"Cash runway is only {cash_runway_months:.1f} months",
+        })
+
+    # Placeholder fields not derivable from accounting
+    unpaid_statutory = 0.0
+    fx_positions: List[dict] = []
+    fixed_opex = 0.0
+    variable_opex = 0.0
+    forecast_13w = {"expected": [], "conservative": [], "optimistic": []}
+    revenue_opex_trend: List[dict] = monthly_pl_trend  # reuse PL trend
+
+    # ══════════════════════════════════════════════════════════════════════
+    # SECTION 2: gbrain snapshots for BvA budget + compliance (hybrid)
+    # ══════════════════════════════════════════════════════════════════════
+
+    snapshot_map = await _fetch_finance_snapshots()
+    # Fold in any snapshot pages handed over via `pages` (legacy callers)
+    for p in pages or []:
         slug = str(p.get("slug", ""))
         fm = _parse_frontmatter(p.get("frontmatter", {}))
         if not fm:
@@ -2202,446 +3410,65 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
                 fm = json.loads(body) if body else {}
             except (json.JSONDecodeError, TypeError):
                 fm = {}
-        if fm:
+        if fm and slug not in snapshot_map:
             snapshot_map[slug] = fm
 
-    # Check if we have real snapshot data
-    cash_snap = snapshot_map.get("snapshots/cash", snapshot_map.get("finance/snapshots/cash", {}))
-    pl_snap = snapshot_map.get("snapshots/pl", snapshot_map.get("finance/snapshots/pl", {}))
-    has_real_data = bool(cash_snap or pl_snap)
-
-    # ── Fetch live QBO data (5-min cache) ──
-    today_str = now.strftime("%Y-%m-%d")
-    ytd_start = f"{cy}-01-01"
-    mtd_start = f"{cy}-{cm:02d}-01"
-    live_bs = _fetch_qbo_balance_sheet(today_str)
-    live_pl_ytd = _fetch_qbo_profit_loss(ytd_start, today_str)
-    live_pl_mtd = _fetch_qbo_profit_loss(mtd_start, today_str)
-    has_live_qbo = ("error" not in live_bs
-                    and "error" not in live_pl_ytd
-                    and "error" not in live_pl_mtd)
-
-    # Default asset + overview fields (overridden by live/snapshot/mock branches)
-    current_assets: List[dict] = []
-    non_current_assets: List[dict] = []
-    total_current_assets = 0.0
-    total_non_current_assets = 0.0
-    total_assets_val = 0.0
-    asset_trend: List[dict] = []
-    total_liabilities = 0.0
-    total_equity = 0.0
-    debt_to_equity = 0.0
-    equity_ratio = 0.0
-    ar_to_ap_coverage = 0.0
-    net_working_capital = 0.0
-    gross_working_capital = 0.0
-    gross_profit_margin = 0.0
-    total_current_liabilities = 0.0
-    ap_aging_by_target: List[dict] = []
-    monthly_pl_trend: List[dict] = []
-    bva_line_items: List[dict] = []
-    ar_aging_by_target: List[dict] = []
-    cash_flow_forecast: List[dict] = []
-    burn_trend: List[dict] = []
-    cash_flow_breakdown: dict = {}
-    dunning_queue: List[dict] = []
-    ar_invoices_list: List[dict] = []
-
-    if has_live_qbo:
-        # ── LIVE QBO DATA — primary path ──
-        mock = False  # live data, not mock
-        # Assets + bank accounts from live BS via _build_live_assets
-        live_assets = _build_live_assets(live_bs)
-        current_assets = live_assets["currentAssets"]
-        non_current_assets = live_assets["nonCurrentAssets"]
-        total_current_assets = live_assets["totalCurrentAssets"]
-        total_non_current_assets = live_assets["totalNonCurrentAssets"]
-        total_assets_val = live_assets["totalAssets"]
-        bank_accounts: List[dict] = live_assets["bankAccounts"]
-        asset_trend = await _build_asset_trend_async()  # may be [] on fetch failure
-
-        # Cash: sum of bank/cash accounts from live BS
-        total_liquid_cash = sum(
-            _safe_float(b.get("balance_myr", b.get("balance", 0))) for b in bank_accounts
-        )
-        if total_liquid_cash == 0:
-            total_liquid_cash = _safe_float(live_bs.get("total_assets", 0))
-
-        # Revenue/expenses from live PL
-        revenue_mtd = _safe_float(live_pl_mtd.get("total_revenue"))
-        revenue_ytd = _safe_float(live_pl_ytd.get("total_revenue"))
-        total_expenses_ytd = _safe_float(live_pl_ytd.get("total_expenses"))
-        net_profit_ytd = _safe_float(live_pl_ytd.get("net_profit"))
-
-        # Margins (rough proxies from PL)
-        gross_margin = ((revenue_ytd - total_expenses_ytd) / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        ebitda_margin = (net_profit_ytd / revenue_ytd * 100.0) if revenue_ytd else 0.0
-        gross_profit_margin = gross_margin
-
-        # Burn rate + runway
-        months_elapsed = cm
-        net_monthly_burn = (total_expenses_ytd / months_elapsed) if months_elapsed > 0 else 0.0
-        cash_runway_months = (total_liquid_cash / net_monthly_burn) if net_monthly_burn > 0 else 0.0
-
-        if cash_runway_months == 0:
-            runway_status = "unknown"
-        elif cash_runway_months < 3:
-            runway_status = "critical"
-        elif cash_runway_months < 6:
-            runway_status = "caution"
-        else:
-            runway_status = "healthy"
-
-        unpaid_statutory = 0.0
-
-        # Balance sheet overview KPIs from live BS
-        total_liabilities = _safe_float(live_bs.get("total_liabilities"))
-        total_equity = _safe_float(live_bs.get("total_equity"))
-        total_assets_bs = _safe_float(live_bs.get("total_assets"))
-        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
-        equity_ratio = (total_equity / total_assets_bs) if total_assets_bs else 0.0
-        gross_working_capital = total_current_assets
-        total_current_liabilities = 0.0  # QBO bridge doesn't split current/non-current liabilities
-        net_working_capital = total_current_assets - total_current_liabilities
-
-        # AR/AP from live QBO invoices/bills
-        ar_data = _fetch_qbo_ar_invoices()
-        ap_data = _fetch_qbo_ap_bills()
-        ar_invoices = ar_data.get("invoices", []) if "error" not in ar_data else []
-        ap_bills_list = ap_data.get("bills", []) if "error" not in ap_data else []
-        total_ar = sum(_safe_float(inv.get("balance_due", inv.get("total", 0))) for inv in ar_invoices)
-        total_ap = sum(_safe_float(bill.get("balance_due", bill.get("total", 0))) for bill in ap_bills_list)
-        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
-
-        # AR aging from invoice due dates
-        ar_overdue_30 = 0.0
-        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
-        dunning_queue: List[dict] = []
-        ar_invoices_list: List[dict] = []  # all outstanding invoices tagged with bucket, for popout
-        for inv in ar_invoices:
-            due_str = inv.get("due_date", "")
-            balance = _safe_float(inv.get("balance_due", 0))
-            if balance <= 0 or not due_str:
-                continue
-            try:
-                due_dt = datetime.strptime(due_str[:10], "%Y-%m-%d")
-                age_days = (now - due_dt).days
-            except (ValueError, TypeError):
-                age_days = 0
-            if age_days <= 30:
-                bucket = "0-30"
-                ar_aging["bucket_0_30"] += balance
-            elif age_days <= 60:
-                bucket = "31-60"
-                ar_aging["bucket_31_60"] += balance
-            elif age_days <= 90:
-                bucket = "61-90"
-                ar_aging["bucket_61_90"] += balance
-            else:
-                bucket = "90+"
-                ar_aging["bucket_90_plus"] += balance
-                ar_overdue_30 += balance
-                dunning_queue.append({
-                    "invoice_no": inv.get("number", ""),
-                    "customer": inv.get("contact_name", ""),
-                    "due_date": due_str,
-                    "amount": balance,
-                    "aging_days": age_days,
-                    "bucket": "90+",
-                    "dunning_status": "Overdue",
-                })
-            # Build the popout entry for every outstanding invoice
-            ar_invoices_list.append({
-                "invoice_no": inv.get("number", ""),
-                "customer": inv.get("contact_name", ""),
-                "due_date": due_str,
-                "amount": balance,
-                "aging_days": max(0, age_days),
-                "bucket": bucket,
-                "dunning_status": "Overdue" if age_days > 0 else "Current",
-            })
-
-        dso = 0.0
-        dpo = 0.0
-        ap_overdue = 0.0
-
-        # Format AP bills for frontend
-        ap_bills = []
-        for bill in ap_bills_list:
-            ap_bills.append({
-                "bill_no": bill.get("number", ""),
-                "vendor": bill.get("contact_name", ""),
-                "due_date": bill.get("due_date", ""),
-                "amount": _safe_float(bill.get("balance_due", bill.get("total", 0))),
-                "match_status": "Matched",
-                "approval_status": "Pending",
-            })
-
-        # Cash Flow tab — live QBO-derived series
-        # AR/AP aging-by-target (1-30/31-60/61-90/90+ DPD) from invoices/bills
-        ar_aging_by_target = _build_aging_by_target(ar_invoices)
-        ap_aging_by_target = _build_aging_by_target(ap_bills_list)
-        # 6-month P&L trend (revenue/expenses/net_profit) — each month cached
-        monthly_pl_trend = _build_monthly_pl_trend(6)
-        # Monthly burn trend (expenses per month) — reuses P&L cache
-        burn_trend = _build_burn_trend(6)
-        # 6-month cash flow forecast with fan range (total/low/high)
-        cash_flow_forecast = _build_cash_flow_forecast(6)
-        # Cash flow breakdown by P&L account (income + expenses, YTD + MTD)
-        cash_flow_breakdown = _build_cash_flow_breakdown(live_pl_ytd, live_pl_mtd)
-
-        # fx_positions, forecast_13w, fixed/variable opex: not available from QBO
-        fx_positions: List[dict] = []
-        forecast_13w = {"conservative": [], "expected": [], "optimistic": []}
-        fixed_opex = 0.0
-        variable_opex = 0.0
-
-        # Risk alerts from live data
-        risk_alerts: List[dict] = []
-        if net_working_capital < 0:
-            risk_alerts.append({
-                "type": "working_capital",
-                "level": "critical",
-                "message": f"Negative working capital: RM {net_working_capital:,.0f}",
-            })
-        if ar_aging["bucket_90_plus"] > 0:
-            risk_alerts.append({
-                "type": "ar_overdue",
-                "level": "critical" if ar_aging["bucket_90_plus"] > 50000 else "warning",
-                "message": f"RM {ar_aging['bucket_90_plus']:,.0f} in receivables overdue >90 days",
-            })
-
-        # Trends: use mock if available, else empty
-        revenue_opex_trend: List[dict] = []
-        cash_flow_trend: List[dict] = []
-
-        # BvA: load budget items from mock JSON, match QBO actuals
-        # NOTE: budget items are real (from Budget Excel), but unit economics,
-        # client concentration, and compliance are fabricated demo data.
-        json_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "finance-budget.json"
-        mock_data = {}
-        mock = True  # BvA/concentration/compliance loaded from demo JSON
-        if json_path.exists():
-            try:
-                with open(json_path, "r", encoding="utf-8") as f:
-                    mock_data = json.load(f).get("dashboard_mock", {})
-            except Exception as e:
-                logger.warning("Failed to load mock data for BvA budgets: %s", e)
-        budget_items = mock_data.get("bvaLineItems", [])
-        bva_line_items = _match_qbo_actuals_to_budget(budget_items, live_pl_ytd)
-        bva_departments: List[dict] = bva_line_items  # alias for backward compat
-
-        # Unit economics, concentration, compliance: from mock/snapshot
-        unit_economics: dict = mock_data.get("unitEconomics", {
-            "gross_margin_pct": gross_margin, "contribution_margin_pct": 0,
-            "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
-        raw_client_concentration: List[dict] = mock_data.get("clientConcentration", [])
-        # Compute revenue_pct from revenue_ytd relative to total YTD revenue
-        total_client_revenue = sum(_safe_float(c.get("revenue_ytd", 0)) for c in raw_client_concentration)
-        if total_client_revenue > 0 and revenue_ytd > 0:
-            client_concentration: List[dict] = [
-                {**c, "revenue_pct": round((_safe_float(c.get("revenue_ytd", 0)) / revenue_ytd * 100), 1)}
-                for c in raw_client_concentration
-            ]
-        else:
-            client_concentration = raw_client_concentration
-        close_checklist: List[dict] = mock_data.get("closeChecklist", [])
-        statutory_schedule: List[dict] = mock_data.get("statutorySchedule", [])
-        sst_readiness: dict = mock_data.get("sstReadiness", {
-            "draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
-        cp58_register: List[dict] = mock_data.get("cp58Register", [])
-        wht_queue: List[dict] = mock_data.get("whtQueue", [])
-        expense_claim_audit: List[dict] = mock_data.get("expenseClaimAudit", [])
-
-    elif has_real_data:
-        mock = False  # gbrain snapshot data, not mock
-        total_liquid_cash = _safe_float(cash_snap.get("total_liquid_cash"))
-        net_monthly_burn = _safe_float(cash_snap.get("net_monthly_burn"))
-        cash_runway_months = _safe_float(cash_snap.get("cash_runway_months", 0))
-        revenue_mtd = _safe_float(pl_snap.get("revenue_mtd"))
-        revenue_ytd = _safe_float(pl_snap.get("revenue_ytd"))
-        gross_margin = _safe_float(pl_snap.get("gross_margin_pct"))
-        ebitda_margin = _safe_float(pl_snap.get("ebitda_margin_pct"))
-        unpaid_statutory = _safe_float(pl_snap.get("unpaid_statutory"))
-
-        revenue_opex_trend: List[dict] = pl_snap.get("revenue_opex_trend", [])
-        cash_flow_trend: List[dict] = cash_snap.get("cash_flow_trend", [])
-
-        risk_alerts: List[dict] = []
-        concentration_snap = snapshot_map.get("snapshots/concentration", snapshot_map.get("finance/snapshots/concentration", {}))
-        for client in concentration_snap.get("clients", []):
-            pct = _safe_float(client.get("revenue_pct"))
-            if pct > 20:
-                risk_alerts.append({
-                    "type": "concentration",
-                    "level": "warning",
-                    "message": f"{client.get('name', 'Unknown')} represents {pct:.1f}% of YTD revenue",
-                })
-
-        bva_snap = snapshot_map.get("snapshots/bva", snapshot_map.get("finance/snapshots/bva", {}))
-        for dept_line in bva_snap.get("departments", []):
-            var_pct = _safe_float(dept_line.get("variance_pct"))
-            if var_pct > 10:
-                risk_alerts.append({
-                    "type": "overrun",
-                    "level": "warning",
-                    "message": f"{dept_line.get('department', 'Unknown')} is {var_pct:.1f}% over OPEX budget",
-                })
-
-        ar_snap = snapshot_map.get("snapshots/ar", snapshot_map.get("finance/snapshots/ar", {}))
-        overdue_90 = _safe_float(ar_snap.get("bucket_90_plus"))
-        if overdue_90 > 0:
-            risk_alerts.append({
-                "type": "ar_overdue",
-                "level": "critical" if overdue_90 > 50000 else "warning",
-                "message": f"RM {overdue_90:,.0f} in receivables overdue >90 days",
-            })
-
-        if cash_runway_months == 0:
-            runway_status = "unknown"
-        elif cash_runway_months < 3:
-            runway_status = "critical"
-        elif cash_runway_months < 6:
-            runway_status = "caution"
-        else:
-            runway_status = "healthy"
-
-        bank_accounts: List[dict] = cash_snap.get("bank_accounts", [])
-        fx_positions: List[dict] = cash_snap.get("fx_positions", [])
-        forecast_13w: dict = cash_snap.get("forecast_13w", {"conservative": [], "expected": [], "optimistic": []})
-        fixed_opex = _safe_float(cash_snap.get("fixed_opex"))
-        variable_opex = _safe_float(cash_snap.get("variable_opex"))
-
-        total_ar = _safe_float(ar_snap.get("total_ar"))
-        ar_overdue_30 = _safe_float(ar_snap.get("bucket_31_60")) + _safe_float(ar_snap.get("bucket_61_90")) + _safe_float(ar_snap.get("bucket_90_plus"))
-        dso = _safe_float(ar_snap.get("dso"))
-        ar_aging = {
-            "bucket_0_30": _safe_float(ar_snap.get("bucket_0_30")),
-            "bucket_31_60": _safe_float(ar_snap.get("bucket_31_60")),
-            "bucket_61_90": _safe_float(ar_snap.get("bucket_61_90")),
-            "bucket_90_plus": _safe_float(ar_snap.get("bucket_90_plus")),
-        }
-        dunning_queue: List[dict] = ar_snap.get("dunning_queue", [])
-        ar_invoices_list: List[dict] = ar_snap.get("ar_invoices", ar_snap.get("dunning_queue", []))
-
-        ap_snap = snapshot_map.get("snapshots/ap", snapshot_map.get("finance/snapshots/ap", {}))
-        total_ap = _safe_float(ap_snap.get("total_ap"))
-        ap_overdue = _safe_float(ap_snap.get("ap_overdue"))
-        dpo = _safe_float(ap_snap.get("dpo"))
-        ap_bills: List[dict] = ap_snap.get("bills", [])
-
-        bva_departments: List[dict] = bva_snap.get("departments", [])
-        unit_economics: dict = bva_snap.get("unit_economics", {"gross_margin_pct": gross_margin, "contribution_margin_pct": 0, "cac": 0, "ltv": 0, "ltv_cac_ratio": 0})
-        client_concentration: List[dict] = concentration_snap.get("clients", [])
-
-        compliance_snap = snapshot_map.get("snapshots/compliance", snapshot_map.get("finance/snapshots/compliance", {}))
-        close_checklist: List[dict] = compliance_snap.get("close_checklist", [])
-        statutory_schedule: List[dict] = compliance_snap.get("statutory_schedule", [])
-        sst_readiness: dict = compliance_snap.get("sst_readiness", {"draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
-        cp58_register: List[dict] = compliance_snap.get("cp58_register", [])
-        wht_queue: List[dict] = compliance_snap.get("wht_queue", [])
-        expense_claim_audit: List[dict] = compliance_snap.get("expense_claim_audit", [])
-
-        # Asset fields + overview KPIs from snapshots (best-effort)
-        bs_snap = snapshot_map.get("snapshots/balance-sheet", snapshot_map.get("finance/snapshots/balance-sheet", {}))
-        current_assets = bs_snap.get("current_assets", [])
-        non_current_assets = bs_snap.get("non_current_assets", [])
-        total_current_assets = _safe_float(bs_snap.get("total_current_assets"))
-        total_non_current_assets = _safe_float(bs_snap.get("total_non_current_assets"))
-        total_assets_val = _safe_float(bs_snap.get("total_assets"))
-        asset_trend = bs_snap.get("asset_trend", [])
-        bva_line_items = bva_snap.get("line_items", [])
-        total_liabilities = _safe_float(bs_snap.get("total_liabilities"))
-        total_equity = _safe_float(bs_snap.get("total_equity"))
-        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
-        equity_ratio = (total_equity / total_assets_val) if total_assets_val else 0.0
-        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
-        net_working_capital = total_current_assets
-        gross_working_capital = total_current_assets
-        gross_profit_margin = gross_margin
-        total_current_liabilities = _safe_float(bs_snap.get("total_current_liabilities"))
-        ap_aging_by_target = ap_snap.get("aging_by_target", [])
-        monthly_pl_trend = pl_snap.get("monthly_pl_trend", [])
-        ar_aging_by_target = ar_snap.get("aging_by_target", [])
-        cash_flow_forecast = cash_snap.get("cash_flow_forecast", [])
-        burn_trend = cash_snap.get("burn_trend", [])
-        cash_flow_breakdown = cash_snap.get("cash_flow_breakdown", {})
+    # ── BvA: budget from gbrain, actuals matched from QBO P&L ──
+    bva_snap = snapshot_map.get("snapshots/bva", snapshot_map.get("finance/snapshots/bva", {}))
+    bva_departments: List[dict] = bva_snap.get("departments", [])
+    bva_line_items_raw: List[dict] = bva_snap.get("line_items", [])
+    # Match QBO actuals to budget line items
+    if bva_line_items_raw and "error" not in pl_ytd:
+        bva_line_items = _match_qbo_actuals_to_budget(bva_line_items_raw, pl_ytd)
     else:
-        # No snapshot data available — return empty-state, not fabricated mock data.
-        # The UI shows "no data yet / connect gbrain" rather than fake RM figures.
-        logger.info("Finance dashboard: no gbrain snapshots — returning empty state")
-        mock = False  # empty state, not mock
-        mock_data: Dict[str, Any] = {}
-        total_liquid_cash = 0.0
-        net_monthly_burn = 0.0
-        cash_runway_months = 0.0
-        runway_status = "unknown"
-        revenue_mtd = 0.0
-        revenue_ytd = 0.0
-        gross_margin = 0.0
-        ebitda_margin = 0.0
-        unpaid_statutory = 0.0
+        bva_line_items = bva_line_items_raw
 
-        risk_alerts: List[dict] = []
-        revenue_opex_trend: List[dict] = []
-        cash_flow_trend: List[dict] = []
+    unit_economics = bva_snap.get("unit_economics", {
+        "gross_margin_pct": gross_margin,
+        "contribution_margin_pct": 0,
+        "cac": 0, "ltv": 0, "ltv_cac_ratio": 0,
+    })
 
-        bank_accounts: List[dict] = []
-        fx_positions: List[dict] = []
-        fixed_opex = 0.0
-        variable_opex = 0.0
-        forecast_13w = {"expected": [], "conservative": [], "optimistic": []}
+    # ── Client concentration from gbrain ──
+    concentration_snap = snapshot_map.get("snapshots/concentration", snapshot_map.get("finance/snapshots/concentration", {}))
+    client_concentration: List[dict] = concentration_snap.get("clients", [])
 
-        total_ar = 0.0
-        ar_overdue_30 = 0.0
-        dso = 0.0
-        total_ap = 0.0
-        ap_overdue = 0.0
-        dpo = 0.0
+    # Add concentration risk alerts
+    for client in client_concentration:
+        pct = _safe_float(client.get("revenue_pct"))
+        if pct > 20:
+            risk_alerts.append({
+                "type": "concentration",
+                "level": "warning",
+                "message": f"{client.get('name', 'Unknown')} represents {pct:.1f}% of YTD revenue",
+            })
 
-        ar_aging = {"bucket_0_30": 0.0, "bucket_31_60": 0.0, "bucket_61_90": 0.0, "bucket_90_plus": 0.0}
-        dunning_queue: List[dict] = []
-        ap_bills: List[dict] = []
+    # BvA overrun alerts
+    for dept_line in bva_departments:
+        var_pct = _safe_float(dept_line.get("variance_pct"))
+        if var_pct > 10:
+            risk_alerts.append({
+                "type": "overrun",
+                "level": "warning",
+                "message": f"{dept_line.get('department', 'Unknown')} is {var_pct:.1f}% over OPEX budget",
+            })
 
-        bva_departments: List[dict] = []
-        unit_economics = {"gross_margin_pct": 0.0, "contribution_margin_pct": 0.0, "cac": 0.0, "ltv": 0.0, "ltv_cac_ratio": 0.0}
-        client_concentration: List[dict] = []
-        ar_invoices_list: List[dict] = []
+    # ── Compliance: always from gbrain (not in accounting software) ──
+    compliance_snap = snapshot_map.get("snapshots/compliance", snapshot_map.get("finance/snapshots/compliance", {}))
+    close_checklist: List[dict] = compliance_snap.get("close_checklist", [])
+    statutory_schedule: List[dict] = compliance_snap.get("statutory_schedule", [])
+    sst_readiness: dict = compliance_snap.get("sst_readiness", {"draft_status": "Not Started", "taxable_sales": 0, "sst_liability": 0})
+    cp58_register: List[dict] = compliance_snap.get("cp58_register", [])
+    wht_queue: List[dict] = compliance_snap.get("wht_queue", [])
+    expense_claim_audit: List[dict] = compliance_snap.get("expense_claim_audit", [])
 
-        close_checklist: List[dict] = []
-        statutory_schedule: List[dict] = []
-        sst_readiness = {"draft_status": "Not Started", "taxable_sales": 0.0, "sst_liability": 0.0}
-        cp58_register: List[dict] = []
-        wht_queue: List[dict] = []
-        expense_claim_audit: List[dict] = []
-
-        # Asset fields + overview KPIs from mock
-        current_assets = mock_data.get("currentAssets", [])
-        non_current_assets = mock_data.get("nonCurrentAssets", [])
-        total_current_assets = _safe_float(mock_data.get("totalCurrentAssets", 0))
-        total_non_current_assets = _safe_float(mock_data.get("totalNonCurrentAssets", 0))
-        total_assets_val = _safe_float(mock_data.get("totalAssets", 0))
-        asset_trend = mock_data.get("assetTrend", [])
-        bva_line_items = mock_data.get("bvaLineItems", [])
-        total_liabilities = _safe_float(mock_data.get("totalLiabilities", 0))
-        total_equity = _safe_float(mock_data.get("totalEquity", 0))
-        debt_to_equity = (total_liabilities / total_equity) if total_equity else 0.0
-        equity_ratio = (total_equity / total_assets_val) if total_assets_val else 0.0
-        ar_to_ap_coverage = (total_ar / total_ap) if total_ap else 0.0
-        net_working_capital = total_current_assets  # mock doesn't split current liab
-        gross_working_capital = total_current_assets
-        gross_profit_margin = gross_margin
-        total_current_liabilities = 0.0
-        ap_aging_by_target = mock_data.get("apAgingByTarget", [])
-        monthly_pl_trend = mock_data.get("monthlyPlTrend", [])
-        ar_aging_by_target = mock_data.get("arAgingByTarget", [])
-        cash_flow_forecast = mock_data.get("cashFlowForecast", [])
-        burn_trend = mock_data.get("burnTrend", [])
-        cash_flow_breakdown = mock_data.get("cashFlowBreakdown", {})
+    # ══════════════════════════════════════════════════════════════════════
+    # SECTION 3: Assemble response (same shape as before — UI unchanged)
+    # ══════════════════════════════════════════════════════════════════════
 
     return {
-        # Mock flag — true when data loaded from examples/*.json (demo mode)
-        "mock": mock,
+        "mock": False,
+        "dataSource": data_source,
         # Tab 1 — Executive Pulse
         "totalLiquidCash": total_liquid_cash,
         "netMonthlyBurn": net_monthly_burn,
@@ -2654,8 +3481,8 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         "unpaidStatutory": unpaid_statutory,
         "riskAlerts": risk_alerts,
         "revenueOpexTrend": revenue_opex_trend,
-        "cashFlowTrend": cash_flow_trend,
-        # Overview tab — QBO-live KPIs
+        "cashFlowTrend": monthly_pl_trend,
+        # Overview tab — KPIs
         "totalLiabilities": total_liabilities,
         "totalEquity": total_equity,
         "debtToEquity": debt_to_equity,
@@ -2696,12 +3523,12 @@ async def _run_finance_aggregation(pages: List[dict]) -> dict:
         "dunningQueue": dunning_queue,
         "arInvoices": ar_invoices_list,
         "apBills": ap_bills,
-        # Tab 4 — BvA & Unit Economics
+        # Tab 4 — BvA & Unit Economics (budget from gbrain, actuals from accounting)
         "bvaDepartments": bva_departments,
         "bvaLineItems": bva_line_items,
         "unitEconomics": unit_economics,
         "clientConcentration": client_concentration,
-        # Tab 5 — Close & Tax
+        # Tab 5 — Close & Tax (gbrain only — not in accounting software)
         "closeChecklist": close_checklist,
         "statutorySchedule": statutory_schedule,
         "sstReadiness": sst_readiness,
@@ -2717,8 +3544,10 @@ async def get_finance_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Aggregated Finance dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix="")
+    """Aggregated Finance dashboard stats — accounting bridge first, gbrain for budget/compliance."""
+    # gbrain pages still fetched for BvA budget + compliance snapshots,
+    # but tabs 1-5 now come from the accounting provider via bridge.
+    pages = await _fetch_brain_pages_safe("finance", limit=300, slug_prefix=None)
     return await _run_finance_aggregation(pages)
 
 
@@ -2752,7 +3581,7 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     has_real_data = bool(inventory_snap or po_snap)
 
     if has_real_data:
-        # Pull from the live gbrain snapshots written by dashboard-snapshot-writer
+        # Pull from the live gbrain snapshots written by finance-dashboard-snapshot / procurement-dashboard-snapshot
         total_inventory_valuation = _safe_float(inventory_snap.get("total_inventory_valuation"))
         total_active_skus = _safe_float(inventory_snap.get("total_active_skus"))
         low_stock_alerts = _safe_float(inventory_snap.get("low_stock_alerts"))
@@ -2895,7 +3724,7 @@ async def get_procurement_stats(
     db: Session = Depends(get_db),
 ) -> dict:
     """Aggregated Procurement dashboard stats — all 5 tabs."""
-    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix="")
+    pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix=None)
     return _run_procurement_aggregation(pages)
 
 
@@ -3138,6 +3967,493 @@ async def list_scanned_documents(
     ).scalars().all()
     return {"documents": [d.to_dict() for d in docs]}
 
+
+# ---------------------------------------------------------------------------
+# Document Scanning — Multi-source CRUD & execution
+# ---------------------------------------------------------------------------
+
+@router.get("/doc-scan/sources")
+async def list_doc_scan_sources(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all configured scan sources for this department."""
+    sources = [
+        {**s, "id": k.split(":")[1]} 
+        for k, s in _DOC_SCAN_SOURCES.items() 
+        if k.startswith(f"{name}:")
+    ]
+    return {"sources": sources}
+
+
+@router.post("/doc-scan/sources")
+async def create_doc_scan_source(
+    name: str = Path(...),
+    title: str = Form(...),
+    drive_url: str = Form(...),
+    schedule: str = Form("manual"),
+    document_type: str = Form("invoice"),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Create a new scan source configuration."""
+    import uuid
+    source_id = str(uuid.uuid4())[:8]
+    
+    template_path = None
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+    
+    source_key = f"{name}:{source_id}"
+    _DOC_SCAN_SOURCES[source_key] = {
+        "title": title,
+        "drive_url": drive_url,
+        "schedule": schedule,
+        "document_type": document_type,
+        "template_path": template_path,
+        "last_run": None,
+        "next_run": None,
+    }
+    
+    return {"id": source_id, "status": "created"}
+
+
+@router.put("/doc-scan/sources/{source_id}")
+async def update_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    title: str = Form(None),
+    drive_url: str = Form(None),
+    schedule: str = Form(None),
+    document_type: str = Form(None),
+    template: UploadFile = File(None),
+    user: User = Depends(get_current_user),
+):
+    """Update an existing scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    if title:
+        source["title"] = title
+    if drive_url:
+        source["drive_url"] = drive_url
+    if schedule:
+        source["schedule"] = schedule
+    if document_type:
+        source["document_type"] = document_type
+    
+    if template:
+        cfg = get_config()
+        upload_dir = pathlib.Path(cfg.db_path).parent / "dashboard_uploads" / "templates"
+        upload_dir.mkdir(parents=True, exist_ok=True)
+        # Sanitize template filename to prevent path traversal
+        safe_template_name = pathlib.Path(template.filename).name
+        if not safe_template_name or '/' in safe_template_name or '\\' in safe_template_name:
+            raise HTTPException(status_code=400, detail="Invalid template filename")
+        template_path = str(upload_dir / f"{source_id}_{safe_template_name}")
+        with open(template_path, "wb") as f:
+            content = await template.read()
+            f.write(content)
+        source["template_path"] = template_path
+    
+    return {"id": source_id, "status": "updated"}
+
+
+@router.delete("/doc-scan/sources/{source_id}")
+async def delete_doc_scan_source(name: str = Path(...), source_id: str = Path(...), user: User = Depends(get_current_user)):
+    """Delete a scan source configuration."""
+    source_key = f"{name}:{source_id}"
+    if source_key in _DOC_SCAN_SOURCES:
+        del _DOC_SCAN_SOURCES[source_key]
+    return {"status": "deleted"}
+
+
+@router.put("/doc-scan/sources/{source_id}/schedule")
+async def update_source_schedule(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    body: dict = Body(...),
+    user: User = Depends(get_current_user),
+):
+    """Update the schedule for a scan source."""
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    schedule = body.get("schedule")
+    if not schedule:
+        raise HTTPException(status_code=400, detail="Missing 'schedule' field")
+    
+    _DOC_SCAN_SOURCES[source_key]["schedule"] = schedule
+    return {"status": "updated", "schedule": schedule}
+
+
+@router.post("/doc-scan/sources/{source_id}/run")
+async def run_doc_scan_source(
+    name: str = Path(...),
+    source_id: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    """Run a scan source immediately - fetch from Drive, OCR all images, extract to Excel template."""
+    import subprocess
+    from pathlib import Path as FileSystemPath
+    
+    source_key = f"{name}:{source_id}"
+    if source_key not in _DOC_SCAN_SOURCES:
+        raise HTTPException(status_code=404, detail="Source not found")
+    
+    source = _DOC_SCAN_SOURCES[source_key]
+    drive_url = source.get("drive_url", "")
+    document_type = source.get("document_type", "invoice")
+    
+    # Extract folder ID from Drive URL (https://drive.google.com/drive/folders/FILE_ID)
+    folder_id = None
+    if "/folders/" in drive_url:
+        folder_id = drive_url.split("/folders/")[-1].split("?")[0].split("/")[0]
+    
+    if not folder_id:
+        raise HTTPException(status_code=400, detail="Invalid Google Drive URL - could not extract folder ID")
+    
+    # Validate folder_id to prevent API query injection
+    if not _re.match(r'^[A-Za-z0-9_-]+$', folder_id):
+        raise HTTPException(status_code=400, detail="Invalid folder ID format")
+    
+    # Step 1: List image files in Drive folder using google_api.py (gws CLI fallback)
+    REPO_ROOT = pathlib.Path(__file__).resolve().parents[2]
+    GOOGLE_API_SCRIPT = REPO_ROOT / "skills" / "google-workspace" / "scripts" / "google_api.py"
+    
+    query = f"'{folder_id}' in parents and trashed=false and (mimeType contains 'image/' or mimeType='application/pdf')"
+    cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "search", "--raw-query", query, "--max", "50"]
+    
+    try:
+        result = subprocess.run(cmd, capture_output=True, text=True, timeout=30, check=False)
+        if result.returncode != 0:
+            err_msg = result.stderr.strip() or result.stdout.strip()
+            if "Not authenticated" in err_msg:
+                raise HTTPException(status_code=503, detail="Google Drive API not authenticated. Run: python skills/google-workspace/scripts/setup.py")
+            raise HTTPException(status_code=500, detail=f"Drive API error: {err_msg}")
+        files = json.loads(result.stdout)
+        if not isinstance(files, list):
+            files = []
+    except FileNotFoundError:
+        raise HTTPException(status_code=500, detail=f"google_api.py not found at {GOOGLE_API_SCRIPT}")
+    except json.JSONDecodeError as e:
+        raise HTTPException(status_code=500, detail=f"Failed to parse Drive response: {str(e)}")
+    
+    if not files:
+        return {"status": "completed", "results_count": 0, "message": "No images found in Drive folder"}
+    
+    # Step 2: Download and OCR each image
+    results = []
+    upload_dir = FileSystemPath(get_config().db_path).parent / "dashboard_uploads" / "scans" / name / source_id
+    upload_dir.mkdir(parents=True, exist_ok=True)
+    
+    for i, file_info in enumerate(files):
+        file_id = file_info.get("id")
+        file_name = file_info.get("name", f"doc_{i}.png")
+        
+        # Sanitize file_name to prevent path traversal
+        safe_file_name = pathlib.Path(file_name).name
+        if not safe_file_name or '/' in safe_file_name or '\\' in safe_file_name:
+            logger.warning(f"Skipping file with invalid name: {file_name}")
+            continue
+        
+        # Download file using google_api.py
+        temp_path = upload_dir / safe_file_name
+        download_cmd = [sys.executable, str(GOOGLE_API_SCRIPT), "drive", "download", file_id, "--output", str(temp_path)]
+        try:
+            dl_result = subprocess.run(download_cmd, capture_output=True, text=True, timeout=60)
+            if dl_result.returncode != 0 or not temp_path.exists():
+                err_msg = dl_result.stderr.strip() or dl_result.stdout.strip()
+                logger.warning(f"Failed to download {file_name}: {err_msg}")
+                continue
+        except Exception as e:
+            logger.warning(f"Download error for {file_name}: {str(e)}")
+            continue
+        
+        # Step 3: OCR inline — add venv site-packages to sys.path so easyocr/pymupdf are available
+        logger.info(f"OCR: file={safe_file_name}, temp_path={temp_path}, exists={temp_path.exists()}")
+        
+        try:
+            if not temp_path.exists():
+                extracted = {"error": f"Downloaded file not found at {temp_path}"}
+            else:
+                # Add venv site-packages to sys.path for this process
+                import sys as _sys
+                venv_site = str(REPO_ROOT / "venv" / "Lib" / "site-packages")
+                if venv_site not in _sys.path:
+                    _sys.path.insert(0, venv_site)
+                
+                # Convert PDF to image if needed
+                ocr_input = str(temp_path)
+                if safe_file_name.lower().endswith('.pdf'):
+                    try:
+                        import pymupdf
+                    except ImportError:
+                        import fitz as pymupdf
+                    doc = pymupdf.open(str(temp_path))
+                    page = doc[0]
+                    pix = page.get_pixmap(dpi=200)
+                    img_path = upload_dir / f"{safe_file_name}.png"
+                    pix.save(str(img_path))
+                    doc.close()
+                    ocr_input = str(img_path)
+                
+                # Run easyocr in thread pool to avoid blocking event loop
+                import easyocr
+                def _run_ocr():
+                    reader = easyocr.Reader(['en'], gpu=False)
+                    return reader.readtext(ocr_input)
+                ocr_result = await asyncio.to_thread(_run_ocr)
+                ocr_text = " ".join([r[1] for r in ocr_result])
+                
+                # Clean up converted image if PDF
+                if safe_file_name.lower().endswith('.pdf'):
+                    try:
+                        FileSystemPath(ocr_input).unlink()
+                    except OSError:
+                        pass
+                
+                # Field extraction from OCR text (regex-based, invoice-optimized)
+                extracted = {}
+                if document_type == "invoice":
+                    import re
+                    
+                    # Invoice number: look for "Invoice No" or "Inv No" followed by alphanumeric code
+                    inv_match = re.search(r"(?:Invoice|Inv)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    
+                    # Date: look for DD-MMM-YYYY or DD/MM/YYYY patterns (prefer full dates)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    if not date_match:
+                        date_match = re.search(r"(\d{1,2}/\d{1,2}/\d{2,4})", ocr_text)
+                    
+                    # Total amount: look for "Total RM" or just "RM" near end of text
+                    total_match = re.search(r"Total\s*(?:RM)?\s*([\d,]+\.?\d*)", ocr_text, re.IGNORECASE)
+                    if not total_match:
+                        total_match = re.search(r"RM\s*([\d,]+\.\d{2})", ocr_text)
+                    
+                    # Vendor name: first line or before "INVOICE" keyword
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    
+                    # Service Tax / SST number
+                    tax_match = re.search(r"(?:Service\s*Tax|SST|Tax)\s*No\.?\s*:?\s*([A-Z0-9\-]+)", ocr_text, re.IGNORECASE)
+                    
+                    # PO Number
+                    po_match = re.search(r"(?:PO|P\.O\.)\s*(?:No\.?)?\s*:?\s*(\d+)", ocr_text, re.IGNORECASE)
+                    
+                    # Customer / Invoice To
+                    customer_match = re.search(r"(?:Invoice\s*To|Delivered\s*To|Bill\s*To)\s*:?\s*([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE)
+                    
+                    # e-Invoice UIN
+                    uin_match = re.search(r"UIN:\s*([A-Z0-9]+)", ocr_text, re.IGNORECASE)
+                    
+                    extracted = {
+                        "vendor_name": vendor_match.group(1).strip() if vendor_match else None,
+                        "invoice_number": inv_match.group(1).strip() if inv_match else None,
+                        "invoice_date": date_match.group(1).strip() if date_match else None,
+                        "total_amount": f"RM {total_match.group(1)}" if total_match else None,
+                        "service_tax_no": tax_match.group(1).strip() if tax_match else None,
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "customer_name": customer_match.group(1).strip() if customer_match else None,
+                        "uin": uin_match.group(1).strip() if uin_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "delivery_order":
+                    import re
+                    do_match = re.search(r"(?:DO|Delivery\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    supplier_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "do_number": do_match.group(1).strip() if do_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "supplier": supplier_match.group(1).strip() if supplier_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                elif document_type == "purchase_order":
+                    import re
+                    po_match = re.search(r"(?:PO|Purchase\s*Order)\s*No\.?\s*:?\s*([A-Z0-9][\w\-/]+)", ocr_text, re.IGNORECASE)
+                    date_match = re.search(r"(\d{1,2}[-/](?:JAN|FEB|MAR|APR|MAY|JUN|JUL|AUG|SEP|OCT|NOV|DEC)[A-Z]*[-/]\d{2,4})", ocr_text, re.IGNORECASE)
+                    vendor_match = re.search(r"^([A-Z][A-Z\s&.,]+(?:SDN\s+BHD|BERHAD|LTD|INC))", ocr_text, re.IGNORECASE | re.MULTILINE)
+                    extracted = {
+                        "po_number": po_match.group(1).strip() if po_match else None,
+                        "date": date_match.group(1).strip() if date_match else None,
+                        "vendor": vendor_match.group(1).strip() if vendor_match else None,
+                        "raw_ocr": ocr_text[:800],
+                    }
+                else:
+                    extracted = {"raw_ocr": ocr_text[:800], "note": f"Field extraction not configured for '{document_type}'"}
+            
+        except Exception as e:
+            logger.error(f"OCR exception for {safe_file_name}: {type(e).__name__}: {e}")
+            extracted = {"error": f"{type(e).__name__}: {str(e)}"}
+        
+        # Build result object (no raw_ocr in displayed fields)
+        display_fields = {k: v for k, v in extracted.items() if k != "raw_ocr"}
+        
+        result_entry = {
+            "id": len(_DOC_SCAN_RESULTS.get(name, [])) + i + 1,
+            "filename": file_name,
+            "file_url": f"/api/doc-uploads/scans/{name}/{source_id}/{file_name}",
+            "source_id": source_id,
+            "source_title": source["title"],
+            "document_type": document_type,
+            "ocr_summary": f"Extracted {len(display_fields)} fields from {file_name}",
+            "interpretation": {
+                "fields": display_fields,
+                "validation": {"valid": "error" not in extracted, "message": "Extraction complete" if "error" not in extracted else extracted.get("error")}
+            },
+            "status": "processed" if "error" not in extracted else "failed",
+            "scan_date": datetime.now().isoformat(),
+        }
+        results.append(result_entry)
+        
+        # Keep downloaded files for viewing (don't delete)
+    
+    # Generate ONE combined Excel with all scanned docs
+    output_excel_url = None
+    template_path = source.get("template_path")
+    if template_path and FileSystemPath(template_path).exists() and results:
+        try:
+            import openpyxl
+            
+            # Load workbook in thread pool to avoid blocking
+            def _load_wb():
+                return openpyxl.load_workbook(template_path)
+            wb = await asyncio.to_thread(_load_wb)
+            ws = wb.active
+            
+            # Read header names from row 1
+            excel_headers = []
+            for col_idx, cell in enumerate(ws[1], 1):
+                if cell.value:
+                    excel_headers.append({"col": col_idx, "name": str(cell.value).strip()})
+            
+            if not excel_headers:
+                logger.warning("Excel template has no headers in row 1")
+            else:
+                # Collect all unique extracted field keys across all results
+                all_field_keys = set()
+                for result in results:
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    all_field_keys.update(k for k in fields.keys() if k != "raw_ocr")
+                all_field_keys.add("filename")
+                
+                # Use LLM to map extracted fields → Excel headers by meaning
+                from gateway import _call_deepseek
+                
+                header_names = [h["name"] for h in excel_headers]
+                field_list = list(all_field_keys)
+                
+                mapping_prompt = (
+                    f"I have an Excel template with these column headers: {header_names}\n"
+                    f"And OCR-extracted fields with these keys: {field_list}\n\n"
+                    "Map each extracted field key to the MOST SEMANTICALLY SIMILAR Excel header. "
+                    "Return ONLY a JSON object where keys are the extracted field names and values are the matching Excel header names. "
+                    "If a field has no matching header, omit it. Do NOT add explanations.\n"
+                    "Example: {{\"invoice_number\": \"Doc No\", \"vendor_name\": \"Creditor Name\"}}"
+                )
+                
+                mapping_response = await _call_deepseek(
+                    mapping_prompt,
+                    system_prompt="You are a data mapping assistant. Return ONLY valid JSON. No markdown, no explanation.",
+                    max_tokens=512,
+                )
+                
+                # Parse the mapping
+                field_to_header = {}
+                if mapping_response:
+                    try:
+                        # Strip markdown fences if present
+                        clean = mapping_response.strip()
+                        if clean.startswith("```"):
+                            clean = clean.split("\n", 1)[1].rsplit("```", 1)[0].strip()
+                        field_to_header = json.loads(clean)
+                        logger.info(f"LLM field mapping: {field_to_header}")
+                    except (json.JSONDecodeError, IndexError) as e:
+                        logger.warning(f"Failed to parse LLM mapping response: {e}")
+                
+                # Build header name → col index lookup
+                header_col_map = {h["name"]: h["col"] for h in excel_headers}
+                
+                # Fill each scanned doc as a row
+                for row_idx, result in enumerate(results, 2):
+                    fields = result.get("interpretation", {}).get("fields", {})
+                    fields["filename"] = result.get("filename", "")
+                    
+                    for field_key, field_value in fields.items():
+                        if field_value is None or field_key == "raw_ocr":
+                            continue
+                        
+                        # Look up which Excel header this field maps to
+                        matched_header = field_to_header.get(field_key)
+                        if matched_header and matched_header in header_col_map:
+                            col = header_col_map[matched_header]
+                            ws.cell(row=row_idx, column=col, value=str(field_value))
+            
+            # Save combined Excel (preserve original formatting)
+            output_dir = upload_dir / "output"
+            output_dir.mkdir(parents=True, exist_ok=True)
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            output_filename = f"{source['title'].replace(' ', '_')}_{timestamp}.xlsx"
+            output_path = output_dir / output_filename
+            # Save workbook in thread pool to avoid blocking
+            def _save_wb():
+                wb.save(str(output_path))
+            await asyncio.to_thread(_save_wb)
+            output_excel_url = f"/api/doc-uploads/scans/{name}/{source_id}/output/{output_filename}"
+            logger.info(f"Combined Excel saved: {output_path} ({len(results)} rows)")
+            
+        except Exception as e:
+            logger.warning(f"Failed to generate combined Excel: {e}")
+    
+    # Store results
+    if name not in _DOC_SCAN_RESULTS:
+        _DOC_SCAN_RESULTS[name] = []
+    _DOC_SCAN_RESULTS[name].extend(results)
+    
+    # Update last_run
+    source["last_run"] = datetime.now().isoformat()
+    
+    return {"status": "completed", "results_count": len(results), "results": results, "output_excel_url": output_excel_url}
+
+
+@router.get("/doc-scan/results")
+async def list_doc_scan_results(name: str = Path(...), user: User = Depends(get_current_user)):
+    """List all scan results for this department."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    return {"results": results}
+
+
+@router.post("/doc-scan/results/{result_id}/verify")
+async def verify_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as verified."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "verified"
+            return {"status": "verified"}
+    raise HTTPException(status_code=404, detail="Result not found")
+
+
+@router.post("/doc-scan/results/{result_id}/reject")
+async def reject_doc_result(name: Annotated[str, Path()], result_id: Annotated[int, Path()], user: User = Depends(get_current_user)):
+    """Mark a scan result as rejected."""
+    results = _DOC_SCAN_RESULTS.get(name, [])
+    for r in results:
+        if r["id"] == result_id:
+            r["status"] = "rejected"
+            return {"status": "rejected"}
+    raise HTTPException(status_code=404, detail="Result not found")
 
 @router.post("/inspect-site")
 async def inspect_site(

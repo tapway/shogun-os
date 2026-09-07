@@ -70,20 +70,80 @@ def test_safe_int_passes_valid_integer():
 def test_finance_aggregation_empty_pages_returns_safe_defaults():
     """Finance aggregation with no snapshots must not crash and return zeros.
 
-    Mocks QBO fetches so no subprocess/network call runs. Tests the aggregation
-    logic, not the live QBO integration. assert_called_once verifies the mocks
-    are actually used -- prevents silent false-pass if imports change.
+    QBO is OFF by default (gbrain-first), so no subprocess/network call runs
+    at all. The empty-state payload carries dataSource="empty" and mock=False
+    (never fabricated demo data).
     """
-    fake_qbo = {"error": "no data"}
-    with patch("dashboard._fetch_qbo_balance_sheet", return_value=fake_qbo) as mock_bs, \
-         patch("dashboard._fetch_qbo_profit_loss", return_value=fake_qbo) as mock_pl:
+    with patch("dashboard._fetch_finance_snapshots", return_value={}):
         result = asyncio.run(dashboard._run_finance_aggregation([]))
-    # Verify mocks were actually called -- prevents false-pass if patch target drifts
-    mock_bs.assert_called_once()
-    mock_pl.assert_called()
     assert isinstance(result, dict)
     # Must have keys, even if all zero/empty
     assert len(result) > 0
+    assert result["mock"] is False
+    assert result["dataSource"] == "empty"
+
+
+def test_finance_aggregation_reads_gbrain_snapshots():
+    """With accounting bridge unavailable, gbrain snapshots fill BvA/compliance.
+
+    Tabs 1-5 return empty-state (bridge not mocked), but BvA budget and
+    compliance data still come from gbrain snapshots.
+    """
+    snaps = {
+        "finance/snapshots/bva": {
+            "departments": [{"department": "Engineering", "variance_pct": 5.0}],
+            "line_items": [{"account_name": "Salaries", "budget_ytd": 100000}],
+            "unit_economics": {"gross_margin_pct": 42.0, "contribution_margin_pct": 28.0,
+                               "cac": 1200, "ltv": 8400, "ltv_cac_ratio": 7.0},
+        },
+        "finance/snapshots/compliance": {
+            "close_checklist": [{"task": "Bank reconciliation", "status": "Done"}],
+            "statutory_schedule": [{"filing": "SST-02", "due_date": "2026-10-31"}],
+        },
+        "finance/snapshots/concentration": {
+            "clients": [{"name": "Acme Corp", "revenue_pct": 25.0}],
+        },
+    }
+    with patch("dashboard._fetch_finance_snapshots", return_value=snaps):
+        result = asyncio.run(dashboard._run_finance_aggregation([]))
+    # Accounting bridge not available in test → dataSource is "empty"
+    assert result["dataSource"] == "empty"
+    assert result["mock"] is False
+    # Tabs 1-5 are zero/empty (no accounting bridge)
+    assert result["totalLiquidCash"] == 0.0
+    assert result["revenueYTD"] == 0.0
+    # But BvA budget + compliance still come from gbrain
+    assert len(result["bvaDepartments"]) == 1
+    assert result["bvaDepartments"][0]["department"] == "Engineering"
+    assert len(result["closeChecklist"]) == 1
+    assert result["unitEconomics"]["gross_margin_pct"] == 42.0
+    # Concentration risk alert generated
+    assert any(a["type"] == "concentration" for a in result["riskAlerts"])
+
+
+def test_finance_aggregation_calls_accounting_bridge():
+    """Accounting-first data path: bridge fetchers ARE invoked for tabs 1-5."""
+    mock_bs = {
+        "total_assets": 500000, "total_liabilities": 200000,
+        "total_equity": 300000, "total_current_liabilities": 80000,
+        "asset_accounts": [
+            {"account_name": "Cash - Maybank", "amount": 350000},
+            {"account_name": "Accounts Receivable", "amount": 150000},
+        ],
+    }
+    mock_pl = {"total_revenue": 100000, "total_expenses": 80000,
+               "net_profit": 20000, "revenue_accounts": [], "expense_accounts": []}
+    with patch("dashboard._fetch_finance_snapshots", return_value={}), \
+         patch("dashboard._fetch_accounting_balance_sheet", return_value=mock_bs), \
+         patch("dashboard._fetch_accounting_profit_loss", return_value=mock_pl), \
+         patch("dashboard._fetch_accounting_ar_invoices", return_value={"invoices": []}), \
+         patch("dashboard._fetch_accounting_ap_bills", return_value={"bills": []}):
+        result = asyncio.run(dashboard._run_finance_aggregation([]))
+    assert result["dataSource"] == "accounting"
+    assert result["revenueYTD"] == 100000
+    assert result["totalAssets"] == 500000
+    assert result["totalLiquidCash"] == 350000
+    assert result["totalLiabilities"] == 200000
 
 
 def test_procurement_aggregation_empty_pages_no_crash():

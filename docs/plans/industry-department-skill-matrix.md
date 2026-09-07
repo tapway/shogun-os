@@ -30,7 +30,6 @@
 | E-commerce | — | — | ✅ | ✅ (NEW: available to all) |
 | CRM/Loyalty | — | — | ✅ | — |
 | Supply Chain | — | — | ✅ | — |
-| Visual Merchandising | — | — | ✅ | — |
 
 **Key:** E-commerce is currently Retail-only in `PROFILE_CATALOG.md` but should become a **cross-industry add-on** per the new plan — any business can sell on Shopee/Lazada/TikTok.
 
@@ -126,8 +125,6 @@ These 8 departments exist for every company. The skills don't change by industry
 | Production | Kojo (工場) | `production-oee`, `work-order-tracking`, `erp-connector`, `mes-connector` | ✅ Manufacturing-only — factory floor ops |
 | Quality | Kensa (検査) | `quality-ncr`, `quality-capa`, `erp-connector` | ✅ Manufacturing-only — QC inspections |
 | Maintenance | Shuri (修理) | `maintenance-pm`, `maintenance-downtime`, `mes-connector` | ✅ Manufacturing-only — equipment repair |
-| Warehouse | Soko (倉庫) | `warehouse-inventory`, `erp-connector` | ✅ Manufacturing-only — raw material storage |
-| HSE | Anzen (安全) | `hse-incident` | ✅ Manufacturing-only — safety incidents |
 
 **What makes Manufacturing different:** 5 departments for factory operations — production line, quality control, machine maintenance, raw material warehouse, and workplace safety. No e-commerce, no stores, no merchandising. But a manufacturer CAN add the E-commerce cross-industry add-on if they sell direct.
 
@@ -139,18 +136,13 @@ These 8 departments exist for every company. The skills don't change by industry
 
 | Department | Persona | Skills (existing) | E-commerce Add-on Skills (NEW) | Different from other industries? |
 |-----------|---------|-------------------|-------------------------------|-------------------------------|
-| Stores | Tenpo (店舗) | `store-sales-dashboard`, `store-staff-scheduling`, `store-replenishment` | — | ✅ Retail-only — physical store ops |
-| Merchandising | Shohin (商品) | `assortment-planning`, `vendor-negotiation`, `promo-planning` | `product-velocity-analyzer` **(NEW)**, `product-margin-analyzer` **(NEW)** | ✅ Retail-only — buying & pricing |
 | E-commerce | Denshi (電子) | `ecommerce-listing`, `ecommerce-order-management`, `marketplace-analytics` | `shopee-connector` ✅, `lazada-connector` ✅, `autocount-connector` ✅, `tiktok-shop-connector` **(NEW)**, `website-connector` **(NEW)**, `sitegiant-connector` **(NEW)**, `autocount-product-sync` **(NEW)**, `sitegiant-product-sync` **(NEW)**, `shopee-listing-sync` **(NEW)**, `lazada-listing-sync` **(NEW)**, `tiktok-listing-sync` **(NEW)**, `website-listing-sync` **(NEW)**, `shopee-price-sync` **(NEW)**, `lazada-price-sync` **(NEW)**, `tiktok-price-sync` **(NEW)**, `website-price-sync` **(NEW)**, `ecommerce-workflow-orchestrator` **(NEW)** | ✅ Retail + cross-industry add-on |
 | CRM/Loyalty | Kokyaku (顧客) | `loyalty-program`, `customer-segmentation` | — | ✅ Retail-only — loyalty programs |
 | Supply Chain | Ryutsu (流通) | `warehouse-distribution`, `store-replenishment` | — | ✅ Retail-only — DC to store replenishment |
-| Visual Merchandising | Hyoji (表示) | `planogram-compliance`, `promo-planning` | — | ✅ Retail-only — shelf layouts |
 
-**What makes Retail different:** 6 departments for omnichannel commerce — physical stores, buying/assortment, online selling, customer loyalty, distribution, and store layouts. Retail shares `promo-planning` across Merchandising AND Visual Merchandising (same skill, different context).
 
 **Shared skills across Retail departments:**
 - `store-replenishment` appears in Stores AND Supply Chain — both manage stock flow to stores
-- `promo-planning` appears in Merchandising AND Visual Merchandising — both handle promotions (buying side vs display side)
 
 ---
 
@@ -180,7 +172,6 @@ This shows how the same shared department stays the same, while industry-specifi
 | | Maintenance (3 skills) | E-commerce (3 + 17 NEW) |
 | | Warehouse (2 skills) | CRM/Loyalty (2 skills) |
 | | HSE (1 skill) | Supply Chain (2 skills) |
-| | | Visual Merchandising (2 skills) |
 
 **General:** 2 departments, 10 skills total
 **Manufacturing:** 5 departments, 13 skills total
@@ -245,20 +236,15 @@ MANUFACTURING (Factory, Production, OEM)
 ├── Production: production-oee, work-order-tracking, erp-connector, mes-connector
 ├── Quality: quality-ncr, quality-capa, erp-connector
 ├── Maintenance: maintenance-pm, maintenance-downtime, mes-connector
-├── Warehouse: warehouse-inventory, erp-connector
-├── HSE: hse-incident
 └── Optional Add-on: E-commerce (17 skills + 10 cross-dept dependencies)
 
 RETAIL (Stores, E-commerce, Omnichannel)
 ├── Shared: HR + Finance + Procurement + CRM + Marketing + Compliance + Support + Coding
-├── Stores: store-sales-dashboard, store-staff-scheduling, store-replenishment
-├── Merchandising: assortment-planning, vendor-negotiation, promo-planning
 │   └── + E-commerce add-on: product-velocity-analyzer, product-margin-analyzer
 ├── E-commerce: ecommerce-listing, ecommerce-order-management, marketplace-analytics
 │   └── + 17 NEW skills (connectors, sync, orchestrator)
 ├── CRM/Loyalty: loyalty-program, customer-segmentation
 ├── Supply Chain: warehouse-distribution, store-replenishment
-├── Visual Merchandising: planogram-compliance, promo-planning
 └── Marketing + Compliance get e-commerce add-on skills when E-commerce is selected
 ```
 
@@ -275,7 +261,6 @@ RETAIL (Stores, E-commerce, Omnichannel)
 
 3. **Some skills are shared WITHIN an industry** across departments:
    - Manufacturing: `erp-connector` in Production + Quality + Warehouse; `mes-connector` in Production + Maintenance
-   - Retail: `store-replenishment` in Stores + Supply Chain; `promo-planning` in Merchandising + Visual Merchandising
 
 4. **E-commerce is a cross-industry add-on** — the new plan makes it available to ALL industries, not just Retail. A manufacturer or services company can add E-commerce to sell direct on Shopee/Lazada/TikTok/Website.
 

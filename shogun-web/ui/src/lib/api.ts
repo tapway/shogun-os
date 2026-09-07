@@ -408,6 +408,23 @@ export const departmentsApi = {
     );
   },
 
+  // Deal attachments — stored inside the CRM brain (versioned beside each deal file)
+  dealAttachmentList: (dept: string, slug: string) =>
+    apiFetch<{ slug: string; attachments: { name: string; size: number; path: string; modified: string }[]; total: number }>(
+      `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments`,
+    ),
+  dealAttachmentUpload: (dept: string, slug: string, file: File, note = '') => {
+    const fd = new FormData();
+    fd.append('file', file);
+    fd.append('note', note);
+    return apiFetch<{ ok: boolean; slug: string; attachment: Record<string, unknown>; deal_file: string }>(
+      `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments`,
+      { method: 'POST', body: fd },
+    );
+  },
+  dealAttachmentUrl: (dept: string, slug: string, name: string) =>
+    `/api/departments/${dept}/dashboard/deals/${encodeURIComponent(slug)}/attachments/${encodeURIComponent(name)}`,
+
   crmSearch: (dept: string, query: string) =>
     apiFetch<{ results: CrmSearchResult[] }>(
       `/api/departments/${dept}/dashboard/search`,
@@ -445,6 +462,12 @@ export const departmentsApi = {
     apiFetch<{ ok: boolean }>(`/api/departments/${dept}/crons/${cronId}`, {
       method: 'DELETE',
     }),
+  runCron: (dept: string, cronId: string) =>
+    apiFetch<{ ok: boolean; run_id: number; status: string }>(`/api/departments/${dept}/crons/${cronId}/run`, {
+      method: 'POST',
+    }),
+  getCronHistory: (dept: string, cronId: string) =>
+    apiFetch<{ ok: boolean; runs: import('../lib/types').CronRunRecord[] }>(`/api/departments/${dept}/crons/${cronId}/history`),
 
   // Comms channel management — test bot tokens + discover chat IDs
   testChannel: (dept: string, channelId: string) =>
@@ -637,6 +660,31 @@ export const skillsApi = {
       method: 'POST',
       body: JSON.stringify({ skill, department, ...meta }),
     }),
+  // Enhance / Rollback / History
+  getEnhanceContext: (skillId: string) =>
+    apiFetch<{
+      ok: boolean;
+      skill_id: string;
+      skill_dir: string;
+      skill_md: string;
+      readme_md: string;
+      version: string;
+      departments: string[];
+      description: string;
+      history: Array<{ commit: string; version: string; description: string; user: string; timestamp: string; files_changed: string[] }>;
+      has_readme: boolean;
+    }>(`/api/skills/${skillId}/enhance-context`),
+  applyEnhancement: (skillId: string, payload: { skill_md: string; readme_md: string; description: string }) =>
+    apiFetch<{ ok: boolean; commit: string | null; files_changed: string[]; version?: string; message: string }>(`/api/skills/${skillId}/enhance`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    }),
+  rollback: (skillId: string) =>
+    apiFetch<{ ok: boolean; rollback_commit?: string; reverted_commit?: string; message?: string; error?: string }>(`/api/skills/${skillId}/rollback`, {
+      method: 'POST',
+    }),
+  getEnhanceHistory: (skillId: string) =>
+    apiFetch<{ history: Array<{ commit: string; version: string; description: string; user: string; timestamp: string; files_changed: string[] }> }>(`/api/skills/${skillId}/enhance-history`),
 };
 
 export type ChatSocketEvent =

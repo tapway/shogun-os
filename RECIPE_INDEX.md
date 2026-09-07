@@ -90,7 +90,7 @@ Proactively refreshes DWD credentials. Only needed if scripts cache raw access t
 
 Unified **COLLECT → ROUTE → BRIDGE → ENRICH → VALIDATE** flow for all data sources. Replaces the old per-source email and calendar collectors with a single 5-phase pipeline using SA-DWD, batch rotation, and gbrain linking.
 
-See `skills/brain-ingest-pipeline/SKILL.md` for full docs.
+See `skills/gbrain/brain-ingest-pipeline/SKILL.md` for full docs.
 
 **Supersedes:** `email-to-brain` and `calendar-to-brain` (removed — use this instead).
 
@@ -157,7 +157,7 @@ Unified 3-tier daily scrum for ANY department profile. One generic script (`send
 
 **v3.0.0**: Now includes 15 production-hardened pitfalls in `references/production-pitfalls.md`.
 
-See `skills/department-scrum/SKILL.md` for full docs.
+See `skills/general/department-scrum/SKILL.md` for full docs.
 
 ### 9. `gateway-systemd-management` — Gateway Lifecycle Management
 
@@ -243,7 +243,7 @@ Migrate from per-profile SQLite to shared Postgres for multi-profile deployments
 | Depends on | department-scrum |
 | Cron | (none — reference doc) |
 
-All 15 production pitfalls from running department-scrum in production. Read this before deploying scrum for the first time. See `recipes/scrum-production-hardening.md` and `skills/department-scrum/references/production-pitfalls.md`.
+All 15 production pitfalls from running department-scrum in production. Read this before deploying scrum for the first time. See `recipes/scrum-production-hardening.md` and `skills/general/department-scrum/references/production-pitfalls.md`.
 
 ---
 
@@ -432,7 +432,7 @@ See [`docs/recipes/creating-provider-abstractions.md`](docs/recipes/creating-pro
 
 ### Meta: Shogunify (agent-facing questionnaire)
 
-Use **`/shogunify`** — docs: [`docs/recipes/shogunify.md`](docs/recipes/shogunify.md), skill: [`skills/shogunify/`](skills/shogunify/). Structured walkthrough that produces profile-aware skills, connectors, and workflows. Installs onto every Hermes profile via `skills/shogunify/scripts/install-to-profiles.py`. E2E: `python3 skills/shogunify/scripts/e2e_test_shogunify.py`.
+Use **`/shogunify`** — docs: [`docs/recipes/shogunify.md`](docs/recipes/shogunify.md), skill: [`skills/hermes/shogunify/`](skills/hermes/shogunify/). Structured walkthrough that produces profile-aware skills, connectors, and workflows. Installs onto every Hermes profile via `skills/hermes/shogunify/scripts/install-to-profiles.py`. E2E: `python3 skills/hermes/shogunify/scripts/e2e_test_shogunify.py`.
 
 ## Installation Order
 

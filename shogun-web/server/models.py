@@ -573,7 +573,8 @@ class CronJob(Base):
     deliver_channel_name: Mapped[str] = mapped_column(String(256), nullable=False, default="")
 
     last_run: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
-
+    last_run_status: Mapped[Optional[str]] = mapped_column(String(32), nullable=True)  # ok, error, running
+    last_run_output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
 
         DateTime(timezone=True), nullable=False, default=utcnow
@@ -605,13 +606,38 @@ class CronJob(Base):
             "deliver_channel_name": self.deliver_channel_name or "",
 
             "last_run": self.last_run,
-
+            "last_run_status": self.last_run_status,
+            "last_run_output": self.last_run_output,
             "created_at": self.created_at.isoformat() if self.created_at else None,
 
         }
 
 
+class CronRunHistory(Base):
+    """Individual cron job run record for history tracking."""
 
+    __tablename__ = "cron_run_history"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    cron_job_id: Mapped[str] = mapped_column(
+        String(128), ForeignKey("cron_jobs.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="running")  # running, ok, error
+    output: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    started_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+    finished_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "cron_job_id": self.cron_job_id,
+            "status": self.status,
+            "output": self.output or "",
+            "started_at": self.started_at.isoformat() if self.started_at else None,
+            "finished_at": self.finished_at.isoformat() if self.finished_at else None,
+        }
 
 
 class SiteInspectionUnit(Base):

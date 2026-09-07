@@ -33,13 +33,14 @@ dashboard.py and the guarded callers in gateway.py).
 from __future__ import annotations
 
 import asyncio
+import copy
 import json
 import logging
 import os
 import pathlib
 import re
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 
 import httpx
 from config import get_config
@@ -52,19 +53,102 @@ _MCP_LIST_PAGE_SIZE = 100
 # Safety bound on the list_pages pagination loop (never infinite).
 _MCP_LIST_MAX_PAGES = 200
 
+# A listing may match several slug prefixes at once (e.g. the CRM Partners
+# tab covers both ``partners/`` and a legacy ``partner/`` singular tree).
+SlugPrefix = Union[str, Tuple[str, ...], List[str], None]
+
+
+def _slug_matches(slug: str, prefix: "SlugPrefix") -> bool:
+    """True when ``slug`` is allowed by the prefix filter.
+
+    ``None`` = match all (no filter). Empty string/tuple/list = match NOTHING
+    (explicit empty filter). This distinguishes "no filter" from "empty filter".
+    """
+    if prefix is None:
+        return True
+    if isinstance(prefix, str):
+        return slug.startswith(prefix) if prefix else False
+    # Non-empty sequence: check any match; empty sequence = no match
+    return len(prefix) > 0 and any(slug.startswith(p) for p in prefix)
+
 
 def _enrich_cap() -> int:
     """Enrichment cap for metadata-only list_pages rows.
 
-    list_pages rows carry no frontmatter; enriching every row via get_page
-    would be an N+1 explosion. Cap per fetch — configurable via
-    ``gbrain_mcp_enrich_cap`` (raise for large MCP-only sources).
+    Default ``500`` = enrich up to 500 rows on cold start, then serve metadata-only
+    for the rest. This prevents N+1 explosion on large brains (10k+ pages) while
+    still providing full enrichment for typical CRM deployments. Set to ``0`` to
+    enrich EVERY row (bounded by ``_ENRICH_CONCURRENCY``), or a positive value to
+    cap enrichment for pathological sources. Cached with TTL from ``gbrain_page_cache_ttl``.
     """
-    cap = getattr(get_config(), "gbrain_mcp_enrich_cap", 50)
+    cap = getattr(get_config(), "gbrain_mcp_enrich_cap", 500)
     try:
-        return max(1, int(cap))
+        return max(0, int(cap))
     except (TypeError, ValueError):
-        return 50
+        return 500  # Degrade to sane default on malformed config
+
+
+def _enrich_concurrency() -> int:
+    """Parallel get_page calls during list enrichment (default 16)."""
+    n = getattr(get_config(), "gbrain_mcp_enrich_concurrency", 16)
+    try:
+        return max(1, min(64, int(n)))
+    except (TypeError, ValueError):
+        return 16
+
+
+# Bounded in-memory page cache: (source, slug) -> (fetched_at, page).
+# list_pages is metadata-only, so every dashboard load re-enriches the same
+# slugs; the TTL cache collapses repeats within the window to one get_page
+# per slug. Size-capped to avoid unbounded growth across many sources.
+_PAGE_CACHE_TTL = 300.0
+_PAGE_CACHE_MAX = 50000
+_PAGE_CACHE: Dict[Tuple[str, str], Tuple[float, Dict[str, Any]]] = {}
+
+
+def _page_cache_ttl() -> float:
+    ttl = getattr(get_config(), "gbrain_page_cache_ttl", _PAGE_CACHE_TTL)
+    try:
+        return max(0.0, float(ttl))
+    except (TypeError, ValueError):
+        return _PAGE_CACHE_TTL
+
+
+def _page_cache_get(source: str, slug: str) -> Optional[Dict[str, Any]]:
+    """Get page from cache — returns a DEEP COPY to prevent cache pollution."""
+    entry = _PAGE_CACHE.get((source, slug))
+    if not entry:
+        return None
+    fetched_at, page = entry
+    ttl = _page_cache_ttl()
+    # TTL=0 means "cache forever"; positive TTL is expiry window in seconds
+    if ttl > 0 and (time.time() - fetched_at) > ttl:
+        _PAGE_CACHE.pop((source, slug), None)
+        return None
+    return copy.deepcopy(page)  # Return deep copy to prevent nested mutation
+
+
+def _page_cache_peek(source: str, slug: str) -> bool:
+    """Check if page exists in cache WITHOUT copying — for membership tests only."""
+    entry = _PAGE_CACHE.get((source, slug))
+    if not entry:
+        return False
+    fetched_at, _ = entry
+    ttl = _page_cache_ttl()
+    # TTL=0 means "cache forever"; positive TTL is expiry window in seconds
+    if ttl > 0 and (time.time() - fetched_at) > ttl:
+        _PAGE_CACHE.pop((source, slug), None)
+        return False
+    return True
+
+
+def _page_cache_put(source: str, slug: str, page: Dict[str, Any]) -> None:
+    if len(_PAGE_CACHE) >= _PAGE_CACHE_MAX:
+        # Evict the oldest quarter rather than one-at-a-time thrashing.
+        oldest = sorted(_PAGE_CACHE.items(), key=lambda kv: kv[1][0])[:_PAGE_CACHE_MAX // 4]
+        for k, _ in oldest:
+            _PAGE_CACHE.pop(k, None)
+    _PAGE_CACHE[(source, slug)] = (time.time(), page)
 
 
 def _parse_frontmatter_from_markdown(text: str) -> Dict[str, Any]:
@@ -194,7 +278,7 @@ def _newest_mtime(brain_dir: pathlib.Path) -> float:
 
 def _scan_source_dir(
     brain_dir: pathlib.Path,
-    slug_prefix: Optional[str],
+    slug_prefix: "SlugPrefix",
     limit: Optional[int] = None,
     max_age_min: int = 0,
 ) -> Tuple[List[Dict[str, Any]], bool]:
@@ -226,7 +310,7 @@ def _scan_source_dir(
                 # .json/.txt mtime must not mask a stale markdown mirror.
                 continue
             slug = slug[:-3]
-            if slug_prefix and not slug.startswith(slug_prefix):
+            if not _slug_matches(slug, slug_prefix):
                 continue
             try:
                 newest = max(newest, md_path.stat().st_mtime)
@@ -294,7 +378,7 @@ def _read_page_file_sync(
 
 async def _filesystem_fallback(
     source: str,
-    slug_prefix: Optional[str],
+    slug_prefix: "SlugPrefix",
     limit: Optional[int] = None,
 ) -> Tuple[List[Dict[str, Any]], bool]:
     """Read brain markdown files directly from the filesystem (worker thread).
@@ -381,7 +465,7 @@ def _rows_from_batch(batch: Any) -> List[dict]:
     return []
 
 
-async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: int) -> List[dict]:
+async def _mcp_list_paginated(source: str, slug_prefix: "SlugPrefix", limit: int) -> List[dict]:
     """Collect pages for a source from list_pages, honouring a client-side prefix.
 
     gbrain's list_pages returns at most 100 metadata-only rows per call, has
@@ -430,10 +514,7 @@ async def _mcp_list_paginated(source: str, slug_prefix: Optional[str], limit: in
             updated = str(r.get("updated_at") or r.get("updatedAt") or "")
             if updated and (batch_cursor is None or updated > batch_cursor):
                 batch_cursor = updated
-        if slug_prefix:
-            matches = sum(1 for p in collected if str(p.get("slug", "")).startswith(slug_prefix))
-        else:
-            matches = len(collected)
+        matches = sum(1 for p in collected if _slug_matches(str(p.get("slug", "")), slug_prefix))
         if matches >= limit:
             break
         if len(rows) < _MCP_LIST_PAGE_SIZE:
@@ -468,7 +549,7 @@ async def gbrain_fetch_pages(
     source: str,
     *,
     limit: int = 200,
-    slug_prefix: Optional[str] = None,
+    slug_prefix: "SlugPrefix" = None,
 ) -> List[dict[str, Any]]:
     """Fetch pages from gbrain for a given source, optionally filtered by slug prefix.
 
@@ -485,36 +566,53 @@ async def gbrain_fetch_pages(
             logger.warning("gbrain fetch_pages: file mirror for %r is stale — deferring to MCP", source)
 
     rows = await _mcp_list_paginated(source, slug_prefix, limit)
-    pages: List[dict] = rows if not slug_prefix else [
-        p for p in rows if str(p.get("slug", "")).startswith(slug_prefix)
-    ]
+    pages: List[dict] = [p for p in rows if _slug_matches(str(p.get("slug", "")), slug_prefix)]
 
-    # list_pages rows are metadata-only; enrich a bounded window via get_page.
-    # Rows beyond the enrichment window are returned as-is (slug/title only,
-    # blank frontmatter-derived fields downstream) — log the truncation so
-    # MCP-only deployments get a signal instead of silently blank columns.
+    # list_pages rows are metadata-only; enrich EVERY row via get_page so
+    # frontmatter-derived columns never render blank on metadata-only rows.
+    # Concurrency-bounded and served from a TTL page cache (see _PAGE_CACHE)
+    # so repeated dashboard loads cost at most one get_page per slug per
+    # window. Default cap=500 bounds enrichment; set GBRAIN_MCP_ENRICH_CAP=0 to enrich all.
     cap = _enrich_cap()
-    if len(pages) > cap:
+    window = pages if cap <= 0 else pages[:cap]
+    if cap > 0 and len(pages) > cap:
         logger.warning(
             "gbrain_fetch_pages(%s): %d rows past enrichment cap %d are metadata-only "
-            "(frontmatter fields blank) — raise gbrain_mcp_enrich_cap or use "
-            "filesystem mode for large sources",
+            "(frontmatter fields blank) — default cap=500; set GBRAIN_MCP_ENRICH_CAP=0 to enrich all",
             source, len(pages) - cap, cap,
         )
+    rows_with_slugs = [(i, str(p.get("slug", ""))) for i, p in enumerate(window)]
+    missing = [(i, s) for i, s in rows_with_slugs if s and not _page_cache_peek(source, s)]
+
+    if missing:
+        sem = asyncio.Semaphore(_enrich_concurrency())
+
+        async def _fetch_one(slug: str) -> Tuple[str, Optional[dict]]:
+            async with sem:
+                try:
+                    full = await gbrain_fetch_page(source, slug)
+                except Exception:
+                    full = None
+                if full:
+                    _page_cache_put(source, slug, full)
+                return slug, full
+
+        results = await asyncio.gather(*(_fetch_one(s) for _, s in missing))
+        fetched = dict(results)
+    else:
+        fetched = {}
+
     out: List[dict] = []
     for idx, p in enumerate(pages):
-        if idx >= cap:
+        if cap > 0 and idx >= cap:
             out.append(p)
             continue
         slug = str(p.get("slug", ""))
         if not slug:
             out.append(p)
             continue
-        try:
-            full = await gbrain_fetch_page(source, slug)
-        except Exception:
-            full = None
-        out.append(full if full else p)
+        cached = _page_cache_get(source, slug)
+        out.append(cached or fetched.get(slug) or p)
     return out
 
 

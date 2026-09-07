@@ -23,7 +23,6 @@ The retail vertical adds 6 Samurai-themed department agents on top of the shared
 |-------|-------|
 | **Role** | Store operations, daily sales, staff scheduling, customer experience |
 | **gbrain source** | `stores/` |
-| **Skills** | `store-sales-dashboard`, `store-staff-scheduling`, `store-replenishment` |
 | **Crons** | Daily sales report (6AM), staff scheduling (weekly Mon) |
 
 **Persona:** Tenpo runs the retail floor. Every register, every customer, every sales associate — the pulse of the store. Not the one who buys — the one who sells, at the front line, every day.
@@ -34,7 +33,6 @@ The retail vertical adds 6 Samurai-themed department agents on top of the shared
 |-------|-------|
 | **Role** | Buying, assortment planning, vendor negotiation, pricing |
 | **gbrain source** | `merchandising/` |
-| **Skills** | `assortment-planning`, `vendor-negotiation`, `promo-planning` |
 | **Crons** | Slow-movers report (Mon 6AM), vendor contract expiry (Mon 9AM) |
 
 **Persona:** Shōhin decides what sells and at what margin. Every SKU, every vendor, every promotion — the assortment is owned. The bridge between the market and the shelf.
@@ -72,13 +70,11 @@ The retail vertical adds 6 Samurai-themed department agents on top of the shared
 
 **Persona:** Ryutsū moves goods from supplier to warehouse to store. Every PO, every shipment, every replenishment — the flow keeps moving.
 
-### Visual Merchandising — Hyōji (表示 — "Display")
 
 | Field | Value |
 |-------|-------|
 | **Role** | Store layout, displays, planograms, signage, brand standards |
 | **gbrain source** | `vm/` |
-| **Skills** | `planogram-compliance`, `promo-planning` |
 | **Crons** | Planogram compliance audit (weekly Mon), promo display allocation (weekly) |
 
 **Persona:** Hyōji shapes how the store looks and feels. Every display, every sign, every planogram — the visual experience that drives sales.
@@ -90,7 +86,6 @@ The retail vertical adds 6 Samurai-themed department agents on top of the shared
 | Skill | Profile | What It Does |
 |-------|---------|-------------|
 | `store-sales-dashboard` | Tenpo | Daily sales by store, hourly trends, staff performance, customer count, budget variance |
-| `store-staff-scheduling` | Tenpo | Shift planning, attendance, break compliance, labor cost vs sales ratio |
 | `assortment-planning` | Shōhin | Category performance, SKU rationalization, new product intake calendar |
 | `vendor-negotiation` | Shōhin | Vendor scorecards, margin analysis, contract expiry, rebate tracking |
 | `ecommerce-listing` | Denshi | Product listing sync to Shopee/Lazada, image/SKU compliance |
@@ -100,8 +95,6 @@ The retail vertical adds 6 Samurai-themed department agents on top of the shared
 | `customer-segmentation` | Kokyaku | RFM analysis, churn prediction, lookalike targeting |
 | `store-replenishment` | Ryutsū | Auto-reorder by min/max, allocation per store cluster, lead time tracking |
 | `warehouse-distribution` | Ryutsū | Inbound receiving, putaway, pick-pack-ship, cross-docking, wave planning |
-| `planogram-compliance` | Hyōji | Store layout audits, shelf compliance scoring, photo validation |
-| `promo-planning` | Hyōji | Promotional calendar, display allocation, signage generation |
 
 ---
 

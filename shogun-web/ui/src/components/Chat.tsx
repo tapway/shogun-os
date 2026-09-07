@@ -127,53 +127,17 @@ export default function Chat({ department }: ChatProps) {
     ChatAttachment[]
   >([]);
   const [uploading, setUploading] = useState(false);
-  const [loadingHistory, setLoadingHistory] = useState(true);
+  const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
-  const [currentSessionId, setCurrentSessionId] = useState<string>("");
+  // Generate a new session ID for each mount - fresh conversation every time
+  const [currentSessionId, setCurrentSessionId] = useState<string>(() => crypto.randomUUID());
   const [resetKey, setResetKey] = useState(0);
 
   const bottomRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    let alive = true;
-    setLoadingHistory(true);
-    chatApi
-      .history(department)
-      .then((data) => {
-        if (!alive) return;
-        const all = Array.isArray(data) ? data : [];
-        const withIds = all.filter((m) => m.session_id);
-        let resumeId = "";
-        if (withIds.length > 0) {
-          const latest = withIds.reduce(
-            (acc, m) => {
-              const t = m.created_at ? Date.parse(m.created_at) : 0;
-              return t > acc.t ? { id: m.session_id!, t } : acc;
-            },
-            { id: "", t: 0 },
-          );
-          resumeId = latest.id;
-        }
-        if (!resumeId) {
-          resumeId = `sess-${Date.now()}`;
-        }
-        setCurrentSessionId(resumeId);
-        setMessages(all.filter((m) => m.session_id === resumeId));
-      })
-      .catch(() => {
-        if (alive) {
-          setMessages([]);
-          setCurrentSessionId(`sess-${Date.now()}`);
-        }
-      })
-      .finally(() => {
-        if (alive) setLoadingHistory(false);
-      });
-    return () => {
-      alive = false;
-    };
-  }, [department]);
+  // Don't auto-load history - start with clean new session
+  // Users can view/load old sessions from Chat History tab if needed
 
   const { connected, send } = useChatSocket(department, {
     resetKey,
