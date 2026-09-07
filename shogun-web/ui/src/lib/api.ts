@@ -534,6 +534,8 @@ export const departmentsApi = {
     apiFetch<{ tasks: ProjectTaskItem[] }>(
       `/api/departments/${dept}/dashboard/tasks/plan`,
     ),
+  projectsPostProject: (dept: string) =>
+    apiFetch<{ items: any[] }>(`/api/departments/${dept}/dashboard/projects/post-project`),
   reportsSummary: (dept: string) =>
     apiFetch<ReportsSummary>(`/api/departments/${dept}/dashboard/reports/summary`),
   supportTickets: (dept: string, status = '', priority = '', customer = '') => {

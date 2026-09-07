@@ -1092,5 +1092,40 @@
   },
   "reportsSummary": {},
   "supportStats": {},
-  "supportTickets": []
+  "supportTickets": [],
+  "postProjectItems": [
+    {
+      "id": "POST-001",
+      "title": "Barrier rewiring (9 lanes)",
+      "description": "Removed from PRJ-030 scope 2026-05-20 per @fitri request \u2014 transferred to post-project team. Ref: PRJ-030 A-006 / T-017.",
+      "sourceProject": "PRJ-030",
+      "sourceProjectId": "PRJ-030",
+      "owner": "Post-project team",
+      "priority": "MEDIUM",
+      "due": null,
+      "status": "Open"
+    },
+    {
+      "id": "POST-002",
+      "title": "Warranty claim for faulty RFID reader at Gate 3",
+      "description": "Reader malfunction reported 2026-08-15. Vendor contacted, awaiting replacement unit.",
+      "sourceProject": "PRJ-045",
+      "sourceProjectId": "PRJ-045",
+      "owner": "Yeong",
+      "priority": "HIGH",
+      "due": "2026-09-20",
+      "status": "Open"
+    },
+    {
+      "id": "POST-003",
+      "title": "Client training session for new dashboard",
+      "description": "Schedule 2-hour training for operations team. Materials prepared, awaiting client availability.",
+      "sourceProject": "PRJ-021",
+      "sourceProjectId": "PRJ-021",
+      "owner": "syazwan",
+      "priority": "LOW",
+      "due": "2026-09-25",
+      "status": "Open"
+    }
+  ]
 }

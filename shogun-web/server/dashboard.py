@@ -5379,6 +5379,16 @@ async def get_support_stats(
     return mock.get("supportStats", {})
 
 
+@router.get("/projects/post-project", tags=["projects"])
+async def list_post_project_items(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List post-project follow-up items. Returns mock data on demo branch."""
+    mock = _load_projects_mock()
+    return {"items": mock.get("postProjectItems", [])}
+
+
 @router.get("/projects/{project_id}", tags=["projects"])
 async def get_project(
     project_id: str,

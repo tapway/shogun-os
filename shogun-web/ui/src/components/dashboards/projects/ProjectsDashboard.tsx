@@ -6,6 +6,7 @@ import { ProjectsTab } from './ProjectsTab';
 import { ActiveProjectsTab } from './ActiveProjectsTab';
 import { TasksTab } from './TasksTab';
 import { PlanTab } from './PlanTab';
+import { PostProjectTab } from './PostProjectTab';
 import { ReportsTab } from './ReportsTab';
 import { SupportTab } from './SupportTab';
 import { ProjectDetailModal } from './ProjectDetailModal';
@@ -16,6 +17,7 @@ const TABS: DashboardTab[] = [
   { id: 'active', label: 'Active', icon: 'Activity' },
   { id: 'tasks', label: 'Tasks', icon: 'SquareCheckBig' },
   { id: 'plan', label: 'Plan', icon: 'CalendarClock' },
+  { id: 'post-project', label: 'Post-Project', icon: 'Package' },
   { id: 'reports', label: 'Reports', icon: 'BarChart3' },
   { id: 'support', label: 'Support', icon: 'LifeBuoy' },
 ];
@@ -50,6 +52,9 @@ export function ProjectsDashboard({ department, color }: ProjectsDashboardProps)
       )}
       {activeTab === 'plan' && (
         <PlanTab dept={department} color={color} onOpenProject={openProject} />
+      )}
+      {activeTab === 'post-project' && (
+        <PostProjectTab dept={department} color={color} onOpenProject={openProject} />
       )}
       {activeTab === 'reports' && (
         <ReportsTab dept={department} color={color} onOpenProject={openProject} />
