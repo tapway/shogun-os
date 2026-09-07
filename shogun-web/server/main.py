@@ -64,6 +64,18 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     )
     init_db()
 
+    # Seed default HR onboarding checklist items (moved from GET /hr-stats)
+    try:
+        from dashboard import _seed_default_checklist_items
+        with session_scope() as db:
+            from database import get_primary_tenant
+            tenant = get_primary_tenant(db)
+            if tenant:
+                _seed_default_checklist_items(db, tenant.id)
+                logger.info("HR onboarding checklist seeded for tenant %s", tenant.id)
+    except Exception as exc:
+        logger.warning("HR checklist seed skipped (non-fatal): %s", exc)
+
     if cfg.auto_register and cfg.registry_url:
         try:
             with session_scope() as db:

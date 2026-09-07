@@ -45,32 +45,27 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
     (stats.candidates || []).find((c) => c.id === candidateId) ?? fallbackCandidate;
 
   // Auto-run AI extraction once when there is no cached result.
+  // Load cached AI extract on mount; do NOT auto-trigger extraction (opt-in only)
   useEffect(() => {
     const fresh = (stats.candidates || []).find((c) => c.id === candidateId);
     const parsed = parseExtract(fresh?.ai_extract_json);
     if (parsed) setExtract(parsed);
-    if (fresh?.ai_summary || fresh?.ai_extract_json) return;
-    let cancelled = false;
-    setExtracting(true);
-    setError("");
-    hrApi
-      .candidateExtract(department, candidateId)
-      .then((res) => {
-        if (cancelled) return;
-        setExtract(res.extract);
-        queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
-      })
-      .catch((err) => {
-        if (!cancelled) setError(err instanceof Error ? err.message : "AI extraction failed.");
-      })
-      .finally(() => {
-        if (!cancelled) setExtracting(false);
-      });
-    return () => {
-      cancelled = true;
-    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [candidateId]);
+
+  async function runAiExtract() {
+    setExtracting(true);
+    setError("");
+    try {
+      const res = await hrApi.candidateExtract(department, candidateId);
+      setExtract(res.extract);
+      queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "AI extraction failed.");
+    } finally {
+      setExtracting(false);
+    }
+  }
 
   async function review(kind: "hr" | "manager") {
     setReviewing(kind);
@@ -94,6 +89,7 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
       onAddedToPipeline();
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to add to pipeline.");
+    } finally {
       setAdding(false);
     }
   }
@@ -151,12 +147,12 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
           <Meta label="Last Edited" value={cand.last_edited} />
         </div>
         <div style={{ display: "flex", gap: "0.6rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-          {cand.resume_url && (
+          {cand.resume_url && /^https?:\/\//i.test(cand.resume_url) && (
             <a href={cand.resume_url} target="_blank" rel="noreferrer" style={linkBtnStyle}>
               <FileText size={14} /> View Resume
             </a>
           )}
-          {cand.screening_answers_url && (
+          {cand.screening_answers_url && /^https?:\/\//i.test(cand.screening_answers_url) && (
             <a href={cand.screening_answers_url} target="_blank" rel="noreferrer" style={linkBtnStyle}>
               <ExternalLink size={14} /> View Screening Answers
             </a>
@@ -181,6 +177,13 @@ export function CandidateDetailPage({ candidateId, fallbackCandidate, stats, col
         )}
 
         {!extracting && !extract && !error && (
+          <div style={{ padding: "1rem 0", textAlign: "center" }}>
+            <button type="button" onClick={runAiExtract} style={primaryBtnStyle}>
+              <Sparkles size={14} /> Generate AI Extract
+            </button>
+          </div>
+        )}
+        {!extracting && !extract && !error && false && (
           <p style={{ color: MUTED, fontSize: "0.85rem" }}>No extraction available.</p>
         )}
 
