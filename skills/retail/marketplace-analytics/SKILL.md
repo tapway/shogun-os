@@ -107,7 +107,6 @@ Analyzes customer reviews using NLP sentiment scoring. Extracts common themes, t
 
 - [ecommerce-listing](../ecommerce-listing/SKILL.md) — Listing optimization and SEO
 - [ecommerce-order-management](../ecommerce-order-management/SKILL.md) — Order fulfillment performance
-- [promo-planning](../promo-planning/SKILL.md) — Promotional calendar and performance
 
 ## Pitfalls
 

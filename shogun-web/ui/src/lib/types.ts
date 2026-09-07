@@ -17,15 +17,10 @@ export type DepartmentKey =
   | 'production'
   | 'quality'
   | 'maintenance'
-  | 'warehouse'
-  | 'hse'
   // Retail industry
-  | 'stores'
   | 'merchandising'
   | 'e-commerce'
-  | 'crm-loyalty'
   | 'supply-chain'
-  | 'visual-merchandising'
   // Plantation industry
   | 'facility';
 
@@ -49,13 +44,13 @@ export const INDUSTRY_CATALOG: Record<
     label: 'Manufacturing',
     description: 'Factory, production, OEM',
     icon: '🏭',
-    departments: ['production', 'quality', 'maintenance', 'warehouse', 'hse'],
+    departments: ['production', 'quality', 'maintenance'],
   },
   retail: {
     label: 'Retail',
     description: 'Stores, e-commerce, omnichannel',
     icon: '🛒',
-    departments: ['stores', 'merchandising', 'e-commerce', 'crm-loyalty', 'supply-chain', 'visual-merchandising'],
+    departments: ['merchandising', 'e-commerce', 'supply-chain'],
   },
   plantation: {
     label: 'Plantation',
@@ -181,6 +176,7 @@ export interface Skill {
   installing?: boolean;
   version?: string;
   department_key?: string;
+  departments?: string[];
   author?: string;
   tags?: string[];
   related_skills?: string[];
@@ -195,6 +191,7 @@ export interface Skill {
 export interface SkillDetail {
   skill: Skill;
   skill_md: string;
+  readme_md?: string;
 }
 
 export interface GeneratedSkill {
@@ -225,10 +222,21 @@ export interface CronJob {
   skill_id?: string;
   enabled: boolean;
   last_run?: string;
+  last_run_status?: string;   // ok, error, running
+  last_run_output?: string;
   created_at?: string;
   // Delivery target — which comms channel the cron output is posted to
   deliver_channel_id?: string;   // CommsChannelConfig.id
   deliver_channel_name?: string; // Convenience: channel name (e.g. "HR Telegram")
+}
+
+export interface CronRunRecord {
+  id: number;
+  cron_job_id: string;
+  status: string;       // running, ok, error
+  output: string;
+  started_at: string;
+  finished_at?: string;
 }
 
 export interface CommsChannelConfig {
@@ -356,8 +364,8 @@ export const DEPARTMENT_CATALOG: Record<
   crm: {
     key: 'crm',
     name: 'CRM',
-    persona: 'Eigyo',
-    description: 'Pipeline, accounts, and sales intelligence.',
+    persona: 'Kizuna',
+    description: 'Client relationships and deal pipeline with Kizuna.',
     color: '#3b82f6',
     icon: 'Handshake',
     profile_name: 'crm-manager',
@@ -401,8 +409,8 @@ export const DEPARTMENT_CATALOG: Record<
   procurement: {
     key: 'procurement',
     name: 'Procurement',
-    persona: 'Chotatsu',
-    description: 'Purchase orders, vendors, and contract lifecycle.',
+    persona: 'Kura',
+    description: 'Purchase orders, vendors, and contract lifecycle with Kura.',
     color: '#ef4444',
     icon: 'Package',
     profile_name: 'procurement-manager',
@@ -454,34 +462,7 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'Wrench',
     profile_name: 'maintenance-manager',
   },
-  warehouse: {
-    key: 'warehouse',
-    name: 'Warehouse',
-    persona: 'Soko',
-    description: 'Inventory, shipping, cycle counts.',
-    color: '#a855f7',
-    icon: 'Warehouse',
-    profile_name: 'warehouse-manager',
-  },
-  hse: {
-    key: 'hse',
-    name: 'HSE',
-    persona: 'Anzen',
-    description: 'Safety, incidents, permits, environmental monitoring.',
-    color: '#dc2626',
-    icon: 'AlertTriangle',
-    profile_name: 'hse-manager',
-  },
   // ── Retail industry ──
-  stores: {
-    key: 'stores',
-    name: 'Stores',
-    persona: 'Tenpo',
-    description: 'Store operations, daily sales, customer experience.',
-    color: '#0284c7',
-    icon: 'Store',
-    profile_name: 'stores-manager',
-  },
   merchandising: {
     key: 'merchandising',
     name: 'Merchandising',
@@ -500,15 +481,6 @@ export const DEPARTMENT_CATALOG: Record<
     icon: 'ShoppingCart',
     profile_name: 'ecommerce-manager',
   },
-  'crm-loyalty': {
-    key: 'crm-loyalty',
-    name: 'CRM/Loyalty',
-    persona: 'Kokyaku',
-    description: 'Loyalty programs, customer segmentation.',
-    color: '#059669',
-    icon: 'Gift',
-    profile_name: 'crm-loyalty-manager',
-  },
   'supply-chain': {
     key: 'supply-chain',
     name: 'Supply Chain',
@@ -517,15 +489,6 @@ export const DEPARTMENT_CATALOG: Record<
     color: '#d97706',
     icon: 'Truck',
     profile_name: 'supply-chain-manager',
-  },
-  'visual-merchandising': {
-    key: 'visual-merchandising',
-    name: 'Visual Merchandising',
-    persona: 'Hyoji',
-    description: 'Shelf layouts, planograms, display compliance.',
-    color: '#9333ea',
-    icon: 'LayoutGrid',
-    profile_name: 'vm-manager',
   },
   // ── Plantation industry ──
   'facility': {

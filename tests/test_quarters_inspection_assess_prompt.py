@@ -4,7 +4,7 @@ import os
 import sys
 import pytest
 
-SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "skills", "quarters-inspection", "scripts")
+SCRIPTS_DIR = os.path.join(os.path.dirname(__file__), "..", "skills", "facilities", "quarters-inspection", "scripts")
 sys.path.insert(0, SCRIPTS_DIR)
 
 from assess_media_prompt import build_assessment_prompt, parse_observations_json

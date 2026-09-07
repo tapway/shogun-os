@@ -1,6 +1,8 @@
 import { useMemo, useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "react-router-dom";
+import ReactMarkdown from "react-markdown";
+import remarkGfm from "remark-gfm";
 import {
   Sparkles,
   Search,
@@ -34,6 +36,8 @@ import {
   Layers,
   Globe,
   type LucideIcon,
+  Pencil,
+  RotateCcw,
 } from "lucide-react";
 import toast from "react-hot-toast";
 import { skillsApi, type SkillRecommendation } from "../lib/api";
@@ -78,6 +82,14 @@ const CATEGORY_ICONS: Record<string, LucideIcon> = {
   "Coding Workflow": Code2,
 };
 
+// Business departments to show in the Skills Library.
+// Platform/tooling categories (shared, coding, etc.) are excluded.
+const BUSINESS_DEPARTMENTS = new Set([
+  "finance", "procurement", "crm", "retail", "manufacturing",
+  "supply-chain", "production", "merchandising", "e-commerce",
+  "quality", "maintenance", "facility",
+]);
+
 export default function SkillsCatalog() {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -90,6 +102,7 @@ export default function SkillsCatalog() {
     useState<SkillRecommendation | null>(null);
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [detailSkill, setDetailSkill] = useState<Skill | null>(null);
+  const [detailTab, setDetailTab] = useState<"readme" | "skill">("readme");
 
   const skillsQuery = useQuery({
     queryKey: ["skills"],
@@ -110,21 +123,38 @@ export default function SkillsCatalog() {
     },
   });
 
-  const allSkills: Skill[] = Array.isArray(skillsQuery.data) ? skillsQuery.data : [];
+  const allSkillsRaw: Skill[] = Array.isArray(skillsQuery.data) ? skillsQuery.data : [];
 
-  // Dynamic categories derived from the data
-  const categories = useMemo(() => {
-    const cats = [...new Set(allSkills.map((s) => s.category))].sort();
-    return cats;
+  // Only show skills that belong to a business department
+  const allSkills = useMemo(() => {
+    return allSkillsRaw.filter((s) => {
+      if (!Array.isArray(s.departments) || s.departments.length === 0) return false;
+      return s.departments.some((d) => BUSINESS_DEPARTMENTS.has(d.toLowerCase()));
+    });
+  }, [allSkillsRaw]);
+
+  // Dynamic departments derived from frontmatter departments field (business only)
+  const departments = useMemo(() => {
+    const deptSet = new Set<string>();
+    for (const s of allSkills) {
+      if (Array.isArray(s.departments)) {
+        for (const d of s.departments) {
+          if (BUSINESS_DEPARTMENTS.has(d.toLowerCase())) deptSet.add(d);
+        }
+      }
+    }
+    return [...deptSet].sort();
   }, [allSkills]);
 
-  // Skills grouped by category for the department layout
-  const skillsByCategory = useMemo(() => {
+  // Skills grouped by primary department for display
+  const skillsByDept = useMemo(() => {
     const grouped: Record<string, Skill[]> = {};
     for (const s of allSkills) {
-      const cat = s.category || "General";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(s);
+      const dept = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments[0]
+        : (s.department_key || "general");
+      if (!grouped[dept]) grouped[dept] = [];
+      grouped[dept].push(s);
     }
     return grouped;
   }, [allSkills]);
@@ -192,32 +222,46 @@ export default function SkillsCatalog() {
 
   const filteredSkills = useMemo(() => {
     return allSkills.filter((s) => {
-      const matchesCat =
-        selectedCategory === "All" ||
-        s.category.toLowerCase() === selectedCategory.toLowerCase();
+      const skillDepts = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments.map(d => d.toLowerCase())
+        : [(s.department_key || "general").toLowerCase()];
 
-      if (!searchQuery) return matchesCat;
+      const matchesDept =
+        selectedCategory === "All" ||
+        skillDepts.includes(selectedCategory.toLowerCase());
+
+      if (!searchQuery) return matchesDept;
 
       // If recommendation exists, prioritize top match IDs
       if (recommendation && Array.isArray(recommendation.recommendations) && recommendation.recommendations.length > 0) {
         const recommendedIds = new Set(
           recommendation.recommendations.map((r) => r.skill_id),
         );
-        if (recommendedIds.has(s.id)) return matchesCat;
+        if (recommendedIds.has(s.id)) return matchesDept;
       }
 
       const q = searchQuery.toLowerCase();
       const matchesQuery =
         s.name.toLowerCase().includes(q) ||
         s.description.toLowerCase().includes(q) ||
-        s.category.toLowerCase().includes(q) ||
+        skillDepts.some(d => d.includes(q)) ||
         (Array.isArray(s.tags) ? s.tags : []).some((t) => t.toLowerCase().includes(q));
-      return matchesCat && matchesQuery;
+      return matchesDept && matchesQuery;
     });
   }, [allSkills, selectedCategory, searchQuery, recommendation]);
 
   const getCategoryIcon = (cat: string): LucideIcon => {
     return CATEGORY_ICONS[cat] || Wrench;
+  };
+
+  // Strip YAML frontmatter (--- ... ---) from markdown content
+  const stripFrontmatter = (md: string): string => {
+    if (!md) return "";
+    const lines = md.split("\n");
+    if (lines[0].trim() !== "---") return md;
+    const endIdx = lines.findIndex((l, i) => i > 0 && l.trim() === "---");
+    if (endIdx === -1) return md;
+    return lines.slice(endIdx + 1).join("\n").trimStart();
   };
 
   const formatDate = (iso: string) => {
@@ -240,13 +284,15 @@ export default function SkillsCatalog() {
     return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
-  // Group filtered skills by category for display
-  const filteredByCategory = useMemo(() => {
+  // Group filtered skills by primary department for display
+  const filteredByDept = useMemo(() => {
     const grouped: Record<string, Skill[]> = {};
     for (const s of filteredSkills) {
-      const cat = s.category || "General";
-      if (!grouped[cat]) grouped[cat] = [];
-      grouped[cat].push(s);
+      const dept = (Array.isArray(s.departments) && s.departments.length > 0)
+        ? s.departments[0]
+        : (s.department_key || "general");
+      if (!grouped[dept]) grouped[dept] = [];
+      grouped[dept].push(s);
     }
     return grouped;
   }, [filteredSkills]);
@@ -266,7 +312,7 @@ export default function SkillsCatalog() {
           </h1>
 
           <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-            Browse {allSkills.length} skills across {categories.length} departments.
+            Browse {allSkills.length} skills across {departments.length} departments.
             Describe your operational workflow requirement below — the AI Intent
             Engine will analyze your need, recommend matching skills, or trigger{" "}
             <strong>Shogunify</strong> (<code className="text-indigo-600 dark:text-indigo-300 font-mono">/shogunify</code>) to
@@ -384,7 +430,7 @@ export default function SkillsCatalog() {
               Available Skills Library
             </h2>
             <p className="text-xs text-slate-600 dark:text-slate-300">
-              {allSkills.length} skills across {categories.length} departments —
+              {allSkills.length} skills across {departments.length} departments —
               live-scanned from the skills directory.
             </p>
           </div>
@@ -402,18 +448,18 @@ export default function SkillsCatalog() {
             >
               All Categories
             </button>
-            {categories.map((cat) => (
+            {departments.map((dept) => (
               <button
-                key={cat}
+                key={dept}
                 type="button"
-                onClick={() => setSelectedCategory(cat)}
+                onClick={() => setSelectedCategory(dept)}
                 className={`rounded-lg px-3 py-1.5 text-xs font-medium transition ${
-                  selectedCategory === cat
+                  selectedCategory === dept
                     ? "bg-brand text-white shadow-xs"
                     : "bg-slate-100 text-slate-600 hover:bg-slate-200 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                 }`}
               >
-                {cat} ({(skillsByCategory[cat] || []).length})
+                {dept.charAt(0).toUpperCase() + dept.slice(1)} ({(skillsByDept[dept] || []).length})
               </button>
             ))}
           </div>
@@ -434,14 +480,15 @@ export default function SkillsCatalog() {
           </div>
         ) : (
           <div className="space-y-8">
-            {Object.entries(filteredByCategory).map(([cat, skills]) => {
-              const IconComponent = getCategoryIcon(cat);
+            {Object.entries(filteredByDept).map(([dept, skills]) => {
+              const deptLabel = dept.charAt(0).toUpperCase() + dept.slice(1);
+              const IconComponent = getCategoryIcon(deptLabel);
               return (
-                <div key={cat} className="space-y-3">
+                <div key={dept} className="space-y-3">
                   {/* Department header */}
                   <div className="flex items-center gap-2 border-b border-slate-100 dark:border-slate-800 pb-2">
                     <IconComponent className="h-5 w-5 text-slate-500 dark:text-slate-400" />
-                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{cat}</h3>
+                    <h3 className="text-sm font-bold text-slate-700 dark:text-slate-200">{deptLabel}</h3>
                     <span className="text-xs text-slate-400 dark:text-slate-500">
                       {skills.length} skill{skills.length !== 1 ? "s" : ""}
                     </span>
@@ -472,7 +519,9 @@ export default function SkillsCatalog() {
                               </div>
                               <div className="flex items-center gap-2">
                                 <span className="rounded-full bg-slate-100 dark:bg-slate-800 px-2.5 py-1 text-[11px] font-medium text-slate-600 dark:text-slate-300">
-                                  {skill.category}
+                                  {(Array.isArray(skill.departments) && skill.departments.length > 0)
+                                    ? skill.departments[0].charAt(0).toUpperCase() + skill.departments[0].slice(1)
+                                    : skill.category}
                                 </span>
                               </div>
                             </div>
@@ -538,7 +587,7 @@ export default function SkillsCatalog() {
                             <div className="flex items-center gap-2">
                               <button
                                 type="button"
-                                onClick={() => setDetailSkill(skill)}
+                                onClick={() => { setDetailTab("readme"); setDetailSkill(skill); }}
                                 className="flex items-center gap-1.5 rounded-lg px-3 py-2 text-xs font-semibold text-slate-600 dark:text-slate-300 border border-slate-200 dark:border-slate-700 transition hover:bg-slate-50 dark:hover:bg-slate-800"
                               >
                                 <FileText className="h-3.5 w-3.5" />
@@ -629,7 +678,7 @@ export default function SkillsCatalog() {
                         {formatDate(detailSkill.last_modified)}
                       </span>
                     )}
-                    {detailSkill.size_bytes ? (
+                    {detailSkill.size_bytes != null && detailSkill.size_bytes > 0 ? (
                       <span className="rounded bg-slate-50 dark:bg-slate-800/50 px-1.5 py-0.5">
                         {formatSize(detailSkill.size_bytes)}
                       </span>
@@ -647,7 +696,7 @@ export default function SkillsCatalog() {
             </div>
 
             {/* Tags + related skills */}
-            {((Array.isArray(detailSkill.tags) && detailSkill.tags.length) || (Array.isArray(detailSkill.related_skills) && detailSkill.related_skills.length)) && (
+            {((Array.isArray(detailSkill.tags) && detailSkill.tags.length > 0) || (Array.isArray(detailSkill.related_skills) && detailSkill.related_skills.length > 0)) ? (
               <div className="flex flex-wrap gap-2 p-4 border-b border-slate-200 dark:border-slate-800">
                 {Array.isArray(detailSkill.tags) && detailSkill.tags.map((tag: string) => (
                   <span
@@ -666,70 +715,176 @@ export default function SkillsCatalog() {
                   </span>
                 ))}
               </div>
-            )}
+            ) : null}
 
-            {/* Description */}
-            <div className="p-4 border-b border-slate-200 dark:border-slate-800">
-              <p className="text-sm text-slate-600 dark:text-slate-300 leading-relaxed">
-                {detailSkill.description}
-              </p>
+            {/* Tab toggle: README vs SKILL.md */}
+            <div className="flex items-center gap-1 px-5 pt-3 pb-0">
+              <button
+                type="button"
+                onClick={() => setDetailTab("readme")}
+                className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition ${
+                  detailTab === "readme"
+                    ? "bg-white dark:bg-slate-800 text-brand border-t border-x border-slate-200 dark:border-slate-700"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
+              >
+                📖 README
+              </button>
+              <button
+                type="button"
+                onClick={() => setDetailTab("skill")}
+                className={`rounded-t-lg px-4 py-2 text-xs font-semibold transition ${
+                  detailTab === "skill"
+                    ? "bg-white dark:bg-slate-800 text-brand border-t border-x border-slate-200 dark:border-slate-700"
+                    : "text-slate-500 dark:text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800/50"
+                }`}
+              >
+                ⚙️ SKILL.md
+              </button>
             </div>
 
-            {/* SKILL.md body (lazy loaded) */}
-            <div className="flex-1 min-h-0 overflow-y-auto p-5">
+            {/* Skill content (README or SKILL.md) */}
+            <div className="flex-1 min-h-0 overflow-y-auto p-5 border-t border-slate-200 dark:border-slate-800">
               {detailQuery.isLoading ? (
                 <div className="flex justify-center py-8 text-slate-400 dark:text-slate-500">
                   <Loader2 className="h-6 w-6 animate-spin" />
                 </div>
+              ) : detailTab === "readme" && detailQuery.data?.readme_md ? (
+                <div className="prose prose-sm dark:prose-invert max-w-none
+                  prose-headings:text-slate-900 dark:prose-headings:text-white
+                  prose-headings:font-bold prose-headings:tracking-tight
+                  prose-h1:text-xl prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-slate-200 dark:prose-h1:border-slate-700
+                  prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3
+                  prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                  prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
+                  prose-li:text-slate-600 dark:prose-li:text-slate-300 prose-li:my-0.5
+                  prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+                  prose-pre:bg-slate-900 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 prose-pre:rounded-lg
+                  prose-a:text-brand prose-a:no-underline hover:prose-a:underline
+                  prose-strong:text-slate-800 dark:prose-strong:text-slate-200
+                  prose-table:text-xs prose-table:w-full
+                  prose-th:bg-slate-50 dark:prose-th:bg-slate-800 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:border prose-th:border-slate-200 dark:prose-th:border-slate-700
+                  prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-slate-200 dark:prose-td:border-slate-700
+                  prose-blockquote:border-l-brand prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:rounded-r-lg
+                  prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
+                ">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {stripFrontmatter(detailQuery.data.readme_md)}
+                  </ReactMarkdown>
+                </div>
               ) : detailQuery.data?.skill_md ? (
-                <pre className="text-xs text-slate-700 dark:text-slate-300 font-mono whitespace-pre-wrap break-words leading-relaxed">
-                  {detailQuery.data.skill_md}
-                </pre>
+                <div className="prose prose-sm dark:prose-invert max-w-none
+                  prose-headings:text-slate-900 dark:prose-headings:text-white
+                  prose-headings:font-bold prose-headings:tracking-tight
+                  prose-h1:text-xl prose-h1:mb-4 prose-h1:pb-2 prose-h1:border-b prose-h1:border-slate-200 dark:prose-h1:border-slate-700
+                  prose-h2:text-lg prose-h2:mt-6 prose-h2:mb-3
+                  prose-h3:text-base prose-h3:mt-4 prose-h3:mb-2
+                  prose-p:text-slate-600 dark:prose-p:text-slate-300 prose-p:leading-relaxed prose-p:my-2
+                  prose-li:text-slate-600 dark:prose-li:text-slate-300 prose-li:my-0.5
+                  prose-code:text-indigo-600 dark:prose-code:text-indigo-300 prose-code:bg-slate-100 dark:prose-code:bg-slate-800 prose-code:px-1 prose-code:py-0.5 prose-code:rounded prose-code:text-xs prose-code:before:content-none prose-code:after:content-none
+                  prose-pre:bg-slate-900 dark:prose-pre:bg-slate-950 prose-pre:border prose-pre:border-slate-200 dark:prose-pre:border-slate-800 prose-pre:rounded-lg
+                  prose-a:text-brand prose-a:no-underline hover:prose-a:underline
+                  prose-strong:text-slate-800 dark:prose-strong:text-slate-200
+                  prose-table:text-xs prose-table:w-full
+                  prose-th:bg-slate-50 dark:prose-th:bg-slate-800 prose-th:px-3 prose-th:py-2 prose-th:text-left prose-th:font-semibold prose-th:border prose-th:border-slate-200 dark:prose-th:border-slate-700
+                  prose-td:px-3 prose-td:py-2 prose-td:border prose-td:border-slate-200 dark:prose-td:border-slate-700
+                  prose-blockquote:border-l-brand prose-blockquote:bg-slate-50 dark:prose-blockquote:bg-slate-800/50 prose-blockquote:px-4 prose-blockquote:py-2 prose-blockquote:rounded-r-lg
+                  prose-hr:border-slate-200 dark:prose-hr:border-slate-700 prose-hr:my-4
+                ">
+                  <ReactMarkdown remarkPlugins={[remarkGfm]}>
+                    {stripFrontmatter(detailQuery.data.skill_md)}
+                  </ReactMarkdown>
+                </div>
               ) : (
                 <p className="text-sm text-slate-400 dark:text-slate-500 text-center py-8">
-                  SKILL.md content not available.
+                  {detailTab === "readme"
+                    ? "No README.md available for this skill. Switch to SKILL.md tab."
+                    : "SKILL.md content not available."}
                 </p>
               )}
             </div>
 
-            {/* Modal footer with install button */}
-            <div className="flex items-center justify-between gap-4 border-t border-slate-200 dark:border-slate-800 p-4">
-              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500">
+            {/* Modal footer with install + enhance + rollback buttons */}
+            <div className="flex items-center justify-between gap-3 border-t border-slate-200 dark:border-slate-800 p-4">
+              <span className="text-[10px] font-mono text-slate-400 dark:text-slate-500 truncate max-w-[30%]">
                 {detailSkill.path}
               </span>
-              <button
-                type="button"
-                disabled={
-                  installingIds[detailSkill.id] ||
-                  detailSkill.installed ||
-                  installedIds[detailSkill.id]
-                }
-                onClick={() => handleInstall(detailSkill)}
-                className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold shadow-xs transition active:scale-95 ${
-                  detailSkill.installed || installedIds[detailSkill.id]
-                    ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 cursor-default"
-                    : installingIds[detailSkill.id]
-                      ? "bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
-                      : "bg-brand text-white hover:bg-brand-hover"
-                }`}
-              >
-                {detailSkill.installed || installedIds[detailSkill.id] ? (
-                  <>
-                    <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
-                    Already Installed
-                  </>
-                ) : installingIds[detailSkill.id] ? (
-                  <>
-                    <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                    Installing…
-                  </>
-                ) : (
-                  <>
-                    <Download className="h-3.5 w-3.5" />
-                    Install Skill
-                  </>
-                )}
-              </button>
+              <div className="flex items-center gap-2">
+                {/* Rollback button */}
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!confirm(`Rollback ${detailSkill.name} to previous version?`)) return;
+                    try {
+                      const res = await skillsApi.rollback(detailSkill.id);
+                      if (res.ok) {
+                        toast.success(res.message || "Rolled back successfully");
+                        setDetailSkill(null);
+                        await queryClient.invalidateQueries({ queryKey: ["skills"] });
+                        await queryClient.invalidateQueries({ queryKey: ["skill-detail"] });
+                      } else {
+                        toast.error(res.error || "Rollback failed");
+                      }
+                    } catch {
+                      toast.error("Rollback failed");
+                    }
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-amber-300 dark:border-amber-700 bg-amber-50 dark:bg-amber-950/30 px-3 py-2 text-xs font-semibold text-amber-700 dark:text-amber-300 hover:bg-amber-100 dark:hover:bg-amber-900/50 transition active:scale-95"
+                  title="Rollback last enhancement"
+                >
+                  <RotateCcw className="h-3.5 w-3.5" />
+                  Rollback
+                </button>
+
+                {/* Enhance / Modify button */}
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigate("/skills/train", {
+                      state: { enhanceSkillId: detailSkill.id, enhanceSkillName: detailSkill.name },
+                    });
+                  }}
+                  className="flex items-center gap-1.5 rounded-lg border border-indigo-300 dark:border-indigo-700 bg-indigo-50 dark:bg-indigo-950/30 px-3 py-2 text-xs font-semibold text-indigo-700 dark:text-indigo-300 hover:bg-indigo-100 dark:hover:bg-indigo-900/50 transition active:scale-95"
+                >
+                  <Pencil className="h-3.5 w-3.5" />
+                  Enhance / Modify
+                </button>
+
+                {/* Install button */}
+                <button
+                  type="button"
+                  disabled={
+                    installingIds[detailSkill.id] ||
+                    detailSkill.installed ||
+                    installedIds[detailSkill.id]
+                  }
+                  onClick={() => handleInstall(detailSkill)}
+                  className={`flex items-center gap-1.5 rounded-lg px-4 py-2 text-xs font-semibold shadow-xs transition active:scale-95 ${
+                    detailSkill.installed || installedIds[detailSkill.id]
+                      ? "bg-emerald-50 text-emerald-700 border border-emerald-200 dark:bg-emerald-950/40 dark:text-emerald-400 dark:border-emerald-800 cursor-default"
+                      : installingIds[detailSkill.id]
+                        ? "bg-indigo-50 text-indigo-700 border border-indigo-200 dark:bg-indigo-950/40 dark:text-indigo-300 dark:border-indigo-800"
+                        : "bg-brand text-white hover:bg-brand-hover"
+                  }`}
+                >
+                  {detailSkill.installed || installedIds[detailSkill.id] ? (
+                    <>
+                      <Check className="h-3.5 w-3.5 text-emerald-600 dark:text-emerald-400" />
+                      Installed
+                    </>
+                  ) : installingIds[detailSkill.id] ? (
+                    <>
+                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                      Installing…
+                    </>
+                  ) : (
+                    <>
+                      <Download className="h-3.5 w-3.5" />
+                      Install
+                    </>
+                  )}
+                </button>
+              </div>
             </div>
           </div>
         </div>

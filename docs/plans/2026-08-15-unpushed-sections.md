@@ -68,11 +68,11 @@ python -m py_compile shogun-web/server/models.py shogun-web/server/gateway.py sh
 - `recipes/accounting/plugins/quickbooks.py` (M) — fixes QBO SQL `Balance > 0` filter (client-side), Service item support for bill creation
 - `recipes/accounting/oauth-helper.py → oauth_helper.py` (D + ??) — Windows path fix
 - `examples/finance-budget.json` (M) — budget categories aligned to QBO chart of accounts
-- `skills/finance/dashboard-snapshot-writer/scripts/write_snapshots.py` (M) — snapshot writer update
+- `skills/finance/finance-dashboard-snapshot/scripts/write_snapshots.py` (M) — snapshot writer update
 
 **Verify:**
 ```bash
-python -m py_compile shogun-web/server/dashboard.py recipes/accounting/plugins/quickbooks.py skills/finance/dashboard-snapshot-writer/scripts/write_snapshots.py
+python -m py_compile shogun-web/server/dashboard.py recipes/accounting/plugins/quickbooks.py skills/finance/finance-dashboard-snapshot/scripts/write_snapshots.py
 # with QBO env: python -c "from server.dashboard import _run_finance_aggregation; r=_run_finance_aggregation([]); assert r.get('totalLiquidCash') != 1450000.0, 'still mock'"
 ```
 

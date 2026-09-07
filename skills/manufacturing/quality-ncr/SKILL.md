@@ -127,7 +127,6 @@ Calculate closure rate by disposition type and average closure time by departmen
 - [quality-capa](../quality-capa/SKILL.md) — CAPA workflow for root cause analysis
 - [production-oee](../production-oee/SKILL.md) — Quality component of OEE
 - [erp-connector](../erp-connector/SKILL.md) — Sync NCR dispositions to ERP inventory
-- [hse-incident](../hse-incident/SKILL.md) — Quality incidents with safety implications
 
 ## Pitfalls
 

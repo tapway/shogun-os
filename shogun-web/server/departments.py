@@ -1342,19 +1342,26 @@ def _installed_skills_root() -> Path:
 
 # Category title-casing map (parent dir name → display label)
 _CATEGORY_LABELS: Dict[str, str] = {
+    # Department folders
     "finance": "Finance",
     "crm": "CRM/Sales",
     "hr": "HR",
     "procurement": "Procurement",
-    "coding": "Coding",
-    "software-development": "Software Development",
-    "operations": "Operations",
-    "executive": "Executive",
     "retail": "Retail",
     "manufacturing": "Manufacturing",
-    "devops": "DevOps",
+    "software-development": "Software Development",
+    # New categorized folders
+    "general": "General",
+    "hermes": "Hermes Platform",
     "gbrain": "Brain",
     "communication": "Communication",
+    "workspace": "Workspace Integrations",
+    "facilities": "Facilities",
+    # Legacy flat names (still work as fallback for installed skills)
+    "coding": "Coding",
+    "operations": "Operations",
+    "executive": "Executive",
+    "devops": "DevOps",
     "email": "Email",
     "mcp": "MCP",
     "note-taking": "Note Taking",
@@ -1388,7 +1395,6 @@ _CATEGORY_LABELS: Dict[str, str] = {
     "timeline-inject-v2": "Timeline Inject",
     "document-processing": "Document Processing",
     "coding-workflow": "Coding Workflow",
-    "general": "General",
 }
 
 
@@ -1511,6 +1517,12 @@ def _scan_one_skill(skill_path: Path, repo_root: Path) -> Optional[Dict[str, Any
         tags = [tags]
     tags = [str(t) for t in tags]
 
+    # departments (from frontmatter)
+    departments = fm.get("departments") or []
+    if not isinstance(departments, list):
+        departments = [departments]
+    departments = [str(d).strip() for d in departments if str(d).strip()]
+
     # related_skills
     related = []
     meta = fm.get("metadata") or {}
@@ -1552,6 +1564,7 @@ def _scan_one_skill(skill_path: Path, repo_root: Path) -> Optional[Dict[str, Any
         "description": description,
         "category": _title_case_category(dept_dir),
         "department_key": dept_dir,
+        "departments": departments,
         "installed": installed,
         "version": version,
         "author": author,
@@ -2084,13 +2097,21 @@ async def get_skill_detail(
             break
 
     skill_md = ""
+    readme_md = ""
     if skill_path and skill_path.exists():
         try:
             skill_md = skill_path.read_text(encoding="utf-8", errors="replace")
         except Exception:
             skill_md = ""
+        # Read README.md if it exists alongside SKILL.md
+        readme_path = skill_path.parent / "README.md"
+        if readme_path.exists():
+            try:
+                readme_md = readme_path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                readme_md = ""
 
-    return {"skill": entry, "skill_md": skill_md}
+    return {"skill": entry, "skill_md": skill_md, "readme_md": readme_md}
 
 
 @skills_router.post("/install")
@@ -3141,6 +3162,69 @@ async def skill_intake(
     }
 
 
+# --- Skill Enhance / Rollback / History ---
+
+@skills_router.get("/{skill_id}/enhance-context")
+async def get_skill_enhance_context(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Load full context for enhancing a skill: SKILL.md, README.md, metadata, history."""
+    from .skill_enhance import get_enhance_context
+    try:
+        return {"ok": True, **get_enhance_context(skill_id)}
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.post("/{skill_id}/enhance")
+async def apply_skill_enhancement(
+    skill_id: str,
+    body: Dict[str, Any] = Body(...),
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Apply changes to SKILL.md and README.md, git commit with tracking."""
+    from .skill_enhance import apply_enhancement
+    try:
+        result = apply_enhancement(
+            skill_id=skill_id,
+            skill_md=body.get("skill_md", ""),
+            readme_md=body.get("readme_md", ""),
+            description=body.get("description", "Enhanced via web portal"),
+            user_name=user.name or user.email or "Unknown",
+        )
+        # Invalidate skills cache so the updated content shows immediately
+        _invalidate_skills_cache()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.post("/{skill_id}/rollback")
+async def rollback_skill_enhancement(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Revert the last enhancement commit for a skill."""
+    from .skill_enhance import rollback_enhancement
+    try:
+        result = rollback_enhancement(skill_id)
+        _invalidate_skills_cache()
+        return result
+    except ValueError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+
+
+@skills_router.get("/{skill_id}/enhance-history")
+async def get_skill_enhance_history(
+    skill_id: str,
+    user: User = Depends(get_current_user),
+) -> Dict[str, Any]:
+    """Get enhancement history for a skill."""
+    from .skill_enhance import get_enhance_history
+    return {"history": get_enhance_history(skill_id)}
+
+
 # --- Department Cron Jobs (persisted in SQLite via CronJob model) ---
 
 def _require_admin_or_dept_admin(user: User = Depends(get_current_user)) -> User:
@@ -3270,3 +3354,103 @@ async def delete_department_cron(
     db.delete(target)
     db.commit()
     return {"ok": True}
+
+
+@router.post("/{department_name}/crons/{cron_id}/run")
+async def run_department_cron_now(
+    department_name: str,
+    cron_id: str,
+    user: User = Depends(_require_admin_or_dept_admin),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Trigger a cron job to run immediately. Creates a history record and executes the prompt via subprocess."""
+    from models import CronRunHistory
+    dept = department_name.lower()
+    target = db.execute(
+        select(CronJob).where(CronJob.id == cron_id, CronJob.department == dept)
+    ).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Cron job not found")
+
+    # Create history record
+    run = CronRunHistory(cron_job_id=cron_id, status="running")
+    db.add(run)
+    db.flush()
+    run_id = run.id
+
+    # Update cron job status
+    target.last_run_status = "running"
+    target.last_run = datetime.now(timezone.utc).isoformat()
+    db.commit()
+
+    # Execute the prompt as a hermes one-shot in background
+    import subprocess, threading
+
+    def _execute():
+        try:
+            cmd = ["hermes", "-p", dept, "--one-shot", target.prompt]
+            if target.skill_id:
+                cmd.extend(["--skill", target.skill_id])
+            result = subprocess.run(
+                cmd, capture_output=True, text=True, timeout=300, cwd=str(Path(__file__).parent.parent)
+            )
+            output = (result.stdout or "") + (result.stderr or "")
+            status = "ok" if result.returncode == 0 else "error"
+        except subprocess.TimeoutExpired:
+            output = "Execution timed out after 5 minutes"
+            status = "error"
+        except FileNotFoundError:
+            output = "hermes CLI not found — cannot execute"
+            status = "error"
+        except Exception as exc:
+            output = str(exc)
+            status = "error"
+
+        # Update DB with results
+        from server.database import get_engine
+        from sqlalchemy.orm import Session as SASession
+        engine = get_engine()
+        with SASession(engine) as session:
+            h = session.get(CronRunHistory, run_id)
+            if h:
+                h.status = status
+                h.output = output[:10000]  # Cap at 10KB
+                h.finished_at = datetime.now(timezone.utc)
+            c = session.get(CronJob, cron_id)
+            if c:
+                c.last_run_status = status
+                c.last_run_output = output[:10000]
+                c.last_run = datetime.now(timezone.utc).isoformat()
+            session.commit()
+
+    threading.Thread(target=_execute, daemon=True).start()
+
+    return {"ok": True, "run_id": run_id, "status": "running"}
+
+
+@router.get("/{department_name}/crons/{cron_id}/history")
+async def get_cron_run_history(
+    department_name: str,
+    cron_id: str,
+    limit: int = 20,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Dict[str, Any]:
+    """Get run history for a specific cron job."""
+    from models import CronRunHistory
+    dept = department_name.lower()
+    # Verify cron belongs to this department
+    target = db.execute(
+        select(CronJob).where(CronJob.id == cron_id, CronJob.department == dept)
+    ).scalar_one_or_none()
+    if not target:
+        raise HTTPException(status_code=404, detail="Cron job not found")
+
+    rows = db.execute(
+        select(CronRunHistory)
+        .where(CronRunHistory.cron_job_id == cron_id)
+        .order_by(CronRunHistory.started_at.desc())
+        .limit(limit)
+    ).scalars().all()
+
+    return {"ok": True, "runs": [r.to_dict() for r in rows]}

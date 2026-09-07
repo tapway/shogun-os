@@ -56,7 +56,6 @@ The manufacturing vertical adds 5 Samurai-themed department agents on top of the
 |-------|-------|
 | **Role** | Inventory management, receiving/shipping, cycle counts |
 | **gbrain source** | `warehouse/` |
-| **Skills** | `warehouse-inventory`, `erp-connector` |
 | **Crons** | Inventory status (6AM), reorder alerts |
 
 **Persona:** Soko knows what's where and how much. Every pallet, every bin, every shipment — tracked. Nothing moves in or out without Soko knowing.
@@ -67,7 +66,6 @@ The manufacturing vertical adds 5 Samurai-themed department agents on top of the
 |-------|-------|
 | **Role** | Incident reporting, safety inspections, permits, environmental |
 | **gbrain source** | `hse/` |
-| **Skills** | `hse-incident` |
 | **Crons** | Safety walk schedule (weekly Mon) |
 
 **Persona:** Anzen protects people and the environment. Every near-miss, every permit, every incident — tracked, investigated, closed. Safety is a precondition, not a priority.
@@ -84,8 +82,6 @@ The manufacturing vertical adds 5 Samurai-themed department agents on top of the
 | `quality-capa` | Kensa | CAPA lifecycle: Open → Investigate → Plan → Implement → Verify → Close. 5 Whys root cause analysis. Severity matrix. |
 | `maintenance-pm` | Shuri | PM schedule with due/overdue tracking. Auto-generates work orders. PM compliance rate dashboard. |
 | `maintenance-downtime` | Shuri | Unplanned downtime logging. Pareto by equipment/reason/shift. MTBF/MTTR calculation. |
-| `warehouse-inventory` | Soko | Inventory levels by category (raw/WIP/finished). Aging analysis, reorder alerts, cycle counting. |
-| `hse-incident` | Anzen | Incident types from near-miss to fatality. Severity matrix. Leading/lagging indicator dashboard. |
 | `erp-connector` | All | Generic ERP framework. Adapters for Odoo (XML-RPC) and ERPNext (Frappe REST). Reads work orders, BOMs, inventory. |
 | `mes-connector` | All | MES/SCADA ingestion. Adapters for Ignition (REST) and Modbus TCP (PLC registers). Reads machine states, counts, downtime. |
 

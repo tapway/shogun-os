@@ -22,7 +22,7 @@ Tracks line-item spending against budget baselines and flags P&L line overruns e
 
 **Actual source**: QuickBooks Online (QBO) via `acct_get_profit_loss` MCP tool. The P&L returns `{lines: [{account_code, account_name, actual_amount}]}` which is matched against budget lines by account_code, then by account_name.
 
-**Dashboard output**: The `dashboard-snapshot-writer` `_build_bva_snapshot()` function loads `budget.json`, matches against QBO P&L actuals, and produces `line_items: [{section, account_name, budget_annual, budget_ytd, actual_ytd, variance, variance_pct}]` — the Finance dashboard's "Budget vs Actuals" tab renders this grouped by section.
+**Dashboard output**: The `finance-dashboard-snapshot` `_build_bva_snapshot()` function loads `budget.json`, matches against QBO P&L actuals, and produces `line_items: [{section, account_name, budget_annual, budget_ytd, actual_ytd, variance, variance_pct}]` — the Finance dashboard's "Budget vs Actuals" tab renders this grouped by section.
 
 ## When to Use
 

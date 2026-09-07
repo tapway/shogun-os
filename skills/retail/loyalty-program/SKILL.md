@@ -1,7 +1,7 @@
 ---
 name: loyalty-program
 description: "Points accrual rules, tier management, birthday/promotion triggers, rewards catalog, and redemption tracking. Manages end-to-end customer loyalty program lifecycle."
-departments: [crm-loyalty]
+departments: [crm]
 version: 1.0.0
 tags: [retail, loyalty, rewards, points, tiers, customer, retention]
 triggers:
@@ -117,7 +117,6 @@ Calculates program ROI by comparing incremental revenue from loyalty members aga
 ## Related Skills
 
 - [customer-segmentation](../customer-segmentation/SKILL.md) — RFM analysis for targeted loyalty offers
-- [promo-planning](../promo-planning/SKILL.md) — Promotional calendar integration with loyalty triggers
 - [store-sales-dashboard](../store-sales-dashboard/SKILL.md) — Sales impact of loyalty program
 
 ## Pitfalls

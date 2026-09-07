@@ -23,6 +23,14 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SCRIPTS_DIR = REPO_ROOT / "scripts"
 SKILLS_DIR = REPO_ROOT / "skills"
+
+
+def _discover_skill_names() -> list[str]:
+    """Recursively discover all skill names from SKILL.md files under skills/."""
+    names = set()
+    for skill_md in SKILLS_DIR.rglob("SKILL.md"):
+        names.add(skill_md.parent.name)
+    return sorted(names)
 TEMPLATES_DIR = REPO_ROOT / "templates"
 EXAMPLES_DIR = REPO_ROOT / "examples"
 RECIPES_DIR = REPO_ROOT / "recipes"
@@ -157,7 +165,7 @@ def test_skills_manifest():
     section("Skills Manifest")
 
     hub = (REPO_ROOT / "HUB.md").read_text()
-    actual_skills = sorted(d.name for d in SKILLS_DIR.iterdir() if d.is_dir())
+    actual_skills = _discover_skill_names()
 
     # Extract skill names from HUB.md skill table
     hub_skills = set()
@@ -203,7 +211,7 @@ def test_verify_skill_list_matches():
     section("verify-install.sh Skill List")
 
     verify_sh = (SCRIPTS_DIR / "verify-install.sh").read_text()
-    actual_skills = sorted(d.name for d in SKILLS_DIR.iterdir() if d.is_dir())
+    actual_skills = _discover_skill_names()
 
     # Extract skills from the for loop in verify-install.sh
     match = re.findall(r'"([a-z][a-z0-9-]+)"', verify_sh)
@@ -261,7 +269,7 @@ def test_wire_crons_skill_refs():
     section("Cron Wirer Skill References")
 
     wire_py = (SCRIPTS_DIR / "wire-crons.py").read_text()
-    actual_skills = sorted(d.name for d in SKILLS_DIR.iterdir() if d.is_dir())
+    actual_skills = _discover_skill_names()
 
     # Extract all skills references in PROFILE_EXTRA_CRONS
     ref_pattern = re.findall(r'"skills":\s*\[([^\]]*)\]', wire_py)
@@ -393,7 +401,7 @@ def test_hub_skills_match():
     section("HUB.md vs Skills Manifest")
 
     hub = (REPO_ROOT / "HUB.md").read_text()
-    actual_skills = sorted(d.name for d in SKILLS_DIR.iterdir() if d.is_dir())
+    actual_skills = _discover_skill_names()
 
     # Parse HUB.md skill table — look for lines with backtick-skills
     hub_skills = set()

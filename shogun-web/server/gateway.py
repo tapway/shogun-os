@@ -598,6 +598,116 @@ async def _handle_embedded_agent_session(
 
 
 
+
+_BRIDGE_STATE_ATTR = "_shogun_bridge"
+
+
+def _bridge_state(upstream) -> dict:
+    """Per-connection bridge state for the simple-chat ↔ JSON-RPC translation."""
+    st = getattr(upstream, _BRIDGE_STATE_ATTR, None)
+    if st is None:
+        st = {"session_id": None, "next_id": 100, "msg_id": None, "buf": ""}
+        try:
+            setattr(upstream, _BRIDGE_STATE_ATTR, st)
+        except Exception:
+            pass
+    return st
+
+
+async def _bridge_client_to_upstream(client: WebSocket, upstream) -> None:
+    """Translate the portal chat dialect ({"content": "..."}) into gateway RPC.
+    session.create is requested lazily; the sid is captured by the upstream→client
+    pipe (single reader) and this task waits on it before prompt.submit."""
+    st = _bridge_state(upstream)
+    try:
+        while True:
+            message = await client.receive()
+            mtype = message.get("type")
+            if mtype == "websocket.disconnect":
+                break
+            raw = message.get("text")
+            if raw is None:
+                if message.get("bytes") is not None:
+                    await upstream.send(message["bytes"])
+                continue
+            try:
+                payload = json.loads(raw)
+            except Exception:
+                await upstream.send(raw)
+                continue
+            if not isinstance(payload, dict) or not (payload.get("content") or payload.get("text")):
+                await upstream.send(raw)
+                continue
+            text = str(payload.get("content") or payload.get("text"))
+            if st["session_id"] is None:
+                if not st.get("create_requested"):
+                    st["create_requested"] = True
+                    st["next_id"] += 1
+                    await upstream.send(json.dumps({
+                        "jsonrpc": "2.0", "id": st["next_id"], "method": "session.create",
+                        "params": {"source": "shogunos-portal-chat"},
+                    }))
+                # wait for the upstream→client task to capture the sid
+                for _ in range(60):  # up to 30s
+                    if st["session_id"]:
+                        break
+                    await asyncio.sleep(0.5)
+                if not st["session_id"]:
+                    logger.warning("bridge: session id never arrived — dropping message")
+                    continue
+            st["next_id"] += 1
+            st["msg_id"] = f"msg-{int(time.time() * 1000)}"
+            await upstream.send(json.dumps({
+                "jsonrpc": "2.0", "id": st["next_id"], "method": "prompt.submit",
+                "params": {"session_id": st["session_id"], "text": text},
+            }))
+    except WebSocketDisconnect:
+        return
+    except Exception as exc:
+        logger.debug("bridge client→upstream closed: %s", exc)
+
+
+async def _bridge_upstream_to_client(client: WebSocket, upstream) -> None:
+    st = _bridge_state(upstream)
+    try:
+        async for raw in upstream:
+            if isinstance(raw, bytes):
+                await client.send_bytes(raw)
+                continue
+            try:
+                frame = json.loads(raw)
+            except Exception:
+                await client.send_text(raw)
+                continue
+            if not isinstance(frame, dict):
+                await client.send_text(raw)
+                continue
+            # session.create reply → capture sid
+            if frame.get("id") is not None and isinstance(frame.get("result"), dict) \
+                    and "session_id" in frame["result"] and st["session_id"] is None:
+                st["session_id"] = frame["result"]["session_id"]
+                continue  # don't leak the RPC reply to the browser
+            if "jsonrpc" not in frame and "params" not in frame:
+                await client.send_text(raw)
+                continue
+            params = frame.get("params") or {}
+            etype = params.get("type") or ""
+            payload = params.get("payload") or {}
+            if etype == "message.delta":
+                txt = payload.get("text")
+                if txt:
+                    await client.send_json({"type": "delta", "id": st["msg_id"] or "msg", "content": txt})
+            elif etype == "message.complete":
+                full = payload.get("text") or payload.get("message") or ""
+                if full:
+                    await client.send_json({"type": "delta", "id": st["msg_id"] or "msg", "content": str(full)})
+                await client.send_json({"type": "done", "id": st["msg_id"] or "msg"})
+    except ConnectionClosed:
+        return
+    except Exception as exc:
+        logger.debug("bridge upstream→client closed: %s", exc)
+
+
 async def _pipe_client_to_upstream(client: WebSocket, upstream) -> None:
     try:
         while True:
@@ -657,7 +767,22 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
         return
 
 
-    upstream_url = f"ws://127.0.0.1:{int(port)}/ws"
+    upstream_url = f"ws://127.0.0.1:{int(port)}/api/ws"
+    # Chat daemons (isolated hermes serve) require the session token on the
+    # WS-upgrade query string. Tokens live in ~/.shogun-os/chat-daemon-tokens.json
+    # keyed by department; daemons started via shogun-chat-daemons.sh export the
+    # same value as HERMES_DASHBOARD_SESSION_TOKEN.
+    try:
+        import os as _os
+        _tok_path = Path(_os.path.expanduser("~/.shogun-os/chat-daemon-tokens.json"))
+        if _tok_path.is_file():
+            import json as _json
+            _tok = (_json.loads(_tok_path.read_text()) or {}).get(dept.name, {}).get("token", "")
+            if _tok:
+                from urllib.parse import quote as _q
+                upstream_url = f"{upstream_url}?token={_q(_tok)}"
+    except Exception as _exc:
+        logger.debug("chat-daemon token lookup failed: %s", _exc)
 
     try:
         async with websockets.connect(
@@ -665,7 +790,7 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
             ping_interval=20,
             ping_timeout=20,
             max_size=8 * 1024 * 1024,
-            open_timeout=2,
+            open_timeout=5,
         ) as upstream:
             try:
                 await websocket.send_json(
@@ -679,8 +804,8 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
             except Exception:
                 pass
 
-            t1 = asyncio.create_task(_pipe_client_to_upstream(websocket, upstream))
-            t2 = asyncio.create_task(_pipe_upstream_to_client(websocket, upstream))
+            t1 = asyncio.create_task(_bridge_client_to_upstream(websocket, upstream))
+            t2 = asyncio.create_task(_bridge_upstream_to_client(websocket, upstream))
             done, pending = await asyncio.wait(
                 {t1, t2}, return_when=asyncio.FIRST_COMPLETED
             )
