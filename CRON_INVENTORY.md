@@ -56,8 +56,6 @@ These profiles deploy only when `--industry manufacturing` is selected:
 | production-manager (Kojo) | OEE Tracking | `0 * * * *` | deterministic (no_agent) |
 | quality-manager (Kensa) | Inspection Dashboard | `0 7 * * *` | deterministic (no_agent) |
 | maintenance-manager (Shuri) | PM Schedule | `0 6 * * *` | deterministic (no_agent) |
-| warehouse-manager (Soko) | Inventory Status | `0 6 * * *` | deterministic (no_agent) |
-| hse-manager (Anzen) | Safety Walk Schedule | `0 8 * * 1` | deterministic (no_agent) |
 
 ## Retail Industry Crons
 
@@ -65,15 +63,12 @@ These profiles deploy only when `--industry retail` is selected:
 
 | Profile | Cron | Schedule | Type |
 |---------|------|----------|------|
-| stores-manager (Tenpo) | Daily Sales Report | `0 6 * * *` | deterministic (no_agent) |
-| stores-manager (Tenpo) | Staff Scheduling | `0 8 * * 1` | deterministic (no_agent) |
 | merchandising-manager (Shohin) | Slow-Movers Report | `0 6 * * 1` | deterministic (no_agent) |
 | merchandising-manager (Shohin) | Vendor Contract Expiry | `0 9 * * 1` | deterministic (no_agent) |
 | ecommerce-manager (Denshi) | New Orders Check | `0 9-18 * * 1-5` | deterministic (no_agent) |
 | ecommerce-manager (Denshi) | Listing Compliance | `0 7 * * *` | deterministic (no_agent) |
 | crm-retail-manager (Kokyaku) | Points Expiry Review | `0 6 * * *` | deterministic (no_agent) |
 | supplychain-manager (Ryutsu) | Replenishment Orders | `0 6 * * *` | deterministic (no_agent) |
-| vm-manager (Hyoji) | Planogram Compliance Audit | `0 7 * * 1` | deterministic (no_agent) |
 
 ## Shared Script Crons (from `scripts/`)
 

@@ -193,7 +193,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
 
     now = _now()
     cy, cm = now.year, now.month
-    cq = cm // 3
+    cq = (cm - 1) // 3  # 0-based: Jan-Mar=0, Apr-Jun=1, Jul-Sep=2, Oct-Dec=3
 
     def _parse_local(iso):
         """Null-safe inner parse: frontmatter may carry 'None'/empty strings."""
@@ -215,7 +215,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
     def _is_this_quarter(iso) -> bool:
         d = _parse_local(iso)
         if not d: return False
-        return d.year == cy and d.month // 3 == cq
+        return d.year == cy and (d.month - 1) // 3 == cq
 
     def _is_this_year(iso) -> bool:
         d = _parse_local(iso)
@@ -227,7 +227,7 @@ def _run_ceo_aggregation(pages: List[dict]) -> dict:
         if not d: return False
         next_q = (cq + 1) % 4
         next_q_year = cy + (1 if cq == 3 else 0)
-        return d.year == next_q_year and d.month // 3 == next_q
+        return d.year == next_q_year and (d.month - 1) // 3 == next_q
 
     def _days_since(iso) -> int:
         d = _parse_local(iso)

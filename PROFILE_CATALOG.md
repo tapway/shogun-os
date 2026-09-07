@@ -149,7 +149,7 @@ These profiles handle project delivery and product management — the core of se
 
 ## Manufacturing Industry (Factory, Production, OEM)
 
-These profiles handle factory floor operations, quality control, maintenance, warehouse, and HSE — the core of manufacturing companies.
+These profiles handle factory floor operations, quality control, and maintenance — the core of manufacturing companies.
 
 Assign **unique gateway ports** above 9110 (or free ports) in the web portal department list when enabling these profiles in the UI.
 
@@ -210,17 +210,7 @@ Assign **unique gateway ports** above 9110 (or free ports) in the web portal dep
 
 ## Retail Industry (Stores, E-commerce, Omnichannel)
 
-These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply chain, and visual merchandising.
-
-### Stores — Tenpo (店舗 — "Shop")
-
-| Field | Value |
-|-------|-------|
-| Persona | Tenpo — Store operations, daily sales, customer experience |
-| gbrain source | `stores/` |
-| Shared | `department-scrum`, `company-workflow`, `brain-compliance`, `slack-formatting` |
-| Scrum | ✅ 3-tier |
-| Extra Crons | Daily sales report (6AM), staff scheduling (Mon 8AM) |
+These profiles handle merchandising, e-commerce, CRM/loyalty, and supply chain.
 
 ### Merchandising — Shohin (商品 — "Goods")
 
@@ -260,14 +250,6 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 | Skills | `warehouse-distribution`, `store-replenishment` |
 | Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
 | Extra Crons | Replenishment orders (daily 6AM) |
-
-
-| Field | Value |
-|-------|-------|
-| Persona | Hyoji — Store layouts, displays, planograms, signage |
-| gbrain source | `vm/` |
-| Shared | `company-workflow`, `brain-compliance`, `slack-formatting` |
-| Extra Crons | Planogram compliance audit (Mon 7AM) |
 
 ---
 
@@ -439,8 +421,8 @@ These profiles handle stores, merchandising, e-commerce, CRM/loyalty, supply cha
 During `./scripts/install.sh --deploy`, you'll be prompted to select your industry (`--deploy` is boolean; do not pass `--deploy all`):
 
 1. **General** (services, consulting, software) — deploys Projects + Product on top of shared profiles (~10 profiles)
-2. **Manufacturing** (factory, production, OEM) — deploys Production, Quality, Maintenance, Warehouse, HSE on top of shared profiles (~13 profiles)
-3. **Retail** (stores, e-commerce, omnichannel) — deploys Stores, Merchandising, E-commerce, CRM-Loyalty, Supply Chain, VM (~14 profiles)
+2. **Manufacturing** (factory, production, OEM) — deploys Production, Quality, Maintenance on top of shared profiles (~11 profiles)
+3. **Retail** (e-commerce, omnichannel) — deploys Merchandising, E-commerce, CRM-Loyalty, Supply Chain (~12 profiles)
 4. **Plantation** (estate, mill, agriculture) — deploys Facility Management on top of shared profiles (~9 profiles)
 
 To skip the prompt:
