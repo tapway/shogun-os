@@ -82,7 +82,7 @@ Cloudflare Dashboard → **My Profile** → **API Tokens** → **Create Token** 
 Create → copy token **once**:
 
 ```bash
-export CLOUDFLARE_API_TOKEN=zzzzzzzzzzzzzzzzzzzzzzzzzzzzzzzz
+export CLOUDFLARE_API_TOKEN=<your_cloudflare_api_token>
 ```
 
 > Do not put this token on customer machines. It lives only on the registry VPS.

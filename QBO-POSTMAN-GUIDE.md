@@ -23,7 +23,7 @@ If you can't find realmId in the OAuth Playground, use Postman instead. It shows
 | **Authorize using browser** | ✅ Checked |
 | **Auth URL** | `https://appcenter.intuit.com/connect/oauth2` |
 | **Access Token URL** | `https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer` |
-| **Client ID** | `ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d` |
+| **Client ID** | `<your_acct_qbo_client_id>` |
 | **Client Secret** | `<your_acct_qbo_client_secret>` |
 | **Scope** | `com.intuit.quickbooks.accounting openid profile email` |
 | **State** | `random123` |
@@ -46,7 +46,7 @@ Postman will show a popup with your tokens:
 ```
 ✅ Successfully obtained access token
 
-Access Token: eyJlbmMiOiJBMTI4R0NNIiwiYWxnIjoiZGlyIn0...
+Access Token: <your_token>...
 Refresh Token: L0123456789abcdef...
 Realm ID: 123145789012345    ← THIS IS YOUR COMPANY ID
 Token Type: bearer
@@ -79,7 +79,7 @@ If you prefer command line:
 
 Open this URL in browser:
 ```
-https://appcenter.intuit.com/connect/oauth2?client_id=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://oauth.pstmn.io/v1/callback&state=random123
+https://appcenter.intuit.com/connect/oauth2?client_id=<your_acct_qbo_client_id>&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://oauth.pstmn.io/v1/callback&state=random123
 ```
 
 After authorizing, copy the `code` parameter from the redirect URL.
@@ -90,7 +90,7 @@ After authorizing, copy the `code` parameter from the redirect URL.
 curl -X POST https://oauth.platform.intuit.com/oauth2/v1/tokens/bearer \
   -H "Accept: application/json" \
   -H "Content-Type: application/x-www-form-urlencoded" \
-  -u "ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d:<your_acct_qbo_client_secret>" \
+  -u "<your_acct_qbo_client_id>:<your_acct_qbo_client_secret>" \
   -d "grant_type=authorization_code&code=YOUR_CODE_HERE&redirect_uri=https://oauth.pstmn.io/v1/callback"
 ```
 
@@ -100,7 +100,7 @@ Response:
   "token_type": "bearer",
   "expires_in": 3600,
   "refresh_token": "L0123456789abcdef...",
-  "access_token": "eyJlbmMiOiJBMTI4R0NNIiwiYWxnIjoiZGlyIn0...",
+  "access_token": "<your_token>...",
   "x_refresh_token_expires_in": 8726400,
   "realmId": "123145789012345"
 }
@@ -117,7 +117,7 @@ Response:
 Update your `.env` file:
 
 ```bash
-ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
+ACCT_CLIENT_ID=<your_acct_qbo_client_id>
 ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<paste_refresh_token>
 ACCT_COMPANY_ID=<paste_realmId>

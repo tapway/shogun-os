@@ -658,7 +658,7 @@ The `custom_providers` block **must** be a YAML list with `- name:` prefix. A di
 custom_providers:
   - name: dashscope-anthropic
     base_url: https://dashscope-intl.aliyuncs.com/apps/anthropic
-    api_key: sk-6ea5b78644a940bfa37f266cea896499
+    api_key: <your_api_key>
     provider_type: anthropic
 ```
 

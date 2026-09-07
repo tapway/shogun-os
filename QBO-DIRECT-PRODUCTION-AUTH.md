@@ -99,7 +99,7 @@ Response will include:
 ```json
 {
   "refresh_token": "L0123456789abcdefghijklmnopqrstuvwxyz...",
-  "access_token": "eyJlbmMiOiJBMTI4R0NNIiwiYWxnIjoiZGlyIn0...",
+  "access_token": "<your_token>...",
   "realmId": "123145789012345"
 }
 ```

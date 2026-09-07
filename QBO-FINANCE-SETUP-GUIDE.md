@@ -99,8 +99,8 @@ ACCT_PROVIDER=quickbooks
 ACCT_SANDBOX=true                        # false for production
 ACCT_CLIENT_ID=your_client_id_from_intuit_developer_portal
 ACCT_CLIENT_SECRET=your_client_secret_from_intuit_developer_portal
-ACCT_REFRESH_TOKEN=will_be_obtained_from_oauth_flow
-ACCT_COMPANY_ID=will_be_obtained_from_oauth_flow
+ACCT_REFRESH_TOKEN=<your_refresh_token>
+ACCT_COMPANY_ID=<your_company_id>
 ```
 
 **⚠️ Security:** Never commit this file. It's already in `.gitignore`.
@@ -306,8 +306,8 @@ Edit `~/.hermes/profiles/finance-manager/.env`:
 ```bash
 ACCT_SANDBOX=false                    # ← Change this
 ACCT_CLIENT_ID=production_client_id
-ACCT_CLIENT_SECRET=production_client_secret
-ACCT_REFRESH_TOKEN=production_refresh_token
+ACCT_CLIENT_SECRET=<your_client_secret>
+ACCT_REFRESH_TOKEN=<your_refresh_token>
 ACCT_COMPANY_ID=production_realm_id
 ```
 

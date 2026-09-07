@@ -36,7 +36,7 @@ I've created a script that tells you definitively:
 ```bash
 # Add your credentials to .env
 cat > .env << EOF
-ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
+ACCT_CLIENT_ID=<your_acct_qbo_client_id>
 ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<your_refresh_token_from_oauth>
 ACCT_COMPANY_ID=<your_company_id_from_oauth>
@@ -163,7 +163,7 @@ You **MUST** complete this step — Client ID + Secret alone are useless.
 1. **Build the authorize URL** (replace YOUR_CLIENT_ID):
 
 ```
-https://appcenter.intuit.com/connect/oauth2?client_id=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl&state=random123
+https://appcenter.intuit.com/connect/oauth2?client_id=<your_acct_qbo_client_id>&response_type=code&scope=com.intuit.quickbooks.accounting+openid+profile+email&redirect_uri=https://developer.intuit.com/v2/OAuth2Playground/RedirectUrl&state=random123
 ```
 
 2. **Open URL in browser**
@@ -181,7 +181,7 @@ https://appcenter.intuit.com/connect/oauth2?client_id=ABVpYJ2qbgMn0M7kuzXCXlPiZF
 7. **Update your .env:**
 
 ```bash
-ACCT_CLIENT_ID=ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d
+ACCT_CLIENT_ID=<your_acct_qbo_client_id>
 ACCT_CLIENT_SECRET=<your_acct_qbo_client_secret>
 ACCT_REFRESH_TOKEN=<paste_refresh_token_here>
 ACCT_COMPANY_ID=<paste_realmId_here>
@@ -255,7 +255,7 @@ You are connected to your REAL QuickBooks accounting data.
 ## Security Notes
 
 ⚠️ **Your credentials are sensitive:**
-- Client ID: `ABVpYJ2qbgMn0M7kuzXCXlPiZFERFnc3GtSV6CQdE0L5EIFl2d`
+- Client ID: `<your_acct_qbo_client_id>`
 - Client Secret: `<your_acct_qbo_client_secret>`
 
 **Do:**
