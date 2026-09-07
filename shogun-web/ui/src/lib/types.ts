@@ -2152,6 +2152,10 @@ export interface SupportTicketItem {
   rootCause?: string;
   preventive?: string;
   newReply?: boolean;
+  lastReply?: string;
+  lastActivity?: string;
+  slaMet?: boolean;
+  age?: string;
 }
 
 export interface SupportStats {

@@ -11,37 +11,52 @@ interface Props {
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
-const SURFACE_2 = 'var(--samurai-surface-2)';
+const SURFACE = 'var(--samurai-surface)';
 const BORDER = 'var(--samurai-border)';
-const DANGER = 'var(--samurai-danger)';
+const NAVY = '#1e3a5f';
+const BLUE = '#3b82f6';
+const GREEN = '#10b981';
+const RED = '#ef4444';
+const ORANGE = '#f59e0b';
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
+interface SupportStats {
+  openTickets?: number;
+  slaBreaches?: number;
+  criticalCount?: number;
+  waitingCustomer?: number;
+  avgResponseHours?: number;
+  openByCustomer?: Record<string, number>;
+  openByCategory?: Record<string, number>;
+  workloadByAssignee?: Record<string, number>;
 }
 
-function fmtDate(iso?: string | null): string {
-  if (!iso) return '—';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-MY', { day: '2-digit', month: 'short', year: 'numeric' });
-}
+function HorizontalBarChart({ data, color }: { data: Record<string, number>; color: string }) {
+  const entries = Object.entries(data).sort((a, b) => b[1] - a[1]);
+  const max = Math.max(...entries.map(([, v]) => v), 1);
 
-const OPEN_STATUSES = ['Open', 'In Progress', 'Waiting for Customer'];
-
-function statusChipClass(status?: string): string {
-  if (!status) return 'muted';
-  if (status === 'Closed' || status === 'Resolved') return 'ok';
-  if (status === 'Open' || status === 'In Progress') return 'warn';
-  return 'muted';
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+      {entries.map(([label, value]) => (
+        <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <span style={{ fontSize: '0.72rem', color: TEXT, minWidth: '80px', textAlign: 'right' }}>{label}</span>
+          <div style={{ flex: 1, height: '20px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
+            <div style={{ width: `${(value / max) * 100}%`, height: '100%', background: color, borderRadius: '4px' }} />
+          </div>
+          <span style={{ fontSize: '0.72rem', fontWeight: 600, color: TEXT, minWidth: '20px' }}>{value}</span>
+        </div>
+      ))}
+    </div>
+  );
 }
 
 export function SupportTab({ dept, color }: Props) {
-  const [statusFilter, setStatusFilter] = useState('');
-  const [priorityFilter, setPriorityFilter] = useState('');
-  const [customerFilter, setCustomerFilter] = useState('');
+  const [tab, setTab] = useState<'tickets' | 'email'>('tickets');
   const [search, setSearch] = useState('');
+  const [customerFilter, setCustomerFilter] = useState('');
+  const [priorityFilter, setPriorityFilter] = useState('');
+  const [categoryFilter, setCategoryFilter] = useState('');
+  const [tierFilter, setTierFilter] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
   const [selected, setSelected] = useState<SupportTicketItem | null>(null);
 
   const ticketsQuery = useQuery({
@@ -57,23 +72,26 @@ export function SupportTab({ dept, color }: Props) {
   });
 
   const allTickets = ticketsQuery.data?.tickets ?? [];
-  const stats = statsQuery.data;
+  const stats = statsQuery.data as SupportStats | undefined;
 
-  const customers = useMemo(() => {
-    const set = new Set(allTickets.map((t) => t.customer).filter(Boolean) as string[]);
-    return [...set].sort();
-  }, [allTickets]);
+  // Extract unique values for filters
+  const customers = useMemo(() => [...new Set(allTickets.map(t => t.customer).filter(Boolean))].sort(), [allTickets]);
+  const categories = useMemo(() => [...new Set(allTickets.map(t => t.category).filter(Boolean))].sort(), [allTickets]);
+  const tiers = useMemo(() => [...new Set(allTickets.map(t => t.tier).filter(Boolean))].sort(), [allTickets]);
+  const statuses = useMemo(() => [...new Set(allTickets.map(t => t.status).filter(Boolean))].sort(), [allTickets]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
-    return allTickets.filter((t) => {
-      if (statusFilter && t.status !== statusFilter) return false;
-      if (priorityFilter && t.priority !== priorityFilter) return false;
+    return allTickets.filter(t => {
       if (customerFilter && t.customer !== customerFilter) return false;
-      if (q && !`${t.id} ${t.title ?? ''} ${t.customer ?? ''} ${t.assignedTo ?? ''}`.toLowerCase().includes(q)) return false;
+      if (priorityFilter && t.priority !== priorityFilter) return false;
+      if (categoryFilter && t.category !== categoryFilter) return false;
+      if (tierFilter && t.tier !== tierFilter) return false;
+      if (statusFilter && t.status !== statusFilter) return false;
+      if (q && !`${t.id} ${t.title ?? ''} ${t.customer ?? ''} ${t.reporter ?? ''} ${t.description ?? ''}`.toLowerCase().includes(q)) return false;
       return true;
     });
-  }, [allTickets, statusFilter, priorityFilter, customerFilter, search]);
+  }, [allTickets, search, customerFilter, priorityFilter, categoryFilter, tierFilter, statusFilter]);
 
   if (ticketsQuery.isLoading) {
     return (
@@ -84,139 +102,261 @@ export function SupportTab({ dept, color }: Props) {
     );
   }
 
-  if (ticketsQuery.isError) {
-    return (
-      <div className="sd-empty">
-        <h2>No support data synced yet</h2>
-        <p>Run the project dashboard sync script to import support tickets.</p>
-      </div>
-    );
-  }
-
-  const openCount = stats?.totals.open ?? allTickets.filter((t) => OPEN_STATUSES.includes(t.status || '')).length;
-  const newReplies = stats?.totals.newReplies ?? 0;
-
-  const KPIs = [
-    { label: 'Total Tickets', value: String(stats?.totals.tickets ?? allTickets.length) },
-    { label: 'Open', value: String(openCount), danger: openCount > 0 },
-    { label: 'Closed / Resolved', value: String(stats?.totals.closedOrResolved ?? 0) },
-    { label: 'New Replies', value: String(newReplies), danger: newReplies > 0 },
-  ];
-
   const selectStyle: React.CSSProperties = {
-    background: SURFACE_2,
+    background: SURFACE,
     border: `1px solid ${BORDER}`,
     color: TEXT,
-    borderRadius: '0.5rem',
-    padding: '0.4rem 0.6rem',
+    borderRadius: '6px',
+    padding: '8px 12px',
     fontSize: '0.8rem',
+    minWidth: '140px',
+  };
+
+  const labelStyle: React.CSSProperties = {
+    fontSize: '0.65rem',
+    fontWeight: 600,
+    color: MUTED,
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em',
+    marginBottom: '4px',
+    display: 'block',
+  };
+
+  const statCardStyle: React.CSSProperties = {
+    background: '#fff',
+    borderRadius: '12px',
+    padding: '20px 24px',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
+    flex: '1',
+    minWidth: '140px',
   };
 
   return (
     <div className="sd-stack">
-      {/* KPI cards */}
-      <div className="sd-kpi-grid">
-        {KPIs.map((kpi) => (
-          <div key={kpi.label} className="sd-kpi-card">
-            <div className="sd-kpi-label">{kpi.label}</div>
-            <div className="sd-kpi-value" style={kpi.danger ? { color: DANGER } : undefined}>{kpi.value}</div>
-          </div>
-        ))}
-      </div>
+      {/* Header */}
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: '0 0 16px' }}>Support Dashboard</h2>
 
-      {/* Filters */}
-      <div className="sd-chart-card" style={{ padding: '0.9rem 1rem' }}>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="text"
-            placeholder="Search tickets…"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            style={{ ...selectStyle, minWidth: '220px' }}
-          />
-          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
-            <option value="">All statuses</option>
-            {[...new Set(allTickets.map((t) => t.status).filter(Boolean) as string[])].sort().map((s) => (
-              <option key={s} value={s}>{s}</option>
-            ))}
-          </select>
-          <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} style={selectStyle}>
-            <option value="">All priorities</option>
-            {['P1', 'P2', 'P3', 'P4'].map((p) => (
-              <option key={p} value={p}>{p}</option>
-            ))}
-          </select>
-          <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} style={selectStyle}>
-            <option value="">All customers</option>
-            {customers.map((cu) => (
-              <option key={cu} value={cu}>{cu}</option>
-            ))}
-          </select>
-          <span style={{ fontSize: '0.78rem', color: MUTED }}>
-            {filtered.length} of {allTickets.length} tickets
-          </span>
+      {/* KPI Cards - 5 cards */}
+      <div className="grid gap-4 md:grid-cols-5" style={{ marginBottom: '16px' }}>
+        <div style={statCardStyle}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Open Tickets</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: NAVY }}>{stats?.openTickets ?? 0}</div>
+        </div>
+        <div style={statCardStyle}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>SLA Breaches</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: RED }}>{stats?.slaBreaches ?? 0}</div>
+        </div>
+        <div style={statCardStyle}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Critical (P1+P2)</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: ORANGE }}>{stats?.criticalCount ?? 0}</div>
+        </div>
+        <div style={statCardStyle}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Waiting Customer</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: BLUE }}>{stats?.waitingCustomer ?? 0}</div>
+        </div>
+        <div style={statCardStyle}>
+          <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Avg Response (H)</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: GREEN }}>{stats?.avgResponseHours?.toFixed(1) ?? '0.0'}</div>
         </div>
       </div>
 
-      {/* Table */}
-      <div className="sd-chart-card">
-        {filtered.length === 0 ? (
-          <div className="sd-empty" style={{ padding: '24px 0' }}>
-            <p>No tickets match the current filters.</p>
-          </div>
-        ) : (
-          <div className="overflow-x-auto" style={{ maxHeight: '620px', overflowY: 'auto' }}>
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">ID</Th>
-                  <Th align="left">Title</Th>
-                  <Th align="left">Customer</Th>
-                  <Th align="center">Priority</Th>
-                  <Th align="left">Assigned</Th>
-                  <Th align="left">Opened</Th>
-                  <Th align="left">Last Updated</Th>
-                  <Th align="left">Status</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((ticket, i) => (
-                  <tr
-                    key={ticket.id}
-                    onClick={() => setSelected(ticket)}
-                    style={{
-                      borderBottom: `1px solid ${BORDER}`,
-                      background: i % 2 === 1 ? SURFACE_2 : undefined,
-                      cursor: 'pointer',
-                    }}
-                    title="Open ticket detail"
-                  >
-                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', color: MUTED }}>{ticket.id}</td>
-                    <td className="px-3 py-2.5 max-w-[280px]" style={{ color: TEXT }}>
-                      <div className="truncate" title={ticket.title}>
-                        {ticket.title || '—'}
-                        {ticket.newReply && <span className="sd-chip bad" style={{ marginLeft: '0.4rem', fontSize: '0.6rem' }}>reply</span>}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 max-w-[160px] truncate" style={{ color: MUTED }}>{ticket.customer || '—'}</td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`sd-chip ${ticket.priority === 'P1' || ticket.priority === 'P2' ? 'bad' : ticket.priority === 'P3' ? 'warn' : 'muted'}`}>
-                        {ticket.priority || '—'}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{ticket.assignedTo || '—'}</td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED, fontSize: '0.75rem' }}>{fmtDate(ticket.opened)}</td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED, fontSize: '0.75rem' }}>{fmtDate(ticket.lastUpdated)}</td>
-                    <td className="px-3 py-2.5">
-                      <span className={`sd-chip ${statusChipClass(ticket.status)}`}>{ticket.status || '—'}</span>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
+      {/* Horizontal Bar Charts - 3 across */}
+      <div className="grid gap-4 lg:grid-cols-3" style={{ marginBottom: '16px' }}>
+        <div className="sd-chart-card">
+          <h3 className="sd-chart-title">Open by Customer</h3>
+          <HorizontalBarChart data={stats?.openByCustomer ?? {}} color={BLUE} />
+        </div>
+        <div className="sd-chart-card">
+          <h3 className="sd-chart-title">Open by Category</h3>
+          <HorizontalBarChart data={stats?.openByCategory ?? {}} color={GREEN} />
+        </div>
+        <div className="sd-chart-card">
+          <h3 className="sd-chart-title">Workload by Assignee</h3>
+          <HorizontalBarChart data={stats?.workloadByAssignee ?? {}} color={ORANGE} />
+        </div>
       </div>
+
+      {/* Tabs */}
+      <div style={{ display: 'flex', gap: '8px', marginBottom: '16px' }}>
+        <button
+          onClick={() => setTab('tickets')}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: 'none',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: tab === 'tickets' ? NAVY : '#f3f4f6',
+            color: tab === 'tickets' ? '#fff' : MUTED,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          🎫 Tickets
+        </button>
+        <button
+          onClick={() => setTab('email')}
+          style={{
+            padding: '10px 20px',
+            borderRadius: '8px',
+            border: 'none',
+            fontSize: '0.85rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            background: tab === 'email' ? NAVY : '#f3f4f6',
+            color: tab === 'email' ? '#fff' : MUTED,
+            display: 'flex',
+            alignItems: 'center',
+            gap: '6px',
+          }}
+        >
+          ✉️ Email Inbox
+        </button>
+      </div>
+
+      {tab === 'tickets' && (
+        <>
+          {/* Search & Filter Panel */}
+          <div className="sd-chart-card" style={{ padding: '16px 20px', marginBottom: '16px' }}>
+            <div style={{ marginBottom: '12px' }}>
+              <label style={labelStyle}>Search</label>
+              <input
+                type="text"
+                placeholder="Search by ticket ID, title, customer, reporter, description..."
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                style={{ ...selectStyle, width: '100%', minWidth: 'auto' }}
+              />
+            </div>
+            <div className="flex flex-wrap items-end gap-4">
+              <div>
+                <label style={labelStyle}>Customer</label>
+                <select value={customerFilter} onChange={(e) => setCustomerFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Customers</option>
+                  {customers.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Priority</label>
+                <select value={priorityFilter} onChange={(e) => setPriorityFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Priorities</option>
+                  {['P1', 'P2', 'P3', 'P4'].map(p => <option key={p} value={p}>{p}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Category</label>
+                <select value={categoryFilter} onChange={(e) => setCategoryFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Categories</option>
+                  {categories.map(c => <option key={c} value={c}>{c}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Tier</label>
+                <select value={tierFilter} onChange={(e) => setTierFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Tiers</option>
+                  {tiers.map(t => <option key={t} value={t}>{t}</option>)}
+                </select>
+              </div>
+              <div>
+                <label style={labelStyle}>Status</label>
+                <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={selectStyle}>
+                  <option value="">All Statuses</option>
+                  {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+                </select>
+              </div>
+            </div>
+          </div>
+
+          {/* Tickets Table */}
+          <div className="sd-chart-card" style={{ padding: 0 }}>
+            <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: NAVY, margin: 0 }}>All Tickets</h3>
+              <span style={{ fontSize: '0.78rem', color: MUTED }}>{filtered.length} of {allTickets.length}</span>
+            </div>
+            {filtered.length === 0 ? (
+              <div className="sd-empty" style={{ padding: '32px 0' }}>
+                <p>No tickets match the current filters.</p>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                  <thead>
+                    <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', width: '40px' }}><input type="checkbox" /></th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>ID</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Customer</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Title</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Priority</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Category</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Tier</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Assigned</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Last Reply</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Last Activity</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'center', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>SLA</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Age</th>
+                      <th style={{ padding: '12px 16px', textAlign: 'left', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {filtered.map((ticket, i) => (
+                      <tr
+                        key={ticket.id}
+                        onClick={() => setSelected(ticket)}
+                        style={{ borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }}
+                      >
+                        <td style={{ padding: '12px 16px' }}><input type="checkbox" onClick={e => e.stopPropagation()} /></td>
+                        <td style={{ padding: '12px 16px', fontFamily: 'var(--font-mono, monospace)', fontSize: '0.72rem', color: BLUE, fontWeight: 600 }}>{ticket.id}</td>
+                        <td style={{ padding: '12px 16px', color: MUTED }}>{ticket.customer || '—'}</td>
+                        <td style={{ padding: '12px 16px', maxWidth: '240px' }}>
+                          <div className="truncate" style={{ color: TEXT }} title={ticket.title}>{ticket.title || '—'}</div>
+                        </td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{
+                            fontSize: '0.68rem', fontWeight: 600, padding: '2px 10px', borderRadius: '10px',
+                            background: BLUE, color: '#fff',
+                          }}>
+                            {ticket.priority || '—'}
+                          </span>
+                        </td>
+                        <td style={{ padding: '12px 16px', color: MUTED }}>{ticket.category || '—'}</td>
+                        <td style={{ padding: '12px 16px', color: MUTED }}>{ticket.tier || '—'}</td>
+                        <td style={{ padding: '12px 16px', color: MUTED }}>{ticket.assignedTo || '—'}</td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.72rem', color: MUTED }}>{ticket.lastReply || '—'}</td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.72rem', color: MUTED }}>{ticket.lastActivity || '—'}</td>
+                        <td style={{ padding: '12px 16px', textAlign: 'center' }}>
+                          {(ticket as any).slaMet ? (
+                            <span style={{ color: GREEN }}>✅</span>
+                          ) : (
+                            <span style={{ color: RED }}>🔴</span>
+                          )}
+                        </td>
+                        <td style={{ padding: '12px 16px', fontSize: '0.72rem', color: MUTED }}>{(ticket as any).age || '—'}</td>
+                        <td style={{ padding: '12px 16px' }}>
+                          <span style={{
+                            fontSize: '0.68rem', fontWeight: 600, padding: '2px 10px', borderRadius: '10px',
+                            background: ticket.status === 'Closed' ? '#f3f4f6' : ticket.status === 'In Progress' ? '#fef3c7' : ticket.status === 'Open' ? '#dbeafe' : '#f3f4f6',
+                            color: ticket.status === 'Closed' ? MUTED : ticket.status === 'In Progress' ? ORANGE : ticket.status === 'Open' ? BLUE : MUTED,
+                          }}>
+                            {ticket.status || '—'}
+                          </span>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </>
+      )}
+
+      {tab === 'email' && (
+        <div className="sd-chart-card" style={{ padding: '32px', textAlign: 'center' }}>
+          <p style={{ color: MUTED }}>Email inbox integration coming soon.</p>
+        </div>
+      )}
 
       {selected && <TicketDetailModal ticket={selected} onClose={() => setSelected(null)} />}
     </div>

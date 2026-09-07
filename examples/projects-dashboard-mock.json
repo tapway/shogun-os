@@ -1091,8 +1091,169 @@
     "overdueTasks": 3
   },
   "reportsSummary": {},
-  "supportStats": {},
-  "supportTickets": [],
+  "supportStats": {
+    "openTickets": 4,
+    "slaBreaches": 2,
+    "criticalCount": 1,
+    "waitingCustomer": 2,
+    "avgResponseHours": 97.4,
+    "openByCustomer": {
+      "Gotapway": 2,
+      "Samsung": 1,
+      "Syspex": 1
+    },
+    "openByCategory": {
+      "Network": 2,
+      "Other": 1,
+      "Software": 1
+    },
+    "workloadByAssignee": {
+      "@azeem": 2,
+      "@ashraf": 2
+    }
+  },
+  "supportTickets": [
+    {
+      "id": "TS-2026-404",
+      "customer": "Quill",
+      "title": "upload latest floor plan",
+      "priority": "P3",
+      "category": "Other",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "Agent \u2022 3d ago",
+      "lastActivity": "3d ago",
+      "slaMet": true,
+      "age": "4d",
+      "status": "Closed"
+    },
+    {
+      "id": "TS-2026-390",
+      "customer": "Gotapway",
+      "title": "Elite Pavilion",
+      "priority": "P3",
+      "category": "Network",
+      "tier": "L1",
+      "assignedTo": "@ashraf",
+      "lastReply": "Agent \u2022 3d ago",
+      "lastActivity": "3d ago",
+      "slaMet": false,
+      "age": "10d",
+      "status": "In Progress"
+    },
+    {
+      "id": "TS-2026-408",
+      "customer": "Em0001",
+      "title": "[Tapway] Please moderate: \"The F\u2026\"",
+      "priority": "P3",
+      "category": "Other",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "",
+      "lastActivity": "3d ago",
+      "slaMet": true,
+      "age": "3d",
+      "status": "Closed"
+    },
+    {
+      "id": "TS-2026-409",
+      "customer": "Gotapway",
+      "title": "Moderator's spam report for suppo\u2026",
+      "priority": "P3",
+      "category": "Software",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "",
+      "lastActivity": "3d ago",
+      "slaMet": true,
+      "age": "3d",
+      "status": "Closed"
+    },
+    {
+      "id": "TS-2026-407",
+      "customer": "Syspex",
+      "title": "Tapway support Needed - Client -\u2026",
+      "priority": "P3",
+      "category": "Software",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "",
+      "lastActivity": "4d ago",
+      "slaMet": false,
+      "age": "4d",
+      "status": "Open"
+    },
+    {
+      "id": "TS-2026-410",
+      "customer": "Samsung",
+      "title": "Camera offline at Gate 3 entrance",
+      "priority": "P1",
+      "category": "Network",
+      "tier": "L2",
+      "assignedTo": "@ashraf",
+      "lastReply": "Agent \u2022 1d ago",
+      "lastActivity": "1d ago",
+      "slaMet": false,
+      "age": "2d",
+      "status": "In Progress"
+    },
+    {
+      "id": "TS-2026-411",
+      "customer": "Gotapway",
+      "title": "Dashboard loading slow on mobile",
+      "priority": "P2",
+      "category": "Software",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "",
+      "lastActivity": "5d ago",
+      "slaMet": true,
+      "age": "5d",
+      "status": "Waiting for Customer"
+    },
+    {
+      "id": "TS-2026-412",
+      "customer": "Vinda",
+      "title": "RFID reader not detecting tags",
+      "priority": "P2",
+      "category": "Hardware",
+      "tier": "L2",
+      "assignedTo": "@ashraf",
+      "lastReply": "Agent \u2022 2d ago",
+      "lastActivity": "2d ago",
+      "slaMet": true,
+      "age": "6d",
+      "status": "Open"
+    },
+    {
+      "id": "TS-2026-413",
+      "customer": "Canon",
+      "title": "Firmware update failed on controller",
+      "priority": "P3",
+      "category": "Software",
+      "tier": "L1",
+      "assignedTo": "@azeem",
+      "lastReply": "",
+      "lastActivity": "7d ago",
+      "slaMet": true,
+      "age": "7d",
+      "status": "Closed"
+    },
+    {
+      "id": "TS-2026-414",
+      "customer": "Pandora",
+      "title": "Request for additional user licenses",
+      "priority": "P4",
+      "category": "Other",
+      "tier": "L1",
+      "assignedTo": "@ashraf",
+      "lastReply": "Agent \u2022 1d ago",
+      "lastActivity": "1d ago",
+      "slaMet": true,
+      "age": "1d",
+      "status": "Waiting for Customer"
+    }
+  ],
   "postProjectItems": [
     {
       "id": "POST-001",
