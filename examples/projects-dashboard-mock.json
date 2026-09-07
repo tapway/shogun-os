@@ -801,18 +801,6 @@
     },
     {
       "id": "TASK-004",
-      "title": "",
-      "projectId": "PRJ-050",
-      "projectName": "Habib Pnb 118",
-      "owner": "",
-      "start": "",
-      "deadline": "",
-      "priority": "MEDIUM",
-      "status": "todo",
-      "dependsOn": ""
-    },
-    {
-      "id": "TASK-005",
       "title": "ECR-only: start 10s display timeout on payment success",
       "projectId": "PRJ-045",
       "projectName": "1u Outdoor Carpark",
@@ -824,7 +812,7 @@
       "dependsOn": ""
     },
     {
-      "id": "TASK-020",
+      "id": "TASK-005",
       "title": "Investigate driver parking SOP violation at Gate 2 exit",
       "projectId": "PRJ-038",
       "projectName": "Vinda Phase2",
@@ -836,7 +824,7 @@
       "dependsOn": ""
     },
     {
-      "id": "TASK-021",
+      "id": "TASK-006",
       "title": "Manually filter out truck bed numbers from LPR reports",
       "projectId": "PRJ-038",
       "projectName": "Vinda Phase2",
@@ -848,7 +836,7 @@
       "dependsOn": ""
     },
     {
-      "id": "TASK-001",
+      "id": "TASK-007",
       "title": "Assign AI/Dev Lead & Head of Project (charter placeholders)",
       "projectId": "PRJ-021",
       "projectName": "Ministry Of Health Vod - Exabytes",
@@ -860,7 +848,7 @@
       "dependsOn": ""
     },
     {
-      "id": "TASK-003",
+      "id": "TASK-008",
       "title": "Select SamurAI model (Model 1 vs Model 2)",
       "projectId": "PRJ-021",
       "projectName": "Ministry Of Health Vod - Exabytes",
@@ -872,7 +860,7 @@
       "dependsOn": ""
     },
     {
-      "id": "TASK-015",
+      "id": "TASK-009",
       "title": "Review Q3 budget variance report",
       "projectId": "PRJ-018",
       "projectName": "Canon AGC Forklift",
@@ -881,7 +869,79 @@
       "deadline": "2026-08-25",
       "priority": "CRITICAL",
       "status": "blocked",
-      "dependsOn": "TASK-012"
+      "dependsOn": "TASK-007"
+    },
+    {
+      "id": "TASK-010",
+      "title": "Update firmware on all gate controllers",
+      "projectId": "PRJ-014",
+      "projectName": "Dc Handal Medini Ev",
+      "owner": "marcus",
+      "start": "2026-08-10",
+      "deadline": "2026-08-30",
+      "priority": "HIGH",
+      "status": "todo",
+      "dependsOn": ""
+    },
+    {
+      "id": "TASK-011",
+      "title": "Configure RFID reader sensitivity",
+      "projectId": "PRJ-008",
+      "projectName": "RPG Relocation",
+      "owner": "yeoh",
+      "start": "2026-09-01",
+      "deadline": "2026-09-20",
+      "priority": "MEDIUM",
+      "status": "in-progress",
+      "dependsOn": ""
+    },
+    {
+      "id": "TASK-012",
+      "title": "Test emergency stop button response time",
+      "projectId": "PRJ-002",
+      "projectName": "Pandora IOI Damansara",
+      "owner": "lim",
+      "start": "2026-09-05",
+      "deadline": "2026-09-25",
+      "priority": "LOW",
+      "status": "todo",
+      "dependsOn": ""
+    },
+    {
+      "id": "TASK-013",
+      "title": "Document API integration for payment gateway",
+      "projectId": "PRJ-001",
+      "projectName": "Apex Retail IOI PeopleTrack",
+      "owner": "tan",
+      "start": "2026-08-20",
+      "deadline": "2026-09-10",
+      "priority": "HIGH",
+      "status": "done",
+      "dependsOn": ""
+    },
+    {
+      "id": "TASK-014",
+      "title": "Validate license plate recognition accuracy",
+      "projectId": "PRJ-045",
+      "projectName": "1u Outdoor Carpark",
+      "owner": "ng",
+      "start": "2026-09-02",
+      "deadline": "2026-09-18",
+      "priority": "MEDIUM",
+      "status": "in-progress",
+      "dependsOn": "TASK-004"
+    },
+    {
+      "id": "TASK-015",
+      "title": "Setup monitoring alerts for server downtime",
+      "projectId": "PRJ-035",
+      "projectName": "Canon Marketing HQ",
+      "owner": "choong",
+      "start": "2026-09-03",
+      "deadline": "2026-09-15",
+      "priority": "CRITICAL",
+      "status": "blocked",
+      "dependsOn": ""
     }
   ],
   "stats": {

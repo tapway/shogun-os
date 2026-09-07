@@ -60,14 +60,21 @@ export function TasksTab({ dept, color, onOpenProject }: Props) {
     refetchInterval: 120_000,
   });
 
-  // Flatten task structure from backend
+  // Flatten task structure from backend (handles both nested and flat structures)
   const allTasks: ProjectTaskItem[] = useMemo(() => {
     const raw = query.data?.tasks ?? [];
-    return raw.map((t: any) => ({
-      ...t.task,
-      projectId: t.projectId,
-      projectName: t.projectName,
-    }));
+    return raw.map((t: any) => {
+      // If task has nested 'task' object, flatten it
+      if (t.task && typeof t.task === 'object') {
+        return {
+          ...t.task,
+          projectId: t.projectId || t.task.projectId,
+          projectName: t.projectName || t.task.projectName,
+        };
+      }
+      // Otherwise it's already flat
+      return t;
+    });
   }, [query.data]);
 
   const projects = useMemo(() => {
