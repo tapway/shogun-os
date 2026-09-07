@@ -2015,6 +2015,7 @@ export interface ProjectTaskItem {
   projectName?: string;
   title?: string;
   owner?: string;
+  start?: string | null;
   created?: string | null;
   deadline?: string | null;
   priority?: string;
