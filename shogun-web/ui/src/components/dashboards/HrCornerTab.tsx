@@ -1,17 +1,20 @@
 import { useState } from 'react';
+import { Users, BookOpen, Globe, Shield } from 'lucide-react';
 
 interface Props {
   department: string;
   color: string;
 }
 
-const MUTED = 'var(--samurai-muted)';
-const TEXT = 'var(--samurai-text)';
-const SURFACE = 'var(--samurai-surface)';
-const BORDER = 'var(--samurai-border)';
-const NAVY = '#1e3a5f';
-const GREEN = '#10b981';
-const BLUE = '#3b82f6';
+const NAVY = 'var(--samurai-primary, #1a284d)';
+const SURFACE = 'var(--samurai-surface, #0e1424)';
+const SURFACE_2 = 'var(--samurai-surface-2, #151c2e)';
+const BORDER = 'var(--samurai-border, #243047)';
+const TEXT = 'var(--samurai-text, #ffffff)';
+const MUTED = 'var(--samurai-muted, #a8a8a8)';
+const LIME = 'var(--samurai-lime, #ceef7d)';
+const LIME_DIM = 'var(--samurai-lime-dim, #b5d96a)';
+const LIME_TEXT = 'var(--samurai-accent-button-text, #1a284d)';
 
 interface TopicItem {
   id: string;
@@ -23,7 +26,7 @@ interface TopicItem {
 interface Section {
   id: string;
   title: string;
-  icon: string;
+  icon: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   topics: TopicItem[];
 }
 
@@ -31,7 +34,7 @@ const SECTIONS: Section[] = [
   {
     id: 'team',
     title: 'Team',
-    icon: '👥',
+    icon: Users,
     topics: [
       { id: 'handbook', title: 'Employee Handbook 2026', type: 'document' },
       { id: 'mission', title: 'Mission, Vision, Values', type: 'document' },
@@ -46,7 +49,7 @@ const SECTIONS: Section[] = [
   {
     id: 'sop',
     title: 'SOP',
-    icon: '📋',
+    icon: BookOpen,
     topics: [
       { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'video' },
       { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document' },
@@ -62,7 +65,7 @@ const SECTIONS: Section[] = [
   {
     id: 'website-training',
     title: 'Official Website/Training',
-    icon: '🌐',
+    icon: Globe,
     topics: [
       { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'link' },
       { id: 'website', title: 'Tapway Website', type: 'link' },
@@ -73,7 +76,7 @@ const SECTIONS: Section[] = [
   {
     id: 'policies',
     title: 'Company Policies',
-    icon: '⚖️',
+    icon: Shield,
     topics: [
       { id: 'code-conduct', title: 'Code of Conduct', type: 'document' },
       { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document' },
@@ -95,14 +98,22 @@ export function HrCornerTab({ department, color }: Props) {
     <div className="sd-stack">
       {/* Welcome Banner */}
       <div style={{
-        background: `linear-gradient(135deg, ${color} 0%, #0d9488 100%)`,
+        background: `linear-gradient(135deg, ${NAVY} 0%, ${SURFACE_2} 100%)`,
+        border: `1px solid ${BORDER}`,
         borderRadius: '12px',
-        padding: '24px 28px',
-        color: '#fff',
-        marginBottom: '20px',
+        padding: '28px 32px',
+        color: TEXT,
+        marginBottom: '24px',
+        boxShadow: '0 4px 20px rgba(0,0,0,0.3)',
       }}>
-        <h2 style={{ fontSize: '1.3rem', fontWeight: 700, margin: '0 0 8px' }}>👋🏻 Welcome to HR Corner!</h2>
-        <p style={{ fontSize: '0.88rem', lineHeight: 1.5, margin: 0, opacity: 0.95 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginBottom: '12px' }}>
+          <span style={{ fontSize: '2rem' }}>👋🏻</span>
+          <div>
+            <h2 style={{ fontSize: '1.4rem', fontWeight: 700, margin: 0, color: TEXT }}>Welcome to HR Corner</h2>
+            <p style={{ fontSize: '0.85rem', color: LIME, margin: '4px 0 0', fontWeight: 600 }}>Employee Handbook 2026</p>
+          </div>
+        </div>
+        <p style={{ fontSize: '0.88rem', lineHeight: 1.6, margin: '16px 0 0', color: MUTED, maxWidth: '800px' }}>
           This dashboard is designed to provide you with information about working conditions, employee benefits and policies. 
           For more details you may refer to the company handbook. If you are in doubt in certain contents of this dashboard 
           or in the handbook, you should seek clarification from the Human Resource Department.
@@ -110,82 +121,150 @@ export function HrCornerTab({ department, color }: Props) {
       </div>
 
       {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-4">
+      <div className="grid gap-6 lg:grid-cols-12">
         {/* Left Sidebar - Sections Navigation */}
-        <div style={{ gridColumn: 'span 1' }}>
-          <div className="sd-chart-card" style={{ padding: 0 }}>
-            {SECTIONS.map((section) => (
-              <div key={section.id}>
-                <button
-                  onClick={() => setExpandedSection(expandedSection === section.id ? '' : section.id)}
-                  style={{
-                    width: '100%',
-                    padding: '14px 18px',
-                    background: expandedSection === section.id ? `${color}15` : 'transparent',
-                    border: 'none',
-                    borderBottom: `1px solid ${BORDER}`,
-                    cursor: 'pointer',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'space-between',
-                    textAlign: 'left',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-                    <span style={{ fontSize: '1.2rem' }}>{section.icon}</span>
-                    <span style={{ fontSize: '0.88rem', fontWeight: 600, color: TEXT }}>{section.title}</span>
-                  </div>
-                  <span style={{ fontSize: '0.75rem', color: MUTED }}>
-                    {expandedSection === section.id ? '▼' : '▶'}
-                  </span>
-                </button>
-                
-                {expandedSection === section.id && (
-                  <div style={{ padding: '8px 0' }}>
-                    {section.topics.map((topic) => (
-                      <button
-                        key={topic.id}
-                        onClick={() => setSelectedTopic(topic)}
-                        style={{
-                          width: '100%',
-                          padding: '10px 18px 10px 46px',
-                          background: selectedTopic?.id === topic.id ? `${color}15` : 'transparent',
-                          border: 'none',
-                          cursor: 'pointer',
-                          textAlign: 'left',
-                          fontSize: '0.82rem',
-                          color: selectedTopic?.id === topic.id ? color : MUTED,
-                          fontWeight: selectedTopic?.id === topic.id ? 600 : 400,
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: '8px',
-                        }}
-                      >
-                        {topic.type === 'video' && '🎥'}
-                        {topic.type === 'link' && '🔗'}
-                        {topic.type === 'image' && '🖼️'}
-                        {topic.type === 'document' && '📄'}
-                        <span className="truncate">{topic.title}</span>
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-            ))}
+        <div style={{ gridColumn: 'span 4' }}>
+          <div className="sd-chart-card" style={{ 
+            background: SURFACE, 
+            border: `1px solid ${BORDER}`,
+            padding: 0,
+            borderRadius: '12px',
+          }}>
+            {SECTIONS.map((section) => {
+              const Icon = section.icon;
+              const isExpanded = expandedSection === section.id;
+              return (
+                <div key={section.id}>
+                  <button
+                    onClick={() => setExpandedSection(isExpanded ? '' : section.id)}
+                    style={{
+                      width: '100%',
+                      padding: '16px 20px',
+                      background: isExpanded ? SURFACE_2 : 'transparent',
+                      border: 'none',
+                      borderBottom: `1px solid ${BORDER}`,
+                      cursor: 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      textAlign: 'left',
+                      transition: 'background 0.2s ease',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                      <Icon 
+                        className="h-5 w-5"
+                        style={{ color: isExpanded ? LIME : MUTED }}
+                      />
+                      <span style={{ 
+                        fontSize: '0.88rem', 
+                        fontWeight: 600, 
+                        color: isExpanded ? TEXT : MUTED,
+                        transition: 'color 0.2s ease',
+                      }}>
+                        {section.title}
+                      </span>
+                    </div>
+                    <span style={{ 
+                      fontSize: '0.7rem', 
+                      color: MUTED,
+                      transition: 'transform 0.2s ease',
+                      transform: isExpanded ? 'rotate(90deg)' : 'rotate(0deg)',
+                    }}>
+                      ▶
+                    </span>
+                  </button>
+                  
+                  {isExpanded && (
+                    <div style={{ padding: '8px 0', background: SURFACE_2 }}>
+                      {section.topics.map((topic) => {
+                        const isSelected = selectedTopic?.id === topic.id;
+                        return (
+                          <button
+                            key={topic.id}
+                            onClick={() => setSelectedTopic(topic)}
+                            style={{
+                              width: '100%',
+                              padding: '12px 20px 12px 52px',
+                              background: isSelected ? `${LIME}20` : 'transparent',
+                              border: 'none',
+                              borderLeft: isSelected ? `3px solid ${LIME}` : '3px solid transparent',
+                              cursor: 'pointer',
+                              textAlign: 'left',
+                              fontSize: '0.82rem',
+                              color: isSelected ? LIME : MUTED,
+                              fontWeight: isSelected ? 600 : 400,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: '10px',
+                              transition: 'all 0.15s ease',
+                            }}
+                            onMouseEnter={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = `${LIME}10`;
+                              }
+                            }}
+                            onMouseLeave={(e) => {
+                              if (!isSelected) {
+                                e.currentTarget.style.background = 'transparent';
+                              }
+                            }}
+                          >
+                            <span style={{ opacity: 0.7 }}>
+                              {topic.type === 'video' && '🎥'}
+                              {topic.type === 'link' && '🔗'}
+                              {topic.type === 'image' && '🖼️'}
+                              {topic.type === 'document' && '📄'}
+                            </span>
+                            <span className="truncate" style={{ flex: 1 }}>{topic.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
 
         {/* Main Content Area */}
-        <div style={{ gridColumn: 'span 3' }}>
+        <div style={{ gridColumn: 'span 8' }}>
           {selectedTopic ? (
             <TopicDetailView topic={selectedTopic} onClose={() => setSelectedTopic(null)} />
           ) : (
-            <div className="sd-chart-card" style={{ padding: '40px', textAlign: 'center' }}>
-              <div style={{ fontSize: '3rem', marginBottom: '16px' }}>📚</div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: NAVY, marginBottom: '8px' }}>
+            <div className="sd-chart-card" style={{ 
+              background: SURFACE, 
+              border: `1px solid ${BORDER}`,
+              padding: '60px 40px', 
+              textAlign: 'center',
+              borderRadius: '12px',
+              minHeight: '400px',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              justifyContent: 'center',
+            }}>
+              <div style={{ 
+                fontSize: '4rem', 
+                marginBottom: '20px',
+                opacity: 0.3,
+              }}>📚</div>
+              <h3 style={{ 
+                fontSize: '1.2rem', 
+                fontWeight: 700, 
+                color: TEXT, 
+                margin: '0 0 12px' 
+              }}>
                 Select a topic from the sidebar
               </h3>
-              <p style={{ fontSize: '0.88rem', color: MUTED, maxWidth: '400px', margin: '0 auto' }}>
+              <p style={{ 
+                fontSize: '0.88rem', 
+                color: MUTED, 
+                maxWidth: '450px',
+                lineHeight: 1.6,
+                margin: 0,
+              }}>
                 Browse through Team, SOP, Training, or Company Policies sections to access detailed information and resources.
               </p>
             </div>
@@ -199,14 +278,16 @@ export function HrCornerTab({ department, color }: Props) {
 // ─── Topic Detail View ────────────────────────────────────────────────────────
 
 function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => void }) {
-  const getTypeIcon = (type?: string) => {
+  const getTypeInfo = (type?: string) => {
     switch (type) {
-      case 'video': return '🎥';
-      case 'link': return '🔗';
-      case 'image': return '🖼️';
-      default: return '📄';
+      case 'video': return { icon: '🎥', label: 'Video', color: '#ef4444' };
+      case 'link': return { icon: '🔗', label: 'External Link', color: '#3b82f6' };
+      case 'image': return { icon: '🖼️', label: 'Image Gallery', color: '#8b5cf6' };
+      default: return { icon: '📄', label: 'Document', color: LIME };
     }
   };
+
+  const typeInfo = getTypeInfo(topic.type);
 
   const getSampleContent = (topicId: string): string => {
     const contents: Record<string, string> = {
@@ -220,34 +301,61 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
   };
 
   return (
-    <div className="sd-chart-card">
+    <div className="sd-chart-card" style={{ 
+      background: SURFACE, 
+      border: `1px solid ${BORDER}`,
+      borderRadius: '12px',
+      overflow: 'hidden',
+    }}>
       {/* Header */}
       <div style={{ 
-        padding: '20px 24px', 
+        padding: '24px 28px', 
         borderBottom: `1px solid ${BORDER}`,
         display: 'flex',
         justifyContent: 'space-between',
-        alignItems: 'center',
-        marginBottom: '20px',
+        alignItems: 'flex-start',
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <span style={{ fontSize: '1.5rem' }}>{getTypeIcon(topic.type)}</span>
+        <div style={{ display: 'flex', alignItems: 'flex-start', gap: '16px' }}>
+          <span style={{ fontSize: '2.5rem', lineHeight: 1 }}>{typeInfo.icon}</span>
           <div>
-            <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: NAVY, margin: 0 }}>{topic.title}</h3>
-            <span style={{ fontSize: '0.72rem', color: MUTED, textTransform: 'uppercase' }}>
-              {topic.type || 'Document'}
-            </span>
+            <h3 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: '0 0 6px' }}>
+              {topic.title}
+            </h3>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ 
+                fontSize: '0.7rem', 
+                color: LIME, 
+                textTransform: 'uppercase',
+                letterSpacing: '0.08em',
+                fontWeight: 600,
+                background: `${LIME}15`,
+                padding: '4px 10px',
+                borderRadius: '6px',
+              }}>
+                {typeInfo.label}
+              </span>
+            </div>
           </div>
         </div>
         <button
           onClick={onClose}
           style={{
-            background: 'none',
-            border: 'none',
+            background: 'transparent',
+            border: `1px solid ${BORDER}`,
             fontSize: '1.2rem',
             color: MUTED,
             cursor: 'pointer',
-            padding: '8px',
+            padding: '8px 12px',
+            borderRadius: '8px',
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = LIME;
+            e.currentTarget.style.color = LIME;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = BORDER;
+            e.currentTarget.style.color = MUTED;
           }}
         >
           ✕
@@ -255,90 +363,143 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
       </div>
 
       {/* Content */}
-      <div style={{ padding: '0 24px 24px' }}>
+      <div style={{ padding: '28px' }}>
         <div style={{ 
-          fontSize: '0.9rem', 
-          lineHeight: 1.7, 
+          fontSize: '0.92rem', 
+          lineHeight: 1.8, 
           color: TEXT,
           whiteSpace: 'pre-line',
+          marginBottom: '28px',
         }}>
           {getSampleContent(topic.id)}
         </div>
 
         {/* Action Buttons */}
-        <div style={{ marginTop: '24px', display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+        <div style={{ 
+          marginTop: '32px', 
+          paddingTop: '24px',
+          borderTop: `1px solid ${BORDER}`,
+          display: 'flex', 
+          gap: '12px', 
+          flexWrap: 'wrap',
+        }}>
           {topic.type === 'document' && (
             <>
               <button style={{
-                padding: '10px 20px',
-                background: '#10b981',
-                color: '#fff',
+                padding: '12px 24px',
+                background: LIME,
+                color: LIME_TEXT,
                 border: 'none',
                 borderRadius: '8px',
                 fontSize: '0.85rem',
-                fontWeight: 600,
+                fontWeight: 700,
                 cursor: 'pointer',
-              }}>
+                transition: 'all 0.2s ease',
+                boxShadow: '0 2px 8px rgba(206, 239, 125, 0.2)',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.background = LIME_DIM;
+                e.currentTarget.style.boxShadow = '0 4px 12px rgba(206, 239, 125, 0.3)';
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.background = LIME;
+                e.currentTarget.style.boxShadow = '0 2px 8px rgba(206, 239, 125, 0.2)';
+              }}
+              >
                 📥 Download PDF
               </button>
               <button style={{
-                padding: '10px 20px',
-                background: '#f3f4f6',
+                padding: '12px 24px',
+                background: 'transparent',
                 color: TEXT,
-                border: 'none',
+                border: `1px solid ${BORDER}`,
                 borderRadius: '8px',
                 fontSize: '0.85rem',
                 fontWeight: 600,
                 cursor: 'pointer',
-              }}>
+                transition: 'all 0.2s ease',
+              }}
+              onMouseEnter={(e) => {
+                e.currentTarget.style.borderColor = LIME;
+                e.currentTarget.style.color = LIME;
+              }}
+              onMouseLeave={(e) => {
+                e.currentTarget.style.borderColor = BORDER;
+                e.currentTarget.style.color = TEXT;
+              }}
+              >
                 🔖 Bookmark
               </button>
             </>
           )}
           {topic.type === 'video' && (
             <button style={{
-              padding: '10px 20px',
+              padding: '12px 24px',
               background: '#ef4444',
               color: '#fff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.85rem',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
-            }}>
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#dc2626';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#ef4444';
+            }}
+            >
               ▶️ Play Video
             </button>
           )}
           {topic.type === 'link' && (
             <button style={{
-              padding: '10px 20px',
+              padding: '12px 24px',
               background: '#3b82f6',
               color: '#fff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.85rem',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
-            }}>
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#2563eb';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#3b82f6';
+            }}
+            >
               🔗 Open Link
             </button>
           )}
           {topic.type === 'image' && (
             <button style={{
-              padding: '10px 20px',
+              padding: '12px 24px',
               background: '#8b5cf6',
               color: '#fff',
               border: 'none',
               borderRadius: '8px',
               fontSize: '0.85rem',
-              fontWeight: 600,
+              fontWeight: 700,
               cursor: 'pointer',
-            }}>
+              transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = '#7c3aed';
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = '#8b5cf6';
+            }}
+            >
               🖼️ View Gallery
             </button>
           )}
           <button style={{
-            padding: '10px 20px',
+            padding: '12px 24px',
             background: 'transparent',
             color: MUTED,
             border: `1px solid ${BORDER}`,
@@ -346,7 +507,17 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
             fontSize: '0.85rem',
             fontWeight: 600,
             cursor: 'pointer',
-          }}>
+            transition: 'all 0.2s ease',
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.borderColor = LIME;
+            e.currentTarget.style.color = LIME;
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.borderColor = BORDER;
+            e.currentTarget.style.color = MUTED;
+          }}
+          >
             ❓ Contact HR
           </button>
         </div>
