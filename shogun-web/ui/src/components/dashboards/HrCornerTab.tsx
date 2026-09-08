@@ -262,7 +262,20 @@ Visit our official website to learn more about:
 • Latest news and updates
 • Contact information
 • Career opportunities` },
-      { id: 'social-media', title: 'Social Media', type: 'link' },
+      { id: 'social-media', title: 'Social Media', type: 'document', content: `💡 Tapway's Social Media
+
+🐦 Twitter: @TapwaySolutions
+📸 Instagram: @TapwaySolutions
+📘 Facebook: Tapway
+🔖 LinkedIn: Tapway
+📱 TikTok: @TapwaySolutions
+
+Follow us on social media to stay updated with:
+• Latest product launches and features
+• Company news and milestones
+• Industry insights and thought leadership
+• Event participation and conferences
+• Career opportunities and team culture` },
       { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `AWS Certification Guideline
 
 Refer to the Training and Development policy (Section 6 of Employee Handbook):
