@@ -82,7 +82,7 @@ export function PostProjectTab({ dept, color, onOpenProject }: Props) {
   }
 
   const statCardStyle: React.CSSProperties = {
-    background: '#fff',
+    background: SURFACE,
     borderRadius: '12px',
     padding: '20px 24px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',

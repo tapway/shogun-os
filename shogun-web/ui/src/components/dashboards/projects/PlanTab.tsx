@@ -12,6 +12,7 @@ interface Props {
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const SURFACE = 'var(--samurai-surface)';
+const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 const NAVY = '#1e3a5f';
 const GREEN = '#10b981';
@@ -161,7 +162,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
   };
 
   const statCardStyle: React.CSSProperties = {
-    background: '#fff',
+    background: SURFACE,
     borderRadius: '12px',
     padding: '20px 24px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -190,7 +191,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
             padding: '8px 16px',
             borderRadius: '20px',
             border: `1px solid ${BORDER}`,
-            background: '#fff',
+            background: SURFACE,
             color: MUTED,
             fontSize: '0.82rem',
             fontWeight: 500,
@@ -298,7 +299,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
               style={{
                 flex: '1',
                 minWidth: '280px',
-                background: isToday ? '#eff6ff' : '#fff',
+                background: isToday ? SURFACE_2 : SURFACE,
                 borderRadius: '12px',
                 border: isToday ? `2px solid ${BLUE}` : `1px solid ${BORDER}`,
                 padding: '16px',
@@ -370,7 +371,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
                             key={`${task.id}-${i}`}
                             onClick={() => task.projectId && onOpenProject(task.projectId)}
                             style={{
-                              background: '#fff',
+                              background: SURFACE,
                               border: `1px solid ${BORDER}`,
                               borderRadius: '8px',
                               padding: '10px 12px',
@@ -428,7 +429,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
       <div style={{
         marginTop: '16px',
         padding: '12px 16px',
-        background: '#fff',
+        background: SURFACE,
         borderRadius: '8px',
         border: `1px solid ${BORDER}`,
         fontSize: '0.72rem',
