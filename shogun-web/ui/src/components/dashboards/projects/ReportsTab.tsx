@@ -11,6 +11,7 @@ interface Props {
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
+const SURFACE = 'var(--samurai-surface)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 const DANGER = 'var(--samurai-danger)';
@@ -131,15 +132,15 @@ export function ReportsTab({ dept, color, onOpenProject }: Props) {
 
       {/* Charts */}
       <div className="grid gap-4 lg:grid-cols-3">
-        <div className="sd-chart-card">
+        <div className="sd-chart-card" style={{ background: SURFACE }}>
           <h3 className="sd-chart-title">Portfolio Health</h3>
           <DonutWithLegend data={toChartData(projectsByHealth)} color={color} />
         </div>
-        <div className="sd-chart-card">
+        <div className="sd-chart-card" style={{ background: SURFACE }}>
           <h3 className="sd-chart-title">Projects by Status</h3>
           <DonutWithLegend data={toChartData(projectsByStatus)} color={color} />
         </div>
-        <div className="sd-chart-card">
+        <div className="sd-chart-card" style={{ background: SURFACE }}>
           <h3 className="sd-chart-title">Projects per PM</h3>
           <BarChart
             data={Object.entries(projectsByPm).map(([name, count]) => ({ name, count }))}
@@ -153,11 +154,11 @@ export function ReportsTab({ dept, color, onOpenProject }: Props) {
       </div>
 
       {/* Portfolio table */}
-      <div className="sd-chart-card">
+      <div className="sd-chart-card" style={{ background: SURFACE }}>
         <h3 className="sd-chart-title">Portfolio Report</h3>
         <p className="sd-chart-sub">Per-project health, task load, and completion — click to drill down</p>
         <div className="overflow-x-auto" style={{ maxHeight: '560px', overflowY: 'auto' }}>
-          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+          <table className="w-full text-sm" style={{ borderCollapse: 'collapse', background: SURFACE }}>
             <thead>
               <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                 <Th align="left">Project</Th>
