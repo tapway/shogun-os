@@ -276,23 +276,16 @@ Follow us on social media to stay updated with:
 • Industry insights and thought leadership
 • Event participation and conferences
 • Career opportunities and team culture` },
-      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `AWS Certification Guideline
+      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `Kindly refer to the SOP here:
 
-Refer to the Training and Development policy (Section 6 of Employee Handbook):
+https://docs.google.com/document/d/1I1r4D8jKwWveWrAjoxbi5n2leea96ylIIclcZcXSf4Q/edit?tab=t.0
 
-Training Course or Certification Program
-• The employee will have to sign a bonded agreement with the company when attending any Training Courses or Certification Program sponsored by the company.
-
-Course Value | Bonded Period
-Less than RM 10,000 | 12 months
-RM 10,001 – RM 20,000 | 24 months
-More than RM 20,000 | 36 months
-
-• In the event the employee violates the terms of the Agreement by not continuing employment with the Company for the period stipulated herein, then he/she shall pay back the full amount of the training course to the Company.
-
-Training Module
-• The training cost must be less than RM 5,000 and does not provide any certificate.
-• No bonded agreement required.` },
+This document contains the complete guidelines for AWS certification including:
+• Eligibility requirements
+• Application process
+• Exam preparation resources
+• Reimbursement procedures
+• Bonded agreement terms (refer to Training & Development policy in Employee Handbook Section 6)` },
     ],
   },
   {
