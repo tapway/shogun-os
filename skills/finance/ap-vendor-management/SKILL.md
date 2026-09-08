@@ -1,68 +1,43 @@
 ---
 name: ap-vendor-management
-description: "Use when handling supplier invoices, 3-way matching (PO + GRN + Invoice), payment batching, or vendor account reconciliation. Produces a payment batch and vendor reconciliation statement."
+description: "Manage supplier invoices, 3-way matching (PO + GRN + Invoice), and payment scheduling for accounts payable."
 departments: [finance]
 version: 1.0.0
 author: Shogun OS
-license: MIT
+tags: [accounts-payable, vendor, invoice, 3-way-match]
 metadata:
   hermes:
-    tags: [finance, ops, ap, vendor, matching, payments, reconciliation]
-    category: finance
-    related_skills: [ar-credit-control, bank-payment-reconciliation]
+    related_skills: [bank-payment-reconciliation, period-end-close-checklist]
 ---
 
-# Accounts Payable & Supplier Disbursements
+# AP Vendor Management
 
-## Overview
+Use when handling supplier invoices, 3-way matching (PO + GRN + Invoice), or scheduling payments.
 
-Handles supplier invoices, 3-way matching (PO + GRN + Invoice), payment batching, and vendor account reconciliation. The skill produces a matched payment batch ready for approval and a vendor reconciliation statement per period, using existing `acct_*` contract tools — no new procurement integration is implied.
+## Workflow
 
-## When to Use
+1. **Receive Invoice** — Scan or upload supplier invoice
+2. **3-Way Match** — Verify PO number, GRN quantity, and invoice amount match
+3. **Discrepancy Flag** — If mismatch > RM 50 or qty diff > 5%, flag for review
+4. **Approve Payment** — Route to finance approver based on amount threshold
+5. **Schedule Payment** — Add to next payment run batch
 
-- Supplier invoice received and needs matching to a purchase order and goods-receipt note
-- Weekly or fortnightly AP payment run requires batching and approval routing
-- Month-end vendor statement reconciliation to confirm balances match supplier records
-- New vendor onboarding requires credit terms and bank detail setup in QuickBooks
+## Key Rules
 
-Don't use for: customer invoice collections — see [ar-credit-control](../ar-credit-control/SKILL.md); bank/gateway settlement — see [bank-payment-reconciliation](../bank-payment-reconciliation/SKILL.md).
+- Invoices without PO reference → hold in "Unmatched" queue
+- Credit notes auto-offset against open invoices from same vendor
+- Payment terms: Net 30 default, override per vendor master
 
-## Prerequisites
+## Pitfalls
 
-- Owning profile: `finance-manager`
-- MCP / tools: `acct_list_purchase_bills`, `acct_create_purchase_bill`, `acct_list_contacts`, `acct_get_aging_report` (existing `acct_*` contract tools)
-- gbrain `finance` source (for PO register and GRN records at `finance/po-register/`)
+| Issue | Solution |
+|-------|----------|
+| Duplicate invoice entry | Check vendor+invoice# combo before posting |
+| Currency mismatch | Convert to MYR using BNM rate on invoice date |
+| SST not separated | Extract SST line item; validate 6%/8% rate |
 
-## Workflows
+## Verification
 
-### 3-Way Invoice Match
-
-1. Load the supplier invoice and retrieve the matching PO from `finance/po-register/` in the gbrain finance source — done when: PO number, ordered quantity, and unit price are confirmed.
-2. Confirm the goods-receipt note (GRN) in the gbrain finance source matches the invoice quantity — done when: received quantity equals or is explicitly short-received against invoiced quantity.
-3. Compare invoice unit price and total against the PO — done when: price variance is zero or within the approved tolerance; flag exceptions for manual approval.
-4. Call `acct_create_purchase_bill` to post the matched invoice in QuickBooks — done when: the bill is posted with correct GL code, cost centre, and payment terms.
-
-### Payment Batch Run
-
-1. Call `acct_get_aging_report(type="payable")` — done when: AP aging by supplier is populated with due dates.
-2. Filter invoices due within the payment run window (configurable: 7 or 14 days) — done when: a payment batch list is produced with supplier name, bank details, and net amount.
-3. Submit the payment batch for two-person approval — done when: an approver acknowledgement is logged in the gbrain finance source before funds are released.
-
-### Vendor Account Reconciliation
-
-1. Pull all bills for the period via `acct_list_purchase_bills(date_from=period_start, date_to=period_end)` — done when: all posted bills and credit notes are listed.
-2. Compare against the supplier's statement — done when: matched, unmatched, and disputed items are identified and a reconciliation statement is produced.
-
-## Common Pitfalls
-
-1. **3-way match tolerance abuse** — price tolerance should be narrow (e.g., ≤1%); wide tolerances allow overbilling to pass silently.
-2. **Duplicate invoice risk** — same invoice number from same supplier on same date must trigger a duplicate check before posting.
-3. **Payment terms date calculation** — Net-30 from invoice date vs. receipt date differs; confirm which governs in the supplier contract.
-4. **Segregation of duties** — the same person must not approve a bill and approve the payment; enforce 2-person sign-off in the payment batch step.
-
-## Verification Checklist
-
-- [ ] Skill installed under owning profile `skills/ap-vendor-management/`
-- [ ] `/ap-vendor-management` loads on the `finance-manager` profile
-- [ ] Happy-path 3-way match completed once with a test invoice, PO, and GRN
-- [ ] Payment batch produces an approval-ready list before any disbursement
+- [ ] All invoices have valid PO reference
+- [ ] 3-way match passes or discrepancy documented
+- [ ] Payment scheduled within vendor terms

@@ -1511,6 +1511,12 @@ def _scan_one_skill(skill_path: Path, repo_root: Path) -> Optional[Dict[str, Any
         tags = [tags]
     tags = [str(t) for t in tags]
 
+    # departments (array from frontmatter — used by SkillsCatalog filter)
+    departments = fm.get("departments") or []
+    if not isinstance(departments, list):
+        departments = [departments]
+    departments = [str(d) for d in departments]
+
     # related_skills
     related = []
     meta = fm.get("metadata") or {}
@@ -1552,6 +1558,7 @@ def _scan_one_skill(skill_path: Path, repo_root: Path) -> Optional[Dict[str, Any
         "description": description,
         "category": _title_case_category(dept_dir),
         "department_key": dept_dir,
+        "departments": departments,
         "installed": installed,
         "version": version,
         "author": author,
