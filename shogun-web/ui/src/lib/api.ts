@@ -40,6 +40,7 @@ import type {
   HrDashboardStats,
   HrEquipment,
   HrInterview,
+  HrInterviewTemplate,
   HrJobOpening,
   HrOnboardingChecklistItem,
   HrResumeExtract,
@@ -970,6 +971,55 @@ export const hrApi = {
     apiFetch<{ ok: boolean; interview: HrInterview }>(
       `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/status`,
       { method: 'POST', body: JSON.stringify({ status }) },
+    ),
+  generateQuestions: (dept: string, interviewId: number) =>
+    apiFetch<{ ok: boolean; source: string; questions: string[]; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/generate-questions`,
+      { method: 'POST' },
+    ),
+  saveQuestions: (dept: string, interviewId: number, questions: string[]) =>
+    apiFetch<{ ok: boolean; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/questions`,
+      { method: 'POST', body: JSON.stringify({ questions }) },
+    ),
+  saveInterviewTemplate: (dept: string, interviewId: number, payload: { name: string; department?: string; role_pattern?: string; round?: string }) =>
+    apiFetch<{ ok: boolean; template: HrInterviewTemplate }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/save-template`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  listInterviewTemplates: (dept: string, filters?: { department?: string; round?: string }) => {
+    const qs = new URLSearchParams();
+    if (filters?.department) qs.set('department', filters.department);
+    if (filters?.round) qs.set('round', filters.round);
+    const suffix = qs.toString() ? `?${qs.toString()}` : '';
+    return apiFetch<{ ok: boolean; templates: HrInterviewTemplate[] }>(
+      `/api/departments/${dept}/dashboard/hr/interview-templates${suffix}`,
+    );
+  },
+  deleteInterviewTemplate: (dept: string, templateId: number) =>
+    apiFetch<{ ok: boolean }>(
+      `/api/departments/${dept}/dashboard/hr/interview-templates/${templateId}`,
+      { method: 'DELETE' },
+    ),
+  createInterviewTemplate: (dept: string, payload: { name?: string; department?: string; role_pattern: string; round: string; questions: string[] }) =>
+    apiFetch<{ ok: boolean; template: HrInterviewTemplate }>(
+      `/api/departments/${dept}/dashboard/hr/interview-templates`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  updateInterviewTemplate: (dept: string, templateId: number, payload: { name?: string; department?: string; role_pattern: string; round: string; questions: string[] }) =>
+    apiFetch<{ ok: boolean; template: HrInterviewTemplate }>(
+      `/api/departments/${dept}/dashboard/hr/interview-templates/${templateId}`,
+      { method: 'PUT', body: JSON.stringify(payload) },
+    ),
+  applyInterviewTemplate: (dept: string, interviewId: number, templateId: number) =>
+    apiFetch<{ ok: boolean; questions: string[]; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/apply-template`,
+      { method: 'POST', body: JSON.stringify({ template_id: templateId }) },
+    ),
+  postInterviewReview: (dept: string, interviewId: number, payload: { rating: number | null; comment: string }) =>
+    apiFetch<{ ok: boolean; interview: HrInterview }>(
+      `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/post-interview`,
+      { method: 'POST', body: JSON.stringify(payload) },
     ),
   candidateWaiting: (dept: string, id: number, note: string) =>
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(

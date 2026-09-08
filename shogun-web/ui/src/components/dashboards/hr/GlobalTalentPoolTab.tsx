@@ -16,6 +16,14 @@ const TEXT = "var(--samurai-text)";
 const BORDER = "var(--samurai-border)";
 const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
+
+/** Long date format for Date Entry: "11 September 2026". */
+function fmtDateEntry(s: string | null | undefined): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
 const DANGER = "var(--samurai-danger)";
 const OK = "var(--samurai-ok)";
 
@@ -207,7 +215,7 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
                     <td style={{ ...tdStyle, fontSize: "0.75rem" }}>
                       {c.email || "—"}{c.phone_no ? ` · ${c.phone_no}` : ""}
                     </td>
-                    <td style={{ ...tdStyle, fontSize: "0.75rem" }}>{c.date_entry || "—"}</td>
+                    <td style={{ ...tdStyle, fontSize: "0.75rem" }}>{fmtDateEntry(c.date_entry)}</td>
                     <td style={tdStyle}>
                       {c.resume_url ? (
                         <a href={c.resume_url} target="_blank" rel="noreferrer" onClick={(e) => e.stopPropagation()} style={{ color: LIME, display: "inline-flex", alignItems: "center", gap: "0.25rem", fontWeight: 600 }}>

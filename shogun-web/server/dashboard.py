@@ -8,8 +8,10 @@ import logging
 import os
 import pathlib
 import re as _re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Annotated, Any, Dict, List, Optional, Tuple
@@ -4833,6 +4835,62 @@ async def list_all_inspections(
 # HR Dashboard — synced from Notion via scripts/sync-notion-hr.py
 # ──────────────────────────────────────────────────────────────────────────
 
+# Employee profiles also live in the brain at ~/brain/HR/Profiles (gbrain slug
+# space ``hr/profiles/<slug>``). The brain is the richer source (role, manager,
+# hire date, phone, employee ID) — merged into the directory at read time so
+# the dashboard shows real staff data without a Notion sync prerequisite.
+
+def _norm_emp_name(name: str | None) -> str:
+    """Normalize a person name for merge matching: lowercase, strip
+    honorifics/bin/punctuation, collapse spaces."""
+    s = str(name or "").lower()
+    s = _re.sub(r"\b(bin|binti|bt\.?|a\/l|a\/p)\b", " ", s)
+    s = _re.sub(r"[^a-z0-9 ]", " ", s)
+    return _re.sub(r"\s+", " ", s).strip()
+
+
+def _parse_gbrain_employee_profiles(pages: list) -> list:
+    """Parse brain profile pages (~/brain/HR/Profiles format) into employee
+    dicts matching the HrEmployee.to_dict() shape the UI consumes."""
+    out = []
+    seen_names: set = set()
+    for p in pages or []:
+        slug = str(p.get("slug", ""))
+        if not slug.startswith("hr/profiles/") or slug.endswith("readme"):
+            continue
+        body = (p.get("compiled_truth") or p.get("content")
+                or p.get("body") or "")
+        if not body:
+            continue
+
+        def _field(label: str) -> str:
+            m = _re.search(r"\*\*" + _re.escape(label) + r":\*\*\s*(.+)", body)
+            return m.group(1).strip() if m else ""
+
+        name = (str((p.get("title") or "")).strip()
+                or _field("Title") or slug.rsplit("/", 1)[-1].replace("-", " ").title())
+        if not name:
+            continue
+        # dedupe on normalized name (e.g. hr/profiles/phu is the same person as
+        # hr/profiles/ho-tien-hung with a retired alias) — keep the first hit
+        key = _norm_emp_name(name)
+        if not key or key in seen_names:
+            continue
+        seen_names.add(key)
+        m = _re.search(r"\*\*Mobile Phone:\*\*\s*(.+)", body)
+        phone = m.group(1).strip() if m else ""
+        out.append({
+            "employees_name": name,
+            "role": _field("Role"),
+            "department": _field("Department"),
+            "manager_name": _field("Manager"),
+            "date_of_hire": _field("Joining Date")[:10],
+            "phone_number": phone,
+            "linkedin_profile": "",  # not stored in brain profiles yet
+            "notion_page_id": slug,  # brain slug — stable identifier
+        })
+    return out
+
 
 @router.get("/hr-stats")
 async def get_hr_stats(
@@ -4865,6 +4923,52 @@ async def get_hr_stats(
         raise HTTPException(status_code=404, detail="Tenant not found")
 
     employees = db.execute(select(HrEmployee).where(HrEmployee.tenant_id == tenant.id)).scalars().all()
+
+    # ── gbrain employees: merge ~/brain/HR/Profiles into the directory ──
+    # Portal accounts (hr_employees) and brain profiles overlap only partially;
+    # the brain is the richer source (role, manager, hire date, phone, emp ID).
+    # Merge key = normalized full name; brain fills missing fields on existing
+    # rows and appends staff not yet in the portal DB.
+    try:
+        brain_pages = await _fetch_brain_pages_safe(
+            "hr", limit=200, slug_prefix="hr/profiles/")
+        brain_emps = _parse_gbrain_employee_profiles(brain_pages)
+    except Exception as exc:
+        logger.warning("gbrain employee profiles fetch failed: %s", exc)
+        brain_emps = []
+
+    portal_by_name = {_norm_emp_name(e.employees_name): e for e in employees}
+    merged_employees = list(employees)
+    for be in brain_emps:
+        key = _norm_emp_name(be["employees_name"])
+        existing = portal_by_name.get(key)
+        if existing is not None:
+            # backfill empty fields from the brain profile
+            if not existing.role and be.get("role"):
+                existing.role = be["role"]
+            if not existing.department and be.get("department"):
+                existing.department = be["department"]
+            if not existing.manager_name and be.get("manager_name"):
+                existing.manager_name = be["manager_name"]
+            if not existing.date_of_hire and be.get("date_of_hire"):
+                existing.date_of_hire = be["date_of_hire"]
+            if not existing.phone_number and be.get("phone_number"):
+                existing.phone_number = be["phone_number"]
+        else:
+            # staff member with a brain profile but no portal record — append
+            new_emp = HrEmployee(
+                tenant_id=tenant.id,
+                employees_name=be["employees_name"],
+                department=be.get("department") or "",
+                role=be.get("role") or "",
+                manager_name=be.get("manager_name") or "",
+                date_of_hire=be.get("date_of_hire") or "",
+                phone_number=be.get("phone_number") or "",
+                linkedin_profile=be.get("linkedin_profile") or "",
+                notion_page_id=be.get("notion_page_id") or "",
+            )
+            merged_employees.append(new_emp)
+    employees = merged_employees
     job_openings = db.execute(select(HrJobOpening).where(HrJobOpening.tenant_id == tenant.id)).scalars().all()
     candidates = db.execute(select(HrCandidate).where(HrCandidate.tenant_id == tenant.id)).scalars().all()
     onboarding = db.execute(select(HrOnboardingTask).where(HrOnboardingTask.tenant_id == tenant.id)).scalars().all()
@@ -4891,8 +4995,32 @@ async def get_hr_stats(
         dept_counts[dept] = dept_counts.get(dept, 0) + 1
 
     pipeline_counts: dict[str, int] = {}
+    # Canonicalize legacy/raw candidate statuses so the Overview funnel and
+    # KPI counts fold e.g. "Hired" under "Done" (mirrors client STATUS_ALIASES).
+    _CAND_STATUS_CANON = {
+        "Hired": "Done",
+        "Offer Accepted": "Done",
+        "Screening - Pending": "Interview Email Sent - Waiting Reply",
+        "Screening": "Interview Email Sent - Waiting Reply",
+        "Schedule 1st Round of Interview": "Interview Email Sent - Waiting Reply",
+        "HR Review": "Interview Email Sent - Waiting Reply",
+        "Hiring Manager Review": "Interview Email Sent - Waiting Reply",
+        "Hiring Manager Pending Review": "Interview Email Sent - Waiting Reply",
+        "Pending Review": "Interview Email Sent - Waiting Reply",
+        "1st round of interview": "1st Interview Scheduled",
+        "1st Interview": "1st Interview Scheduled",
+        "Schedule Manager Interview": "Waiting Manager Interview Confirm",
+        "Manager Interview": "Manager Interview Scheduled",
+        "Schedule CEO Interview": "Waiting CEO Interview Confirm",
+        "CEO Interview": "CEO Interview Scheduled",
+        "Assessment DONE": "Waiting Offer Confirmation",
+        "Assessment Sent": "Waiting Offer Confirmation",
+        "Offer Sent": "Offer Sent - Waiting Reply",
+        "No response": "No Response",
+    }
     for cand in candidates:
         status = cand.status or "Unknown"
+        status = _CAND_STATUS_CANON.get(status, status)
         pipeline_counts[status] = pipeline_counts.get(status, 0) + 1
 
     onboarding_in_progress = sum(1 for t in onboarding if t.status == "In progress")
@@ -4917,9 +5045,18 @@ async def get_hr_stats(
 
     open_action_items = sum(1 for a in action_items if a.status in ("Open", "In progress", "Not Started"))
 
+    # "Open Positions" KPI counts only openings actively recruiting — Active /
+    # Test Ongoing only (Draft and Not Initiated are pre-recruitment; closed
+    # and hired are done). Mirrors the client isOpenJob() rule plus Draft.
+    def _is_open_requisition(raw_status: str | None) -> bool:
+        s = (raw_status or "").strip().lower()
+        return not any(k in s for k in ("closed", "hired", "not initiated", "draft"))
+
+    total_open_job_openings = sum(1 for j in job_openings if _is_open_requisition(j.job_status))
+
     return {
         "total_employees": len(employees),
-        "total_job_openings": len(job_openings),
+        "total_job_openings": total_open_job_openings,
         "overdue_openings": overdue_openings,
         "total_candidates": len(candidates),
         "pipeline_counts": pipeline_counts,
@@ -5208,7 +5345,20 @@ def _drive_file_id(url: str) -> Optional[str]:
 
 async def _fetch_candidate_doc(url: str) -> str:
     """Best-effort text extraction from a candidate's Drive-hosted resume /
-    screening-answers link. Returns "" on any failure — never raises."""
+    screening-answers link, or a locally uploaded portal file
+    (/api/doc-uploads/...). Returns "" on any failure — never raises."""
+    if (url or "").startswith("/api/doc-uploads/"):
+        try:
+            from config import get_config
+            upload_dir = pathlib.Path(get_config().db_path).parent / "dashboard_uploads"
+            safe = pathlib.Path(url).name
+            fp = (upload_dir / safe).resolve()
+            # no path traversal: must stay inside the uploads dir
+            if not str(fp).startswith(str(upload_dir.resolve())) or not fp.is_file():
+                return ""
+            return _extract_text_from_upload(fp.read_bytes()).strip()
+        except Exception:
+            return ""
     fid = _drive_file_id(url)
     if not fid:
         return ""
@@ -5538,8 +5688,32 @@ class HrInterviewStatusBody(BaseModel):
     status: str
 
 
+def _tesseract_ocr_bytes(image_bytes: bytes, ext: str = "png") -> str:
+    """OCR image bytes with the system tesseract binary (if present)."""
+    tesseract = shutil.which("tesseract")
+    if not tesseract:
+        return ""
+    with tempfile.TemporaryDirectory() as td:
+        in_path = pathlib.Path(td) / f"in.{ext}"
+        out_prefix = pathlib.Path(td) / "out"
+        try:
+            in_path.write_bytes(image_bytes)
+            subprocess.run(
+                [tesseract, str(in_path), str(out_prefix), "--psm", "3"],
+                check=True, capture_output=True, timeout=120,
+            )
+            return out_prefix.with_suffix(".txt").read_text(errors="ignore").strip()
+        except Exception:
+            return ""
+
+
 def _extract_text_from_upload(data: bytes) -> str:
-    """Best-effort text extraction from an uploaded resume document."""
+    """Best-effort text extraction from an uploaded resume document.
+
+    Handles: PDF (text layer via PyMuPDF, tesseract OCR fallback for scanned
+    pages), .docx (OOXML zip), plain text/markdown/RTF, and image uploads
+    (png/jpg/webp via tesseract OCR).
+    """
     if data[:5] == b"%PDF-":
         try:
             import fitz  # pymupdf
@@ -5547,7 +5721,25 @@ def _extract_text_from_upload(data: bytes) -> str:
             with fitz.open(stream=data, filetype="pdf") as doc:
                 for page in doc:
                     text += page.get_text()
-            return text
+            text = text.strip()
+            if len(text) >= 40:
+                return text
+            # No usable text layer — likely a scanned PDF. Rasterize and OCR.
+            pages_text = []
+            with fitz.open(stream=data, filetype="pdf") as doc:
+                for page in doc:
+                    pix = page.get_pixmap(dpi=200)
+                    pages_text.append(_tesseract_ocr_bytes(pix.tobytes("png"), "png"))
+            return "\n".join(t for t in pages_text if t).strip()
+        except Exception:
+            return ""
+    if data[:2] == b"PK":  # .docx / OOXML zip
+        try:
+            import io, zipfile as _zipfile
+            with _zipfile.ZipFile(io.BytesIO(data)) as z:
+                xml = z.read("word/document.xml").decode("utf-8", "ignore")
+            runs = _re.findall(r"<w:t[^>]*>([^<]*)</w:t>", xml)
+            return "\n".join(r.strip() for r in runs).strip()
         except Exception:
             return ""
     for enc in ("utf-8", "latin-1"):
@@ -5558,6 +5750,15 @@ def _extract_text_from_upload(data: bytes) -> str:
                 return s
         except Exception:
             continue
+    # Image uploads (png / jpeg / webp) — OCR via tesseract
+    is_image = (
+        data[:8] == b"\x89PNG\r\n\x1a\n"
+        or data[:3] == b"\xff\xd8\xff"
+        or (data[:4] == b"RIFF" and data[8:12] == b"WEBP")
+    )
+    if is_image:
+        ext = "png" if data[:8] == b"\x89PNG\r\n\x1a\n" else ("webp" if data[:4] == b"RIFF" else "jpg")
+        return _tesseract_ocr_bytes(data, ext)
     return ""
 
 
@@ -5945,6 +6146,391 @@ async def update_hr_interview_status(
     if st not in ("scheduled", "completed", "cancelled"):
         raise HTTPException(status_code=422, detail="Invalid interview status")
     iv.status = st
+    db.commit()
+    return {"ok": True, "interview": iv.to_dict()}
+
+
+class HrQuestionsBody(BaseModel):
+    questions: list = []
+
+
+class HrSaveTemplateBody(BaseModel):
+    name: str = ""
+    department: str = ""
+    role_pattern: str = ""
+    round: str = "first"
+
+
+class HrTemplateBody(BaseModel):
+    name: str = ""
+    department: str = ""
+    role_pattern: str = ""
+    round: str = "first"
+    questions: list = []
+
+
+class HrApplyTemplateBody(BaseModel):
+    template_id: int
+
+
+class HrPostInterviewBody(BaseModel):
+    rating: Optional[int] = None
+    comment: str = ""
+
+
+_ROUND_QUESTION_TEMPLATES: Dict[str, list] = {
+    "first": [
+        "Walk us through your background and why you applied for {job_title}.",
+        "What do you know about our company, and why do you want to work here?",
+        "Describe a time you handled a difficult situation at work.",
+        "Where do you see yourself in three years?",
+        "Tell me about a time you worked with a difficult teammate.",
+        "What are your greatest strengths and weaknesses?",
+        "Why should we hire you over other candidates?",
+        "Describe a time you took initiative without being asked.",
+        "What is your expected salary range for {job_title}?",
+        "Do you have any questions for us?",
+    ],
+    "manager": [
+        "What specific experience makes you a strong fit for {job_title}?",
+        "Describe a complex problem you solved in a previous role.",
+        "Walk us through your technical decisions on your most recent project.",
+        "How do you prioritize tasks when everything is urgent?",
+        "Tell me about a time you disagreed with a manager or stakeholder.",
+        "How do you stay up to date in your field?",
+        "Describe a project that failed — what did you learn?",
+        "How do you handle tight deadlines and pressure?",
+        "What tools or processes would you introduce in your first 90 days?",
+        "How do you measure your own success in a role?",
+    ],
+    "ceo": [
+        "What does our company's mission mean to you?",
+        "How do you balance ambition with patience?",
+        "Tell me about a time you made a decision with incomplete information.",
+        "What kind of culture do you thrive in?",
+        "How would you handle a situation where your values conflicted with business goals?",
+        "What is the biggest challenge you expect in this role?",
+        "How do you build trust with a new team quickly?",
+        "What would you change about how we work in your first six months?",
+        "How do you think about long-term growth versus short-term wins?",
+        "Why do you want to join us specifically at this stage of your career?",
+    ],
+}
+
+
+def _fallback_questions(round_type: str, job_title: str) -> list:
+    key = ((round_type or "").strip().lower() or "first")
+    if key not in _ROUND_QUESTION_TEMPLATES:
+        key = "first"
+    return [q.replace("{job_title}", job_title or "this role") for q in _ROUND_QUESTION_TEMPLATES[key]]
+
+
+def _interview_questions(iv) -> list:
+    if not iv.questions_json:
+        return []
+    try:
+        parsed = json.loads(iv.questions_json)
+        return [str(q).strip() for q in parsed if str(q).strip()] if isinstance(parsed, list) else []
+    except Exception:
+        return []
+
+
+def _set_interview_questions(iv, questions: list) -> None:
+    cleaned = [str(q).strip() for q in questions if str(q).strip()][:30]
+    iv.questions_json = json.dumps(cleaned)
+
+
+@router.post("/hr/interviews/{interview_id}/generate-questions")
+async def generate_hr_interview_questions(
+    interview_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Generate 10 interview questions for the interview round.
+
+    Tries a real LLM call (deepseek) grounded on the candidate's resume and the
+    job description; falls back to a per-round template on any failure.
+    """
+    from models import HrCandidate, HrInterview, HrJobOpening
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    cand = db.get(HrCandidate, iv.candidate_id) if iv.candidate_id else None
+    job = (
+        db.get(HrJobOpening, iv.job_id) if iv.job_id
+        else None
+    )
+    job_title = (job.job_title if job else "") or (cand.role if cand else "") or "this role"
+    round_label = {
+        "first": "HR (first round)",
+        "manager": "Manager",
+        "ceo": "CEO",
+    }.get((iv.round or "").strip().lower(), iv.round or "interview")
+
+    questions: list = []
+    source = "ai"
+    try:
+        resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
+        jd = (job.job_description or "") if job else ""
+        prompt = (
+            "You are an experienced hiring manager. Generate exactly 10 interview questions "
+            f"for a {round_label} interview with {cand.name if cand else 'the candidate'} applying "
+            f"for {job_title}.\n\n"
+            f"Resume text:\n{resume_text[:4000] or '(not available)'}\n\n"
+            f"Job description:\n{jd[:2000] or '(not available)'}\n\n"
+            "Return ONLY valid JSON — an array of 10 strings."
+        )
+        from gateway import _call_deepseek
+        raw = await _call_deepseek(
+            prompt,
+            system_prompt="You generate tailored interview questions. Reply with ONLY valid JSON: an array of strings.",
+            max_tokens=1200,
+        )
+        if raw:
+            parsed = _extract_json_from_text(raw)
+            if isinstance(parsed, list):
+                questions = [str(q).strip() for q in parsed if str(q).strip()][:10]
+    except Exception:
+        questions = []
+    if not questions:
+        source = "template"
+        questions = _fallback_questions(iv.round, job_title)
+    _set_interview_questions(iv, questions)
+    db.commit()
+    return {"ok": True, "source": source, "questions": questions, "interview": iv.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/questions")
+async def save_hr_interview_questions(
+    interview_id: int,
+    body: HrQuestionsBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Persist manually edited interview questions."""
+    from models import HrInterview
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    _set_interview_questions(iv, body.questions or [])
+    db.commit()
+    return {"ok": True, "interview": iv.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/save-template")
+async def save_hr_interview_template(
+    interview_id: int,
+    body: HrSaveTemplateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Store the interview's current question set as a reusable template."""
+    from models import HrInterview, HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    questions = _interview_questions(iv)
+    if not questions:
+        raise HTTPException(status_code=422, detail="No questions to save — generate or add questions first")
+    tmpl = HrInterviewTemplate(
+        tenant_id=tenant.id,
+        name=(body.name or "").strip()[:256] or f"{iv.round} round questions",
+        department=(body.department or "").strip()[:128],
+        role_pattern=(body.role_pattern or "").strip()[:256],
+        round=(body.round or iv.round or "first").strip()[:16],
+        questions_json=json.dumps(questions),
+    )
+    db.add(tmpl)
+    db.commit()
+    db.refresh(tmpl)
+    return {"ok": True, "template": tmpl.to_dict()}
+
+
+@router.get("/hr/interview-templates")
+async def list_hr_interview_templates(
+    department: str = Query(""),
+    round: str = Query(""),
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List reusable question templates, optionally filtered by department / round."""
+    from models import HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    stmt = select(HrInterviewTemplate).where(HrInterviewTemplate.tenant_id == tenant.id)
+    if department:
+        stmt = stmt.where(HrInterviewTemplate.department == department)
+    if round:
+        stmt = stmt.where(HrInterviewTemplate.round == round)
+    stmt = stmt.order_by(HrInterviewTemplate.created_at.desc())
+    rows = db.execute(stmt).scalars().all()
+    return {"ok": True, "templates": [t.to_dict() for t in rows]}
+
+
+@router.delete("/hr/interview-templates/{template_id}")
+async def delete_hr_interview_template(
+    template_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a saved question template."""
+    from models import HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tmpl = db.get(HrInterviewTemplate, template_id)
+    if tmpl is None or tmpl.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Template not found")
+    db.delete(tmpl)
+    db.commit()
+    return {"ok": True}
+
+
+def _template_payload(body: HrTemplateBody) -> tuple:
+    role_pattern = (body.role_pattern or "").strip()
+    if not role_pattern:
+        raise HTTPException(status_code=422, detail="Role pattern is required")
+    round_type = ((body.round or "").strip().lower() or "first")
+    if round_type not in ("first", "hr", "manager", "ceo"):
+        raise HTTPException(status_code=422, detail="Interview round must be HR, Manager or CEO")
+    questions = [str(q).strip() for q in (body.questions or []) if str(q).strip()]
+    if not questions:
+        raise HTTPException(status_code=422, detail="At least one question is required")
+    name = (body.name or "").strip()[:256] or f"{round_type} · {role_pattern}"
+    return name, (body.department or "").strip()[:128], role_pattern[:256], round_type, questions
+
+
+@router.post("/hr/interview-templates")
+async def create_hr_interview_template(
+    body: HrTemplateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create a reusable question template (standalone — HR Settings)."""
+    from models import HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tname, dept, role_pattern, round_type, questions = _template_payload(body)
+    tmpl = HrInterviewTemplate(
+        tenant_id=tenant.id,
+        name=tname,
+        department=dept,
+        role_pattern=role_pattern,
+        round=round_type,
+        questions_json=json.dumps(questions),
+    )
+    db.add(tmpl)
+    db.commit()
+    db.refresh(tmpl)
+    return {"ok": True, "template": tmpl.to_dict()}
+
+
+@router.put("/hr/interview-templates/{template_id}")
+async def update_hr_interview_template(
+    template_id: int,
+    body: HrTemplateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update an existing question template (standalone — HR Settings)."""
+    from models import HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    tmpl = db.get(HrInterviewTemplate, template_id)
+    if tmpl is None or tmpl.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Template not found")
+    tname, dept, role_pattern, round_type, questions = _template_payload(body)
+    tmpl.name = tname
+    tmpl.department = dept
+    tmpl.role_pattern = role_pattern
+    tmpl.round = round_type
+    tmpl.questions_json = json.dumps(questions)
+    db.commit()
+    db.refresh(tmpl)
+    return {"ok": True, "template": tmpl.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/apply-template")
+async def apply_hr_interview_template(
+    interview_id: int,
+    body: HrApplyTemplateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Load a saved template's questions into the interview."""
+    from models import HrInterview, HrInterviewTemplate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    tmpl = db.get(HrInterviewTemplate, body.template_id)
+    if tmpl is None or tmpl.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Template not found")
+    questions = []
+    try:
+        parsed = json.loads(tmpl.questions_json)
+        questions = [str(q).strip() for q in parsed if str(q).strip()] if isinstance(parsed, list) else []
+    except Exception:
+        questions = []
+    if not questions:
+        raise HTTPException(status_code=422, detail="Template has no questions")
+    _set_interview_questions(iv, questions)
+    db.commit()
+    return {"ok": True, "questions": questions, "interview": iv.to_dict()}
+
+
+@router.post("/hr/interviews/{interview_id}/post-interview")
+async def post_hr_interview_review(
+    interview_id: int,
+    body: HrPostInterviewBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save the post-interview star rating + assessment comment."""
+    from models import HrInterview
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+    iv = db.get(HrInterview, interview_id)
+    if iv is None or iv.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Interview not found")
+    rating = body.rating
+    if rating is not None and not (1 <= rating <= 5):
+        raise HTTPException(status_code=422, detail="Rating must be between 1 and 5")
+    iv.review_rating = rating
+    iv.review_comment = (body.comment or "").strip()[:5000]
     db.commit()
     return {"ok": True, "interview": iv.to_dict()}
 
@@ -6574,6 +7160,18 @@ async def create_hr_training(
         approval_doc_url=approval_doc_url,
     )
     db.add(training)
+    db.flush()
+
+    # Backward-compat: the add-form still collects a single Staff Name —
+    # register it as the training's first roster participant so the
+    # Participants column always reflects who is attending.
+    if staff_name.strip():
+        from models import HrTrainingParticipant
+        db.add(HrTrainingParticipant(
+            tenant_id=tenant.id,
+            training_id=training.id,
+            staff_name=staff_name.strip()[:256],
+        ))
     db.commit()
     db.refresh(training)
 

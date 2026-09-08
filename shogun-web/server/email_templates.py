@@ -259,20 +259,28 @@ def _save_templates(data: Dict[str, List[dict]]) -> None:
 def _get_dept_templates(dept_key: str) -> List[dict]:
     """Get templates for a department, seeding defaults on first access.
 
-    The HR department additionally gets the recruitment-workflow templates
-    (screening, interview, feedback, offer, welcome, rejection) seeded once —
-    never re-added if the user deleted any of them.
+    The HR department only ever gets the HR/recruitment templates — finance
+    dunning defaults are never seeded for HR, and any that slipped in via an
+    older seed are dropped on read so HR never sees non-HR templates.
     """
     all_templates = _load_templates()
+    changed = False
     if dept_key not in all_templates:
-        all_templates[dept_key] = list(_DEFAULT_TEMPLATES)
-        _save_templates(all_templates)
+        all_templates[dept_key] = list(_HR_RECRUITMENT_TEMPLATES if dept_key == "hr" else _DEFAULT_TEMPLATES)
+        changed = True
     if dept_key == "hr":
+        cleaned = [t for t in all_templates.get("hr", [])
+                   if t.get("scenario") not in ("dunning_reminder", "dunning_final")]
+        if len(cleaned) != len(all_templates.get("hr", [])):
+            all_templates["hr"] = cleaned
+            changed = True
         existing_ids = {t.get("id") for t in all_templates.get("hr", [])}
         rec_ids = {t["id"] for t in _HR_RECRUITMENT_TEMPLATES}
         if not (existing_ids & rec_ids):
             all_templates["hr"] = all_templates.get("hr", []) + list(_HR_RECRUITMENT_TEMPLATES)
-            _save_templates(all_templates)
+            changed = True
+    if changed:
+        _save_templates(all_templates)
     return all_templates[dept_key]
 
 
