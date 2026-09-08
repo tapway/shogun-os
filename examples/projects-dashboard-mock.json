@@ -923,77 +923,66 @@
   "stats": {
     "projects": {
       "total": 10,
-      "active": 10
+      "active": 4
     },
-    "atRisk": 5,
-    "blocked": 3,
+    "atRisk": 0,
+    "blocked": 0,
     "overdue": 3,
     "pipelineValue": 603707.59,
-    "overallProgress": 66,
+    "overallProgress": 68,
     "tasks": {
-      "total": 24,
-      "overdue": 5
+      "total": 13,
+      "overdue": 1
     },
     "projectsByHealth": {
+      "On Track": 2,
       "At Risk": 5,
       "Blocked": 3,
       "Completed": 0,
-      "Not Started": 0,
-      "On Track": 2
+      "Not Started": 0
     },
     "portfolioByStatus": {
-      "Active": 10,
-      "Closing": 0,
-      "Commissioned": 0,
-      "On Hold": 0,
-      "Paused": 0
+      "Active": 4,
+      "On Hold": 1,
+      "Commissioned": 2,
+      "Recovery": 1,
+      "Paused": 1,
+      "Closing": 1
     },
     "tasksByStatus": {
-      "Blocked": 0,
-      "Cancelled": 0,
-      "Done": 16,
-      "In Progress": 2,
-      "To Do": 6
+      "To Do": 11,
+      "In Progress": 1,
+      "Blocked": 1,
+      "Done": 0,
+      "Cancelled": 0
     },
     "openTasksByOwner": [
       {
-        "owner": "Marcus",
+        "owner": "iskandar",
         "count": 5
       },
       {
-        "owner": "Luna",
-        "count": 3
-      },
-      {
-        "owner": "Jordan",
-        "count": 3
-      },
-      {
-        "owner": "Ryan",
+        "owner": "zul",
         "count": 2
       },
       {
-        "owner": "Aria",
+        "owner": "syazwan",
         "count": 2
       },
       {
-        "owner": "Alex",
+        "owner": "Paul",
         "count": 1
       },
       {
-        "owner": "James",
+        "owner": "fitri",
         "count": 1
       },
       {
-        "owner": "Sophia",
+        "owner": "yeoh",
         "count": 1
       },
       {
-        "owner": "Lisa",
-        "count": 1
-      },
-      {
-        "owner": "Olivia",
+        "owner": "lim",
         "count": 1
       }
     ],
@@ -1003,59 +992,59 @@
         "progress": 100
       },
       {
-        "name": "ConnectTel Smart Security",
-        "progress": 100
-      },
-      {
-        "name": "Pacific Steel Vision AI",
-        "progress": 100
-      },
-      {
         "name": "FreshCo Retail Compliance",
         "progress": 100
       },
       {
         "name": "Evergreen Mall Happitat",
         "progress": 100
+      },
+      {
+        "name": "Health Dept Video Compliance",
+        "progress": 90
+      },
+      {
+        "name": "GreenFleet AI Monitoring",
+        "progress": 90
       }
     ],
     "slippingVsGoLive": [
       {
         "name": "Metropolitan Mall PeopleCount",
-        "daysLate": 80
+        "daysLate": 82
       },
       {
         "name": "ConnectTel Smart Security",
-        "daysLate": 36
+        "daysLate": 42
       },
       {
-        "name": "GreenFleet AI Monitoring",
-        "daysLate": 2
+        "name": "Pacific Steel Vision AI",
+        "daysLate": 8
       }
     ],
     "upcomingDeadlines": [
       {
-        "name": "GreenFleet AI Monitoring",
-        "date": "2026-09-05"
+        "name": "Metropolitan Mall PeopleCount",
+        "date": "2026-06-18"
+      },
+      {
+        "name": "ConnectTel Smart Security",
+        "date": "2026-07-28"
+      },
+      {
+        "name": "Pacific Steel Vision AI",
+        "date": "2026-08-31"
       },
       {
         "name": "Health Dept Video Compliance",
         "date": "2026-09-16"
-      },
-      {
-        "name": "Horizon GXO Analytics",
-        "date": "2026-09-30"
-      },
-      {
-        "name": "Apex Retail IOI PeopleTrack",
-        "date": "2026-10-01"
       }
     ],
     "projectsByPm": [
       {
         "pm": "Marcus",
         "projects": 5,
-        "atRisk": 3,
+        "atRisk": 0,
         "totalValue": 410237.11
       },
       {
@@ -1073,7 +1062,7 @@
       {
         "pm": "Elena",
         "projects": 2,
-        "atRisk": 2,
+        "atRisk": 0,
         "totalValue": 96812.66
       },
       {
@@ -1083,12 +1072,12 @@
         "totalValue": 29569.82
       }
     ],
-    "totalTasks": 10,
-    "todoTasks": 6,
-    "inProgressTasks": 2,
-    "doneTasks": 2,
-    "blockedTasks": 0,
-    "overdueTasks": 3
+    "totalTasks": 13,
+    "todoTasks": 11,
+    "inProgressTasks": 1,
+    "doneTasks": 0,
+    "blockedTasks": 1,
+    "overdueTasks": 1
   },
   "reportsSummary": {
     "totals": {
