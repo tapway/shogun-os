@@ -81,7 +81,7 @@ ALWAYS DAY ONE
 • Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
 • Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
       { id: 'values-video', title: 'Core Values Video', type: 'video', icon: Play, videoUrl: 'https://www.youtube.com/embed/_fNUQeZLGII' },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' },
+      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: 'https://www.smartsheet.com/sites/default/files/2024-05/organizational-chart-template-hero.png' },
       { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye, content: `💡 Take a virtual tour of our Company office at Pacific Place.
 
 Video Link: [Sample Link - Internal Document] (sample placeholder)
