@@ -104,23 +104,76 @@ Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper` },
     icon: BookOpen,
     topics: [
       { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'video' },
-      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `How to Clock In/Out (Jibble)
+      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `💡 This guide is created for all staff of Tapway to use for attendance.
 
-• Clocking in via Jibble App [mobile app] when you arrive at office is compulsory.
-• Clocking out via Jibble App [mobile app] when you leaving the office is compulsory.
-• The Clock in & Clock out via Jibble App using mobile app ONLY is highly important. If not, your attendance and GPS won't be recorded and will be considered as MIA.
-• Clocking via Scan your face OR Tap your IC/TnG card is solely to open the office glass door.
+A. CLOCK IN/CLOCK OUT
 
-WFH Days
-Employees are required to Clock In and Clock Out via Jibble App using any platform when working from home or any location up to their choices.
+Signing in
+To access your account for the first time, you'll need to accept an invitation that you'll receive either via a link, email or SMS. After that, you can sign in from the mobile app or on the web. Please confirm with HR for your activation credentials.
 
-On-Site
-Employees located at customers' premises are required to Clock In and Clock Out via Jibble App at the time of reporting to work and leaving after work under activity "On-Site".
+Ways to Clock In/Out
+There are several ways you can track time in Jibble, which includes the web app, mobile app, Chrome timer extension, or Slack but depending on your Work From - Activities (WFH/WFO/ON-SITE). Please follow instructions carefully based on your WFO/WFH/ON-SITE activities:
 
-Scrum Updates
-• Employees need to fill in Scrum updates via Slack right after clocking in via Jibble app BEFORE 11AM MYT.
-• If scrum is submitted after 11AM, it will be considered as 1 strike.
-• If the employee reaches 3 strikes, HR will issue a first Warning Letter and disciplinary action will be taken.` },
+💡 Web App/Jibble Website - FOR WFH ONLY
+
+1. Log in to your account through a web browser (https://www.jibble.io/)
+2. At the top of the screen, you'll see your timer buttons.
+3. Initiate the timer by clicking on the green Play button to clock in. You can choose an activity and project if necessary (applicable for certain department - projects/product related), then tap on Save to start the timer.
+4. Once clocked in, you'll see a few other timer options.
+5. The green Switch Activity button is used to switch to a different activity and/or project. During the switch, your timer is continuous and doesn't stop.
+6. The other button you'll see is the red Stop button, used to clock out.
+7. Once you've completed work for the day, you can click on red / stop button and tap on Save to clock out.
+8. You may also choose "Auto Clock Out" if you want the system to automatically clock out based on your setting - in case you tend to miss out to clock out.
+
+💡 Mobile App - FOR WFO (COMPULSORY TWICE A WEEK) OR OTHER ACTIVITIES
+
+1. Log in to your account via mobile app available on both Android and iOS platforms.
+2. Navigate to the Time Clock screen.
+3. Facial recognition may be required for clocking in and out, requiring you to take a photo as your face data.
+4. The timer buttons here are similar to those on the web app.
+5. Click on the green Clock In button and select an activity and/or project to start the timer.
+6. Once clocked in, you'll see the green Switch Activity button, yellow Break button and red Clock out button.
+7. Proceed with creating your time entries by following the steps mentioned earlier.
+
+B. Facial Recognition
+You are required to set up your face data which will be used as a baseline photo for Jibble to verify you. If face data has not been set up yet, you will be prevented from clocking in and out. Follow the steps indicated to set up your face data for facial recognition.
+
+C. Location Tracking
+Your GPS information will be automatically captured and saved into your timesheets upon clocking in and out via Jibble's mobile app (For WFO activity ONLY).
+
+[IMPORTANT] Note that if GPS tracking is enforced, you will be required to grant the Jibble app in your MOBILE and allow access to your location via your device settings. (Choose Always)
+
+D. Notifications & Alerts
+Reminders help you form a habit of clocking in and out at certain times based on your schedule. Notifications and alerts can be set via your account settings to receive clock in or out reminders throughout your workday. You will be able to receive notifications via email or via push notifications directly on your mobile device. Check out our guide on enabling push notifications for more information.
+
+E. Account Settings
+Your account settings is where you can update your login details such as your password, personal notifications and alerts, data privacy and more. Click on the link to know what you can do and how to update your account settings.
+
+F. Adding Widget for Clock in/out
+
+Adding the Jibble widget on iOS
+1. Go to the Home Screen page where you want to add the widget, then touch and hold the Home Screen background until the apps begin to jiggle.
+2. Tap + at the top of the screen to open the widget gallery.
+3. Search and select Jibble 2.
+4. Click Add Widget.
+5. While the apps are still jiggling, move the widget where you want it on the screen, then tap Done.
+6. Alternatively, Touch and hold a widget or an empty area in the Today View and continue the steps as mentioned above.
+
+Adding the Jibble widget on Android
+1. On the Home screen, touch and hold an empty space.
+2. Tap on Widgets.
+3. You'll find widgets for apps installed on your phone.
+4. Look for Jibble then touch and hold the widget.
+5. Drag the widget to where you want it and lift your finger.
+
+Using the time tracking widget
+1. Once the widget has been added, it is in a deactivated state. To activate the widget, click on the widget to get redirected to launch Jibble's mobile app.
+2. To start tracking time, click on the green Clock In icon in the time tracking widget. You will get redirected to the time clock screen on Jibble's mobile app. Once clocked in, the timer will start, and the total ongoing duration within the widget will be updated. Any locations, activities or projects chosen upon clock in will be displayed. Note: On Android devices, the last recorded time entry will be shown and updated every 30 minutes within the widget. Total ongoing duration of time entries will not be displayed.
+3. To start breaks, click on the yellow Break icon in the time tracking widget. You will get redirected to the time clock screen to confirm your break entry. Once a break is started, the widget will be updated.
+4. To end breaks, click on the yellow End Break icon in the time tracking widget. You will get redirected to the time clock screen to confirm your entry.
+5. To clock out, click on the red Clock Out icon in the time tracking widget and confirm your out entry on the time clock screen. The last clocked-out time will be displayed within the widget.
+
+❗ Important: If a different platform is used to clock in, take breaks or clock out (i.e. web, Slack, MS Teams), the mobile app needs to be refreshed or opened for the widget to be updated.` },
       { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document' },
       { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document' },
       { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `How To Submit Claim
