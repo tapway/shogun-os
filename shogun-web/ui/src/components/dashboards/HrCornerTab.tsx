@@ -176,27 +176,52 @@ Using the time tracking widget
 ❗ Important: If a different platform is used to clock in, take breaks or clock out (i.e. web, Slack, MS Teams), the mobile app needs to be refreshed or opened for the widget to be updated.` },
       { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document' },
       { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document' },
-      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `How To Submit Claim
+      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `To refer claim categories details please click here.
 
-All claimable expenses need to be applied in the updated HR system and each receipt can only be used for one type of claim.
+Claim Procedure (For Full-time Employee Only)
 
-Health and Wellness
-• Outpatient Medical (OMC): RM 500/year — Probation + Permanent (employee or family)
-• Health & Wellness: RM 400/year — Permanent only (employee or family)
-• Dental and/or Optical: RM 300/year — Permanent only
-• In-patient Medical Insurance: Up to RM 75,000/year — Permanent + Contract
+1. Using BRIO-HR app (mobile/desktop) ONLY: Login to your account
+2. On the browser, click My Claims or Claims to submit the claims
+3. Click: + New Claim and proceed to add the required details.
+4. You may choose the Claim Type accordingly
+5. You may also need to add attachment (upload the receipt from your device gallery).
+6. Save & Add another or Save
+7. Example of the attachment for (Car) Mileage Claim up to 300KM (MUST include the destination: go & return).
+8. No. of KM must be included in the screenshot.
+9. For (Car) Mileage Claim from 301km and above, you may use the same attachment as in Mileage Claim up to 300KM - (eg: total KM = 684KM) put the remaining 384KM (684KM - 300KM) in the Distance section in (Car) Mileage Claim from 301km and above.
+10. You may continue with other claims and choose Claim Type accordingly.
+11. The claims may be rejected if you attached the wrong information and attachment.
+12. For Choose Report/Report name, please put the month of the submitted claim - eg: August Claim 2023
+13. Admin will process by checking the claims detail and submit to HR/Finance for approval.
+14. Once approved, Finance will proceed with payment to staff.
+15. The payment will be done latest by 15th of the month or earlier.
 
-Travel and Transport
-• Office Parking: Reimbursed monthly. Pacific Place valet parking ticket or Touch n Go receipt for basement parking.
-• Travel Mileage: 0–300km = RM 0.80/km, 301km+ = RM 0.50/km. Google Maps screenshot required.
-• Taxi/Grab/Toll/Parking: RM 150 capped per month. Receipts required.
-• Flight/Train: Unlimited economy class upon HR approval. Outstation only.
-• Meals: RM 50/day (local outside Klang Valley), 30 USD/day (outstation).
-• Accommodation: RM 250/day (Malaysia outside KV), USD 100/day (Overseas).
+To check the status of your claims:
+• For browser, go to Home > Expense Claims
+• For smart phone, go to Home > Ongoing Claims
+• You will be notified whenever the claim is approved or rejected.
+• Email or notification will be sent to update your claim status
 
-Working Essentials
-• Phone Bill: Director = RM 80/month, Others = RM 50/month.
-• WFH Expenses: RM 200/year in a single receipt. Permanent/confirmed staff only.` },
+How to check claim types limit:
+• Go to Home > Expense Claims
+• Click on Claim limit & balance
+• Choose claim type and you can see your claim limit
+
+Claim Procedure (For Part-time/Intern)
+
+1. To submit claim by filling in the claim form personal (for personal claim, parking etc)
+2. Mileage claim form (for mileage/toll only)
+3. Send it to Admin (hairul@gotapway.com) and cc HR (Hana@gotapway.com & hr@gotapway.com & hrintern@gotapway.com)
+4. Attach receipts & screenshots of mileage from Google Maps
+
+Personal Claim (For any claim except for mileage purposes)
+Template - Personal Claim Form.xlsx
+
+Mileage Claim (Mileage claim purposes only)
+TEMPLATE_ Name - Mileage Claim (Updated).numbers.numbers
+
+💡 Policy brief & purpose
+Tapway Claim Policy outlines how we'll reimburse staff for work-related expenses. We'll define "work-related expenses" and set a procedure to authorize expenditure. This policy applies to all staff that need to spend money for work-related activities.` },
       { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document' },
       { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document' },
       { id: 'visitor-log', title: 'Visitor Log', type: 'document' },
