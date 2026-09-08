@@ -252,7 +252,16 @@ Steps on how to start Online Learning:
    • Password: Tapway@123
 3. Discuss with your supervisor/HOD for training availability and book your Google Calendar
 4. Finish the training and download certificate, then send to HR for documentation` },
-      { id: 'website', title: 'Tapway Website', type: 'link' },
+      { id: 'website', title: 'Tapway Website', type: 'document', content: `💡 Tapway Official Website
+
+https://gotapway.com/
+
+Visit our official website to learn more about:
+• Our products and solutions (PeopleTrack, VehicleTrack, StoreTrack)
+• Company background and mission
+• Latest news and updates
+• Contact information
+• Career opportunities` },
       { id: 'social-media', title: 'Social Media', type: 'link' },
       { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `AWS Certification Guideline
 
