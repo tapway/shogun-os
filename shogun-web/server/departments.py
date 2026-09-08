@@ -2209,19 +2209,23 @@ async def list_all_skills(user: User = Depends(get_current_user)) -> Dict[str, A
     for dept in DEFAULT_DEPARTMENTS:
         _dept_labels[dept["name"]] = dept["label"]
 
-    hermes_mapped = []
+    result_skills = []
     for s in all_skills:
-        if s.get("source") != "hermes":
-            continue
-        cat = (s.get("category") or "").lower().strip()
-        dept_name = _HERMES_TO_DEPT.get(cat)
-        if not dept_name:
-            continue  # Skip unmapped categories (Apple, Smart Home, .Archive, etc.)
         entry = dict(s)
-        entry["category"] = _dept_labels.get(dept_name, dept_name.title())
-        hermes_mapped.append(entry)
+        source = s.get("source", "")
 
-    return {"skills": hermes_mapped}
+        if source == "hermes":
+            # Map Hermes categories → Shogun department name
+            cat = (s.get("category") or "").lower().strip()
+            dept_name = _HERMES_TO_DEPT.get(cat)
+            if not dept_name:
+                continue  # Skip unmapped categories (Apple, Smart Home, .Archive, etc.)
+            entry["category"] = _dept_labels.get(dept_name, dept_name.title())
+        # repo and learned skills keep their existing category/departments from frontmatter
+
+        result_skills.append(entry)
+
+    return {"skills": result_skills}
 
 
 @skills_router.get("/{skill_id}")
