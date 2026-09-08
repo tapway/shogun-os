@@ -64,7 +64,7 @@ Accountability
 • We take ownership of our actions and deliver on our commitments.` },
 
       { id: 'values-video', title: 'Core Values Video', type: 'video', icon: Play, videoUrl: 'https://www.youtube.com/embed/_fNUQeZLGII' },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: 'https://www.smartsheet.com/sites/default/files/2024-05/organizational-chart-template-hero.png' },
+      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: '/hr/org-chart.svg' },
       { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye, content: `💡 Take a virtual tour of our Company office at Pacific Place.
 
 Video Link: [Sample Link - Internal Document] (sample placeholder)
