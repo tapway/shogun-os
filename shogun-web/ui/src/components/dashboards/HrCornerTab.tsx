@@ -42,58 +42,55 @@ const SECTIONS: Section[] = [
       { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', pdfUrl: HANDBOOK_PDF },
       { id: 'mission', title: 'Mission, Vision, Values', type: 'document', content: `💡 A company mission provides direction and purpose, aligning actions and decisions towards a common goal. It also helps attract like-minded individuals who share the same values and vision for the company.
 
-## 🔭 Vision
-
+🔭 Vision
 To democratize AI Vision by allowing anyone to build, train and deploy vision technology solutions quickly and affordably.
 
-## 🚀 Mission
-
+🚀 Mission
 To build a platform that provides technology solutions to businesses with physical premises in order to help eliminate low-skilled manual labor, improve service quality & experience, and enhance safety & security.
 
-## ⚖️ Company Core Values
+⚖️ Company Core Values
 
-### LIGHT THE FIRE IN YOUR HEART
-- Love what you do, and do what you love. **Be passionate** about your work and seek to learn, improve and accomplish goals everyday.
-- **Be committed** to and fully accountable for your goals in alignment with company's collective priorities.
-- We commit to the team. Commit to quality. Commit to collaborate. Commit to learn. Commit to do the best we can, every day again. Commit to the Sprint Goal. Commit to be professional. Commit to self-organize. Commit to excellence.
+LIGHT THE FIRE IN YOUR HEART
+• Love what you do, and do what you love. Be passionate about your work and seek to learn, improve and accomplish goals everyday.
+• Be committed to and fully accountable for your goals in alignment with company's collective priorities.
+• We commit to the team. Commit to quality. Commit to collaborate. Commit to learn. Commit to do the best we can, every day again. Commit to the Sprint Goal. Commit to be professional. Commit to self-organize. Commit to excellence.
 
-### OBSESSED ABOUT CUSTOMERS AND RESULTS
-- Build our products and innovation around customers, not what we want.
-- Be ready to react quickly to changing customer requirements and environments.
-- Always create short term, mid term and long term goals and strive to achieve results.
-- Do not sacrifice quality because of time limitation. Strive for the best!
+OBSESSED ABOUT CUSTOMERS AND RESULTS
+• Build our products and innovation around customers, not what we want.
+• Be ready to react quickly to changing customer requirements and environments.
+• Always create short term, mid term and long term goals and strive to achieve results.
+• Do not sacrifice quality because of time limitation. Strive for the best!
 
-### WE ARE FAMILY
-- **Courage** — Do not be afraid to raise concerns about the company or your own work. Have courage to challenge others for what you believe will benefit the company as a whole. We welcome healthy conflicts.
-- **Diversity & Empathy** — We are also open for people, and working with people from diverse backgrounds; acknowledging people to be people.
-- **Honesty** — We are open and honest about our work, our progress, our learning and our problems. We are open in sharing feedback and learning from one another.
-- **Respect** — While being honest, respect each other. Value and honour another person, both his or her words and action, even if we do not approve or share everything he or she does. It is accepting the other person and not trying to change them.
-- **Teamwork** — Teamwork makes the dream work. "Alone, we can do so little, together, we can do so more."
+WE ARE FAMILY
+• Courage — Do not be afraid to raise concerns about the company or your own work. Have courage to challenge others for what you believe will benefit the company as a whole. We welcome healthy conflicts.
+• Diversity & Empathy — We are also open for people, and working with people from diverse backgrounds; acknowledging people to be people.
+• Honesty — We are open and honest about our work, our progress, our learning and our problems. We are open in sharing feedback and learning from one another.
+• Respect — While being honest, respect each other. Value and honour another person, both his or her words and action, even if we do not approve or share everything he or she does. It is accepting the other person and not trying to change them.
+• Teamwork — Teamwork makes the dream work. "Alone, we can do so little, together, we can do so more."
 
-### DREAM BIG, THINK DIFFERENT, ACT FAST
-- Bias for action — You're not afraid to make decisions and take action, even when (especially when) you face uncertainty.
-- Be brave, be creative and think out of the box to solve any particular issue. Be positive in the face of great challenge.
-- Have courage to **take calculated risks**, if it means more success for yourself and the company as a whole.
+DREAM BIG, THINK DIFFERENT, ACT FAST
+• Bias for action — You're not afraid to make decisions and take action, even when (especially when) you face uncertainty.
+• Be brave, be creative and think out of the box to solve any particular issue. Be positive in the face of great challenge.
+• Have courage to take calculated risks, if it means more success for yourself and the company as a whole.
 
-### ALWAYS DAY ONE
-- Never stop learning and continue to **set personal growth goals** for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
-- Adopt a **growth mindset**, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
+ALWAYS DAY ONE
+• Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
+• Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
       { id: 'values-video', title: 'Core Values Video', type: 'video' },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'document', content: `## Organisational Structure
+      { id: 'org-chart', title: 'Organisational Chart', type: 'document', content: `Organisational Structure
 
-| Job Classification | Grade | Category | Position |
-|---|---|---|---|
-| Senior Management | SM1 | Director | Executive Director, CEO |
-| Senior Management | SM2 | Principal of SBU | COO, CFO, CTO |
-| Management | M1 | Head of SBU | General Manager, Senior Department Manager |
-| Management | M2 | Manager | Manager or Team Lead |
-| Assistant Management | AM1 | Assistant Manager | Assistant Manager or Team Lead |
-| Professional | P1 | Specialist | Senior Executive, Senior Engineer, Senior PM |
-| Executive | E1 | Senior L1 Executive | Senior Executive, Senior Engineer, Senior PM |
-| Executive | E2 | Senior L2 Executive | Senior Executive, Senior Engineer, Senior PM |
-| Executive | E2 | Executive | Junior Executive, Junior Engineer, Junior PM |
-| Non-Executive | NE1 | Non-Executive | Clerk, Receptionist, Internship/Trainee |
-| Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper |` },
+Job Classification | Grade | Category | Position
+Senior Management | SM1 | Director | Executive Director, CEO
+Senior Management | SM2 | Principal of SBU | COO, CFO, CTO
+Management | M1 | Head of SBU | General Manager, Senior Department Manager
+Management | M2 | Manager | Manager or Team Lead
+Assistant Management | AM1 | Assistant Manager | Assistant Manager or Team Lead
+Professional | P1 | Specialist | Senior Executive, Senior Engineer, Senior PM
+Executive | E1 | Senior L1 Executive | Senior Executive, Senior Engineer, Senior PM
+Executive | E2 | Senior L2 Executive | Senior Executive, Senior Engineer, Senior PM
+Executive | E2 | Executive | Junior Executive, Junior Engineer, Junior PM
+Non-Executive | NE1 | Non-Executive | Clerk, Receptionist, Internship/Trainee
+Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper` },
       { id: 'office-tour', title: 'Office Tour', type: 'video' },
       { id: 'directions-tapway', title: 'How to Get to Tapway', type: 'document', content: 'Directions and map to Tapway office at Pacific Place.' },
       { id: 'directions-itmax', title: 'How to Get to ITMAX new office', type: 'document', content: 'Directions and map to ITMAX new office location.' },
@@ -106,60 +103,58 @@ To build a platform that provides technology solutions to businesses with physic
     icon: BookOpen,
     topics: [
       { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'video' },
-      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `## How to Clock In/Out (Jibble)
+      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `How to Clock In/Out (Jibble)
 
-- Clocking in via **Jibble App [mobile app]** when you arrive at office is **compulsory**.
-- Clocking out via **Jibble App [mobile app]** when you leaving the office is **compulsory**.
-- The Clock in & Clock out via Jibble App using **mobile app ONLY** is highly important. If not, your attendance and GPS won't be recorded and will be considered as **MIA**.
-- Clocking via Scan your face OR Tap your IC/TnG card is solely to open the office glass door.
+• Clocking in via Jibble App [mobile app] when you arrive at office is compulsory.
+• Clocking out via Jibble App [mobile app] when you leaving the office is compulsory.
+• The Clock in & Clock out via Jibble App using mobile app ONLY is highly important. If not, your attendance and GPS won't be recorded and will be considered as MIA.
+• Clocking via Scan your face OR Tap your IC/TnG card is solely to open the office glass door.
 
-### WFH Days
-- Employees are required to Clock In and Clock Out via Jibble App using **any platform** when working from home or any location up to their choices.
+WFH Days
+Employees are required to Clock In and Clock Out via Jibble App using any platform when working from home or any location up to their choices.
 
-### On-Site
-- Employees located at customers' premises are required to Clock In and Clock Out via Jibble App at the time of reporting to work and leaving after work under activity **"On-Site"**.
+On-Site
+Employees located at customers' premises are required to Clock In and Clock Out via Jibble App at the time of reporting to work and leaving after work under activity "On-Site".
 
-### Scrum Updates
-- Employees need to fill in Scrum updates via Slack right after clocking in via Jibble app **BEFORE 11AM MYT**.
-- If scrum is submitted after 11AM, it will be considered as **1 strike**.
-- If the employee reaches **3 strikes**, HR will issue a first Warning Letter and disciplinary action will be taken.` },
+Scrum Updates
+• Employees need to fill in Scrum updates via Slack right after clocking in via Jibble app BEFORE 11AM MYT.
+• If scrum is submitted after 11AM, it will be considered as 1 strike.
+• If the employee reaches 3 strikes, HR will issue a first Warning Letter and disciplinary action will be taken.` },
       { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document' },
       { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document' },
-      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `## How To Submit Claim
+      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `How To Submit Claim
 
 All claimable expenses need to be applied in the updated HR system and each receipt can only be used for one type of claim.
 
-### Health and Wellness
-| Type | Amount | Eligibility |
-|---|---|---|
-| Outpatient Medical (OMC) | RM 500/year | Probation + Permanent (employee or family) |
-| Health & Wellness | RM 400/year | Permanent only (employee or family) |
-| Dental and/or Optical | RM 300/year | Permanent only |
-| In-patient Medical Insurance | Up to RM 75,000/year | Permanent + Contract |
+Health and Wellness
+• Outpatient Medical (OMC): RM 500/year — Probation + Permanent (employee or family)
+• Health & Wellness: RM 400/year — Permanent only (employee or family)
+• Dental and/or Optical: RM 300/year — Permanent only
+• In-patient Medical Insurance: Up to RM 75,000/year — Permanent + Contract
 
-### Travel and Transport
-- **Office Parking**: Reimbursed monthly. Pacific Place valet parking ticket or Touch n Go receipt for basement parking.
-- **Travel Mileage**: 0–300km = RM 0.80/km, 301km+ = RM 0.50/km. Google Maps screenshot required.
-- **Taxi/Grab/Toll/Parking**: RM 150 capped per month. Receipts required.
-- **Flight/Train**: Unlimited economy class upon HR approval. Outstation only.
-- **Meals**: RM 50/day (local outside Klang Valley), 30 USD/day (outstation).
-- **Accommodation**: RM 250/day (Malaysia outside KV), USD 100/day (Overseas).
+Travel and Transport
+• Office Parking: Reimbursed monthly. Pacific Place valet parking ticket or Touch n Go receipt for basement parking.
+• Travel Mileage: 0–300km = RM 0.80/km, 301km+ = RM 0.50/km. Google Maps screenshot required.
+• Taxi/Grab/Toll/Parking: RM 150 capped per month. Receipts required.
+• Flight/Train: Unlimited economy class upon HR approval. Outstation only.
+• Meals: RM 50/day (local outside Klang Valley), 30 USD/day (outstation).
+• Accommodation: RM 250/day (Malaysia outside KV), USD 100/day (Overseas).
 
-### Working Essentials
-- **Phone Bill**: Director = RM 80/month, Others = RM 50/month.
-- **WFH Expenses**: RM 200/year in a single receipt. Permanent/confirmed staff only.` },
+Working Essentials
+• Phone Bill: Director = RM 80/month, Others = RM 50/month.
+• WFH Expenses: RM 200/year in a single receipt. Permanent/confirmed staff only.` },
       { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document' },
       { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document' },
       { id: 'visitor-log', title: 'Visitor Log', type: 'document' },
-      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', content: `## Keeping a Tidy Office
+      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', content: `Keeping a Tidy Office
 
 All employees are responsible and should contribute to create a conducive working environment.
 
-- Employees should try to conserve water and electricity.
-- Where applicable, lights should be switched off during lunch hours and after office hours.
-- All employees should ensure that their working areas are clean.
-- Any unwanted items such as papers and boxes need to be disposed.
-- All employees should not litter the common areas, pantries and toilets.` },
+• Employees should try to conserve water and electricity.
+• Where applicable, lights should be switched off during lunch hours and after office hours.
+• All employees should ensure that their working areas are clean.
+• Any unwanted items such as papers and boxes need to be disposed.
+• All employees should not litter the common areas, pantries and toilets.` },
     ],
   },
   {
@@ -170,24 +165,23 @@ All employees are responsible and should contribute to create a conducive workin
       { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'link' },
       { id: 'website', title: 'Tapway Website', type: 'link' },
       { id: 'social-media', title: 'Social Media', type: 'link' },
-      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `## AWS Certification Guideline
+      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `AWS Certification Guideline
 
 Refer to the Training and Development policy (Section 6 of Employee Handbook):
 
-### Training Course or Certification Program
-- The employee will have to sign a bonded agreement with the company when attending any Training Courses or Certification Program sponsored by the company.
+Training Course or Certification Program
+• The employee will have to sign a bonded agreement with the company when attending any Training Courses or Certification Program sponsored by the company.
 
-| Course Value | Bonded Period |
-|---|---|
-| Less than RM 10,000 | 12 months |
-| RM 10,001 – RM 20,000 | 24 months |
-| More than RM 20,000 | 36 months |
+Course Value | Bonded Period
+Less than RM 10,000 | 12 months
+RM 10,001 – RM 20,000 | 24 months
+More than RM 20,000 | 36 months
 
-- In the event the employee violates the terms of the Agreement by not continuing employment with the Company for the period stipulated herein, then he/she shall pay back the full amount of the training course to the Company.
+• In the event the employee violates the terms of the Agreement by not continuing employment with the Company for the period stipulated herein, then he/she shall pay back the full amount of the training course to the Company.
 
-### Training Module
-- The training cost must be less than RM 5,000 and does not provide any certificate.
-- No bonded agreement required.` },
+Training Module
+• The training cost must be less than RM 5,000 and does not provide any certificate.
+• No bonded agreement required.` },
     ],
   },
   {
@@ -195,188 +189,175 @@ Refer to the Training and Development policy (Section 6 of Employee Handbook):
     title: 'Company Policies',
     icon: Shield,
     topics: [
-      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `## Code of Conduct
+      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `Code of Conduct
 
-### Working Hours
-| Days | Working Hours |
-|---|---|
-| Monday–Friday | 8:00am–4:00pm or 9:00am–5:00pm |
-| Saturday & Sunday | Rest Day |
-| Lunch Break | Flexible 1 hour |
-| Friday (Male Muslim) | 12:30pm–2:30pm |
+Working Hours
+Monday–Friday: 8:00am–4:00pm or 9:00am–5:00pm
+Saturday & Sunday: Rest Day
+Lunch Break: Flexible 1 hour
+Friday (Male Muslim): 12:30pm–2:30pm
 
-### Flexible Work Arrangements
-- Employees are entitled to work remotely (WFH) for 3 days a week, with mandatory office attendance on 2 specific days.
-- Employees may formally apply for Flexible Work Arrangements pursuant to Section 60P and 60Q of the Employment Act.
+Flexible Work Arrangements
+• Employees are entitled to work remotely (WFH) for 3 days a week, with mandatory office attendance on 2 specific days.
+• Employees may formally apply for Flexible Work Arrangements pursuant to Section 60P and 60Q of the Employment Act.
 
-### Communication Channels
-- **Slack**: Main channel for work communication. Profile picture required. Status must be online during working hours.
-- **WhatsApp**: Semi-formal channel.
-- **Company Email**: Gmail Tapway Team. Personal company email provided upon enrollment.
+Communication Channels
+• Slack: Main channel for work communication. Profile picture required. Status must be online during working hours.
+• WhatsApp: Semi-formal channel.
+• Company Email: Gmail Tapway Team. Personal company email provided upon enrollment.
 
-### Business Attire
-- Employees must at all times appear neat and dignified in casual and suitable attire.
-- When dealing with customers, present a clean, neat and professional appearance.
+Business Attire
+• Employees must at all times appear neat and dignified in casual and suitable attire.
+• When dealing with customers, present a clean, neat and professional appearance.
 
-### Confidential Information
-- All employees shall not divulge confidential Company information during or after employment.
-- The Company shall take legal action in any situation involving unauthorized disclosure.
+Confidential Information
+• All employees shall not divulge confidential Company information during or after employment.
+• The Company shall take legal action in any situation involving unauthorized disclosure.
 
-### Acts of Misconduct
-- Habitual lateness, breach of trust, rude behaviour, insubordination, AWOL, theft, sexual harassment, gambling, sleeping on duty, unauthorized use of company vehicles/equipment.` },
-      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `## Leave Rules & Categories
+Acts of Misconduct
+• Habitual lateness, breach of trust, rude behaviour, insubordination, AWOL, theft, sexual harassment, gambling, sleeping on duty, unauthorized use of company vehicles/equipment.` },
+      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `Leave Rules & Categories
 
-### Annual Leave
-- **Confirmed employees**: 18 days per year
-- **Carry forward**: Maximum 10 days (5 usable until March following year, remaining must be used in January)
-- **Half Day Leave**: Morning (8am–12pm) or Afternoon (2pm–5pm)
+Annual Leave
+• Confirmed employees: 18 days per year
+• Carry forward: Maximum 10 days (5 usable until March following year, remaining must be used in January)
+• Half Day Leave: Morning (8am–12pm) or Afternoon (2pm–5pm)
 
-### Sick Leave (per Employment Act 1955)
-| Years of Service | Days per Year |
-|---|---|
-| Less than 2 years | 14 days |
-| 2–5 years | 18 days |
-| 5+ years | 22 days |
-| Hospitalization | 60 days (additional) |
+Sick Leave (per Employment Act 1955)
+Less than 2 years: 14 days/year
+2–5 years: 18 days/year
+5+ years: 22 days/year
+Hospitalization: 60 days (additional)
 
-### Other Paid Leave
-| Leave Type | Duration | Eligibility |
-|---|---|---|
-| Compassionate | 3 consecutive working days | All (natural disaster, death of spouse/child/siblings/parents/in-laws) |
-| Marriage | 3 consecutive working days | First marriage only |
-| Paternity | 7 consecutive working days | Male employees |
-| Maternity | Per Employment Act | Female employees |
-| Work Anniversary | 1 day (anniversary month) | Permanent & confirmed |
-| Birthday | 1 day (birthday month) | Permanent & confirmed |
+Other Paid Leave
+Compassionate: 3 consecutive working days — All (natural disaster, death of spouse/child/siblings/parents/in-laws)
+Marriage: 3 consecutive working days — First marriage only
+Paternity: 7 consecutive working days — Male employees
+Maternity: Per Employment Act — Female employees
+Work Anniversary: 1 day (anniversary month) — Permanent & confirmed
+Birthday: 1 day (birthday month) — Permanent & confirmed
 
-### Probation Leave (Pro-rated)
-- Annual Leave: 1.5 days/completed month
-- Sick Leave: 1 day/completed month
-- Compassionate Leave: 1 day/occasion/year
+Probation Leave (Pro-rated)
+• Annual Leave: 1.5 days/completed month
+• Sick Leave: 1 day/completed month
+• Compassionate Leave: 1 day/occasion/year
 
-### Leave Application Rules
-- **< 5 days**: Apply 3 days before, HOD approval required
-- **> 5 days**: Apply 5 days before, HOD approval required
-- **Unplanned**: Can apply same day, must have legitimate reason and proof
-- Leave without approval = AWOL` },
-      { id: 'wages', title: 'Wages', type: 'document', content: `## Wages
+Leave Application Rules
+• < 5 days: Apply 3 days before, HOD approval required
+• > 5 days: Apply 5 days before, HOD approval required
+• Unplanned: Can apply same day, must have legitimate reason and proof
+• Leave without approval = AWOL` },
+      { id: 'wages', title: 'Wages', type: 'document', content: `Wages
 
-### Payment
-- **Method**: Bank transfer to employee's preferred account
-- **Date**: Before/On the 26th of every month (or last working day if 26th falls on rest day/public holiday)
+Payment
+• Method: Bank transfer to employee's preferred account
+• Date: Before/On the 26th of every month (or last working day if 26th falls on rest day/public holiday)
 
-### Statutory Contributions
-| Contribution | Employee | Employer |
-|---|---|---|
-| EPF (Local) | 11% | 13% |
-| EPF (Foreign) | 2% | 2% |
-| SOCSO + EIS | As per Act | As per Act |
-| Income Tax | PCB deduction | — |
+Statutory Contributions
+EPF (Local): Employee 11%, Employer 13%
+EPF (Foreign): Employee 2%, Employer 2%
+SOCSO + EIS: As per Act (both)
+Income Tax: PCB deduction (employee only)
 
-### Salary Increment
-- Must be employed for more than 6 months upon increment date
-- Pro-rated increment for 6–12 months of employment
-- Based on last withdrawn basic salary (without allowance & commissions)
+Salary Increment
+• Must be employed for more than 6 months upon increment date
+• Pro-rated increment for 6–12 months of employment
+• Based on last withdrawn basic salary (without allowance & commissions)
 
-### Pro-rated Salary
-- Based on working days calculation: Period = total days in month (including weekends)
-- Formula: [Basic Salary / Total Days] × Working Days` },
-      { id: 'overtime', title: 'Overtime (OT)', type: 'document', content: `## Overtime (OT)
+Pro-rated Salary
+• Based on working days calculation: Period = total days in month (including weekends)
+• Formula: [Basic Salary / Total Days] × Working Days` },
+      { id: 'overtime', title: 'Overtime (OT)', type: 'document', content: `Overtime (OT)
 
-### Eligibility
-- Basic salary **below RM 4,000**: Entitled to OT pay
-- Basic salary **above RM 4,000**: Not entitled, but may apply for TOIL/Compensatory Time with Senior Management + HR + CEO approval
+Eligibility
+• Basic salary below RM 4,000: Entitled to OT pay
+• Basic salary above RM 4,000: Not entitled, but may apply for TOIL/Compensatory Time with Senior Management + HR + CEO approval
 
-### Rate Calculations
-- **Ordinary Rate of Pay (ORP)** = Basic Salary / 26 days
-- **Hourly Rate (HRy)** = ORP / 8 hours
+Rate Calculations
+• Ordinary Rate of Pay (ORP) = Basic Salary / 26 days
+• Hourly Rate (HRy) = ORP / 8 hours
 
-### OT Rates (Salary < RM 4,000)
-| Condition | Rate |
-|---|---|
-| Weekday (7pm–7am next day) | HRy × 1.5 |
-| Rest day (≤ 4 hours) | ORP × 0.5 |
-| Rest day (4–8 hours) | ORP × 1 |
-| Rest day (> 8 hours) | ORP + (HRy × 2) |
-| Public holiday (≤ 8 hours) | ORP × 2 |
-| Public holiday (> 8 hours) | ORP × 3 |
+OT Rates (Salary < RM 4,000)
+Weekday (7pm–7am next day): HRy × 1.5
+Rest day (≤ 4 hours): ORP × 0.5
+Rest day (4–8 hours): ORP × 1
+Rest day (> 8 hours): ORP + (HRy × 2)
+Public holiday (≤ 8 hours): ORP × 2
+Public holiday (> 8 hours): ORP × 3
 
-### Procedure
+Procedure
 1. Employee informs HOD for approval
 2. HOD assesses urgency, gets CTO/CEO approval
 3. HOD informs HR for formality
 4. All OT must be submitted by 20th of the month` },
-      { id: 'commission', title: 'Commission', type: 'document', content: `## Commission
+      { id: 'commission', title: 'Commission', type: 'document', content: `Commission
 
-### Eligibility
-- Only employees from **Business Development** department are entitled to Commissions
-- Both probation and confirmed staff are eligible
+Eligibility
+• Only employees from Business Development department are entitled to Commissions
+• Both probation and confirmed staff are eligible
 
-### Payment Release Process
+Payment Release Process
 1. Finance department provides the Commissions Tracker
 2. Finance registers confirmed deals with approved Purchase Order (PO)
 3. HR communicates with Finance to get payment updates for each registered deal` },
-      { id: 'expenses', title: 'Claimable Expenses', type: 'document', content: `## Claimable Expenses
+      { id: 'expenses', title: 'Claimable Expenses', type: 'document', content: `Claimable Expenses
 
-*All claims must be submitted through the updated HR system. Each receipt can only be used for one type of claim.*
+All claims must be submitted through the updated HR system. Each receipt can only be used for one type of claim.
 
-### Health & Wellness
-| Type | Limit | Eligibility |
-|---|---|---|
-| Outpatient Medical (OMC) | RM 500/year | Probation + Permanent |
-| Health & Wellness | RM 400/year | Permanent only |
-| Dental/Optical | RM 300/year | Permanent only |
-| In-patient Insurance | RM 75,000/year cap | Permanent + Contract |
+Health & Wellness
+• Outpatient Medical (OMC): RM 500/year — Probation + Permanent
+• Health & Wellness: RM 400/year — Permanent only
+• Dental/Optical: RM 300/year — Permanent only
+• In-patient Insurance: RM 75,000/year cap — Permanent + Contract
 
-### Travel & Transport
-- **Parking**: Monthly reimbursement (Pacific Place valet / TnG basement)
-- **Mileage**: RM 0.80/km (0–300km), RM 0.50/km (301km+)
-- **Taxi/Grab/Toll/Parking**: RM 150/month cap
-- **Flight/Train**: Economy class, HR approval, outstation only
-- **Meals**: RM 50/day (local), USD 30/day (overseas)
-- **Accommodation**: RM 250/day (MY), USD 100/day (overseas)
+Travel & Transport
+• Parking: Monthly reimbursement (Pacific Place valet / TnG basement)
+• Mileage: RM 0.80/km (0–300km), RM 0.50/km (301km+)
+• Taxi/Grab/Toll/Parking: RM 150/month cap
+• Flight/Train: Economy class, HR approval, outstation only
+• Meals: RM 50/day (local), USD 30/day (overseas)
+• Accommodation: RM 250/day (MY), USD 100/day (overseas)
 
-### Working Essentials
-- **Phone Bill**: Director RM 80/mo, Others RM 50/mo
-- **WFH Expenses**: RM 200/year (single receipt, permanent/confirmed only)` },
-      { id: 'training-dev', title: 'Training & Development', type: 'document', content: `## Training & Development
+Working Essentials
+• Phone Bill: Director RM 80/mo, Others RM 50/mo
+• WFH Expenses: RM 200/year (single receipt, permanent/confirmed only)` },
+      { id: 'training-dev', title: 'Training & Development', type: 'document', content: `Training & Development
 
 The company encourages training and development to motivate employees to contribute more effectively to business growth.
 
-### Training Course / Certification Program
-- Bonded agreement required based on course value:
+Training Course / Certification Program
+• Bonded agreement required based on course value:
 
-| Course Value | Bonded Period |
-|---|---|
-| < RM 10,000 | 12 months |
-| RM 10,001 – RM 20,000 | 24 months |
-| > RM 20,000 | 36 months |
+Course Value | Bonded Period
+Less than RM 10,000 | 12 months
+RM 10,001 – RM 20,000 | 24 months
+More than RM 20,000 | 36 months
 
-- Violation of bonded terms requires full repayment of training cost.
+• Violation of bonded terms requires full repayment of training cost.
 
-### Training Module
-- Cost < RM 5,000, no certificate provided
-- No bonded agreement required
-- HR arranges and maintains training records` },
-      { id: 'anti-harassment', title: 'Anti-harassment and non-discrimination Policy', type: 'document', content: `## Anti-Harassment and Non-Discrimination Policy
+Training Module
+• Cost < RM 5,000, no certificate provided
+• No bonded agreement required
+• HR arranges and maintains training records` },
+      { id: 'anti-harassment', title: 'Anti-harassment and non-discrimination Policy', type: 'document', content: `Anti-Harassment and Non-Discrimination Policy
 
-### Prevention of Sexual Harassment
-- Sexual harassment means any unwanted conduct of a sexual nature having the effect of verbal, non-verbal, visual, psychological or physical harassment.
-- HOD personnel shall protect subordinates from such harassment by providing advice and help.
-- An employee who believes they have been subjected to sexual harassment should report to their HOD, who forwards the case to HR.
-- False accusations shall be subjected to disciplinary action.
-- Guilty employees shall be sentenced which includes dismissal.
+Prevention of Sexual Harassment
+• Sexual harassment means any unwanted conduct of a sexual nature having the effect of verbal, non-verbal, visual, psychological or physical harassment.
+• HOD personnel shall protect subordinates from such harassment by providing advice and help.
+• An employee who believes they have been subjected to sexual harassment should report to their HOD, who forwards the case to HR.
+• False accusations shall be subjected to disciplinary action.
+• Guilty employees shall be sentenced which includes dismissal.
 
-### Diversity & Empathy (Core Value)
-- We are open for people, and working with people from diverse backgrounds.
-- While being honest, respect each other. Value and honour another person, both their words and actions.
-- Accept others without trying to change them.
+Diversity & Empathy (Core Value)
+• We are open for people, and working with people from diverse backgrounds.
+• While being honest, respect each other. Value and honour another person, both their words and actions.
+• Accept others without trying to change them.
 
-### Occupational Safety and Health (OSHA)
-- Reduce or eliminate work-related injuries and implement safe work practices.
-- Comply with OSHA Act 1973 regulations.
-- All employees must report accidents, injuries and illness to HOD promptly.
-- All employees must identify unsafe conditions in the workplace.` },
+Occupational Safety and Health (OSHA)
+• Reduce or eliminate work-related injuries and implement safe work practices.
+• Comply with OSHA Act 1973 regulations.
+• All employees must report accidents, injuries and illness to HOD promptly.
+• All employees must identify unsafe conditions in the workplace.` },
     ],
   },
 ];
