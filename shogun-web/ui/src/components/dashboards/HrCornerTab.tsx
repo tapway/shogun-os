@@ -77,7 +77,16 @@ DREAM BIG, THINK DIFFERENT, ACT FAST
 ALWAYS DAY ONE
 • Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
 • Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
-      { id: 'values-video', title: 'Core Values Video', type: 'video' },
+      { id: 'values-video', title: 'Core Values Video', type: 'document', content: `💡 Watch our Core Values video to understand what drives us at Company.
+
+Video Link: https://drive.google.com/file/d/1abc123/view (sample placeholder)
+
+Our 5 Core Values:
+• LIGHT THE FIRE IN YOUR HEART — Be passionate and energized
+• OBSESSED ABOUT CUSTOMERS AND RESULTS — Deliver excellence
+• WE ARE FAMILY — Support and care for each other
+• DREAM BIG THINK DIFFERENT ACT FAST — Innovate boldly
+• ALWAYS DAY ONE — Stay hungry, never complacent` },
       { id: 'org-chart', title: 'Organisational Chart', type: 'embed', embedUrl: 'https://docs.google.com/presentation/d/1lBr6v6Yo52Dj384rZyQ2x2pBMYU8YUCEHECM7PRbvFY/embed?start=false&loop=false&delayms=3000', content: `Organisational Structure
 
 Job Classification | Grade | Category | Position
@@ -92,10 +101,60 @@ Executive | E2 | Senior L2 Executive | Senior Executive, Senior Engineer, Senior
 Executive | E2 | Executive | Junior Executive, Junior Engineer, Junior PM
 Non-Executive | NE1 | Non-Executive | Clerk, Receptionist, Internship/Trainee
 Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper` },
-      { id: 'office-tour', title: 'Office Tour', type: 'video' },
-      { id: 'directions-tapway', title: 'How to Get to Tapway', type: 'document', content: 'Directions and map to Tapway office at Pacific Place.' },
-      { id: 'directions-itmax', title: 'How to Get to ITMAX new office', type: 'document', content: 'Directions and map to ITMAX new office location.' },
-      { id: 'staff-pics', title: 'Staff Pics', type: 'image' },
+      { id: 'office-tour', title: 'Office Tour', type: 'document', content: `💡 Take a virtual tour of our Company office at Pacific Place.
+
+Video Link: https://drive.google.com/file/d/1def456/view (sample placeholder)
+
+Office Highlights:
+• Open-plan workspace with collaborative zones
+• Meeting rooms equipped with video conferencing
+• Pantry area with coffee machine and snacks
+• Prayer room for Muslim staff
+• Server room with climate control
+• Reception area with visitor seating` },
+      { id: 'directions-company', title: 'How to Get to Office', type: 'document', content: `💡 Directions to Main Office
+
+Address: Unit X-XX, Level XX, Pacific Place Commercial Centre, Jalan PJU 1A/4, Ara Damansara, 47301 Petaling Jaya, Selangor
+
+By Car:
+• From LDP Highway: Exit at Ara Damansara, follow signs to Pacific Place
+• Parking: Basement parking available (RM 3/hour, max RM 20/day)
+• Enter via main lobby, take lift to Level XX
+
+By Public Transport:
+• LRT: Kelana Jaya Line to Ara Damansara station, 5-min walk
+• Grab: Drop-off at Pacific Place main entrance
+
+Contact: +603-XXXX XXXX for assistance` },
+      { id: 'directions-itmax', title: 'How to Get to Office (Branch)', type: 'document', content: `💡 Directions to Branch Office
+
+Address: Level XX, Menara Commercial, Jalan XXXX, 50450 Kuala Lumpur
+
+By Car:
+• From DUKE Highway: Exit at Sentul, follow signs to Menara Commercial
+• Parking: Multi-storey car park adjacent to building (RM 2/hour)
+• Enter via main entrance, security checkpoint at ground floor
+
+By Public Transport:
+• LRT: Ampang Line to Sentul Timur station, 3-min walk
+• KTM: Batu Caves line to Sentul station, 5-min walk
+• Grab: Drop-off at Menara Commercial lobby
+
+Note: Visitor pass required — register at security desk with IC` },
+      { id: 'staff-pics', title: 'Staff Pics', type: 'document', content: `💡 Team Photos & Events Gallery
+
+Our team photos are stored in the shared Google Drive folder. Access requires Company account login.
+
+Folder Link: https://drive.google.com/drive/folders/1ghi789 (sample placeholder)
+
+Recent Albums:
+• 2026 Company Dinner — January 2026
+• Hari Raya Open House — April 2026
+• Team Building at Janda Baik — March 2026
+• Product Launch Event — February 2026
+• Monthly Birthday Celebrations
+
+To upload your event photos, contact HR or the Marketing team.` },
     ],
   },
   {
@@ -103,8 +162,19 @@ Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper` },
     title: 'SOP',
     icon: BookOpen,
     topics: [
-      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'video' },
-      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `💡 This guide is created for all staff of Tapway to use for attendance.
+      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', content: `💡 Watch the BRIOHR attendance system tutorial video.
+
+Video Link: https://drive.google.com/file/d/1jkl012/view (sample placeholder)
+
+Topics Covered:
+• How to clock in/out using facial recognition
+• Setting up location tracking on mobile app
+• Submitting leave and claim requests
+• Viewing your attendance history
+• Troubleshooting common issues
+
+Duration: 15 minutes | Language: English/Malay` },
+      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `💡 This guide is created for all staff of Company to use for attendance.
 
 A. CLOCK IN/CLOCK OUT
 
@@ -174,8 +244,47 @@ Using the time tracking widget
 5. To clock out, click on the red Clock Out icon in the time tracking widget and confirm your out entry on the time clock screen. The last clocked-out time will be displayed within the widget.
 
 ❗ Important: If a different platform is used to clock in, take breaks or clock out (i.e. web, Slack, MS Teams), the mobile app needs to be refreshed or opened for the widget to be updated.` },
-      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document' },
-      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document' },
+      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', content: `💡 Standard Operating Procedure for logging project activities in Jibble.
+
+Scope: Project Management & Support Teams
+
+Steps:
+1. Open Jibble app or web portal
+2. Select your assigned project from dropdown
+3. Choose activity category (Development, Testing, Deployment, Support)
+4. Start timer when beginning work
+5. Add notes describing task completed
+6. Stop timer when task is done
+7. Submit timesheet by end of each Friday
+
+Rules:
+• All billable hours must be logged daily
+• Minimum 15-minute increments
+• Overtime requires prior HOD approval
+• Missed entries must be corrected within 48 hours
+
+Contact: Project Coordinator for access issues` },
+      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', content: `💡 Standard Operating Procedure for Product team and secondment assignments.
+
+Scope: Product Development & Seconded Staff
+
+Product Team Logging:
+1. Select "Product Development" as project category
+2. Log time under specific product (PeopleTrack, VehicleTrack, StoreTrack)
+3. Tag activities: R&D, Feature Dev, Bug Fix, Testing, Documentation
+4. Include sprint/iteration number in notes
+
+Secondment Assignments:
+1. Notify HR before starting secondment
+2. Create separate Jibble entry for secondment client
+3. Use client-specific project code provided by PM
+4. Log all travel time separately with "Travel" tag
+5. Submit weekly summary to both Company HOD and client contact
+
+Important:
+• Secondment staff must maintain dual reporting (Company + Client)
+• Timesheets approved by Company PM every Monday
+• Discrepancies reported to HR within 24 hours` },
       { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `To refer claim categories details please click here.
 
 Claim Procedure (For Full-time Employee Only)
@@ -211,7 +320,7 @@ Claim Procedure (For Part-time/Intern)
 
 1. To submit claim by filling in the claim form personal (for personal claim, parking etc)
 2. Mileage claim form (for mileage/toll only)
-3. Send it to Admin (hairul@gotapway.com) and cc HR (Hana@gotapway.com & hr@gotapway.com & hrintern@gotapway.com)
+3. Send it to Admin (hairul@gocompany.com) and cc HR (Hana@gocompany.com & hr@gocompany.com & hrintern@gocompany.com)
 4. Attach receipts & screenshots of mileage from Google Maps
 
 Personal Claim (For any claim except for mileage purposes)
@@ -221,10 +330,74 @@ Mileage Claim (Mileage claim purposes only)
 TEMPLATE_ Name - Mileage Claim (Updated).numbers.numbers
 
 💡 Policy brief & purpose
-Tapway Claim Policy outlines how we'll reimburse staff for work-related expenses. We'll define "work-related expenses" and set a procedure to authorize expenditure. This policy applies to all staff that need to spend money for work-related activities.` },
-      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document' },
-      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document' },
-      { id: 'visitor-log', title: 'Visitor Log', type: 'document' },
+Company Claim Policy outlines how we'll reimburse staff for work-related expenses. We'll define "work-related expenses" and set a procedure to authorize expenditure. This policy applies to all staff that need to spend money for work-related activities.` },
+      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document', content: `💡 Operating the office roller shutter safely.
+
+Location: Main entrance of Company office
+
+Opening Procedure:
+1. Locate control panel on right side of shutter
+2. Press and hold UP button until fully open
+3. Ensure safety sensor is clear before operating
+4. Do not force shutter if obstructed
+
+Closing Procedure:
+1. Clear area beneath shutter
+2. Press and hold DOWN button
+3. Stand clear while shutter descends
+4. Verify shutter is fully closed and locked
+
+Safety Rules:
+• Never operate if sensor light is flashing red
+• Report malfunction to Facilities team immediately
+• Last person leaving must ensure shutter is closed
+• Keys kept at reception desk during office hours
+
+Emergency Contact: Building Security +603-XXXX XXXX` },
+      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document', content: `💡 Procedure for receiving and collecting parcels at the office.
+
+Receiving Parcels:
+1. Courier delivers to reception desk
+2. Receptionist logs parcel in delivery register
+3. Recipient notified via Slack/email
+4. Collect from reception within 2 working days
+
+Collection Steps:
+1. Go to reception during office hours (9am-5pm)
+2. Provide your name and tracking number
+3. Sign collection register
+4. Inspect parcel for damage before signing
+
+Important Notes:
+• Personal parcels should not be sent to office address
+• Company parcels only — label with department name
+• Uncollected parcels after 5 days returned to sender
+• High-value items require HOD signature
+
+Contact: Reception +603-XXXX XXXX ext. 100` },
+      { id: 'visitor-log', title: 'Visitor Log', type: 'document', content: `💡 Visitor registration and security protocol.
+
+Registration Process:
+1. Visitor arrives at reception
+2. Present valid ID (IC/Passport) to receptionist
+3. Receptionist records: Name, Company, Purpose, Host, Time In
+4. Visitor receives visitor badge — must wear visibly
+5. Host notified via Slack/phone
+6. Escort required for all visitors beyond reception area
+
+Departure:
+1. Return visitor badge to reception
+2. Receptionist records Time Out
+3. Badge retained by reception
+
+Rules:
+• All visitors must be pre-approved by host department
+• No unescorted access to server room or R&D lab
+• Photography prohibited without written permission
+• Visitors must sign NDA if accessing confidential areas
+• Children under 12 not permitted in office premises
+
+Emergency: Visitors must follow evacuation procedures with host` },
       { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', content: `Keeping a Tidy Office
 
 All employees are responsible and should contribute to create a conducive working environment.
@@ -241,20 +414,20 @@ All employees are responsible and should contribute to create a conducive workin
     title: 'Official Website/Training',
     icon: Globe,
     topics: [
-      { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'document', content: `Staff Development is one of the key factors that we value and prioritise in Tapway. Hence, every staff is entitled to free unlimited online courses/learning through AcloudGuru. The details to enroll for the course are as easy as below:
+      { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'document', content: `Staff Development is one of the key factors that we value and prioritise in Company. Hence, every staff is entitled to free unlimited online courses/learning through AcloudGuru. The details to enroll for the course are as easy as below:
 
 Steps on how to start Online Learning:
 
 1. Check out AcloudGuru to see which course training you would like to take
-2. Get login credentials to our Tapway Account:
+2. Get login credentials to our Company Account:
    • URL: https://acloudguru.com/
-   • Email: training@gotapway.com
-   • Password: Tapway@123
+   • Email: training@gocompany.com
+   • Password: Company@123
 3. Discuss with your supervisor/HOD for training availability and book your Google Calendar
 4. Finish the training and download certificate, then send to HR for documentation` },
-      { id: 'website', title: 'Tapway Website', type: 'document', content: `💡 Tapway Official Website
+      { id: 'website', title: 'Company Website', type: 'document', content: `💡 Company Official Website
 
-https://gotapway.com/
+https://gocompany.com/
 
 Visit our official website to learn more about:
 • Our products and solutions (PeopleTrack, VehicleTrack, StoreTrack)
@@ -262,13 +435,13 @@ Visit our official website to learn more about:
 • Latest news and updates
 • Contact information
 • Career opportunities` },
-      { id: 'social-media', title: 'Social Media', type: 'document', content: `💡 Tapway's Social Media
+      { id: 'social-media', title: 'Social Media', type: 'document', content: `💡 Company's Social Media
 
-🐦 Twitter: @TapwaySolutions
-📸 Instagram: @TapwaySolutions
-📘 Facebook: Tapway
-🔖 LinkedIn: Tapway
-📱 TikTok: @TapwaySolutions
+🐦 Twitter: @CompanySolutions
+📸 Instagram: @CompanySolutions
+📘 Facebook: Company
+🔖 LinkedIn: Company
+📱 TikTok: @CompanySolutions
 
 Follow us on social media to stay updated with:
 • Latest product launches and features
