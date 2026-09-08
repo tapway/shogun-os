@@ -35,7 +35,7 @@ interface Section {
   topics: TopicItem[];
 }
 
-const HANDBOOK_PDF = '/handbook/employee-handbook-2026.pdf';
+const HANDBOOK_PDF = '/handbook/employee-handbook-2026.pdf?v=2';
 
 const SECTIONS: Section[] = [
   {
