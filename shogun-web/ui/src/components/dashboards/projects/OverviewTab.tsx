@@ -16,14 +16,13 @@ const BORDER = 'var(--samurai-border)';
 const GREEN = '#10b981';
 const ORANGE = '#f59e0b';
 const RED = '#ef4444';
-const NAVY = '#1e3a5f';
 
 function statusColor(status?: string): string {
   const s = (status || '').toLowerCase();
   if (s.includes('done') || s.includes('complete') || s.includes('on track')) return GREEN;
   if (s.includes('risk') || s.includes('hold') || s.includes('paused')) return ORANGE;
   if (s.includes('block') || s.includes('cancel') || s.includes('overdue')) return RED;
-  return NAVY;
+  return TEXT;
 }
 
 function KpiCard({ label, value, sub, color, icon }: { label: string; value: string; sub?: string; color: string; icon?: string }) {
@@ -169,7 +168,7 @@ export function OverviewTab({ dept, color, onOpenProject }: Props) {
 
       {/* KPI Row 1 */}
       <div className="sd-kpi-grid" style={{ gridTemplateColumns: 'repeat(2, 1fr)' }}>
-        <KpiCard label="Active Projects" value={String(activeCount)} color={NAVY} icon="📊" />
+        <KpiCard label="Active Projects" value={String(activeCount)} color={TEXT} icon="📊" />
         <KpiCard label="At Risk / Blocked" value={String(atRiskCount + blockedCount)} sub={`${atRiskCount} need attention`} color={RED} icon="⚠️" />
       </div>
 
@@ -181,7 +180,7 @@ export function OverviewTab({ dept, color, onOpenProject }: Props) {
 
       {/* KPI Row 3 */}
       <div className="sd-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
-        <KpiCard label="Total Projects" value={String(totalCount)} sub={`${activeCount} active`} color={NAVY} />
+        <KpiCard label="Total Projects" value={String(totalCount)} sub={`${activeCount} active`} color={TEXT} />
         <KpiCard label="Overall Progress" value={`${overallProgress}%`} sub="avg task completion" color={GREEN} />
         <KpiCard label="At Risk" value={String(atRiskCount)} sub={`${blockedCount} blocked`} color={ORANGE} />
       </div>
@@ -189,7 +188,7 @@ export function OverviewTab({ dept, color, onOpenProject }: Props) {
       {/* KPI Row 4 */}
       <div className="sd-kpi-grid" style={{ gridTemplateColumns: 'repeat(3, 1fr)' }}>
         <KpiCard label="Overdue" value={String(overdueCount)} sub={`${tasksOverdue} overdue tasks`} color={ORANGE} />
-        <KpiCard label="Pipeline Value" value={formatRm(pipelineValue)} sub={`across ${totalCount} projects`} color={NAVY} />
+        <KpiCard label="Pipeline Value" value={formatRm(pipelineValue)} sub={`across ${totalCount} projects`} color={TEXT} />
         <KpiCard label="Overdue Tasks" value={String(tasksOverdue)} sub="not done / cancelled" color={RED} />
       </div>
 
