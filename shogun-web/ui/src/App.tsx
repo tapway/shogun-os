@@ -13,7 +13,6 @@ import Register from './pages/Register';
 import StaffManagement from './pages/StaffManagement';
 import SkillsCatalog from './pages/SkillsCatalog';
 import TrainSkill from './pages/TrainSkill';
-import { HrCornerTab } from './components/dashboards/HrCornerTab';
 
 function AuthCallback() {
   const [searchParams] = useSearchParams();
@@ -123,7 +122,6 @@ export default function App() {
         }
       >
         <Route path="/dashboard" element={<Dashboard />} />
-        <Route path="/hr-corner" element={<HrCornerTab department="projects" color="#10b981" />} />
         <Route path="/skills" element={<SkillsCatalog />} />
         <Route path="/skills/train" element={<TrainSkill />} />
         <Route path="/department/:name" element={<Department />} />

@@ -9,6 +9,7 @@ import { PlanTab } from './PlanTab';
 import { PostProjectTab } from './PostProjectTab';
 import { ReportsTab } from './ReportsTab';
 import { SupportTab } from './SupportTab';
+import { HrCornerTab } from '../HrCornerTab';
 import { ProjectDetailModal } from './ProjectDetailModal';
 
 const TABS: DashboardTab[] = [
@@ -20,6 +21,7 @@ const TABS: DashboardTab[] = [
   { id: 'post-project', label: 'Post-Project', icon: 'Package' },
   { id: 'reports', label: 'Reports', icon: 'BarChart3' },
   { id: 'support', label: 'Support', icon: 'LifeBuoy' },
+  { id: 'hr-corner', label: 'HR Corner', icon: 'Users' },
 ];
 
 interface ProjectsDashboardProps {
@@ -60,6 +62,7 @@ export function ProjectsDashboard({ department, color }: ProjectsDashboardProps)
         <ReportsTab dept={department} color={color} onOpenProject={openProject} />
       )}
       {activeTab === 'support' && <SupportTab dept={department} color={color} />}
+      {activeTab === 'hr-corner' && <HrCornerTab department={department} color={color} />}
 
       {selectedProjectId && (
         <ProjectDetailModal

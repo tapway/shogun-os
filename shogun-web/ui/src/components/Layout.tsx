@@ -261,10 +261,6 @@ export default function Layout() {
           <span className="sd-nav-icon"><LayoutDashboard className="h-4 w-4" /></span>
           {!collapsed && <span className="sd-nav-label">Dashboard</span>}
         </NavLink>
-        <NavLink to="/hr-corner" onClick={() => setMobileOpen(false)} className={({ isActive }) => clsx('sd-nav-item', isActive && 'active')}>
-          <span className="sd-nav-icon"><Users className="h-4 w-4" /></span>
-          {!collapsed && <span className="sd-nav-label">HR Corner</span>}
-        </NavLink>
         <NavLink to="/skills" onClick={() => setMobileOpen(false)} className={({ isActive }) => clsx('sd-nav-item', isActive && 'active')}>
           <span className="sd-nav-icon"><Wrench className="h-4 w-4" /></span>
           {!collapsed && <span className="sd-nav-label">Skill Library</span>}
