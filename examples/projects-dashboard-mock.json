@@ -958,31 +958,31 @@
     },
     "openTasksByOwner": [
       {
-        "owner": "iskandar",
+        "owner": "Alex Chen",
         "count": 5
       },
       {
-        "owner": "zul",
+        "owner": "Jordan Lee",
         "count": 2
       },
       {
-        "owner": "syazwan",
+        "owner": "Sam Kumar",
         "count": 2
       },
       {
-        "owner": "Paul",
+        "owner": "Taylor Wong",
         "count": 1
       },
       {
-        "owner": "fitri",
+        "owner": "Casey Lim",
         "count": 1
       },
       {
-        "owner": "yeoh",
+        "owner": "Morgan Tan",
         "count": 1
       },
       {
-        "owner": "lim",
+        "owner": "Riley Ng",
         "count": 1
       }
     ],
