@@ -241,7 +241,17 @@ All employees are responsible and should contribute to create a conducive workin
     title: 'Official Website/Training',
     icon: Globe,
     topics: [
-      { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'link' },
+      { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'document', content: `Staff Development is one of the key factors that we value and prioritise in Tapway. Hence, every staff is entitled to free unlimited online courses/learning through AcloudGuru. The details to enroll for the course are as easy as below:
+
+Steps on how to start Online Learning:
+
+1. Check out AcloudGuru to see which course training you would like to take
+2. Get login credentials to our Tapway Account:
+   • URL: https://acloudguru.com/
+   • Email: training@gotapway.com
+   • Password: Tapway@123
+3. Discuss with your supervisor/HOD for training availability and book your Google Calendar
+4. Finish the training and download certificate, then send to HR for documentation` },
       { id: 'website', title: 'Tapway Website', type: 'link' },
       { id: 'social-media', title: 'Social Media', type: 'link' },
       { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `AWS Certification Guideline
