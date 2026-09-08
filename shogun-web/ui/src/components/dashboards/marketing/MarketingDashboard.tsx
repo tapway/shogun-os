@@ -55,11 +55,6 @@ export function MarketingDashboard({ department, color }: MarketingDashboardProp
 
   return (
     <div className="sd-stack">
-      {stats.mock && (
-        <div className="rounded-lg border border-amber-500/30 bg-amber-500/10 px-4 py-2 text-sm text-amber-700 dark:text-amber-300">
-          ⚠️ DEMO DATA — figures loaded from sample data. Connect marketing integrations for live metrics.
-        </div>
-      )}
       <DashboardSubNav tabs={TABS} active={activeTab} onChange={setActiveTab} />
 
       <div>
