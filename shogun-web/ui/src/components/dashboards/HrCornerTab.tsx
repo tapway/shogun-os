@@ -293,33 +293,33 @@ This document contains the complete guidelines for AWS certification including:
     title: 'Company Policies',
     icon: Shield,
     topics: [
-      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `Code of Conduct
+      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `**1. Working Hours and Rest Day**
 
-Working Hours
-Monday–Friday: 8:00am–4:00pm or 9:00am–5:00pm
-Saturday & Sunday: Rest Day
-Lunch Break: Flexible 1 hour
-Friday (Male Muslim): 12:30pm–2:30pm
+| **Days** | **Working Hours** |
+| --- | --- |
+| Monday - Friday | 8.00 am - 5.00 pm; or 9.00 am - 6.00 pm |
+| Saturday & Sunday | Rest Day |
+| Lunch Break | Flexible 1 hour |
+| Lunch Break on Friday (For male Muslim employees) | 12.30 pm - 2.30 pm |
 
-Flexible Work Arrangements
-• Employees are entitled to work remotely (WFH) for 3 days a week, with mandatory office attendance on 2 specific days.
-• Employees may formally apply for Flexible Work Arrangements pursuant to Section 60P and 60Q of the Employment Act.
+• Compulsory 3 days working from office, and Friday or last day of the week is **compulsory**. (Subject to change)
+• Clocking in via face scanner when you arrived at office to enter.
+• Clocking via Scan your face OR Tap your IC/TnG card, even when the door is already opened.
 
-Communication Channels
-• Slack: Main channel for work communication. Profile picture required. Status must be online during working hours.
-• WhatsApp: Semi-formal channel.
-• Company Email: Gmail Tapway Team. Personal company email provided upon enrollment.
+**2. Work from Home (WFH)**
 
-Business Attire
-• Employees must at all times appear neat and dignified in casual and suitable attire.
-• When dealing with customers, present a clean, neat and professional appearance.
+• All employees are entitled to work remotely except on the mandatory working days in the office as per clause 1.
+• The employees however is responsible for making sure to continue high level productivity and responsiveness towards team mate.
+• HOD is responsible to keeping track employee's productivity status and inform HR department for any concerning matters regards to working from home.
+• HR department has the right to issue **warning letter** with approval from the management, if the employee is found to be MIA from the working hours while working from home.
 
-Confidential Information
-• All employees shall not divulge confidential Company information during or after employment.
-• The Company shall take legal action in any situation involving unauthorized disclosure.
+**3. Gazetted Public Holidays**
 
-Acts of Misconduct
-• Habitual lateness, breach of trust, rude behaviour, insubordination, AWOL, theft, sexual harassment, gambling, sleeping on duty, unauthorized use of company vehicles/equipment.` },
+• All employees shall be entitled to paid holidays on all gazetted Federal or State Public holidays applicable to the state in which they are based.
+• All public holidays recognized and approved by the company shall be circulated to all employees on the commencement of each calendar year.
+• All sudden proclaimed public holidays from the Government of Malaysia or the State ruler which is not gazetted as the Company's public holiday shall be considered as a paid holiday.
+• If a gazetted public holiday falls on Sunday, an additional paid holiday shall be granted in substitution thereof.
+• An employee who is absent from work on the working day without prior approval, immediately preceding or succeeding the public holiday, he/she is not entitled to the holiday pay.` },
       { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `💡 Any leaves must be applied through our Payroll Panda system (exclude interns) and keep your manager/HOD informed.
 
 **Leave Rule**
