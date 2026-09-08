@@ -46,40 +46,23 @@ const SECTIONS: Section[] = [
       { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', icon: BookOpen, pdfUrl: HANDBOOK_PDF },
       { id: 'mission', title: 'Mission, Vision, Values', type: 'document', icon: Target, content: `💡 A company mission provides direction and purpose, aligning actions and decisions towards a common goal. It also helps attract like-minded individuals who share the same values and vision for the company.
 
-🔭 Vision
-To democratize AI Vision by allowing anyone to build, train and deploy vision technology solutions quickly and affordably.
-
-🚀 Mission
-To build a platform that provides technology solutions to businesses with physical premises in order to help eliminate low-skilled manual labor, improve service quality & experience, and enhance safety & security.
-
 ⚖️ Company Core Values
 
-LIGHT THE FIRE IN YOUR HEART
-• Love what you do, and do what you love. Be passionate about your work and seek to learn, improve and accomplish goals everyday.
-• Be committed to and fully accountable for your goals in alignment with company's collective priorities.
-• We commit to the team. Commit to quality. Commit to collaborate. Commit to learn. Commit to do the best we can, every day again. Commit to the Sprint Goal. Commit to be professional. Commit to self-organize. Commit to excellence.
+Excellence
+• We strive for the highest quality in everything we do.
 
-OBSESSED ABOUT CUSTOMERS AND RESULTS
-• Build our products and innovation around customers, not what we want.
-• Be ready to react quickly to changing customer requirements and environments.
-• Always create short term, mid term and long term goals and strive to achieve results.
-• Do not sacrifice quality because of time limitation. Strive for the best!
+Integrity
+• We act with honesty and transparency in all our dealings.
 
-WE ARE FAMILY
-• Courage — Do not be afraid to raise concerns about the company or your own work. Have courage to challenge others for what you believe will benefit the company as a whole. We welcome healthy conflicts.
-• Diversity & Empathy — We are also open for people, and working with people from diverse backgrounds; acknowledging people to be people.
-• Honesty — We are open and honest about our work, our progress, our learning and our problems. We are open in sharing feedback and learning from one another.
-• Respect — While being honest, respect each other. Value and honour another person, both his or her words and action, even if we do not approve or share everything he or she does. It is accepting the other person and not trying to change them.
-• Teamwork — Teamwork makes the dream work. "Alone, we can do so little, together, we can do so more."
+Teamwork
+• We collaborate and support one another to achieve shared goals.
 
-DREAM BIG, THINK DIFFERENT, ACT FAST
-• Bias for action — You're not afraid to make decisions and take action, even when (especially when) you face uncertainty.
-• Be brave, be creative and think out of the box to solve any particular issue. Be positive in the face of great challenge.
-• Have courage to take calculated risks, if it means more success for yourself and the company as a whole.
+Innovation
+• We embrace change and continuously seek better ways of working.
 
-ALWAYS DAY ONE
-• Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
-• Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
+Accountability
+• We take ownership of our actions and deliver on our commitments.` },
+
       { id: 'values-video', title: 'Core Values Video', type: 'video', icon: Play, videoUrl: 'https://www.youtube.com/embed/_fNUQeZLGII' },
       { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: 'https://www.smartsheet.com/sites/default/files/2024-05/organizational-chart-template-hero.png' },
       { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye, content: `💡 Take a virtual tour of our Company office at Pacific Place.
@@ -225,47 +208,8 @@ Using the time tracking widget
 5. To clock out, click on the red Clock Out icon in the time tracking widget and confirm your out entry on the time clock screen. The last clocked-out time will be displayed within the widget.
 
 ❗ Important: If a different platform is used to clock in, take breaks or clock out (i.e. web, Slack, MS Teams), the mobile app needs to be refreshed or opened for the widget to be updated.` },
-      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', icon: Briefcase, content: `💡 Standard Operating Procedure for logging project activities in Jibble.
 
-Scope: Project Management & Support Teams
 
-Steps:
-1. Open Jibble app or web portal
-2. Select your assigned project from dropdown
-3. Choose activity category (Development, Testing, Deployment, Support)
-4. Start timer when beginning work
-5. Add notes describing task completed
-6. Stop timer when task is done
-7. Submit timesheet by end of each Friday
-
-Rules:
-• All billable hours must be logged daily
-• Minimum 15-minute increments
-• Overtime requires prior HOD approval
-• Missed entries must be corrected within 48 hours
-
-Contact: Project Coordinator for access issues` },
-      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', icon: Briefcase, content: `💡 Standard Operating Procedure for Product team and secondment assignments.
-
-Scope: Product Development & Seconded Staff
-
-Product Team Logging:
-1. Select "Product Development" as project category
-2. Log time under specific product (PeopleTrack, VehicleTrack, StoreTrack)
-3. Tag activities: R&D, Feature Dev, Bug Fix, Testing, Documentation
-4. Include sprint/iteration number in notes
-
-Secondment Assignments:
-1. Notify HR before starting secondment
-2. Create separate Jibble entry for secondment client
-3. Use client-specific project code provided by PM
-4. Log all travel time separately with "Travel" tag
-5. Submit weekly summary to both Company HOD and client contact
-
-Important:
-• Secondment staff must maintain dual reporting (Company + Client)
-• Timesheets approved by Company PM every Monday
-• Discrepancies reported to HR within 24 hours` },
       { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', icon: CreditCard, content: `To refer claim categories details please click here.
 
 Claim Procedure (For Full-time Employee Only)
@@ -601,59 +545,9 @@ Leave Categories
     * The utilised leave as todate is 5 days
     * The over utilised leave is 0.5 days, and shall be deducted from the final payroll
 • The amount of leave encashment and deduction calculation shall refer to clause 3.6, pro-rated salary calculation` },
-      { id: 'wages', title: 'Wages', type: 'document', icon: CreditCard, content: `Wages
 
-Payment
-• Method: Bank transfer to employee's preferred account
-• Date: Before/On the 26th of every month (or last working day if 26th falls on rest day/public holiday)
 
-Statutory Contributions
-EPF (Local): Employee 11%, Employer 13%
-EPF (Foreign): Employee 2%, Employer 2%
-SOCSO + EIS: As per Act (both)
-Income Tax: PCB deduction (employee only)
 
-Salary Increment
-• Must be employed for more than 6 months upon increment date
-• Pro-rated increment for 6–12 months of employment
-• Based on last withdrawn basic salary (without allowance & commissions)
-
-Pro-rated Salary
-• Based on working days calculation: Period = total days in month (including weekends)
-• Formula: [Basic Salary / Total Days] × Working Days` },
-      { id: 'overtime', title: 'Overtime (OT)', type: 'document', content: `Overtime (OT)
-
-Eligibility
-• Basic salary below RM 4,000: Entitled to OT pay
-• Basic salary above RM 4,000: Not entitled, but may apply for TOIL/Compensatory Time with Senior Management + HR + CEO approval
-
-Rate Calculations
-• Ordinary Rate of Pay (ORP) = Basic Salary / 26 days
-• Hourly Rate (HRy) = ORP / 8 hours
-
-OT Rates (Salary < RM 4,000)
-Weekday (7pm–7am next day): HRy × 1.5
-Rest day (≤ 4 hours): ORP × 0.5
-Rest day (4–8 hours): ORP × 1
-Rest day (> 8 hours): ORP + (HRy × 2)
-Public holiday (≤ 8 hours): ORP × 2
-Public holiday (> 8 hours): ORP × 3
-
-Procedure
-1. Employee informs HOD for approval
-2. HOD assesses urgency, gets CTO/CEO approval
-3. HOD informs HR for formality
-4. All OT must be submitted by 20th of the month` },
-      { id: 'commission', title: 'Commission', type: 'document', icon: Trophy, content: `Commission
-
-Eligibility
-• Only employees from Business Development department are entitled to Commissions
-• Both probation and confirmed staff are eligible
-
-Payment Release Process
-1. Finance department provides the Commissions Tracker
-2. Finance registers confirmed deals with approved Purchase Order (PO)
-3. HR communicates with Finance to get payment updates for each registered deal` },
       { id: 'expenses', title: 'Claimable Expenses', type: 'document', icon: CreditCard, content: `Claimable Expenses
 
 All claims must be submitted through the updated HR system. Each receipt can only be used for one type of claim.
