@@ -149,7 +149,7 @@ export function ProjectsTab({ dept, color, onOpenProject }: Props) {
     <div className="sd-stack">
       {/* Page heading */}
       <div>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: 0 }}>All Projects</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: 0 }}>All Projects</h2>
         <p style={{ fontSize: '0.78rem', color: MUTED, margin: '4px 0 0' }}>{filtered.length} of {allProjects.length} projects</p>
       </div>
 
@@ -278,7 +278,7 @@ export function ProjectsTab({ dept, color, onOpenProject }: Props) {
                 }} />
 
                 {/* Title */}
-                <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: NAVY, margin: '0 0 6px', paddingRight: '20px' }}>
+                <h4 style={{ fontSize: '0.92rem', fontWeight: 700, color: TEXT, margin: '0 0 6px', paddingRight: '20px' }}>
                   {project.name}
                 </h4>
 

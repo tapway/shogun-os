@@ -162,7 +162,7 @@ export function TasksTab({ dept, color, onOpenProject }: Props) {
     <div className="sd-stack">
       {/* Header with view toggle */}
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: 0 }}>Task Dashboard</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: 0 }}>Task Dashboard</h2>
         <div style={{ display: 'flex', gap: '8px' }}>
           <button
             onClick={() => setView('table')}
@@ -207,7 +207,7 @@ export function TasksTab({ dept, color, onOpenProject }: Props) {
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6" style={{ marginBottom: '16px' }}>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Total Tasks</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: NAVY }}>{stats.total}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{stats.total}</div>
         </div>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>To Do</div>

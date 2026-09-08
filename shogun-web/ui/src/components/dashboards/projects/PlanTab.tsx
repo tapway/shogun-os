@@ -179,7 +179,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
         <div>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
             <span style={{ fontSize: '1.2rem' }}>📅</span>
-            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: 0 }}>Task Plan — Next 5 Working Days</h2>
+            <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: 0 }}>Task Plan — Next 5 Working Days</h2>
           </div>
           <p style={{ fontSize: '0.78rem', color: MUTED, margin: 0 }}>
             Monday 7 Sept – Friday 11 Sept · grouped by project · deadline = planned day
@@ -206,7 +206,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
       <div className="grid gap-4 md:grid-cols-3 lg:grid-cols-6" style={{ marginBottom: '16px' }}>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Planned</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: NAVY }}>{stats.planned}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{stats.planned}</div>
         </div>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Done</div>
@@ -313,7 +313,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
                   <div style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase' }}>
                     {day.toLocaleDateString('en-MY', { weekday: 'long' })}
                   </div>
-                  <div style={{ fontSize: '1rem', fontWeight: 700, color: NAVY }}>
+                  <div style={{ fontSize: '1rem', fontWeight: 700, color: TEXT }}>
                     {fmtShortDate(day)}
                   </div>
                 </div>
@@ -395,7 +395,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
                             </div>
 
                             {/* Title */}
-                            <div style={{ fontSize: '0.82rem', fontWeight: 500, color: NAVY, marginBottom: '6px', lineHeight: '1.3' }}>
+                            <div style={{ fontSize: '0.82rem', fontWeight: 500, color: TEXT, marginBottom: '6px', lineHeight: '1.3' }}>
                               {task.title || '—'}
                             </div>
 

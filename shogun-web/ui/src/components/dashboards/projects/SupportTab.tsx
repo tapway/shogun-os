@@ -135,13 +135,13 @@ export function SupportTab({ dept, color }: Props) {
   return (
     <div className="sd-stack">
       {/* Header */}
-      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: '0 0 16px' }}>Support Dashboard</h2>
+      <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: '0 0 16px' }}>Support Dashboard</h2>
 
       {/* KPI Cards - 5 cards */}
       <div className="grid gap-4 md:grid-cols-5" style={{ marginBottom: '16px' }}>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Open Tickets</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: NAVY }}>{stats?.openTickets ?? 0}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{stats?.openTickets ?? 0}</div>
         </div>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>SLA Breaches</div>
@@ -273,7 +273,7 @@ export function SupportTab({ dept, color }: Props) {
           {/* Tickets Table */}
           <div className="sd-chart-card" style={{ padding: 0 }}>
             <div style={{ padding: '16px 20px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: NAVY, margin: 0 }}>All Tickets</h3>
+              <h3 style={{ fontSize: '1rem', fontWeight: 700, color: TEXT, margin: 0 }}>All Tickets</h3>
               <span style={{ fontSize: '0.78rem', color: MUTED }}>{filtered.length} of {allTickets.length}</span>
             </div>
             {filtered.length === 0 ? (
@@ -391,7 +391,7 @@ function EmailInboxView({ dept, color }: { dept: string; color: string }) {
     <div className="sd-stack">
       {/* Header */}
       <div className="sd-chart-card" style={{ padding: '16px 20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: NAVY, margin: 0 }}>support@gotapway.com — Recent Emails</h3>
+        <h3 style={{ fontSize: '1rem', fontWeight: 700, color: TEXT, margin: 0 }}>support@gotapway.com — Recent Emails</h3>
         <button style={{ background: 'none', border: 'none', color: BLUE, fontSize: '0.82rem', fontWeight: 600, cursor: 'pointer' }}>Refresh</button>
       </div>
 
@@ -513,13 +513,13 @@ function NewTicketFromEmailModal({ email, onClose, dept }: { email: EmailItem; o
       >
         {/* Header */}
         <div style={{ padding: '20px 24px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: NAVY, margin: 0 }}>New Ticket from Email</h3>
+          <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, margin: 0 }}>New Ticket from Email</h3>
           <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: '1.2rem', color: MUTED, cursor: 'pointer' }}>✕</button>
         </div>
 
         {/* Email preview */}
         <div style={{ margin: '20px 24px', padding: '14px 16px', background: SURFACE_2, borderRadius: '8px' }}>
-          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: NAVY, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+          <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {email.subject}
           </div>
           <div style={{ fontSize: '0.75rem', color: MUTED }}>

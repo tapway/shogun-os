@@ -102,7 +102,7 @@ export function PostProjectTab({ dept, color, onOpenProject }: Props) {
     <div className="sd-stack">
       {/* Header */}
       <div style={{ marginBottom: '16px' }}>
-        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: NAVY, margin: '0 0 4px' }}>Post-Project</h2>
+        <h2 style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, margin: '0 0 4px' }}>Post-Project</h2>
         <p style={{ fontSize: '0.78rem', color: MUTED, margin: 0 }}>
           {stats.open} open of {stats.total} items — follow-ups handed to the post-project team
         </p>
@@ -128,7 +128,7 @@ export function PostProjectTab({ dept, color, onOpenProject }: Props) {
         </div>
         <div style={statCardStyle}>
           <div style={{ fontSize: '0.65rem', fontWeight: 600, color: MUTED, textTransform: 'uppercase', marginBottom: '8px' }}>Total</div>
-          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: NAVY }}>{stats.total}</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{stats.total}</div>
         </div>
       </div>
 
@@ -164,7 +164,7 @@ export function PostProjectTab({ dept, color, onOpenProject }: Props) {
                         cursor: item.sourceProjectId ? 'pointer' : 'default',
                       }}
                     >
-                      <td style={{ padding: '12px 16px', fontWeight: 700, color: NAVY }}>{item.id}</td>
+                      <td style={{ padding: '12px 16px', fontWeight: 700, color: TEXT }}>{item.id}</td>
                       <td style={{ padding: '12px 16px', maxWidth: '320px' }}>
                         <div style={{ color: BLUE, textDecoration: 'underline', fontWeight: 500, marginBottom: '4px' }}>
                           {item.title}
