@@ -1417,36 +1417,58 @@
   "postProjectItems": [
     {
       "id": "POST-001",
-      "title": "Barrier rewiring (9 lanes)",
-      "description": "Removed from PRJ-030 scope 2026-05-20 per @fitri request \u2014 transferred to post-project team. Ref: PRJ-030 A-006 / T-017.",
-      "sourceProject": "PRJ-030",
-      "sourceProjectId": "PRJ-030",
-      "owner": "Post-project team",
+      "title": "Equipment return coordination",
+      "description": "Collect and inventory all rental equipment from completed project. Coordinate with warehouse for storage.",
+      "sourceProject": "PRJ-042",
+      "sourceProjectId": "PRJ-042",
+      "owner": "Alex Chen",
       "priority": "MEDIUM",
       "due": null,
       "status": "Open"
     },
     {
       "id": "POST-002",
-      "title": "Warranty claim for faulty RFID reader at Gate 3",
-      "description": "Reader malfunction reported 2026-08-15. Vendor contacted, awaiting replacement unit.",
-      "sourceProject": "PRJ-045",
-      "sourceProjectId": "PRJ-045",
-      "owner": "Yeong",
+      "title": "Warranty documentation filing",
+      "description": "Compile warranty certificates and maintenance schedules for handover to facilities team.",
+      "sourceProject": "PRJ-038",
+      "sourceProjectId": "PRJ-038",
+      "owner": "Jordan Lee",
       "priority": "HIGH",
       "due": "2026-09-20",
       "status": "Open"
     },
     {
       "id": "POST-003",
-      "title": "Client training session for new dashboard",
-      "description": "Schedule 2-hour training for operations team. Materials prepared, awaiting client availability.",
-      "sourceProject": "PRJ-021",
-      "sourceProjectId": "PRJ-021",
-      "owner": "syazwan",
+      "title": "Lessons learned session scheduling",
+      "description": "Organize post-mortem meeting with stakeholders. Prepare template for feedback collection.",
+      "sourceProject": "PRJ-035",
+      "sourceProjectId": "PRJ-035",
+      "owner": "Sam Kumar",
       "priority": "LOW",
       "due": "2026-09-25",
       "status": "Open"
+    },
+    {
+      "id": "POST-004",
+      "title": "Final invoice reconciliation",
+      "description": "Review all vendor invoices against POs. Flag discrepancies for finance team resolution.",
+      "sourceProject": "PRJ-041",
+      "sourceProjectId": "PRJ-041",
+      "owner": "Taylor Wong",
+      "priority": "HIGH",
+      "due": "2026-09-18",
+      "status": "In Progress"
+    },
+    {
+      "id": "POST-005",
+      "title": "Client satisfaction survey follow-up",
+      "description": "Send thank-you email and request testimonial. Archive project communications.",
+      "sourceProject": "PRJ-039",
+      "sourceProjectId": "PRJ-039",
+      "owner": "Casey Lim",
+      "priority": "LOW",
+      "due": "2026-10-01",
+      "status": "Done"
     }
   ]
 }
