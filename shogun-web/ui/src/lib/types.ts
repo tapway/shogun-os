@@ -2185,18 +2185,28 @@ export interface ReportProjectRow {
 
 export interface ReportsSummary {
   totals: {
-    projects: number;
     activeProjects: number;
-    totalValueRm: number;
-    tasks: number;
-    openTasks: number;
+    pipelineValue: string;
+    atRisk: number;
+    blocked: number;
+    overdueProjects: number;
     overdueTasks: number;
+    openTickets: number;
+    slaBreached: number;
   };
-  projectsByStatus: Record<string, number>;
-  projectsByHealth: Record<string, number>;
-  projectsByGate: Record<string, number>;
-  projectsByBudgetStatus: Record<string, number>;
-  projectsByPm: Record<string, number>;
-  openTasksByPriority: Record<string, number>;
-  projects: ReportProjectRow[];
+  uatReadiness: {
+    avgPercent: number;
+    prepared: number;
+    nonCompliant: number;
+    unrealisticThreshold: number;
+  };
+  uatCompliance: UatComplianceRow[];
+}
+
+export interface UatComplianceRow {
+  project: string;
+  readiness: string | null;
+  items: number;
+  status: string;
+  flags: string[];
 }

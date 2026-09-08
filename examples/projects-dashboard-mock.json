@@ -801,7 +801,7 @@
     },
     {
       "id": "TASK-003",
-      "title": "Transport servers \u2192 Montigo 1 Utama & Montigo Mid Valley",
+      "title": "Transport servers → Montigo 1 Utama & Montigo Mid Valley",
       "projectId": "PRJ-008",
       "projectName": "RPG Relocation",
       "owner": "iskandar",
@@ -837,7 +837,7 @@
     },
     {
       "id": "TASK-006",
-      "title": "Accuracy report \u2014 people counting (enter & exit) >90%",
+      "title": "Accuracy report — people counting (enter & exit) >90%",
       "projectId": "PRJ-008",
       "projectName": "RPG Relocation",
       "owner": "zul",
@@ -849,7 +849,7 @@
     },
     {
       "id": "TASK-007",
-      "title": "Accuracy report \u2014 people pass-thru store vs enter/just pass-thru >90%",
+      "title": "Accuracy report — people pass-thru store vs enter/just pass-thru >90%",
       "projectId": "PRJ-008",
       "projectName": "RPG Relocation",
       "owner": "zul",
@@ -861,7 +861,7 @@
     },
     {
       "id": "TASK-008",
-      "title": "Obtain client UAT sign-off (RPG Ventures \u2014 Justin Lee / Christine)",
+      "title": "Obtain client UAT sign-off (RPG Ventures — Justin Lee / Christine)",
       "projectId": "PRJ-008",
       "projectName": "RPG Relocation",
       "owner": "syazwan",
@@ -1081,173 +1081,93 @@
   },
   "reportsSummary": {
     "totals": {
-      "projects": 10,
-      "activeProjects": 4,
-      "totalValueRm": 603707.59,
-      "tasks": 13,
-      "openTasks": 13,
-      "overdueTasks": 0
+      "activeProjects": 47,
+      "pipelineValue": "RM 670K",
+      "atRisk": 12,
+      "blocked": 11,
+      "overdueProjects": 17,
+      "overdueTasks": 79,
+      "openTickets": 4,
+      "slaBreached": 2
     },
-    "projectsByHealth": {
-      "blocked": 3,
-      "at-risk": 5,
-      "on-track": 2
+    "uatReadiness": {
+      "avgPercent": 44,
+      "prepared": 29,
+      "nonCompliant": 28,
+      "unrealisticThreshold": 0
     },
-    "projectsByPm": {
-      "Marcus": 5,
-      "Alex": 1,
-      "Olivia": 1,
-      "Elena": 2,
-      "Sophia": 1
-    },
-    "projectsByStatus": {
-      "active": 4,
-      "on-hold": 1,
-      "commissioned": 2,
-      "recovery": 1,
-      "paused": 1,
-      "closing": 1
-    },
-    "projects": [
+    "uatCompliance": [
       {
-        "id": "PRJ-050",
-        "name": "Apex Retail IOI PeopleTrack",
-        "client": "Apex Retail Group",
-        "pm": "Marcus",
-        "gate": 1,
-        "valueRm": 7551.94,
-        "totalTasks": 3,
-        "openTasks": 2,
-        "overdueTasks": 0,
-        "completionPct": 33,
-        "overallHealth": "blocked",
-        "sourceLastUpdated": "2026-10-01"
+        "project": "Powertek Cag T5 4 Features",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-045",
-        "name": "Health Dept Video Compliance",
-        "client": "Health Department (via CloudNet Services)",
-        "pm": "Marcus",
-        "gate": 4,
-        "valueRm": 50000.0,
-        "totalTasks": 2,
-        "openTasks": 1,
-        "overdueTasks": 0,
-        "completionPct": 50,
-        "overallHealth": "at-risk",
-        "sourceLastUpdated": "2026-09-16"
+        "project": "Tu High Availability",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-038",
-        "name": "FreshMart Store Analytics",
-        "client": "FreshMart Stores",
-        "pm": "Alex",
-        "gate": 1,
-        "valueRm": 0,
-        "totalTasks": 3,
-        "openTasks": 2,
-        "overdueTasks": 0,
-        "completionPct": 33,
-        "overallHealth": "blocked",
-        "sourceLastUpdated": ""
+        "project": "Pandora Ioi Damansara (Peopletrack)",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-035",
-        "name": "Horizon GXO Analytics",
-        "client": "Pinnacle Corp (M) Sdn Bhd",
-        "pm": "Olivia",
-        "gate": 4,
-        "valueRm": 67088.0,
-        "totalTasks": 2,
-        "openTasks": 0,
-        "overdueTasks": 0,
-        "completionPct": 100,
-        "overallHealth": "on-track",
-        "sourceLastUpdated": "2026-09-30"
+        "project": "Canon Agc Forklift",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-021",
-        "name": "Metropolitan Mall PeopleCount",
-        "client": "Metropolitan Mall",
-        "pm": "Marcus",
-        "gate": 1,
-        "valueRm": 162540.37,
-        "totalTasks": 3,
-        "openTasks": 1,
-        "overdueTasks": 0,
-        "completionPct": 67,
-        "overallHealth": "blocked",
-        "sourceLastUpdated": "2026-06-18"
+        "project": "Dc Handal Medini Ev",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-018",
-        "name": "ConnectTel Smart Security",
-        "client": "ConnectTel (EIP Team)",
-        "pm": "Elena",
-        "gate": 4,
-        "valueRm": 96812.66,
-        "totalTasks": 2,
-        "openTasks": 0,
-        "overdueTasks": 0,
-        "completionPct": 100,
-        "overallHealth": "at-risk",
-        "sourceLastUpdated": "2026-07-28"
+        "project": "Ministry Of Health Vod – Exabytes",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-014",
-        "name": "Pacific Steel Vision AI",
-        "client": "Pacific Steel Works",
-        "pm": "Marcus",
-        "gate": 4,
-        "valueRm": 0,
-        "totalTasks": 2,
-        "openTasks": 0,
-        "overdueTasks": 0,
-        "completionPct": 100,
-        "overallHealth": "at-risk",
-        "sourceLastUpdated": "2026-08-31"
+        "project": "Smart City X Nvidia Ai Day",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       },
       {
-        "id": "PRJ-008",
-        "name": "FreshCo Retail Compliance",
-        "client": "FreshCo Wholesale",
-        "pm": "Sophia",
-        "gate": 4,
-        "valueRm": 29569.82,
-        "totalTasks": 2,
-        "openTasks": 0,
-        "overdueTasks": 0,
-        "completionPct": 100,
-        "overallHealth": "on-track",
-        "sourceLastUpdated": "2026-06-26"
-      },
-      {
-        "id": "PRJ-002",
-        "name": "Evergreen Mall Happitat",
-        "client": "Evergreen Mall Group",
-        "pm": "Elena",
-        "gate": 4,
-        "valueRm": 0,
-        "totalTasks": 2,
-        "openTasks": 0,
-        "overdueTasks": 0,
-        "completionPct": 100,
-        "overallHealth": "at-risk",
-        "sourceLastUpdated": "2026-09-01"
-      },
-      {
-        "id": "PRJ-001",
-        "name": "GreenFleet AI Monitoring",
-        "client": "GreenFleet Logistics Sdn Bhd",
-        "pm": "Marcus",
-        "gate": 4,
-        "valueRm": 190144.8,
-        "totalTasks": 3,
-        "openTasks": 2,
-        "overdueTasks": 0,
-        "completionPct": 33,
-        "overallHealth": "at-risk",
-        "sourceLastUpdated": "2026-10-01"
+        "project": "Queensbay Mall Sensor Calibration",
+        "readiness": null,
+        "items": 0,
+        "status": "not prepared",
+        "flags": [
+          "NO_UAT_FILE"
+        ]
       }
     ]
   },
@@ -1282,7 +1202,7 @@
       "category": "Other",
       "tier": "L1",
       "assignedTo": "@marcus",
-      "lastReply": "Agent \u2022 3d ago",
+      "lastReply": "Agent • 3d ago",
       "lastActivity": "3d ago",
       "slaMet": true,
       "age": "4d",
@@ -1296,7 +1216,7 @@
       "category": "Network",
       "tier": "L1",
       "assignedTo": "@olivia",
-      "lastReply": "Agent \u2022 3d ago",
+      "lastReply": "Agent • 3d ago",
       "lastActivity": "3d ago",
       "slaMet": false,
       "age": "10d",
@@ -1352,7 +1272,7 @@
       "category": "Network",
       "tier": "L2",
       "assignedTo": "@daniel",
-      "lastReply": "Agent \u2022 1d ago",
+      "lastReply": "Agent • 1d ago",
       "lastActivity": "1d ago",
       "slaMet": false,
       "age": "2d",
@@ -1380,7 +1300,7 @@
       "category": "Hardware",
       "tier": "L2",
       "assignedTo": "@olivia",
-      "lastReply": "Agent \u2022 2d ago",
+      "lastReply": "Agent • 2d ago",
       "lastActivity": "2d ago",
       "slaMet": true,
       "age": "6d",
@@ -1408,7 +1328,7 @@
       "category": "Other",
       "tier": "L1",
       "assignedTo": "@sophia",
-      "lastReply": "Agent \u2022 1d ago",
+      "lastReply": "Agent • 1d ago",
       "lastActivity": "1d ago",
       "slaMet": true,
       "age": "1d",
