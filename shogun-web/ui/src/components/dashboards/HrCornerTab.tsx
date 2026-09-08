@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Users, BookOpen, Globe, Shield, FileText, X } from 'lucide-react';
+import { Users, BookOpen, Globe, Shield, FileText, X, Video, Image as ImageIcon, MapPin, Briefcase, Clock, Calendar, CreditCard, Building, Package, UserCheck, GraduationCap, Trophy, Heart, Star, Target, Play, Eye } from 'lucide-react';
 
 interface Props {
   department: string;
@@ -20,8 +20,11 @@ interface TopicItem {
   id: string;
   title: string;
   type?: 'document' | 'video' | 'link' | 'image' | 'pdf' | 'embed';
+  icon?: React.ComponentType<{ className?: string; style?: React.CSSProperties }>;
   pdfUrl?: string;
   embedUrl?: string;
+  videoUrl?: string;
+  imageUrl?: string;
   content?: string;
 }
 
@@ -40,8 +43,8 @@ const SECTIONS: Section[] = [
     title: 'Team',
     icon: Users,
     topics: [
-      { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', pdfUrl: HANDBOOK_PDF },
-      { id: 'mission', title: 'Mission, Vision, Values', type: 'document', content: `💡 A company mission provides direction and purpose, aligning actions and decisions towards a common goal. It also helps attract like-minded individuals who share the same values and vision for the company.
+      { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', icon: BookOpen, pdfUrl: HANDBOOK_PDF },
+      { id: 'mission', title: 'Mission, Vision, Values', type: 'document', icon: Target, content: `💡 A company mission provides direction and purpose, aligning actions and decisions towards a common goal. It also helps attract like-minded individuals who share the same values and vision for the company.
 
 🔭 Vision
 To democratize AI Vision by allowing anyone to build, train and deploy vision technology solutions quickly and affordably.
@@ -77,32 +80,9 @@ DREAM BIG, THINK DIFFERENT, ACT FAST
 ALWAYS DAY ONE
 • Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
 • Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
-      { id: 'values-video', title: 'Core Values Video', type: 'document', content: `💡 Watch our Core Values video to understand what drives us at Company.
-
-Video Link: [Sample Link - Internal Document] (sample placeholder)
-
-Our 5 Core Values:
-• LIGHT THE FIRE IN YOUR HEART — Be passionate and energized
-• OBSESSED ABOUT CUSTOMERS AND RESULTS — Deliver excellence
-• WE ARE FAMILY — Support and care for each other
-• DREAM BIG THINK DIFFERENT ACT FAST — Innovate boldly
-• ALWAYS DAY ONE — Stay hungry, never complacent` },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'document', content: `💡 Organisational Structure Overview
-
-Job Classification | Grade | Category | Position
-Senior Management | SM1 | Director | Executive Director, CEO
-Senior Management | SM2 | Principal of SBU | COO, CFO, CTO
-Management | M1 | Head of SBU | General Manager, Senior Department Manager
-Management | M2 | Manager | Manager or Team Lead
-Assistant Management | AM1 | Assistant Manager | Assistant Manager or Team Lead
-Professional | P1 | Specialist | Senior Executive, Senior Engineer, Senior PM
-Executive | E1 | Senior L1 Executive | Senior Executive, Senior Engineer, Senior PM
-Executive | E2 | Senior L2 Executive | Senior Executive, Senior Engineer, Senior PM
-Non-Executive | NE1 | Non-Executive | Clerk, Receptionist, Internship/Trainee
-Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper
-
-Note: Full organisational chart with reporting lines available from HR department upon request.` },
-      { id: 'office-tour', title: 'Office Tour', type: 'document', content: `💡 Take a virtual tour of our Company office at Pacific Place.
+      { id: 'values-video', title: 'Core Values Video', type: 'video', icon: Play, videoUrl: 'https://www.youtube.com/embed/_fNUQeZLGII' },
+      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building, imageUrl: 'https://cdn.jsdelivr.net/gh/devicons/devicon/icons/google/google-original.svg' },
+      { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye, content: `💡 Take a virtual tour of our Company office at Pacific Place.
 
 Video Link: [Sample Link - Internal Document] (sample placeholder)
 
@@ -127,7 +107,7 @@ By Public Transport:
 • Grab: Drop-off at Pacific Place main entrance
 
 Contact: +603-XXXX XXXX for assistance` },
-      { id: 'directions-itmax', title: 'How to Get to Office (Branch)', type: 'document', content: `💡 Directions to Branch Office
+      { id: 'directions-itmax', title: 'How to Get to Office (Branch)', type: 'document', icon: MapPin, content: `💡 Directions to Branch Office
 
 Address: Level XX, Menara Commercial, Jalan XXXX, 50450 Kuala Lumpur
 
@@ -142,7 +122,7 @@ By Public Transport:
 • Grab: Drop-off at Menara Commercial lobby
 
 Note: Visitor pass required — register at security desk with IC` },
-      { id: 'staff-pics', title: 'Staff Pics', type: 'document', content: `💡 Team Photos & Events Gallery
+      { id: 'staff-pics', title: 'Staff Pics', type: 'document', icon: ImageIcon, content: `💡 Team Photos & Events Gallery
 
 Our team photos are stored in the shared Google Drive folder. Access requires Company account login.
 
@@ -163,7 +143,7 @@ To upload your event photos, contact HR or the Marketing team.` },
     title: 'SOP',
     icon: BookOpen,
     topics: [
-      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', content: `💡 Watch the BRIOHR attendance system tutorial video.
+      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', icon: Clock, content: `💡 Watch the BRIOHR attendance system tutorial video.
 
 Video Link: [Sample Link - Internal Document] (sample placeholder)
 
@@ -175,7 +155,7 @@ Topics Covered:
 • Troubleshooting common issues
 
 Duration: 15 minutes | Language: English/Malay` },
-      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', content: `💡 This guide is created for all staff of Company to use for attendance.
+      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', icon: Clock, content: `💡 This guide is created for all staff of Company to use for attendance.
 
 A. CLOCK IN/CLOCK OUT
 
@@ -245,7 +225,7 @@ Using the time tracking widget
 5. To clock out, click on the red Clock Out icon in the time tracking widget and confirm your out entry on the time clock screen. The last clocked-out time will be displayed within the widget.
 
 ❗ Important: If a different platform is used to clock in, take breaks or clock out (i.e. web, Slack, MS Teams), the mobile app needs to be refreshed or opened for the widget to be updated.` },
-      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', content: `💡 Standard Operating Procedure for logging project activities in Jibble.
+      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', icon: Briefcase, content: `💡 Standard Operating Procedure for logging project activities in Jibble.
 
 Scope: Project Management & Support Teams
 
@@ -265,7 +245,7 @@ Rules:
 • Missed entries must be corrected within 48 hours
 
 Contact: Project Coordinator for access issues` },
-      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', content: `💡 Standard Operating Procedure for Product team and secondment assignments.
+      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', icon: Briefcase, content: `💡 Standard Operating Procedure for Product team and secondment assignments.
 
 Scope: Product Development & Seconded Staff
 
@@ -286,7 +266,7 @@ Important:
 • Secondment staff must maintain dual reporting (Company + Client)
 • Timesheets approved by Company PM every Monday
 • Discrepancies reported to HR within 24 hours` },
-      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', content: `To refer claim categories details please click here.
+      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', icon: CreditCard, content: `To refer claim categories details please click here.
 
 Claim Procedure (For Full-time Employee Only)
 
@@ -332,7 +312,7 @@ TEMPLATE_ Name - Mileage Claim (Updated).numbers.numbers
 
 💡 Policy brief & purpose
 Company Claim Policy outlines how we'll reimburse staff for work-related expenses. We'll define "work-related expenses" and set a procedure to authorize expenditure. This policy applies to all staff that need to spend money for work-related activities.` },
-      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document', content: `💡 Operating the office roller shutter safely.
+      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document', icon: Building, content: `💡 Operating the office roller shutter safely.
 
 Location: Main entrance of Company office
 
@@ -355,7 +335,7 @@ Safety Rules:
 • Keys kept at reception desk during office hours
 
 Emergency Contact: Building Security +603-XXXX XXXX` },
-      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document', content: `💡 Procedure for receiving and collecting parcels at the office.
+      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document', icon: Package, content: `💡 Procedure for receiving and collecting parcels at the office.
 
 Receiving Parcels:
 1. Courier delivers to reception desk
@@ -376,7 +356,7 @@ Important Notes:
 • High-value items require HOD signature
 
 Contact: Reception +603-XXXX XXXX ext. 100` },
-      { id: 'visitor-log', title: 'Visitor Log', type: 'document', content: `💡 Visitor registration and security protocol.
+      { id: 'visitor-log', title: 'Visitor Log', type: 'document', icon: UserCheck, content: `💡 Visitor registration and security protocol.
 
 Registration Process:
 1. Visitor arrives at reception
@@ -399,7 +379,7 @@ Rules:
 • Children under 12 not permitted in office premises
 
 Emergency: Visitors must follow evacuation procedures with host` },
-      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', content: `Keeping a Tidy Office
+      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', icon: Star, content: `Keeping a Tidy Office
 
 All employees are responsible and should contribute to create a conducive working environment.
 
@@ -415,7 +395,7 @@ All employees are responsible and should contribute to create a conducive workin
     title: 'Official Website/Training',
     icon: Globe,
     topics: [
-      { id: 'website', title: 'Company Website', type: 'document', content: `💡 Company Official Website
+      { id: 'website', title: 'Company Website', type: 'document', icon: Globe, content: `💡 Company Official Website
 
 https://gocompany.com/
 
@@ -425,7 +405,7 @@ Visit our official website to learn more about:
 • Latest news and updates
 • Contact information
 • Career opportunities` },
-      { id: 'social-media', title: 'Social Media', type: 'document', content: `💡 Company's Social Media
+      { id: 'social-media', title: 'Social Media', type: 'document', icon: Heart, content: `💡 Company's Social Media
 
 🐦 Twitter: @CompanySolutions
 📸 Instagram: @CompanySolutions
@@ -446,7 +426,7 @@ Follow us on social media to stay updated with:
     title: 'Company Policies',
     icon: Shield,
     topics: [
-      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `💡 **1. Working Hours and Rest Day**
+      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', icon: Shield, content: `💡 1. Working Hours and Rest Day
 
 Working Schedule:
 • Monday - Friday: 8.00 am - 5.00 pm OR 9.00 am - 6.00 pm (flexible start time)
@@ -460,59 +440,59 @@ Office Attendance:
 • Clock in via face scanner when arriving at office
 • Clock via face scan OR tap IC/TnG card, even when door is already opened
 
-💡 **2. Work from Home (WFH)**
+💡 2. Work from Home (WFH)
 
 • All employees entitled to work remotely except on mandatory office days
 • Employees responsible for maintaining high productivity and responsiveness
 • HOD tracks employee productivity and reports concerns to HR
 • HR may issue warning letter (with management approval) if employee is MIA during WFH hours
 
-💡 **3. Gazetted Public Holidays**
+💡 3. Gazetted Public Holidays
 
 • Entitled to all gazetted Federal/State public holidays based on location
 • Annual holiday calendar circulated at start of each calendar year
 • Sudden proclaimed government holidays treated as paid holidays
 • If public holiday falls on Sunday, additional paid holiday granted as substitution
 • No holiday pay if absent without approval on working day before/after public holiday` },
-      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `💡 Any leaves must be applied through our Payroll Panda system (exclude interns) and keep your manager/HOD informed.
+      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', icon: Calendar, content: `💡 Any leaves must be applied through our Payroll Panda system (exclude interns) and keep your manager/HOD informed.
 
-**Leave Rule**
+Leave Rule
 
-1. **Full Time - Permanent or Confirmed Position**
+1. Full Time - Permanent or Confirmed Position
    • Entitled to all types of leaves
-   • **Planned Annual or Unpaid Leave** - less than 5 days leave
+   • Planned Annual or Unpaid Leave - less than 5 days leave
      - Must be applied 3 days before
      - Must be approved by HOD
      - Leave taken without approval will be considered as AWOL
-   • **Planned Annual or Unpaid Leave** - more than 5 days leave
+   • Planned Annual or Unpaid Leave - more than 5 days leave
      - Must be applied 5 days before
      - Must be approved by HOD
      - Leave taken without approval will be considered as AWOL
-   • **Unplanned Annual or Unpaid Leave** - less than 5 days leave
+   • Unplanned Annual or Unpaid Leave - less than 5 days leave
      - This is considered as Emergency Leave
      - Any unplanned leave taken will affect the performance scores
      - Can be applied on the day
      - Must have legitimate reason and proof
 
-2. **Full Time - Probation Position**
-   • **Entitled to a pro-rated Annual Leave, Sick Leave, and Compassionate Leave**
+2. Full Time - Probation Position
+   • Entitled to a pro-rated Annual Leave, Sick Leave, and Compassionate Leave
      - Annual Leave: 1.5 days/completed month (e.g., total of 9 AL for 6 months of probation period)
      - Sick Leave: 1 day/completed month
      - Compassionate Leave: 1 day/occasion/year
-   • **Planned Annual Leave - less than 3 days leave**
+   • Planned Annual Leave - less than 3 days leave
      - More than 3 days leave is not allowed
      - Must be applied 3 days before
      - Must be approved by HOD
      - Leave taken without approval will be considered as AWOL
-   • **Unplanned Annual Leave - 1 day leave**
+   • Unplanned Annual Leave - 1 day leave
      - This is considered as Emergency Leave
      - Only 1 day is allowed
      - Can be applied on the day
      - Must have legitimate reason and proof
      - Any unplanned leave taken will affect the performance scores
 
-3. **Internship**
-   • **Entitled to Annual Leave, Sick Leave, and Compassionate Leave**
+3. Internship
+   • Entitled to Annual Leave, Sick Leave, and Compassionate Leave
      - Annual Leave: 1 day/completed month
      - Sick Leave: 1 day/completed month
      - Compassionate Leave: 1 day/occasion/year
@@ -521,15 +501,15 @@ Office Attendance:
    • Must be approved by HOD
    • Leave taken without approval will be considered as AWOL
 
-**Leave Categories**
+Leave Categories
 
-**1. Paid Leave**
+1. Paid Leave
 
-1.1 **Annual Leave**
+1.1 Annual Leave
 • All permanent and confirmed employees shall be entitled to eighteen (18) days annual leave
 • The annual leave shall be granted after successful completion of their probationary period, and it will be a continuity for any taken leaves during the probationary period
 • For other types of employment, shall refer to clause above, Leave Rule
-• Application of leave, shall refer to clause above, **Leave Rule**
+• Application of leave, shall refer to clause above, Leave Rule
 • Approval of leave is subject to operational requirements where the amount of leave taken at a time may need to be changed in accordance with the operational needs
 • An employee is allowed to take Half Day Leave which is deducted from an employee's annual leave eligibility:
 
@@ -538,19 +518,19 @@ Office Attendance:
 | Morning (am) | 8.00 am - 12.00 pm |
 | Afternoon (pm) | 2.00 pm - 5.00 pm |
 
-• All employees are entitled to **carry forward** the Annual Leave up to maximum 10 days with conditions:
+• All employees are entitled to carry forward the Annual Leave up to maximum 10 days with conditions:
   - Maximum 5 days can be utilised until March the following year
   - The remaining days need to be utilised in January the following year
   - Any remaining days after March the following year will be removed
 
-1.2 **Medical Leave / Sick Leave**
+1.2 Medical Leave / Sick Leave
 • All employees shall be eligible to paid sick leave of fourteen (14) days in a calendar year
 • In the case of an emergency, an employee may produce the sick leave certificate from any available registered medical practitioner
 • An employee shall be required to notify the HOD not later than 10.00 am on the scheduled work day
 • The employee is requested to produce the sick leave certificate to the Supervisor for verification and then to submit to the HR Department on the first day the employee returns to work
 • An employee who absents him/herself from work on sick leave and does not inform or attempt to inform the HOD of such sick leave within forty-eight (48) hours of the commencement shall be deemed absent from work without permission and shall be subjected to disciplinary action
 
-1.3 **Hospitalization Leave**
+1.3 Hospitalization Leave
 • Where hospitalization is necessary, an employee shall be entitled to paid hospitalization leave of sixty (60) aggregate days in each calendar year
 • For this purpose, the total number of sixty (60) days of hospitalization leave shall be inclusive of any sick leave previously taken in that year
 • An employee or his/her representative shall notify the HOD as soon as the employee is admitted in the hospital
@@ -558,7 +538,7 @@ Office Attendance:
   - It is the responsibility of the HOD to ensure that HR Department is fully aware of such notification
   - An employee is requested to produce the hospitalization leave certificate to the HOD for verification and then to submit to the HR Department on the first day the employee returns to work
 
-1.4 **Compassionate Leave**
+1.4 Compassionate Leave
 • The company shall grant three (3) consecutive working days of paid compassionate leave to an employee in any calendar year under the following circumstances:
   - Natural disaster which affects the employee's person or property, such as flood, fire and landslide
   - Death of spouse, child, siblings and parents
@@ -567,47 +547,47 @@ Office Attendance:
 • Any employee found obtaining compassionate leave through mislead of facts shall be subjected to disciplinary action
 • Any circumstances other than the above shall be treated as emergency leave
 
-1.5 **Marriage Leave**
+1.5 Marriage Leave
 • An employee shall be granted paid marriage leave for three (3) consecutive working days on his/her legal marriage
 • Application for marriage leave shall be supported by a marriage certificate
 
-1.6 **Paternity Leave**
+1.6 Paternity Leave
 • Male employees shall be granted seven (7) consecutive working days of paid paternity leave on the birth of the child by his legal spouse
 • The employee shall produce the birth certificate of his child in order to qualify for the paternity leave
 
-1.7 **Maternity Leave**
+1.7 Maternity Leave
 • Every female employee shall be entitled for paid maternity leave for a period of ninety eight (98) consecutive days in respect of each confinement up to 5 surviving children
 • The ninety eight (98) consecutive days of maternity leave shall be inclusive of off days, rest days and public holidays
 • A female employee who has completed not less than ninety (90) continuous days of service with the Company during the nine months immediately before her confinement
 • Maternity leave shall be granted on or after the 28th week of pregnancy. Miscarriage as defined in the Employment Act, 1955 will be treated as a normal sick leave
 • To facilitate the planning of work schedule during the female employee's absence, application of maternity leave shall be made at least two (2) weeks before the start of the maternity leave
 
-1.8 **Work Anniversary Leave**
+1.8 Work Anniversary Leave
 • An employee shall be granted paid work anniversary leave for one (1) day on his/her work anniversary month
 • The leave is non-transferable to other month
 • Only entitled for permanent staff
 
-1.9 **Birthday Leave**
+1.9 Birthday Leave
 • An employee shall be granted paid birthday leave for one (1) day on his/her birthday month
 • The leave is non-transferable to other month
 • Only entitled for permanent staff
 
-1.10 **Time Slip (For medical matters)**
+1.10 Time Slip (For medical matters)
 • In the case of an emergency, an employee may produce the Time Slip certificate from any available registered medical practitioner
 • This certificate acts as an alternative to sick leave, where the employee may need to be away from working hours less than 4 hours
 
-**2. Unpaid Leave**
+2. Unpaid Leave
 • An employee may apply for unpaid leave when:
   - His/her annual leave has been duly exhausted
   - All medical leave for the year has been duly exhausted but the employee has been deemed as medically unfit by the Company's panel doctor or a registered medical practitioner
 • Unpaid leave shall be granted to employees at the sole discretion of the Company and based on the merit of each individual case
 
-**3. Absent Without Leave (AWOL)**
+3. Absent Without Leave (AWOL)
 • An employee must confirm his/her leave application has been approved before going on leave
 • An employee who has not had his annual leave approved and then fails to report for work shall be deemed to be absent without leave
 • After investigating, where necessary, the company may take appropriate disciplinary action which involves issuing an official HR Warning Letter
 
-**4. Leave Encashment**
+4. Leave Encashment
 • Employees who resign, retire or retrenched from their services shall be granted an annual leave on a pro-rated basis for the completed days of service in the Company, or will be paid for all accrued annual leave not taken
 • This clause only applies to permanent or confirmed employees
 • The unutilised prorated annual leave is calculated:
@@ -621,7 +601,7 @@ Office Attendance:
     * The utilised leave as todate is 5 days
     * The over utilised leave is 0.5 days, and shall be deducted from the final payroll
 • The amount of leave encashment and deduction calculation shall refer to clause 3.6, pro-rated salary calculation` },
-      { id: 'wages', title: 'Wages', type: 'document', content: `Wages
+      { id: 'wages', title: 'Wages', type: 'document', icon: CreditCard, content: `Wages
 
 Payment
 • Method: Bank transfer to employee's preferred account
@@ -664,7 +644,7 @@ Procedure
 2. HOD assesses urgency, gets CTO/CEO approval
 3. HOD informs HR for formality
 4. All OT must be submitted by 20th of the month` },
-      { id: 'commission', title: 'Commission', type: 'document', content: `Commission
+      { id: 'commission', title: 'Commission', type: 'document', icon: Trophy, content: `Commission
 
 Eligibility
 • Only employees from Business Development department are entitled to Commissions
@@ -674,7 +654,7 @@ Payment Release Process
 1. Finance department provides the Commissions Tracker
 2. Finance registers confirmed deals with approved Purchase Order (PO)
 3. HR communicates with Finance to get payment updates for each registered deal` },
-      { id: 'expenses', title: 'Claimable Expenses', type: 'document', content: `Claimable Expenses
+      { id: 'expenses', title: 'Claimable Expenses', type: 'document', icon: CreditCard, content: `Claimable Expenses
 
 All claims must be submitted through the updated HR system. Each receipt can only be used for one type of claim.
 
@@ -833,12 +813,18 @@ export function HrCornerTab({ department, color }: Props) {
                             onMouseEnter={(e) => { if (!isSelected) e.currentTarget.style.background = `${LIME}10`; }}
                             onMouseLeave={(e) => { if (!isSelected) e.currentTarget.style.background = 'transparent'; }}
                           >
-                            <span style={{ opacity: 0.7 }}>
-                              {topic.type === 'pdf' && '📕'}
-                              {topic.type === 'video' && '🎥'}
-                              {topic.type === 'link' && '🔗'}
-                              {topic.type === 'image' && '🖼️'}
-                              {topic.type === 'document' && '📄'}
+                            <span style={{ opacity: 0.7, display: 'flex', alignItems: 'center' }}>
+                              {topic.icon ? (
+                                <topic.icon className="w-4 h-4" style={{ color: isSelected ? LIME : MUTED }} />
+                              ) : (
+                                <>
+                                  {topic.type === 'pdf' && '📕'}
+                                  {topic.type === 'video' && '🎥'}
+                                  {topic.type === 'link' && '🔗'}
+                                  {topic.type === 'image' && '🖼️'}
+                                  {topic.type === 'document' && '📄'}
+                                </>
+                              )}
                             </span>
                             <span className="truncate" style={{ flex: 1 }}>{topic.title}</span>
                           </button>
@@ -914,6 +900,58 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
         </div>
         <div style={{ height: '75vh', width: '100%' }}>
           <iframe src={topic.pdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title={topic.title} />
+        </div>
+      </div>
+    );
+  }
+
+  // Video embed mode (YouTube, etc.)
+  if (topic.type === 'video' && topic.videoUrl) {
+    return (
+      <div className="sd-chart-card" style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ padding: '20px 28px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.8rem' }}>{typeInfo.icon}</span>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, margin: 0 }}>{topic.title}</h3>
+              <span style={{ fontSize: '0.7rem', color: LIME, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, background: `${LIME}15`, padding: '3px 8px', borderRadius: '4px' }}>
+                {typeInfo.label}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, fontSize: '1rem', color: MUTED, cursor: 'pointer', padding: '6px 10px', borderRadius: '8px' }}>✕</button>
+        </div>
+        <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
+          <iframe 
+            src={topic.videoUrl} 
+            style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} 
+            title={topic.title}
+            allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+            allowFullScreen
+          />
+        </div>
+      </div>
+    );
+  }
+
+  // Image view mode
+  if (topic.type === 'image' && topic.imageUrl) {
+    return (
+      <div className="sd-chart-card" style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ padding: '20px 28px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.8rem' }}>{typeInfo.icon}</span>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, margin: 0 }}>{topic.title}</h3>
+              <span style={{ fontSize: '0.7rem', color: LIME, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, background: `${LIME}15`, padding: '3px 8px', borderRadius: '4px' }}>
+                {typeInfo.label}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, fontSize: '1rem', color: MUTED, cursor: 'pointer', padding: '6px 10px', borderRadius: '8px' }}>✕</button>
+        </div>
+        <div style={{ padding: '20px', textAlign: 'center' }}>
+          <img src={topic.imageUrl} alt={topic.title} style={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: '8px', border: `1px solid ${BORDER}` }} />
         </div>
       </div>
     );
