@@ -19,8 +19,9 @@ const LIME_TEXT = 'var(--samurai-accent-button-text, #1a284d)';
 interface TopicItem {
   id: string;
   title: string;
-  type?: 'document' | 'video' | 'link' | 'image' | 'pdf';
+  type?: 'document' | 'video' | 'link' | 'image' | 'pdf' | 'embed';
   pdfUrl?: string;
+  embedUrl?: string;
   content?: string;
 }
 
@@ -77,7 +78,7 @@ ALWAYS DAY ONE
 • Never stop learning and continue to set personal growth goals for yourself. Make these personal growth goals available to the company so everyone will help each other to achieve these goals.
 • Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
       { id: 'values-video', title: 'Core Values Video', type: 'video' },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'document', content: `Organisational Structure
+      { id: 'org-chart', title: 'Organisational Chart', type: 'embed', embedUrl: 'https://docs.google.com/presentation/d/1lBr6v6Yo52Dj384rZyQ2x2pBMYU8YUCEHECM7PRbvFY/embed?start=false&loop=false&delayms=3000', content: `Organisational Structure
 
 Job Classification | Grade | Category | Position
 Senior Management | SM1 | Director | Executive Director, CEO
@@ -509,6 +510,7 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
       case 'video': return { icon: '🎥', label: 'Video', color: '#ef4444' };
       case 'link': return { icon: '🔗', label: 'External Link', color: '#3b82f6' };
       case 'image': return { icon: '🖼️', label: 'Image Gallery', color: '#8b5cf6' };
+      case 'embed': return { icon: '📊', label: 'Embedded View', color: LIME };
       default: return { icon: '📄', label: 'Document', color: LIME };
     }
   };
@@ -539,6 +541,35 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
         </div>
         <div style={{ height: '75vh', width: '100%' }}>
           <iframe src={topic.pdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title={topic.title} />
+        </div>
+      </div>
+    );
+  }
+
+  // Embedded content mode (Google Slides, etc.)
+  if (topic.type === 'embed' && topic.embedUrl) {
+    return (
+      <div className="sd-chart-card" style={{ background: SURFACE, border: `1px solid ${BORDER}`, borderRadius: '12px', overflow: 'hidden' }}>
+        <div style={{ padding: '20px 28px', borderBottom: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.8rem' }}>{typeInfo.icon}</span>
+            <div>
+              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, margin: 0 }}>{topic.title}</h3>
+              <span style={{ fontSize: '0.7rem', color: LIME, textTransform: 'uppercase', letterSpacing: '0.08em', fontWeight: 600, background: `${LIME}15`, padding: '3px 8px', borderRadius: '4px' }}>
+                {typeInfo.label}
+              </span>
+            </div>
+          </div>
+          <button onClick={onClose} style={{ background: 'transparent', border: `1px solid ${BORDER}`, fontSize: '1rem', color: MUTED, cursor: 'pointer', padding: '6px 10px', borderRadius: '8px' }}>✕</button>
+        </div>
+        <div style={{ height: '75vh', width: '100%' }}>
+          <iframe 
+            src={topic.embedUrl} 
+            style={{ width: '100%', height: '100%', border: 'none' }} 
+            title={topic.title}
+            frameBorder="0"
+            allowFullScreen
+          />
         </div>
       </div>
     );
