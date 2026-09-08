@@ -273,7 +273,7 @@ export function OverviewTab({ dept, color, onOpenProject }: Props) {
                     {project.overallHealth || project.status || '—'}
                   </span>
                 </div>
-                <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color: '#3b82f6', margin: '0 0 8px', cursor: 'pointer' }}>{project.name}</h4>
+                <h4 style={{ fontSize: '0.88rem', fontWeight: 600, color, margin: '0 0 8px', cursor: 'pointer' }}>{project.name}</h4>
                 <div style={{ fontSize: '0.75rem', color: MUTED, display: 'flex', flexDirection: 'column', gap: '4px' }}>
                   <div><strong style={{ color: TEXT }}>PM:</strong> {project.pm || '—'}</div>
                   <div><strong style={{ color: TEXT }}>Client:</strong> {project.client || '—'}</div>
@@ -285,7 +285,7 @@ export function OverviewTab({ dept, color, onOpenProject }: Props) {
                 <div style={{ marginTop: '10px', display: 'flex', alignItems: 'center', gap: '8px' }}>
                   <span style={{ fontSize: '0.72rem', color: MUTED }}>Progress</span>
                   <div style={{ flex: 1, height: '6px', borderRadius: '3px', background: SURFACE_2 }}>
-                    <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: '#3b82f6' }} />
+                    <div style={{ width: `${progress}%`, height: '100%', borderRadius: '3px', background: color }} />
                   </div>
                   <span style={{ fontSize: '0.75rem', fontWeight: 600, color: ORANGE }}>{progress}%</span>
                 </div>

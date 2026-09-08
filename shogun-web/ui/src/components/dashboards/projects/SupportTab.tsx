@@ -12,6 +12,7 @@ interface Props {
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const SURFACE = 'var(--samurai-surface)';
+const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 const NAVY = '#1e3a5f';
 const BLUE = '#3b82f6';
@@ -39,7 +40,7 @@ function HorizontalBarChart({ data, color }: { data: Record<string, number>; col
       {entries.map(([label, value]) => (
         <div key={label} style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
           <span style={{ fontSize: '0.72rem', color: TEXT, minWidth: '80px', textAlign: 'right' }}>{label}</span>
-          <div style={{ flex: 1, height: '20px', background: '#f3f4f6', borderRadius: '4px', overflow: 'hidden' }}>
+          <div style={{ flex: 1, height: '20px', background: SURFACE_2, borderRadius: '4px', overflow: 'hidden' }}>
             <div style={{ width: `${(value / max) * 100}%`, height: '100%', background: color, borderRadius: '4px' }} />
           </div>
           <span style={{ fontSize: '0.72rem', fontWeight: 600, color: TEXT, minWidth: '20px' }}>{value}</span>
@@ -123,7 +124,7 @@ export function SupportTab({ dept, color }: Props) {
   };
 
   const statCardStyle: React.CSSProperties = {
-    background: '#fff',
+    background: SURFACE,
     borderRadius: '12px',
     padding: '20px 24px',
     boxShadow: '0 1px 3px rgba(0,0,0,0.1)',
@@ -467,7 +468,7 @@ function NewTicketFromEmailModal({ email, onClose, dept }: { email: EmailItem; o
   const [description, setDescription] = useState(email.body || '');
 
   const selectStyle: React.CSSProperties = {
-    background: '#fff',
+    background: SURFACE,
     border: `1px solid ${BORDER}`,
     color: TEXT,
     borderRadius: '6px',
@@ -501,7 +502,7 @@ function NewTicketFromEmailModal({ email, onClose, dept }: { email: EmailItem; o
       <div
         onClick={e => e.stopPropagation()}
         style={{
-          background: '#f8f9fa',
+          background: SURFACE_2,
           borderRadius: '12px',
           width: '100%',
           maxWidth: '600px',
@@ -517,7 +518,7 @@ function NewTicketFromEmailModal({ email, onClose, dept }: { email: EmailItem; o
         </div>
 
         {/* Email preview */}
-        <div style={{ margin: '20px 24px', padding: '14px 16px', background: '#e9ecef', borderRadius: '8px' }}>
+        <div style={{ margin: '20px 24px', padding: '14px 16px', background: SURFACE_2, borderRadius: '8px' }}>
           <div style={{ fontSize: '0.85rem', fontWeight: 600, color: NAVY, marginBottom: '4px', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {email.subject}
           </div>

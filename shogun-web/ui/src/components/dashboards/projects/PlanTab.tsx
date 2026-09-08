@@ -323,7 +323,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
                   fontWeight: 600,
                   padding: '2px 10px',
                   borderRadius: '10px',
-                  background: '#f3f4f6',
+                  background: SURFACE_2,
                   color: MUTED,
                 }}>
                   {count} planned
@@ -407,7 +407,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
                                 fontWeight: 600,
                                 padding: '2px 8px',
                                 borderRadius: '8px',
-                                background: '#f3f4f6',
+                                background: SURFACE_2,
                                 color: statusColor(task.status),
                               }}>
                                 {task.status?.toUpperCase()}
@@ -441,7 +441,7 @@ export function PlanTab({ dept, color, onOpenProject }: Props) {
         <span style={{ color: RED }}>▲</span>
         <span>
           <strong style={{ color: RED }}>Red left border</strong> = overdue / blocked · Exact planned day comes from task deadline.
-          <strong> ⚠ Any task in today's column still todo / in-progress / blocked at 4:30pm</strong> fires one warning to <code style={{ background: '#f3f4f6', padding: '1px 4px', borderRadius: '3px' }}>#project-management</code>.
+          <strong> ⚠ Any task in today's column still todo / in-progress / blocked at 4:30pm</strong> fires one warning to <code style={{ background: SURFACE_2, padding: '1px 4px', borderRadius: '3px' }}>#project-management</code>.
         </span>
       </div>
     </div>
