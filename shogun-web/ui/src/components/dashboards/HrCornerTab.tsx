@@ -79,7 +79,7 @@ ALWAYS DAY ONE
 • Adopt a growth mindset, be curious about everything and think like a beginner a.k.a "shoshin", meaning to adopt an attitude of openness, eagerness, and lack of preconceptions when studying a subject, even when studying at an advanced level, just as a beginner would.` },
       { id: 'values-video', title: 'Core Values Video', type: 'document', content: `💡 Watch our Core Values video to understand what drives us at Company.
 
-Video Link: https://drive.google.com/file/d/1abc123/view (sample placeholder)
+Video Link: [Sample Link - Internal Document] (sample placeholder)
 
 Our 5 Core Values:
 • LIGHT THE FIRE IN YOUR HEART — Be passionate and energized
@@ -87,7 +87,7 @@ Our 5 Core Values:
 • WE ARE FAMILY — Support and care for each other
 • DREAM BIG THINK DIFFERENT ACT FAST — Innovate boldly
 • ALWAYS DAY ONE — Stay hungry, never complacent` },
-      { id: 'org-chart', title: 'Organisational Chart', type: 'embed', embedUrl: 'https://docs.google.com/presentation/d/1lBr6v6Yo52Dj384rZyQ2x2pBMYU8YUCEHECM7PRbvFY/embed?start=false&loop=false&delayms=3000', content: `Organisational Structure
+      { id: 'org-chart', title: 'Organisational Chart', type: 'document', content: `💡 Organisational Structure Overview
 
 Job Classification | Grade | Category | Position
 Senior Management | SM1 | Director | Executive Director, CEO
@@ -98,12 +98,13 @@ Assistant Management | AM1 | Assistant Manager | Assistant Manager or Team Lead
 Professional | P1 | Specialist | Senior Executive, Senior Engineer, Senior PM
 Executive | E1 | Senior L1 Executive | Senior Executive, Senior Engineer, Senior PM
 Executive | E2 | Senior L2 Executive | Senior Executive, Senior Engineer, Senior PM
-Executive | E2 | Executive | Junior Executive, Junior Engineer, Junior PM
 Non-Executive | NE1 | Non-Executive | Clerk, Receptionist, Internship/Trainee
-Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper` },
+Non-Executive | NE2 | General Worker | Dispatch, Driver, Housekeeper
+
+Note: Full organisational chart with reporting lines available from HR department upon request.` },
       { id: 'office-tour', title: 'Office Tour', type: 'document', content: `💡 Take a virtual tour of our Company office at Pacific Place.
 
-Video Link: https://drive.google.com/file/d/1def456/view (sample placeholder)
+Video Link: [Sample Link - Internal Document] (sample placeholder)
 
 Office Highlights:
 • Open-plan workspace with collaborative zones
@@ -145,7 +146,7 @@ Note: Visitor pass required — register at security desk with IC` },
 
 Our team photos are stored in the shared Google Drive folder. Access requires Company account login.
 
-Folder Link: https://drive.google.com/drive/folders/1ghi789 (sample placeholder)
+Folder Link: [Sample Link - Internal Document] (sample placeholder)
 
 Recent Albums:
 • 2026 Company Dinner — January 2026
@@ -164,7 +165,7 @@ To upload your event photos, contact HR or the Marketing team.` },
     topics: [
       { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', content: `💡 Watch the BRIOHR attendance system tutorial video.
 
-Video Link: https://drive.google.com/file/d/1jkl012/view (sample placeholder)
+Video Link: [Sample Link - Internal Document] (sample placeholder)
 
 Topics Covered:
 • How to clock in/out using facial recognition
@@ -414,17 +415,6 @@ All employees are responsible and should contribute to create a conducive workin
     title: 'Official Website/Training',
     icon: Globe,
     topics: [
-      { id: 'aclouddguru', title: 'AcloudGuru Free Learning!', type: 'document', content: `Staff Development is one of the key factors that we value and prioritise in Company. Hence, every staff is entitled to free unlimited online courses/learning through AcloudGuru. The details to enroll for the course are as easy as below:
-
-Steps on how to start Online Learning:
-
-1. Check out AcloudGuru to see which course training you would like to take
-2. Get login credentials to our Company Account:
-   • URL: https://acloudguru.com/
-   • Email: training@gocompany.com
-   • Password: Company@123
-3. Discuss with your supervisor/HOD for training availability and book your Google Calendar
-4. Finish the training and download certificate, then send to HR for documentation` },
       { id: 'website', title: 'Company Website', type: 'document', content: `💡 Company Official Website
 
 https://gocompany.com/
@@ -449,16 +439,6 @@ Follow us on social media to stay updated with:
 • Industry insights and thought leadership
 • Event participation and conferences
 • Career opportunities and team culture` },
-      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', content: `Kindly refer to the SOP here:
-
-https://docs.google.com/document/d/1I1r4D8jKwWveWrAjoxbi5n2leea96ylIIclcZcXSf4Q/edit?tab=t.0
-
-This document contains the complete guidelines for AWS certification including:
-• Eligibility requirements
-• Application process
-• Exam preparation resources
-• Reimbursement procedures
-• Bonded agreement terms (refer to Training & Development policy in Employee Handbook Section 6)` },
     ],
   },
   {
@@ -466,33 +446,34 @@ This document contains the complete guidelines for AWS certification including:
     title: 'Company Policies',
     icon: Shield,
     topics: [
-      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `**1. Working Hours and Rest Day**
+      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', content: `💡 **1. Working Hours and Rest Day**
 
-| **Days** | **Working Hours** |
-| --- | --- |
-| Monday - Friday | 8.00 am - 5.00 pm; or 9.00 am - 6.00 pm |
-| Saturday & Sunday | Rest Day |
-| Lunch Break | Flexible 1 hour |
-| Lunch Break on Friday (For male Muslim employees) | 12.30 pm - 2.30 pm |
+Working Schedule:
+• Monday - Friday: 8.00 am - 5.00 pm OR 9.00 am - 6.00 pm (flexible start time)
+• Saturday & Sunday: Rest Day
+• Lunch Break: Flexible 1 hour
+• Friday Lunch (Male Muslim employees): 12.30 pm - 2.30 pm
 
-• Compulsory 3 days working from office, and Friday or last day of the week is **compulsory**. (Subject to change)
-• Clocking in via face scanner when you arrived at office to enter.
-• Clocking via Scan your face OR Tap your IC/TnG card, even when the door is already opened.
+Office Attendance:
+• Compulsory 3 days working from office
+• Friday or last day of the week is compulsory (subject to change)
+• Clock in via face scanner when arriving at office
+• Clock via face scan OR tap IC/TnG card, even when door is already opened
 
-**2. Work from Home (WFH)**
+💡 **2. Work from Home (WFH)**
 
-• All employees are entitled to work remotely except on the mandatory working days in the office as per clause 1.
-• The employees however is responsible for making sure to continue high level productivity and responsiveness towards team mate.
-• HOD is responsible to keeping track employee's productivity status and inform HR department for any concerning matters regards to working from home.
-• HR department has the right to issue **warning letter** with approval from the management, if the employee is found to be MIA from the working hours while working from home.
+• All employees entitled to work remotely except on mandatory office days
+• Employees responsible for maintaining high productivity and responsiveness
+• HOD tracks employee productivity and reports concerns to HR
+• HR may issue warning letter (with management approval) if employee is MIA during WFH hours
 
-**3. Gazetted Public Holidays**
+💡 **3. Gazetted Public Holidays**
 
-• All employees shall be entitled to paid holidays on all gazetted Federal or State Public holidays applicable to the state in which they are based.
-• All public holidays recognized and approved by the company shall be circulated to all employees on the commencement of each calendar year.
-• All sudden proclaimed public holidays from the Government of Malaysia or the State ruler which is not gazetted as the Company's public holiday shall be considered as a paid holiday.
-• If a gazetted public holiday falls on Sunday, an additional paid holiday shall be granted in substitution thereof.
-• An employee who is absent from work on the working day without prior approval, immediately preceding or succeeding the public holiday, he/she is not entitled to the holiday pay.` },
+• Entitled to all gazetted Federal/State public holidays based on location
+• Annual holiday calendar circulated at start of each calendar year
+• Sudden proclaimed government holidays treated as paid holidays
+• If public holiday falls on Sunday, additional paid holiday granted as substitution
+• No holiday pay if absent without approval on working day before/after public holiday` },
       { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `💡 Any leaves must be applied through our Payroll Panda system (exclude interns) and keep your manager/HOD informed.
 
 **Leave Rule**
