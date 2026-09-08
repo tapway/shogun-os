@@ -320,37 +320,153 @@ Confidential Information
 
 Acts of Misconduct
 • Habitual lateness, breach of trust, rude behaviour, insubordination, AWOL, theft, sexual harassment, gambling, sleeping on duty, unauthorized use of company vehicles/equipment.` },
-      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `Leave Rules & Categories
+      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', content: `💡 Any leaves must be applied through our Payroll Panda system (exclude interns) and keep your manager/HOD informed.
 
-Annual Leave
-• Confirmed employees: 18 days per year
-• Carry forward: Maximum 10 days (5 usable until March following year, remaining must be used in January)
-• Half Day Leave: Morning (8am–12pm) or Afternoon (2pm–5pm)
+**Leave Rule**
 
-Sick Leave (per Employment Act 1955)
-Less than 2 years: 14 days/year
-2–5 years: 18 days/year
-5+ years: 22 days/year
-Hospitalization: 60 days (additional)
+1. **Full Time - Permanent or Confirmed Position**
+   • Entitled to all types of leaves
+   • **Planned Annual or Unpaid Leave** - less than 5 days leave
+     - Must be applied 3 days before
+     - Must be approved by HOD
+     - Leave taken without approval will be considered as AWOL
+   • **Planned Annual or Unpaid Leave** - more than 5 days leave
+     - Must be applied 5 days before
+     - Must be approved by HOD
+     - Leave taken without approval will be considered as AWOL
+   • **Unplanned Annual or Unpaid Leave** - less than 5 days leave
+     - This is considered as Emergency Leave
+     - Any unplanned leave taken will affect the performance scores
+     - Can be applied on the day
+     - Must have legitimate reason and proof
 
-Other Paid Leave
-Compassionate: 3 consecutive working days — All (natural disaster, death of spouse/child/siblings/parents/in-laws)
-Marriage: 3 consecutive working days — First marriage only
-Paternity: 7 consecutive working days — Male employees
-Maternity: Per Employment Act — Female employees
-Work Anniversary: 1 day (anniversary month) — Permanent & confirmed
-Birthday: 1 day (birthday month) — Permanent & confirmed
+2. **Full Time - Probation Position**
+   • **Entitled to a pro-rated Annual Leave, Sick Leave, and Compassionate Leave**
+     - Annual Leave: 1.5 days/completed month (e.g., total of 9 AL for 6 months of probation period)
+     - Sick Leave: 1 day/completed month
+     - Compassionate Leave: 1 day/occasion/year
+   • **Planned Annual Leave - less than 3 days leave**
+     - More than 3 days leave is not allowed
+     - Must be applied 3 days before
+     - Must be approved by HOD
+     - Leave taken without approval will be considered as AWOL
+   • **Unplanned Annual Leave - 1 day leave**
+     - This is considered as Emergency Leave
+     - Only 1 day is allowed
+     - Can be applied on the day
+     - Must have legitimate reason and proof
+     - Any unplanned leave taken will affect the performance scores
 
-Probation Leave (Pro-rated)
-• Annual Leave: 1.5 days/completed month
-• Sick Leave: 1 day/completed month
-• Compassionate Leave: 1 day/occasion/year
+3. **Internship**
+   • **Entitled to Annual Leave, Sick Leave, and Compassionate Leave**
+     - Annual Leave: 1 day/completed month
+     - Sick Leave: 1 day/completed month
+     - Compassionate Leave: 1 day/occasion/year
+   • Must be applied 3 days before, except for Compassionate Leave
+   • Emergency Leave is not allowed
+   • Must be approved by HOD
+   • Leave taken without approval will be considered as AWOL
 
-Leave Application Rules
-• < 5 days: Apply 3 days before, HOD approval required
-• > 5 days: Apply 5 days before, HOD approval required
-• Unplanned: Can apply same day, must have legitimate reason and proof
-• Leave without approval = AWOL` },
+**Leave Categories**
+
+**1. Paid Leave**
+
+1.1 **Annual Leave**
+• All permanent and confirmed employees shall be entitled to eighteen (18) days annual leave
+• The annual leave shall be granted after successful completion of their probationary period, and it will be a continuity for any taken leaves during the probationary period
+• For other types of employment, shall refer to clause above, Leave Rule
+• Application of leave, shall refer to clause above, **Leave Rule**
+• Approval of leave is subject to operational requirements where the amount of leave taken at a time may need to be changed in accordance with the operational needs
+• An employee is allowed to take Half Day Leave which is deducted from an employee's annual leave eligibility:
+
+| Session | Half Day Leave |
+| --- | --- |
+| Morning (am) | 8.00 am - 12.00 pm |
+| Afternoon (pm) | 2.00 pm - 5.00 pm |
+
+• All employees are entitled to **carry forward** the Annual Leave up to maximum 10 days with conditions:
+  - Maximum 5 days can be utilised until March the following year
+  - The remaining days need to be utilised in January the following year
+  - Any remaining days after March the following year will be removed
+
+1.2 **Medical Leave / Sick Leave**
+• All employees shall be eligible to paid sick leave of fourteen (14) days in a calendar year
+• In the case of an emergency, an employee may produce the sick leave certificate from any available registered medical practitioner
+• An employee shall be required to notify the HOD not later than 10.00 am on the scheduled work day
+• The employee is requested to produce the sick leave certificate to the Supervisor for verification and then to submit to the HR Department on the first day the employee returns to work
+• An employee who absents him/herself from work on sick leave and does not inform or attempt to inform the HOD of such sick leave within forty-eight (48) hours of the commencement shall be deemed absent from work without permission and shall be subjected to disciplinary action
+
+1.3 **Hospitalization Leave**
+• Where hospitalization is necessary, an employee shall be entitled to paid hospitalization leave of sixty (60) aggregate days in each calendar year
+• For this purpose, the total number of sixty (60) days of hospitalization leave shall be inclusive of any sick leave previously taken in that year
+• An employee or his/her representative shall notify the HOD as soon as the employee is admitted in the hospital
+• Within three (3) days of hospitalization, the employee or his/her representative must notify the HOD and HR Department for the duration of the hospitalization leave and expected date to resume work
+  - It is the responsibility of the HOD to ensure that HR Department is fully aware of such notification
+  - An employee is requested to produce the hospitalization leave certificate to the HOD for verification and then to submit to the HR Department on the first day the employee returns to work
+
+1.4 **Compassionate Leave**
+• The company shall grant three (3) consecutive working days of paid compassionate leave to an employee in any calendar year under the following circumstances:
+  - Natural disaster which affects the employee's person or property, such as flood, fire and landslide
+  - Death of spouse, child, siblings and parents
+  - Death of parents-in-law
+• The employee shall produce documentary evidence to qualify for compassionate leave
+• Any employee found obtaining compassionate leave through mislead of facts shall be subjected to disciplinary action
+• Any circumstances other than the above shall be treated as emergency leave
+
+1.5 **Marriage Leave**
+• An employee shall be granted paid marriage leave for three (3) consecutive working days on his/her legal marriage
+• Application for marriage leave shall be supported by a marriage certificate
+
+1.6 **Paternity Leave**
+• Male employees shall be granted seven (7) consecutive working days of paid paternity leave on the birth of the child by his legal spouse
+• The employee shall produce the birth certificate of his child in order to qualify for the paternity leave
+
+1.7 **Maternity Leave**
+• Every female employee shall be entitled for paid maternity leave for a period of ninety eight (98) consecutive days in respect of each confinement up to 5 surviving children
+• The ninety eight (98) consecutive days of maternity leave shall be inclusive of off days, rest days and public holidays
+• A female employee who has completed not less than ninety (90) continuous days of service with the Company during the nine months immediately before her confinement
+• Maternity leave shall be granted on or after the 28th week of pregnancy. Miscarriage as defined in the Employment Act, 1955 will be treated as a normal sick leave
+• To facilitate the planning of work schedule during the female employee's absence, application of maternity leave shall be made at least two (2) weeks before the start of the maternity leave
+
+1.8 **Work Anniversary Leave**
+• An employee shall be granted paid work anniversary leave for one (1) day on his/her work anniversary month
+• The leave is non-transferable to other month
+• Only entitled for permanent staff
+
+1.9 **Birthday Leave**
+• An employee shall be granted paid birthday leave for one (1) day on his/her birthday month
+• The leave is non-transferable to other month
+• Only entitled for permanent staff
+
+1.10 **Time Slip (For medical matters)**
+• In the case of an emergency, an employee may produce the Time Slip certificate from any available registered medical practitioner
+• This certificate acts as an alternative to sick leave, where the employee may need to be away from working hours less than 4 hours
+
+**2. Unpaid Leave**
+• An employee may apply for unpaid leave when:
+  - His/her annual leave has been duly exhausted
+  - All medical leave for the year has been duly exhausted but the employee has been deemed as medically unfit by the Company's panel doctor or a registered medical practitioner
+• Unpaid leave shall be granted to employees at the sole discretion of the Company and based on the merit of each individual case
+
+**3. Absent Without Leave (AWOL)**
+• An employee must confirm his/her leave application has been approved before going on leave
+• An employee who has not had his annual leave approved and then fails to report for work shall be deemed to be absent without leave
+• After investigating, where necessary, the company may take appropriate disciplinary action which involves issuing an official HR Warning Letter
+
+**4. Leave Encashment**
+• Employees who resign, retire or retrenched from their services shall be granted an annual leave on a pro-rated basis for the completed days of service in the Company, or will be paid for all accrued annual leave not taken
+• This clause only applies to permanent or confirmed employees
+• The unutilised prorated annual leave is calculated:
+  - Total annual leave is 18 days for 12 completed months
+  - E.g. the last working day is 30/6/2022:
+    * The entitled leave is 9 days
+    * The utilised leave as todate is 6 days
+    * The balance for encashment is 3 days
+  - E.g. the last working day is 31/3/2022:
+    * The entitled leave is 4.5 days
+    * The utilised leave as todate is 5 days
+    * The over utilised leave is 0.5 days, and shall be deducted from the final payroll
+• The amount of leave encashment and deduction calculation shall refer to clause 3.6, pro-rated salary calculation` },
       { id: 'wages', title: 'Wages', type: 'document', content: `Wages
 
 Payment
