@@ -14,6 +14,7 @@ const TEXT = 'var(--samurai-text)';
 const SURFACE = 'var(--samurai-surface)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
+const LIME = 'var(--samurai-accent, #ceef7d)';
 const NAVY = '#1e3a5f';
 const BLUE = '#3b82f6';
 const GREEN = '#10b981';
@@ -188,7 +189,7 @@ export function SupportTab({ dept, color }: Props) {
             fontSize: '0.85rem',
             fontWeight: 600,
             cursor: 'pointer',
-            background: tab === 'tickets' ? NAVY : '#f3f4f6',
+            background: tab === 'tickets' ? NAVY : SURFACE_2,
             color: tab === 'tickets' ? '#fff' : MUTED,
             display: 'flex',
             alignItems: 'center',
@@ -206,7 +207,7 @@ export function SupportTab({ dept, color }: Props) {
             fontSize: '0.85rem',
             fontWeight: 600,
             cursor: 'pointer',
-            background: tab === 'email' ? NAVY : '#f3f4f6',
+            background: tab === 'email' ? NAVY : SURFACE_2,
             color: tab === 'email' ? '#fff' : MUTED,
             display: 'flex',
             alignItems: 'center',
@@ -404,7 +405,7 @@ function EmailInboxView({ dept, color }: { dept: string; color: string }) {
             style={{
               padding: '14px 20px',
               borderBottom: i < MOCK_EMAILS.length - 1 ? `1px solid ${BORDER}` : 'none',
-              background: email.unread ? '#f0f7ff' : '#fff',
+              background: email.unread ? SURFACE_2 : SURFACE,
               cursor: email.isNewTicket ? 'pointer' : 'default',
               display: 'flex',
               flexDirection: 'column',
@@ -418,7 +419,7 @@ function EmailInboxView({ dept, color }: { dept: string; color: string }) {
                 flex: 1,
                 fontSize: '0.85rem',
                 fontWeight: email.unread ? 700 : 400,
-                color: email.unread ? NAVY : TEXT,
+                color: email.unread ? LIME : TEXT,
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
                 whiteSpace: 'nowrap',
