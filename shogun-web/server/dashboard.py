@@ -4849,6 +4849,24 @@ def _norm_emp_name(name: str | None) -> str:
     return _re.sub(r"\s+", " ", s).strip()
 
 
+def _normalize_date(raw: str) -> str:
+    """Normalize a date string to YYYY-MM-DD if possible, otherwise return as-is."""
+    if not raw:
+        return ""
+    raw = raw.strip()
+    # Already ISO-like (YYYY-MM-DD...)
+    if len(raw) >= 10 and raw[4] == '-' and raw[7] == '-':
+        return raw[:10]
+    # Try common formats
+    import datetime as _dt
+    for fmt in ("%d %B %Y", "%d/%m/%Y", "%d-%m-%Y", "%B %d, %Y", "%Y/%m/%d"):
+        try:
+            return _dt.datetime.strptime(raw, fmt).strftime("%Y-%m-%d")
+        except ValueError:
+            continue
+    return raw  # Return as-is if unparseable
+
+
 def _parse_gbrain_employee_profiles(pages: list) -> list:
     """Parse brain profile pages (~/brain/HR/Profiles format) into employee
     dicts matching the HrEmployee.to_dict() shape the UI consumes."""
@@ -4884,7 +4902,7 @@ def _parse_gbrain_employee_profiles(pages: list) -> list:
             "role": _field("Role"),
             "department": _field("Department"),
             "manager_name": _field("Manager"),
-            "date_of_hire": _field("Joining Date")[:10],
+            "date_of_hire": _normalize_date(_field("Joining Date")),
             "phone_number": phone,
             "linkedin_profile": "",  # not stored in brain profiles yet
             "notion_page_id": slug,  # brain slug — stable identifier
@@ -5030,6 +5048,12 @@ async def get_hr_stats(
                 "_source": "gbrain",  # flag for UI to distinguish non-portal records
             })
     employees = merged_employees  # now a list of dicts, not ORM objects
+
+    def _emp_get(emp, key, default=""):
+        """Safe accessor for employee data (works with dicts from merge)."""
+        if isinstance(emp, dict):
+            return emp.get(key, default) or default
+        return getattr(emp, key, default) or default
     job_openings = db.execute(select(HrJobOpening).where(HrJobOpening.tenant_id == tenant.id)).scalars().all()
     candidates = db.execute(select(HrCandidate).where(HrCandidate.tenant_id == tenant.id)).scalars().all()
     onboarding = db.execute(select(HrOnboardingTask).where(HrOnboardingTask.tenant_id == tenant.id)).scalars().all()
@@ -5052,7 +5076,7 @@ async def get_hr_stats(
 
     dept_counts: dict[str, int] = {}
     for emp in employees:
-        dept = emp.department or "Unknown"
+        dept = _emp_get(emp, "department") or "Unknown"
         dept_counts[dept] = dept_counts.get(dept, 0) + 1
 
     pipeline_counts: dict[str, int] = {}
@@ -5132,7 +5156,7 @@ async def get_hr_stats(
         "total_meetings": len(meetings),
         "open_action_items": open_action_items,
         "dept_counts": dept_counts,
-        "employees": [e.to_dict() for e in employees],
+        "employees": [e if isinstance(e, dict) else e.to_dict() for e in employees],
         "job_openings": [{**j.to_dict(), "job_status": normalize_status(j.job_status)} for j in job_openings],
         "candidates": [c.to_dict() for c in candidates],
         "onboarding_tasks": [t.to_dict() for t in onboarding],
@@ -5418,7 +5442,9 @@ async def _fetch_candidate_doc(url: str) -> str:
             # no path traversal: must stay inside the uploads dir
             if not str(fp).startswith(str(upload_dir.resolve())) or not fp.is_file():
                 return ""
-            return _extract_text_from_upload(fp.read_bytes()).strip()
+            import asyncio as _asyncio
+            data = fp.read_bytes()
+            return (await _asyncio.to_thread(_extract_text_from_upload, data)).strip()
         except Exception:
             return ""
     fid = _drive_file_id(url)
@@ -5787,9 +5813,12 @@ def _extract_text_from_upload(data: bytes) -> str:
             if len(text) >= 40:
                 return text
             # No usable text layer — likely a scanned PDF. Rasterize and OCR.
+            _MAX_OCR_PAGES = 10
             pages_text = []
             with fitz.open(stream=data, filetype="pdf") as doc:
-                for page in doc:
+                for i, page in enumerate(doc):
+                    if i >= _MAX_OCR_PAGES:
+                        break
                     pix = page.get_pixmap(dpi=200)
                     pages_text.append(_tesseract_ocr_bytes(pix.tobytes("png"), "png"))
             return "\n".join(t for t in pages_text if t).strip()
@@ -6424,7 +6453,7 @@ async def save_hr_interview_template(
         name=(body.name or "").strip()[:256] or f"{iv.round} round questions",
         department=(body.department or "").strip()[:128],
         role_pattern=(body.role_pattern or "").strip()[:256],
-        round=(body.round or iv.round or "first").strip()[:16],
+        round=_validate_round((body.round or iv.round or "first").strip()),
         questions_json=json.dumps(questions),
     )
     db.add(tmpl)
@@ -6478,13 +6507,22 @@ async def delete_hr_interview_template(
     return {"ok": True}
 
 
+_VALID_INTERVIEW_ROUNDS = {"first", "hr", "manager", "ceo"}
+
+
+def _validate_round(round_type: str) -> str:
+    """Validate interview round against allowed values."""
+    r = (round_type or "").strip().lower() or "first"
+    if r not in _VALID_INTERVIEW_ROUNDS:
+        raise HTTPException(status_code=422, detail=f"Invalid interview round: {r}. Must be one of: {', '.join(sorted(_VALID_INTERVIEW_ROUNDS))}")
+    return r
+
+
 def _template_payload(body: HrTemplateBody) -> tuple:
     role_pattern = (body.role_pattern or "").strip()
     if not role_pattern:
         raise HTTPException(status_code=422, detail="Role pattern is required")
-    round_type = ((body.round or "").strip().lower() or "first")
-    if round_type not in ("first", "hr", "manager", "ceo"):
-        raise HTTPException(status_code=422, detail="Interview round must be HR, Manager or CEO")
+    round_type = _validate_round(body.round)
     questions = [str(q).strip() for q in (body.questions or []) if str(q).strip()]
     if not questions:
         raise HTTPException(status_code=422, detail="At least one question is required")
