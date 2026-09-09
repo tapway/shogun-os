@@ -48,12 +48,63 @@ function resolveIcon(name?: string) {
   return ICON_MAP[name] || FileText;
 }
 
-// Default empty sections — real data loaded from API
+// Section/topic structure — content loaded from gbrain at runtime
 const DEFAULT_SECTIONS: Section[] = [
-  { id: 'team', title: 'Team', icon: Users, topics: [] },
-  { id: 'sop', title: 'SOP', icon: BookOpen, topics: [] },
-  { id: 'website-training', title: 'Official Website/Training', icon: Globe, topics: [] },
-  { id: 'policies', title: 'Company Policies', icon: Shield, topics: [] },
+  {
+    id: 'team',
+    title: 'Team',
+    icon: Users,
+    topics: [
+      { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', icon: BookOpen },
+      { id: 'mission', title: 'Mission, Vision, Values', type: 'document', icon: Target },
+      { id: 'core-values-video', title: 'Core Values Video', type: 'video', icon: Play },
+      { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building },
+      { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye },
+      { id: 'directions-itmax', title: 'How to Get to ITMAX new office', type: 'document', icon: MapPin },
+    ],
+  },
+  {
+    id: 'sop',
+    title: 'SOP',
+    icon: BookOpen,
+    topics: [
+      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', icon: Clock },
+      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', icon: Clock },
+      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', icon: Briefcase },
+      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', icon: Briefcase },
+      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', icon: CreditCard },
+      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document', icon: Building },
+      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document', icon: Package },
+      { id: 'visitor-log', title: 'Visitor Log', type: 'document', icon: UserCheck },
+      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', icon: Star },
+    ],
+  },
+  {
+    id: 'website-training',
+    title: 'Official Website/Training',
+    icon: Globe,
+    topics: [
+      { id: 'acloudguru', title: 'AcloudGuru Free Learning!', type: 'link', icon: GraduationCap },
+      { id: 'tapway-website', title: 'Tapway Website', type: 'link', icon: Globe },
+      { id: 'social-media', title: 'Social Media', type: 'document', icon: Heart },
+      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', icon: Trophy },
+    ],
+  },
+  {
+    id: 'policies',
+    title: 'Company Policies',
+    icon: Shield,
+    topics: [
+      { id: 'code-conduct', title: 'Code of Conduct', type: 'document', icon: Shield },
+      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', icon: Calendar },
+      { id: 'wages', title: 'Wages', type: 'document', icon: CreditCard },
+      { id: 'overtime', title: 'Overtime (OT)', type: 'document', icon: Clock },
+      { id: 'commission', title: 'Commission', type: 'document', icon: Trophy },
+      { id: 'expenses', title: 'Claimable Expenses', type: 'document', icon: CreditCard },
+      { id: 'training-dev', title: 'Training & Development', type: 'document', icon: GraduationCap },
+      { id: 'anti-harassment', title: 'Anti-harassment and non-discrimination Policy', type: 'document', icon: Shield },
+    ],
+  },
 ];
 
 export function HrCornerTab({ department, color }: Props) {
@@ -68,17 +119,30 @@ export function HrCornerTab({ department, color }: Props) {
       try {
         const data = await apiFetch<any[]>('/hr-corner/sections');
         if (!cancelled && Array.isArray(data) && data.length > 0) {
-          setSections(data.map((s: any) => ({
-            ...s,
-            icon: resolveIcon(s.icon),
-            topics: (s.topics || []).map((t: any) => ({
-              ...t,
-              icon: t.icon ? resolveIcon(t.icon) : undefined,
-            })),
-          })));
+          // Merge gbrain data into default structure — preserve topics not yet in gbrain
+          const apiMap = new Map(data.map((s: any) => [s.id, s]));
+          const merged = DEFAULT_SECTIONS.map((defSection) => {
+            const apiSection = apiMap.get(defSection.id);
+            if (!apiSection) return defSection; // No gbrain data for this section
+            const apiTopics = new Map((apiSection.topics || []).map((t: any) => [t.id, t]));
+            const mergedTopics = defSection.topics.map((defTopic) => {
+              const apiTopic = apiTopics.get(defTopic.id) as TopicItem | undefined;
+              if (!apiTopic) return defTopic; // No gbrain data for this topic
+              return {
+                ...defTopic,
+                content: apiTopic.content || defTopic.content,
+                pdfUrl: apiTopic.pdfUrl || (defTopic as any).pdfUrl,
+                videoUrl: apiTopic.videoUrl || (defTopic as any).videoUrl,
+                imageUrl: apiTopic.imageUrl || (defTopic as any).imageUrl,
+                embedUrl: apiTopic.embedUrl || (defTopic as any).embedUrl,
+              };
+            });
+            return { ...defSection, topics: mergedTopics };
+          });
+          setSections(merged);
         }
       } catch {
-        // Keep default empty sections if API unavailable
+        // Keep default structure if API unavailable
       } finally {
         if (!cancelled) setLoading(false);
       }
