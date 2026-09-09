@@ -145,10 +145,10 @@ export function ExecutiveProcurementPulseTab({
             yKey="value"
             color={color}
             unit="RM "
-            height={220}
+            height={260}
             dataKeys={["value"]}
             colors={[color]}
-            xAngle={-35}
+            xAngle={-25}
             interval={0}
           />
         </div>
