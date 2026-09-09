@@ -13,6 +13,7 @@ import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
 import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
 import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
 import { ThreeWayMatchTab } from "./ThreeWayMatchTab";
+import { ProgressTrackerTab } from "./ProgressTrackerTab";
 import {
   ProcurementActionModal,
   type ProcurementActionType,
@@ -129,10 +130,7 @@ export function ProcurementDashboard({
         />
       )}
       {activeTab === "progress" && (
-        <div className="sd-empty">
-          <h2>Progress Tracker</h2>
-          <p>End-to-end procurement lifecycle tracking (to be built)</p>
-        </div>
+        <ProgressTrackerTab color={color} />
       )}
       {activeTab === "requisitions" && (
         <PurchaseRequisitionsTab stats={stats} onAction={handleAction} />
