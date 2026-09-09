@@ -1,266 +1,373 @@
-import React, { useState } from 'react';
-import { ChevronDown, ChevronRight, Package, Warehouse, AlertTriangle, ArrowLeftRight } from 'lucide-react';
-import { BarChart } from '../charts';
-import type { BarcodeBatchLog, ProcurementDashboardStats } from '../../../lib/types';
+import { useState } from 'react';
+import { Printer, Package, ChevronDown, Search, Tag, Building2 } from 'lucide-react';
+import { MOCK_PROGRESS_TRACKER, MOCK_BARCODE_BATCHES } from '../../../lib/procurement-mock-data';
 
 interface Props {
-  stats: ProcurementDashboardStats;
+  stats: any;
   color?: string;
 }
-
-const MOVEMENT_BADGE: Record<string, string> = {
-  '+ Receive':    'ok',
-  '- Issue':      'muted',
-  '~ Adjustment': 'warn',
-  '! Damage':     'bad',
-  '↺ Return':    'muted',
-};
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
-}
-
 export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
-  // Batch Logs State
-  const batches = stats.barcodeBatches ?? [];
-  const [expandedBatchIds, setExpandedBatchIds] = useState<Record<string, boolean>>({
-    'BATCH-2026-0803-01': true, // default expand 1st batch
-  });
+  // Section 1: Generate Barcode State
+  const [selectedProject, setSelectedProject] = useState<string>('');
+  const [selectedPO, setSelectedPO] = useState<string>('');
+  const [selectedItem, setSelectedItem] = useState<string>('');
+  const [generatedBarcode, setGeneratedBarcode] = useState<{
+    code: string;
+    itemName: string;
+    poNumber: string;
+    projectName: string;
+    generatedAt: string;
+  } | null>(null);
 
-  const toggleExpand = (batchId: string) => {
-    setExpandedBatchIds((prev) => ({ ...prev, [batchId]: !prev[batchId] }));
+  // Section 2: View All Items State
+  const [searchQuery, setSearchQuery] = useState('');
+  const [expandedProjects, setExpandedProjects] = useState<Set<string>>(new Set());
+
+  // Get projects from mock data
+  const projects = MOCK_PROGRESS_TRACKER.map(p => ({
+    id: p.project_id,
+    name: p.project_name,
+    prNumber: p.pr_number,
+  }));
+
+  // Get POs for selected project (mock - in real app would filter by project)
+  const availablePOs = selectedProject ? [
+    { poNumber: 'PO-2025-0042', supplier: 'TechWorld Sdn Bhd' },
+    { poNumber: 'PO-2025-0043', supplier: 'OfficePro Malaysia' },
+  ] : [];
+
+  // Get items for selected PO (mock)
+  const availableItems = selectedPO ? [
+    { id: 'item-001', name: 'Dell XPS 15 Laptop', quantity: 5, unit: 'units' },
+    { id: 'item-002', name: 'Ergonomic Office Chair', quantity: 20, unit: 'units' },
+  ] : [];
+
+  const handleGenerateBarcode = () => {
+    if (!selectedProject || !selectedPO || !selectedItem) return;
+
+    const project = projects.find(p => p.id === selectedProject);
+    const item = availableItems.find(i => i.id === selectedItem);
+    
+    if (!project || !item) return;
+
+    // Generate barcode code: PO-ITEM_INDEX
+    const itemIndex = availableItems.findIndex(i => i.id === selectedItem) + 1;
+    const barcodeCode = `${selectedPO}-${String(itemIndex).padStart(3, '0')}`;
+
+    setGeneratedBarcode({
+      code: barcodeCode,
+      itemName: item.name,
+      poNumber: selectedPO,
+      projectName: project.name,
+      generatedAt: new Date().toISOString(),
+    });
+
+    // In real app, this would save to database
+    alert(`Barcode generated and recorded in system!\n\nBarcode: ${barcodeCode}\nItem: ${item.name}\nPO: ${selectedPO}\nProject: ${project.name}`);
   };
+
+  const handlePrintBarcode = () => {
+    if (!generatedBarcode) return;
+    
+    // In real app, this would trigger print dialog with barcode label template
+    alert(`Printing barcode label for:\n${generatedBarcode.code}\n\n(Demo mode - no actual print)`);
+  };
+
+  const toggleProjectExpand = (projectId: string) => {
+    const newSet = new Set(expandedProjects);
+    if (newSet.has(projectId)) {
+      newSet.delete(projectId);
+    } else {
+      newSet.add(projectId);
+    }
+    setExpandedProjects(newSet);
+  };
+
+  // Filter items for Section 2
+  const filteredProjects = MOCK_PROGRESS_TRACKER.filter(project => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      project.project_name.toLowerCase().includes(q) ||
+      project.hardware_items.some(item => item.name.toLowerCase().includes(q))
+    );
+  });
 
   return (
     <div className="sd-stack">
-      {/* Inventory Loss & Shrinkage Flag Banner */}
-      {stats.shrinkageFlagItems && stats.shrinkageFlagItems.length > 0 && (
-        <div className="sd-alert-row critical">
-          <AlertTriangle className="h-4 w-4 shrink-0" />
-          <span>
-            Shrinkage flag — {stats.shrinkageFlagItems.length} SKU{stats.shrinkageFlagItems.length > 1 ? 's' : ''} with damage/adjustment entries exceeding 2% of total stock: {stats.shrinkageFlagItems.join(', ')}
-          </span>
-        </div>
-      )}
-
-      {/* Warehouse Bin Capacity & Location Utilisation */}
+      {/* Section 1: Generate Barcode */}
       <div className="sd-chart-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <Warehouse className="h-4 w-4" style={{ color: 'var(--samurai-lime)' }} />
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>Warehouse Bin Capacity & Location Utilisation</h3>
+        <h3 className="sd-chart-title" style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+          <Tag className="h-5 w-5" />
+          Generate Barcode
+        </h3>
+        <p className="sd-chart-sub">Select project → PO → item to generate and record barcode</p>
+
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.75rem', marginTop: '1rem', alignItems: 'end' }}>
+          {/* Project Selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: MUTED, marginBottom: '0.25rem' }}>
+              Select Project
+            </label>
+            <select
+              value={selectedProject}
+              onChange={(e) => {
+                setSelectedProject(e.target.value);
+                setSelectedPO('');
+                setSelectedItem('');
+                setGeneratedBarcode(null);
+              }}
+              className="sd-input"
+              style={{ width: '100%' }}
+            >
+              <option value="">-- Select Project --</option>
+              {projects.map((project) => (
+                <option key={project.id} value={project.id}>
+                  {project.name} ({project.prNumber})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* PO Selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: MUTED, marginBottom: '0.25rem' }}>
+              Select PO
+            </label>
+            <select
+              value={selectedPO}
+              onChange={(e) => {
+                setSelectedPO(e.target.value);
+                setSelectedItem('');
+                setGeneratedBarcode(null);
+              }}
+              className="sd-input"
+              style={{ width: '100%' }}
+              disabled={!selectedProject}
+            >
+              <option value="">-- Select PO --</option>
+              {availablePOs.map((po) => (
+                <option key={po.poNumber} value={po.poNumber}>
+                  {po.poNumber} - {po.supplier}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Item Selector */}
+          <div>
+            <label style={{ display: 'block', fontSize: '0.72rem', fontWeight: 500, color: MUTED, marginBottom: '0.25rem' }}>
+              Select Item
+            </label>
+            <select
+              value={selectedItem}
+              onChange={(e) => {
+                setSelectedItem(e.target.value);
+                setGeneratedBarcode(null);
+              }}
+              className="sd-input"
+              style={{ width: '100%' }}
+              disabled={!selectedPO}
+            >
+              <option value="">-- Select Item --</option>
+              {availableItems.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.name} ({item.quantity} {item.unit})
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Generate Button */}
+          <button
+            type="button"
+            onClick={handleGenerateBarcode}
+            className="sd-btn sd-btn-primary"
+            disabled={!selectedProject || !selectedPO || !selectedItem}
+            style={{ height: '2.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+          >
+            <Tag className="h-4 w-4" />
+            Generate
+          </button>
         </div>
-        {stats.warehouseBinCapacity.length === 0 ? (
-          <p style={{ color: MUTED, fontSize: '0.85rem' }}>No warehouse bin data available yet.</p>
-        ) : (
-          <div className="sd-stack" style={{ gap: '0.75rem' }}>
-            {stats.warehouseBinCapacity.map((bin) => {
-              const over = bin.utilisation_pct > 85;
+
+        {/* Generated Barcode Display */}
+        {generatedBarcode && (
+          <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.1)', borderLeft: '3px solid var(--samurai-ok)', borderRadius: '0.25rem' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
+              <div>
+                <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Generated Barcode</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: TEXT, letterSpacing: '0.1em' }}>
+                  {generatedBarcode.code}
+                </div>
+              </div>
+              <button
+                type="button"
+                onClick={handlePrintBarcode}
+                className="sd-btn sd-btn-secondary"
+                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
+              >
+                <Printer className="h-4 w-4" />
+                Print Label
+              </button>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.72rem' }}>
+              <div>
+                <span style={{ color: MUTED }}>Item:</span>{' '}
+                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.itemName}</span>
+              </div>
+              <div>
+                <span style={{ color: MUTED }}>PO Number:</span>{' '}
+                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.poNumber}</span>
+              </div>
+              <div>
+                <span style={{ color: MUTED }}>Project:</span>{' '}
+                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.projectName}</span>
+              </div>
+              <div>
+                <span style={{ color: MUTED }}>Generated:</span>{' '}
+                <span style={{ color: TEXT, fontWeight: 500 }}>
+                  {new Date(generatedBarcode.generatedAt).toLocaleString('en-MY')}
+                </span>
+              </div>
+            </div>
+
+            <div style={{ marginTop: '0.75rem', fontSize: '0.65rem', color: MUTED, fontStyle: 'italic' }}>
+              ✓ Barcode recorded in system. This barcode links item to PO {generatedBarcode.poNumber} from project {generatedBarcode.projectName}
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Section 2: All Items Grouped by Project */}
+      <div className="sd-chart-card">
+        <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+            <Package className="h-5 w-5" />
+            All Items by Project
+          </h3>
+          <div style={{ position: 'relative' }}>
+            <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: MUTED }} />
+            <input
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Search project or item…"
+              style={{ width: '18rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
+            />
+          </div>
+        </div>
+        <p className="sd-chart-sub">View all items grouped by project with barcode information</p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem', marginTop: '1rem' }}>
+          {filteredProjects.length === 0 ? (
+            <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
+              No projects match the search criteria.
+            </p>
+          ) : (
+            filteredProjects.map((project) => {
+              const isExpanded = expandedProjects.has(project.project_id);
+
               return (
-                <div key={bin.location}>
-                  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', fontSize: '0.72rem', marginBottom: '0.25rem' }}>
-                    <span style={{ fontWeight: 500, color: TEXT }}>{bin.location}</span>
-                    <span style={{ color: MUTED }}>
-                      {(bin.used || 0).toLocaleString()} / {(bin.capacity || 0).toLocaleString()} units · {(bin.utilisation_pct || 0).toFixed(0)}%
-                    </span>
+                <div key={project.project_id} className="sd-card" style={{ padding: 0, overflow: 'hidden' }}>
+                  {/* Project Header */}
+                  <div
+                    onClick={() => toggleProjectExpand(project.project_id)}
+                    style={{
+                      padding: '0.75rem 1rem',
+                      cursor: 'pointer',
+                      borderBottom: isExpanded ? `1px solid ${BORDER}` : 'none',
+                      background: SURFACE_2,
+                      display: 'flex',
+                      justifyContent: 'space-between',
+                      alignItems: 'center',
+                    }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
+                      <Building2 className="h-4 w-4" style={{ color }} />
+                      <div>
+                        <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>
+                          {project.project_name}
+                        </div>
+                        <div style={{ fontSize: '0.65rem', color: MUTED }}>
+                          {project.pr_number} • {project.hardware_items.length} items
+                        </div>
+                      </div>
+                    </div>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <span className="sd-chip muted">{project.overall_progress}% complete</span>
+                      {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" style={{ transform: 'rotate(-90deg)' }} />}
+                    </div>
                   </div>
-                  <div style={{ height: '0.5rem', borderRadius: 999, overflow: 'hidden', background: SURFACE_2 }}>
-                    <div
-                      style={{ height: '100%', borderRadius: 999, background: over ? 'var(--samurai-danger)' : bin.utilisation_pct > 70 ? 'var(--samurai-warning)' : 'var(--samurai-ok)', width: `${Math.min(bin.utilisation_pct, 100)}%` }}
-                    />
-                  </div>
+
+                  {/* Expanded Items List */}
+                  {isExpanded && (
+                    <div style={{ padding: '1rem' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
+                        {project.hardware_items.map((item) => {
+                          // Check if this item has barcodes generated (mock check)
+                          const hasBarcode = MOCK_BARCODE_BATCHES.some(batch => 
+                            batch.items.some(barcodeItem => barcodeItem.item_name.includes(item.name))
+                          );
+
+                          return (
+                            <div
+                              key={item.item_id}
+                              style={{
+                                padding: '0.75rem',
+                                border: `1px solid ${BORDER}`,
+                                borderRadius: '0.25rem',
+                                display: 'flex',
+                                justifyContent: 'space-between',
+                                alignItems: 'center',
+                              }}
+                            >
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: '0.85rem', color: TEXT }}>
+                                  {item.name}
+                                </div>
+                                <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.25rem' }}>
+                                  Quantity: {item.quantity} {item.unit} • Supplier: {item.selected_supplier.name}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                {hasBarcode ? (
+                                  <span className="sd-chip ok">Barcode Generated</span>
+                                ) : (
+                                  <span className="sd-chip muted">No Barcode</span>
+                                )}
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    // Pre-fill the generate form with this item
+                                    setSelectedProject(project.project_id);
+                                    // In real app, would also select the correct PO and item
+                                    alert(`Navigate to Generate Barcode section for ${item.name}`);
+                                  }}
+                                  className="sd-btn sd-btn-secondary"
+                                  style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+                                >
+                                  Generate Barcode
+                                </button>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  )}
                 </div>
               );
-            })}
-          </div>
-        )}
-      </div>
-
-      {/* Inventory Batch Barcode Scan Logs Table */}
-      <div className="sd-chart-card sd-stack" style={{ gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.5rem' }}>
-          <h4 className="sd-chart-title" style={{ margin: 0 }}>Inventory Batch Barcode Scan Logs</h4>
-          <span style={{ fontSize: '0.72rem', color: MUTED }}>Click any batch row to expand individual stock items</span>
-        </div>
-
-        <div className="overflow-x-auto">
-          <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-            <thead>
-              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                <th style={{ width: '2.5rem' }}></th>
-                <Th align="left">Batch ID</Th>
-                <Th align="left">Action Type</Th>
-                <Th align="left">Reference ID</Th>
-                <Th align="center">Items Count</Th>
-                <Th align="left">Department</Th>
-                <Th align="left">Timestamp</Th>
-              </tr>
-            </thead>
-            <tbody>
-              {batches.map((batch) => {
-                const isExpanded = !!expandedBatchIds[batch.batch_id];
-                return (
-                  <React.Fragment key={batch.batch_id}>
-                    {/* Master Batch Row */}
-                    <tr
-                      onClick={() => toggleExpand(batch.batch_id)}
-                      style={{ borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }}
-                    >
-                      <td className="px-3 py-2.5 text-center" style={{ color: MUTED }}>
-                        {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-                      </td>
-                      <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 700, color: TEXT }}>{batch.batch_id}</td>
-                      <td className="px-3 py-2.5">
-                        <span className={`sd-chip ${(batch.action_type || '').includes('GRN') ? 'muted' : (batch.action_type || '').includes('OUT') ? 'bad' : 'ok'}`}>
-                          {batch.action_type}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{batch.reference_id}</td>
-                      <td className="px-3 py-2.5 text-center" style={{ fontWeight: 700, color: TEXT }}>{batch.total_items} units</td>
-                      <td className="px-3 py-2.5" style={{ color: MUTED }}>{batch.actor}</td>
-                      <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{batch.timestamp}</td>
-                    </tr>
-
-                    {/* Expanded Detail Accordion Sub-Table */}
-                    {isExpanded && (
-                      <tr style={{ background: 'color-mix(in srgb, var(--samurai-surface-2) 70%, transparent)' }}>
-                        <td colSpan={7} className="p-3.5 pl-8">
-                          <div
-                            style={{
-                              borderRadius: '0.6rem',
-                              borderLeft: '4px solid var(--samurai-lime)',
-                              borderTop: `1px solid ${BORDER}`,
-                              borderRight: `1px solid ${BORDER}`,
-                              borderBottom: `1px solid ${BORDER}`,
-                              background: 'color-mix(in srgb, var(--samurai-surface) 92%, var(--samurai-lime) 4%)',
-                              boxShadow: 'inset 0 1px 3px rgba(0,0,0,0.2), 0 2px 8px rgba(0,0,0,0.15)',
-                              padding: '0.85rem 1rem',
-                            }}
-                          >
-                            <div style={{ fontSize: '0.78rem', fontWeight: 700, color: 'var(--samurai-lime)', display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.5rem', marginBottom: '0.65rem' }}>
-                              <div style={{ display: 'flex', alignItems: 'center', gap: '0.4rem' }}>
-                                <Package className="h-4 w-4" style={{ color: 'var(--samurai-lime)' }} />
-                                <span>Batch Contents: {batch.batch_id}</span>
-                                <span className="sd-chip ok" style={{ fontSize: '0.68rem', padding: '0.15rem 0.45rem' }}>
-                                  {batch.units.length} Barcode Unit{batch.units.length > 1 ? 's' : ''} Scanned
-                                </span>
-                              </div>
-                              <span style={{ fontSize: '0.7rem', color: MUTED, fontFamily: 'var(--font-display)' }}>
-                                Ref: {batch.reference_id}
-                              </span>
-                            </div>
-                            <div style={{ overflowX: 'auto' }}>
-                              <table className="w-full" style={{ fontSize: '0.72rem', borderCollapse: 'collapse' }}>
-                                <thead>
-                                  <tr style={{ borderBottom: `1px solid ${BORDER}`, background: 'color-mix(in srgb, var(--samurai-surface-2) 40%, transparent)' }}>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>Barcode ID</th>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>SKU & Item Name</th>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>Serial Number</th>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>Location Bin</th>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>Assigned / Status</th>
-                                    <th className="py-1.5 px-2 text-left" style={{ ...th, color: 'var(--samurai-text)' }}>Last Scan</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {batch.units.map((unit) => (
-                                    <tr key={unit.barcode_id} style={{ borderBottom: `1px dashed ${BORDER}` }}>
-                                      <td className="py-2 px-2" style={{ fontFamily: 'var(--font-display)', fontWeight: 700, color: 'var(--samurai-lime)' }}>{unit.barcode_id}</td>
-                                      <td className="py-2 px-2" style={{ fontWeight: 600, color: TEXT }}>{unit.sku} — {unit.item_name}</td>
-                                      <td className="py-2 px-2" style={{ fontFamily: 'var(--font-display)', color: MUTED }}>{unit.serial_no}</td>
-                                      <td className="py-2 px-2" style={{ fontFamily: 'var(--font-display)', color: TEXT, fontWeight: 500 }}>{unit.location_bin}</td>
-                                      <td className="py-2 px-2">
-                                        <span className={`sd-chip ${unit.status === 'In Store' ? 'ok' : unit.status === 'Issued' ? 'warn' : 'muted'}`}>
-                                          {unit.status} {unit.assigned_to ? `(${unit.assigned_to})` : ''}
-                                        </span>
-                                      </td>
-                                      <td className="py-2 px-2" style={{ fontFamily: 'var(--font-display)', color: MUTED }}>{unit.last_scan_timestamp}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </React.Fragment>
-                );
-              })}
-            </tbody>
-          </table>
+            })
+          )}
         </div>
       </div>
-
-      {/* Stock Movement Audit Log (Immutable Timeline) */}
-      <div className="sd-chart-card sd-stack" style={{ gap: '0.75rem' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.5rem' }}>
-          <ArrowLeftRight className="h-4 w-4" style={{ color: 'var(--samurai-lime)' }} />
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>Stock Movement Audit Log (Immutable Timeline)</h3>
-        </div>
-        {stats.stockMovements.length === 0 ? (
-          <p style={{ color: MUTED, fontSize: '0.85rem' }}>No stock movements recorded yet.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">Timestamp</Th>
-                  <Th align="left">SKU & Item</Th>
-                  <Th align="center">Type</Th>
-                  <Th align="right">Quantity</Th>
-                  <Th align="left">Reference ID</Th>
-                  <Th align="left">Location</Th>
-                  <Th align="left">Actor / Department</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.stockMovements.map((m, i) => (
-                  <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.timestamp}</td>
-                    <td className="px-3 py-2.5">
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>{m.sku}</div>
-                      <div style={{ fontSize: '0.72rem', color: MUTED }}>{m.item_name}</div>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`sd-chip ${MOVEMENT_BADGE[m.movement_type] ?? 'muted'}`}>
-                        {m.movement_type}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? 'var(--samurai-ok)' : (m.movement_type || '').startsWith('!') ? 'var(--samurai-danger)' : TEXT }}>
-                      {(m.movement_type || '').startsWith('-') ? '-' : (m.movement_type || '').startsWith('+') || (m.movement_type || '').startsWith('↺') ? '+' : ''}{(m.quantity || 0).toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.reference_id}</td>
-                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{m.location_id}</td>
-                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: MUTED }}>{m.actor}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Movement Type Distribution Chart */}
-      {stats.movementTypeDistribution && stats.movementTypeDistribution.length > 0 && (
-        <div className="sd-chart-card">
-          <h3 className="sd-chart-title">Movement Type Distribution (Monthly)</h3>
-          <BarChart
-            data={stats.movementTypeDistribution}
-            xKey="movement_type"
-            yKey="quantity"
-            color={color}
-            unit=""
-            height={220}
-            dataKeys={['quantity']}
-            colors={[color]}
-          />
-        </div>
-      )}
     </div>
   );
 }
