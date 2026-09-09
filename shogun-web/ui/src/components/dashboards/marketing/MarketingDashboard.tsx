@@ -1,8 +1,7 @@
 import { useState } from 'react';
-import { useQuery } from '@tanstack/react-query';
-import { departmentsApi } from '../../../lib/api';
 import { DashboardSubNav } from '../DashboardSubNav';
-import type { DashboardTab, MarketingDashboardStats } from '../../../lib/types';
+import type { DashboardTab } from '../../../lib/types';
+import { marketingMockData } from '../../../lib/marketing-mock-data';
 import { SummaryTab } from './SummaryTab';
 import { LeadsTab } from './LeadsTab';
 import { EventsTab } from './EventsTab';
@@ -27,31 +26,8 @@ interface MarketingDashboardProps {
 export function MarketingDashboard({ department, color }: MarketingDashboardProps) {
   const [activeTab, setActiveTab] = useState('summary');
 
-  const statsQuery = useQuery({
-    queryKey: ['dashboard-marketing-stats', department],
-    queryFn: () => departmentsApi.dashboardMarketingStats(department),
-    refetchInterval: 120_000,
-  });
-
-  if (statsQuery.isLoading) {
-    return (
-      <div className="sd-empty">
-        <div className="h-7 w-7 animate-spin rounded-full" style={{ border: `2px solid var(--samurai-lime)`, borderTopColor: 'transparent' }} />
-        <p>Loading Marketing dashboard…</p>
-      </div>
-    );
-  }
-
-  const stats: MarketingDashboardStats | undefined = statsQuery.data;
-
-  if (!stats) {
-    return (
-      <div className="sd-empty">
-        <h2>Unable to load Marketing dashboard data</h2>
-        <p>The marketing snapshot could not be retrieved. Try refreshing the page.</p>
-      </div>
-    );
-  }
+  // Use mock data directly (no API call in demo mode)
+  const stats = marketingMockData as any;
 
   return (
     <div className="sd-stack">
