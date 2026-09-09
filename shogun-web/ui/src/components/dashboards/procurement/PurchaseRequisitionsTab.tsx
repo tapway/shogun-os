@@ -32,6 +32,9 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [viewingPR, setViewingPR] = useState<PurchaseRequisition | null>(null);
   const [filter, setFilter] = useState<string>("All");
+  
+  // Local state for PRs so we can mutate status in demo mode
+  const [prs, setPrs] = useState<PurchaseRequisition[]>(MOCK_PRS);
 
   // Mock form state for demo
   const [formData, setFormData] = useState({
@@ -49,7 +52,22 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
     }>,
   });
 
-  const filteredPRs = MOCK_PRS.filter((pr) => (filter === "All" ? true : pr.status === filter));
+  const filteredPRs = prs.filter((pr) => (filter === "All" ? true : pr.status === filter));
+
+  const handleApprovePR = (prNumber: string) => {
+    setPrs(prevPrs => prevPrs.map(pr => 
+      pr.pr_number === prNumber 
+        ? { 
+            ...pr, 
+            status: "Approved" as const,
+            finance_approved_by: "Demo User",
+            finance_approved_at: new Date().toISOString(),
+            finance_notes: "Manually approved via dashboard (demo mode)"
+          } 
+        : pr
+    ));
+    alert(`PR ${prNumber} approved successfully!`);
+  };
 
   const handleAddItem = () => {
     setFormData({
@@ -202,14 +220,26 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
                       <span className={`sd-chip ${STATUS_STYLE[pr.status] ?? "muted"}`}>{pr.status}</span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setViewingPR(pr)}
-                        className="sd-btn sd-btn-secondary"
-                        style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                      >
-                        View Details
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
+                        {pr.status === "Pending Finance Approval" && (
+                          <button
+                            type="button"
+                            onClick={() => handleApprovePR(pr.pr_number)}
+                            className="sd-btn sd-btn-primary"
+                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => setViewingPR(pr)}
+                          className="sd-btn sd-btn-secondary"
+                          style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                        >
+                          View Details
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 ))}
