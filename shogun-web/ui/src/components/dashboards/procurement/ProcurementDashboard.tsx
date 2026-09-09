@@ -10,12 +10,9 @@ import type {
 import { ExecutiveProcurementPulseTab } from "./ExecutiveProcurementPulseTab";
 import { InventoryCatalogTab } from "./InventoryCatalogTab";
 import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
-import { AccountingBridgeTab } from "./AccountingBridgeTab";
 import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
-import { RfqVendorSourcingTab } from "./RfqVendorSourcingTab";
 import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
 import { ThreeWayMatchTab } from "./ThreeWayMatchTab";
-import { DocumentScanningTab } from "../shared/DocumentScanningTab";
 import {
   ProcurementActionModal,
   type ProcurementActionType,
@@ -23,14 +20,12 @@ import {
 
 const TABS: DashboardTab[] = [
   { id: "pulse", label: "Overview", icon: "LayoutDashboard" },
+  { id: "progress", label: "Progress Tracker", icon: "Timer" },
   { id: "requisitions", label: "Purchase Requisitions", icon: "FileText" },
-  { id: "sourcing", label: "RFQ & Vendor Sourcing", icon: "Award" },
   { id: "po", label: "POs & Vendors", icon: "ClipboardList" },
-  { id: "inventory", label: "Inventory", icon: "Package" },
-  { id: "barcode", label: "Warehouse & Stock Audit", icon: "Warehouse" },
-  { id: "matching", label: "Invoice Matching", icon: "ShieldCheck" },
-  { id: "bridge", label: "Accounting Bridge", icon: "Scale" },
-  { id: "scan", label: "Document Scanning", icon: "FileScan" },
+  { id: "history", label: "Supplier & Item History", icon: "Database" },
+  { id: "matching", label: "3-Way Invoice Match", icon: "ShieldCheck" },
+  { id: "barcode", label: "Barcode & Asset Tagging", icon: "Warehouse" },
 ];
 
 interface ProcurementDashboardProps {
@@ -133,11 +128,14 @@ export function ProcurementDashboard({
           onNavigateTab={setActiveTab}
         />
       )}
+      {activeTab === "progress" && (
+        <div className="sd-empty">
+          <h2>Progress Tracker</h2>
+          <p>End-to-end procurement lifecycle tracking (to be built)</p>
+        </div>
+      )}
       {activeTab === "requisitions" && (
         <PurchaseRequisitionsTab stats={stats} onAction={handleAction} />
-      )}
-      {activeTab === "sourcing" && (
-        <RfqVendorSourcingTab stats={stats} onAction={handleAction} />
       )}
       {activeTab === "po" && (
         <PurchaseOrdersVendorTab
@@ -146,28 +144,18 @@ export function ProcurementDashboard({
           onAction={handleAction}
         />
       )}
-      {activeTab === "inventory" && (
+      {activeTab === "history" && (
         <InventoryCatalogTab
           stats={stats}
           color={color}
           onAction={handleAction}
         />
       )}
-      {activeTab === "barcode" && (
-        <BarcodeScanCounterTab stats={stats} color={color} />
-      )}
       {activeTab === "matching" && (
         <ThreeWayMatchTab stats={stats} onAction={handleAction} />
       )}
-      {activeTab === "bridge" && (
-        <AccountingBridgeTab
-          stats={stats}
-          color={color}
-          onAction={handleAction}
-        />
-      )}
-      {activeTab === "scan" && (
-        <DocumentScanningTab department={department} color={color} />
+      {activeTab === "barcode" && (
+        <BarcodeScanCounterTab stats={stats} color={color} />
       )}
 
       <ProcurementActionModal
