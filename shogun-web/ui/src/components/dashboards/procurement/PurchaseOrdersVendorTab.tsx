@@ -145,151 +145,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
 
   return (
     <div className="sd-stack">
-      {/* Create PO Button */}
-      <div className="sd-chart-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>Create Purchase Order</h3>
-          <p className="sd-chart-sub" style={{ margin: 0 }}>Convert approved PR to PO and email to vendor</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCreatePOModal(true)}
-          className="sd-btn sd-btn-primary"
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-        >
-          <Plus className="h-4 w-4" />
-          Create PO from PR
-        </button>
-      </div>
-
-      {/* Unified PO List - All POs with Boss Approval */}
-      <div className="sd-chart-card">
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
-          <div>
-            <h3 className="sd-chart-title" style={{ margin: 0 }}>All Purchase Orders</h3>
-            <p className="sd-chart-sub" style={{ margin: 0 }}>Track PO status from creation to vendor delivery</p>
-          </div>
-          <div className="sd-theme-seg" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("All")}
-              className={statusFilter === "All" ? "active" : ""}
-              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
-            >
-              All ({pos.length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("Pending Boss Approval")}
-              className={statusFilter === "Pending Boss Approval" ? "active" : ""}
-              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
-            >
-              Pending Boss Approval ({pos.filter(p => p.status === "Pending Boss Approval").length})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("Boss Approved")}
-              className={statusFilter === "Boss Approved" ? "active" : ""}
-              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
-            >
-              Boss Approved ({pos.filter(p => p.status === "Boss Approved").length})
-            </button>
-          </div>
-        </div>
-
-        {pos.length === 0 ? (
-          <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.85rem", color: MUTED }}>
-            No purchase orders created yet. Use "Create PO from PR" above to get started.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">PO Number</Th>
-                  <Th align="left">Parent PR</Th>
-                  <Th align="left">Supplier</Th>
-                  <Th align="right">Amount</Th>
-                  <Th align="left">Created</Th>
-                  <Th align="center">Status</Th>
-                  <Th align="center">Actions</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {pos.filter(po => statusFilter === "All" || po.status === statusFilter).map((po) => (
-                  <tr key={po.po_number} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="px-3 py-2.5" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 600, color: TEXT }}>
-                      {po.po_number}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
-                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
-                      RM {po.total_amount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
-                      {new Date(po.created_at).toLocaleDateString("en-MY")}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`sd-chip ${
-                        po.status === "Pending Boss Approval" ? "warn" :
-                        po.status === "Boss Approved" ? "ok" :
-                        po.status === "Sent to Vendor" ? "muted" :
-                        "muted"
-                      }`}>
-                        {po.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
-                        {po.status === "Pending Boss Approval" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPos(prev => prev.map(p => 
-                                p.po_number === po.po_number 
-                                  ? { ...p, status: "Boss Approved" as const }
-                                  : p
-                              ));
-                              alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
-                            }}
-                            className="sd-btn sd-btn-primary"
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {po.status === "Boss Approved" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPos(prev => prev.map(p => 
-                                p.po_number === po.po_number 
-                                  ? { ...p, status: "Sent to Vendor" as const }
-                                  : p
-                              ));
-                              alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
-                            }}
-                            className="sd-btn sd-btn-secondary"
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                          >
-                            <Mail className="h-3 w-3" />
-                            Email to Vendor
-                          </button>
-                        )}
-                        {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
-                          <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* PO Pipeline Card (Funnel) */}
+      {/* PO Lifecycle Pipeline (Funnel) - Moved to Top */}
       <div className="sd-chart-card">
         <h3 className="sd-chart-title">PO Lifecycle Pipeline (Funnel)</h3>
         {stats.poPipeline.length === 0 ? (
@@ -398,172 +254,152 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
         )}
       </div>
 
-      {/* Executive PO Approval Queue (> MYR 10,000) */}
-      <div className="sd-chart-card">
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "0.5rem",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "0.5rem",
-          }}
+      {/* Create PO Button */}
+      <div className="sd-chart-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <div>
+          <h3 className="sd-chart-title" style={{ margin: 0 }}>Create Purchase Order</h3>
+          <p className="sd-chart-sub" style={{ margin: 0 }}>Convert approved PR to PO and email to vendor</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setShowCreatePOModal(true)}
+          className="sd-btn sd-btn-primary"
+          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
         >
-          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-            <h3 className="sd-chart-title" style={{ margin: 0 }}>
-              Executive PO Approval Queue (&gt; MYR 10,000)
-            </h3>
-            <span className="sd-chip warn">CEO / CFO / CPO sign-off</span>
+          <Plus className="h-4 w-4" />
+          Create PO from PR
+        </button>
+      </div>
+
+      {/* Unified PO List - All POs with Boss Approval */}
+      <div className="sd-chart-card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <div>
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>All Purchase Orders</h3>
+            <p className="sd-chart-sub" style={{ margin: 0 }}>Track PO status from creation to vendor delivery</p>
           </div>
-          <div
-            className="sd-theme-seg"
-            style={{ flexWrap: "wrap", gap: "0.35rem" }}
-          >
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+            <div className="sd-theme-seg" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("All")}
+                className={statusFilter === "All" ? "active" : ""}
+                style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+              >
+                All ({pos.length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("Pending Boss Approval")}
+                className={statusFilter === "Pending Boss Approval" ? "active" : ""}
+                style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+              >
+                Pending Boss Approval ({pos.filter(p => p.status === "Pending Boss Approval").length})
+              </button>
+              <button
+                type="button"
+                onClick={() => setStatusFilter("Boss Approved")}
+                className={statusFilter === "Boss Approved" ? "active" : ""}
+                style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+              >
+                Boss Approved ({pos.filter(p => p.status === "Boss Approved").length})
+              </button>
+            </div>
             <button
               type="button"
-              onClick={() => setStatusFilter("Pending Executive Approval")}
-              className={
-                statusFilter === "Pending Executive Approval" ? "active" : ""
-              }
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.35rem 0.7rem",
-                borderRadius: "0.4rem",
-                whiteSpace: "nowrap",
-                width: "auto",
-              }}
+              onClick={() => setShowCreatePOModal(true)}
+              className="sd-btn sd-btn-primary"
+              style={{ display: "flex", alignItems: "center", gap: "0.5rem", padding: "0.4rem 0.8rem", fontSize: "0.72rem" }}
             >
-              Pending Approval ({countPending})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("Clarification Requested")}
-              className={
-                statusFilter === "Clarification Requested" ? "active" : ""
-              }
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.35rem 0.7rem",
-                borderRadius: "0.4rem",
-                whiteSpace: "nowrap",
-                width: "auto",
-              }}
-            >
-              Clarification Requested ({countClarification})
-            </button>
-            <button
-              type="button"
-              onClick={() => setStatusFilter("All")}
-              className={statusFilter === "All" ? "active" : ""}
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.35rem 0.7rem",
-                borderRadius: "0.4rem",
-                whiteSpace: "nowrap",
-                width: "auto",
-              }}
-            >
-              All ({approvalQueue.length})
+              <Plus className="h-4 w-4" />
+              Create PO
             </button>
           </div>
         </div>
-        <p className="sd-chart-sub" style={{ marginBottom: "0.75rem" }}>
-          Requisitions above the MYR 10,000 executive approval threshold.
-          Requires sign-off before vendor issue.
-        </p>
-        {filteredQueue.length === 0 ? (
-          <p
-            style={{
-              padding: "1rem 0",
-              textAlign: "center",
-              fontSize: "0.85rem",
-              color: MUTED,
-            }}
-          >
-            No POs matching status &ldquo;{statusFilter}&rdquo;.
+
+        {pos.length === 0 ? (
+          <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.85rem", color: MUTED }}>
+            No purchase orders created yet. Use "Create PO from PR" above to get started.
           </p>
         ) : (
           <div className="overflow-x-auto">
-            <table
-              className="w-full text-sm"
-              style={{ borderCollapse: "collapse" }}
-            >
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
                   <Th align="left">PO Number</Th>
-                  <Th align="left">Vendor</Th>
-                  <Th align="left">Order Date</Th>
-                  <Th align="right">Total Amount</Th>
-                  <Th align="left">Requester / Dept</Th>
-                  <Th align="right">Threshold</Th>
+                  <Th align="left">Parent PR</Th>
+                  <Th align="left">Supplier</Th>
+                  <Th align="right">Amount</Th>
+                  <Th align="left">Created</Th>
                   <Th align="center">Status</Th>
-                  <Th align="center">Action</Th>
+                  <Th align="center">Actions</Th>
                 </tr>
               </thead>
               <tbody>
-                {filteredQueue.map((po) => (
-                  <tr
-                    key={po.po_number}
-                    style={{ borderBottom: `1px solid ${BORDER}` }}
-                  >
-                    <td
-                      className="px-3 py-2.5"
-                      style={{
-                        fontFamily: "var(--font-display)",
-                        fontSize: "0.75rem",
-                        fontWeight: 600,
-                        color: TEXT,
-                      }}
-                    >
+                {pos.filter(po => statusFilter === "All" || po.status === statusFilter).map((po) => (
+                  <tr key={po.po_number} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td className="px-3 py-2.5" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 600, color: TEXT }}>
                       {po.po_number}
                     </td>
-                    <td
-                      className="px-3 py-2.5"
-                      style={{ fontWeight: 600, color: TEXT }}
-                    >
-                      {po.vendor}
+                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
+                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
+                      RM {po.total_amount.toLocaleString()}
                     </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>
-                      {po.order_date}
-                    </td>
-                    <td
-                      className="px-3 py-2.5 text-right"
-                      style={{ fontWeight: 600, color: TEXT }}
-                    >
-                      RM{" "}
-                      {(po.total_amount || 0).toLocaleString("en-MY", {
-                        minimumFractionDigits: 2,
-                      })}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>
-                      {po.requester_dept}
-                    </td>
-                    <td
-                      className="px-3 py-2.5 text-right"
-                      style={{ color: MUTED }}
-                    >
-                      RM {(po.threshold_myr || 0).toLocaleString()}
+                    <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
+                      {new Date(po.created_at).toLocaleDateString("en-MY")}
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <span
-                        className={`sd-chip ${APPROVAL_QUEUE_STYLE[po.approval_status] ?? "muted"}`}
-                      >
-                        {po.approval_status}
+                      <span className={`sd-chip ${
+                        po.status === "Pending Boss Approval" ? "warn" :
+                        po.status === "Boss Approved" ? "ok" :
+                        po.status === "Sent to Vendor" ? "muted" :
+                        "muted"
+                      }`}>
+                        {po.status}
                       </span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setExecActionTarget(po)}
-                        className="sd-btn sd-btn-secondary"
-                        style={{
-                          padding: "0.3rem 0.6rem",
-                          fontSize: "0.72rem",
-                        }}
-                      >
-                        Action
-                      </button>
+                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
+                        {po.status === "Pending Boss Approval" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPos(prev => prev.map(p => 
+                                p.po_number === po.po_number 
+                                  ? { ...p, status: "Boss Approved" as const }
+                                  : p
+                              ));
+                              alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
+                            }}
+                            className="sd-btn sd-btn-primary"
+                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {po.status === "Boss Approved" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPos(prev => prev.map(p => 
+                                p.po_number === po.po_number 
+                                  ? { ...p, status: "Sent to Vendor" as const }
+                                  : p
+                              ));
+                              alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
+                            }}
+                            className="sd-btn sd-btn-secondary"
+                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                          >
+                            <Mail className="h-3 w-3" />
+                            Email to Vendor
+                          </button>
+                        )}
+                        {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
+                          <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -571,866 +407,6 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
             </table>
           </div>
         )}
-      </div>
-
-      {/* Executive PO Approval Action Modal Dialog */}
-      {execActionTarget && (
-        <>
-          <button
-            type="button"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 40,
-              background: "rgba(0,0,0,0.4)",
-              border: "none",
-              cursor: "default",
-            }}
-            onClick={() => setExecActionTarget(null)}
-            aria-label="Close"
-          />
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 50,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1rem",
-            }}
-            onClick={() => setExecActionTarget(null)}
-          >
-            <div
-              className="sd-card"
-              style={{
-                position: "relative",
-                zIndex: 50,
-                width: "100%",
-                maxWidth: "26rem",
-                height: "fit-content",
-                padding: "1.25rem",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderBottom: `1px solid ${BORDER}`,
-                  paddingBottom: "0.75rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                      color: TEXT,
-                      margin: 0,
-                    }}
-                  >
-                    Executive PO Approval Action
-                  </h2>
-                  <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
-                    {execActionTarget.vendor} · {execActionTarget.po_number}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="sd-icon-btn"
-                  onClick={() => setExecActionTarget(null)}
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "0.5rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div
-                  style={{
-                    borderRadius: "0.5rem",
-                    background: SURFACE_2,
-                    padding: "0.6rem",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "0.72rem", color: MUTED }}>
-                    PO Total Amount
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 600,
-                      color: TEXT,
-                    }}
-                  >
-                    RM{" "}
-                    {(execActionTarget.total_amount || 0).toLocaleString("en-MY", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    borderRadius: "0.5rem",
-                    background: SURFACE_2,
-                    padding: "0.6rem",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "0.72rem", color: MUTED }}>
-                    Requester Dept
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 600,
-                      color: "var(--samurai-lime)",
-                    }}
-                  >
-                    {execActionTarget.requester_dept}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  borderTop: `1px solid ${BORDER}`,
-                  paddingTop: "0.75rem",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "0.72rem",
-                    color: MUTED,
-                    marginBottom: "0.6rem",
-                  }}
-                >
-                  Select action to send to Chotatsu (Procurement Agent):
-                </p>
-                <div className="sd-stack" style={{ gap: "0.4rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("approve_po", execActionTarget);
-                      setExecActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-primary"
-                    style={{ justifyContent: "space-between" }}
-                  >
-                    <span>Approve PO</span>
-                    <span style={{ fontSize: "0.72rem", fontWeight: 700 }}>
-                      →
-                    </span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("reject_po", execActionTarget);
-                      setExecActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{
-                      justifyContent: "space-between",
-                      color: "var(--samurai-danger)",
-                    }}
-                  >
-                    <span>Reject PO</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("request_clarification", execActionTarget);
-                      setExecActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: "space-between" }}
-                  >
-                    <span>Request Clarification</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                  {execActionTarget.approval_status ===
-                    "Clarification Requested" && (
-                    <button
-                      type="button"
-                      onClick={() => {
-                        onAction?.("reply_clarification", execActionTarget);
-                        setExecActionTarget(null);
-                      }}
-                      className="sd-btn sd-btn-secondary"
-                      style={{ justifyContent: "space-between" }}
-                    >
-                      <span>Reply Clarification & Resubmit</span>
-                      <span style={{ fontSize: "0.72rem" }}>→</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Active Purchase Orders Queue Table */}
-      <div className="sd-chart-card">
-        <div
-          style={{
-            display: "flex",
-            flexWrap: "wrap",
-            gap: "0.5rem",
-            alignItems: "center",
-            justifyContent: "space-between",
-            marginBottom: "0.75rem",
-          }}
-        >
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>
-            Active Purchase Orders
-          </h3>
-          <div
-            className="sd-theme-seg"
-            style={{ flexWrap: "wrap", gap: "0.35rem" }}
-          >
-            <button
-              type="button"
-              onClick={() => setActivePoApprovalFilter("All")}
-              className={activePoApprovalFilter === "All" ? "active" : ""}
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.35rem 0.7rem",
-                borderRadius: "0.4rem",
-                whiteSpace: "nowrap",
-                width: "auto",
-              }}
-            >
-              All ({countActiveAll})
-            </button>
-            <button
-              type="button"
-              onClick={() => setActivePoApprovalFilter("Draft")}
-              className={activePoApprovalFilter === "Draft" ? "active" : ""}
-              style={{
-                fontSize: "0.72rem",
-                padding: "0.35rem 0.7rem",
-                borderRadius: "0.4rem",
-                whiteSpace: "nowrap",
-                width: "auto",
-              }}
-            >
-              Draft ({countActiveDraft})
-            </button>
-            {countActiveApproved > 0 && (
-              <button
-                type="button"
-                onClick={() => setActivePoApprovalFilter("Approved")}
-                className={
-                  activePoApprovalFilter === "Approved" ? "active" : ""
-                }
-                style={{
-                  fontSize: "0.72rem",
-                  padding: "0.35rem 0.7rem",
-                  borderRadius: "0.4rem",
-                  whiteSpace: "nowrap",
-                  width: "auto",
-                }}
-              >
-                Approved ({countActiveApproved})
-              </button>
-            )}
-            {countActiveIssued > 0 && (
-              <button
-                type="button"
-                onClick={() => setActivePoApprovalFilter("Issued")}
-                className={activePoApprovalFilter === "Issued" ? "active" : ""}
-                style={{
-                  fontSize: "0.72rem",
-                  padding: "0.35rem 0.7rem",
-                  borderRadius: "0.4rem",
-                  whiteSpace: "nowrap",
-                  width: "auto",
-                }}
-              >
-                Issued ({countActiveIssued})
-              </button>
-            )}
-            {countActivePending > 0 && (
-              <button
-                type="button"
-                onClick={() => setActivePoApprovalFilter("Pending Approval")}
-                className={
-                  activePoApprovalFilter === "Pending Approval" ? "active" : ""
-                }
-                style={{
-                  fontSize: "0.72rem",
-                  padding: "0.35rem 0.7rem",
-                  borderRadius: "0.4rem",
-                  whiteSpace: "nowrap",
-                  width: "auto",
-                }}
-              >
-                Pending ({countActivePending})
-              </button>
-            )}
-            {countActiveCancelled > 0 && (
-              <button
-                type="button"
-                onClick={() => setActivePoApprovalFilter("Cancelled")}
-                className={
-                  activePoApprovalFilter === "Cancelled" ? "active" : ""
-                }
-                style={{
-                  fontSize: "0.72rem",
-                  padding: "0.35rem 0.7rem",
-                  borderRadius: "0.4rem",
-                  whiteSpace: "nowrap",
-                  width: "auto",
-                }}
-              >
-                Cancelled ({countActiveCancelled})
-              </button>
-            )}
-          </div>
-        </div>
-        {filteredActivePos.length === 0 ? (
-          <p
-            style={{
-              padding: "1rem 0",
-              textAlign: "center",
-              fontSize: "0.85rem",
-              color: MUTED,
-            }}
-          >
-            No active POs matching approval state &ldquo;
-            {activePoApprovalFilter}&rdquo;.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table
-              className="w-full text-sm"
-              style={{ borderCollapse: "collapse" }}
-            >
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">PO Number</Th>
-                  <Th align="left">Vendor</Th>
-                  <Th align="left">Order Date</Th>
-                  <Th align="left">Expected Delivery</Th>
-                  <Th align="right">Total Amount</Th>
-                  <Th align="center">Fulfillment</Th>
-                  <Th align="center">Approval</Th>
-                  <Th align="center">Action</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {filteredActivePos.map((po) => {
-                  const overdue =
-                    new Date(po.expected_delivery) < new Date() &&
-                    po.fulfillment_status !== "Fully Received & Billed";
-                  return (
-                    <tr
-                      key={po.po_number}
-                      style={{ borderBottom: `1px solid ${BORDER}` }}
-                    >
-                      <td
-                        className="px-3 py-2.5"
-                        style={{
-                          fontFamily: "var(--font-display)",
-                          fontSize: "0.75rem",
-                          fontWeight: 600,
-                          color: TEXT,
-                        }}
-                      >
-                        {po.po_number}
-                      </td>
-                      <td
-                        className="px-3 py-2.5"
-                        style={{ fontWeight: 600, color: TEXT }}
-                      >
-                        {po.vendor}
-                      </td>
-                      <td className="px-3 py-2.5" style={{ color: MUTED }}>
-                        {po.order_date}
-                      </td>
-                      <td
-                        className="px-3 py-2.5"
-                        style={{
-                          color: overdue ? "var(--samurai-danger)" : MUTED,
-                          fontWeight: overdue ? 600 : 400,
-                        }}
-                      >
-                        {po.expected_delivery}
-                        {overdue ? " ⚠" : ""}
-                      </td>
-                      <td
-                        className="px-3 py-2.5 text-right"
-                        style={{ fontWeight: 600, color: TEXT }}
-                      >
-                        RM{" "}
-                        {(po.total_amount || 0).toLocaleString("en-MY", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span
-                          className={`sd-chip ${FULFILLMENT_STYLE[po.fulfillment_status] ?? "muted"}`}
-                        >
-                          {po.fulfillment_status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <span
-                          className={`sd-chip ${APPROVAL_STYLE[po.approval_status] ?? "muted"}`}
-                        >
-                          {po.approval_status}
-                        </span>
-                      </td>
-                      <td className="px-3 py-2.5 text-center">
-                        <button
-                          type="button"
-                          onClick={() => setPoActionTarget(po)}
-                          className="sd-btn sd-btn-secondary"
-                          style={{
-                            padding: "0.3rem 0.6rem",
-                            fontSize: "0.72rem",
-                          }}
-                        >
-                          Action
-                        </button>
-                      </td>
-                    </tr>
-                  );
-                })}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* PO Action Modal Dialog */}
-      {poActionTarget && (
-        <>
-          <button
-            type="button"
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 40,
-              background: "rgba(0,0,0,0.4)",
-              border: "none",
-              cursor: "default",
-            }}
-            onClick={() => setPoActionTarget(null)}
-            aria-label="Close"
-          />
-          <div
-            style={{
-              position: "fixed",
-              inset: 0,
-              zIndex: 50,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              padding: "1rem",
-            }}
-            onClick={() => setPoActionTarget(null)}
-          >
-            <div
-              className="sd-card"
-              style={{
-                position: "relative",
-                zIndex: 50,
-                width: "100%",
-                maxWidth: "26rem",
-                height: "fit-content",
-                padding: "1.25rem",
-              }}
-              onClick={(e) => e.stopPropagation()}
-            >
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "space-between",
-                  borderBottom: `1px solid ${BORDER}`,
-                  paddingBottom: "0.75rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div>
-                  <h2
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontSize: "1rem",
-                      fontWeight: 600,
-                      color: TEXT,
-                      margin: 0,
-                    }}
-                  >
-                    PO Action
-                  </h2>
-                  <p style={{ fontSize: "0.72rem", color: MUTED, margin: 0 }}>
-                    {poActionTarget.vendor} · {poActionTarget.po_number}
-                  </p>
-                </div>
-                <button
-                  type="button"
-                  className="sd-icon-btn"
-                  onClick={() => setPoActionTarget(null)}
-                  aria-label="Close"
-                >
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: "0.5rem",
-                  marginBottom: "0.75rem",
-                }}
-              >
-                <div
-                  style={{
-                    borderRadius: "0.5rem",
-                    background: SURFACE_2,
-                    padding: "0.6rem",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "0.72rem", color: MUTED }}>
-                    PO Total Amount
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 600,
-                      color: TEXT,
-                    }}
-                  >
-                    RM{" "}
-                    {(poActionTarget.total_amount || 0).toLocaleString("en-MY", {
-                      minimumFractionDigits: 2,
-                    })}
-                  </div>
-                </div>
-                <div
-                  style={{
-                    borderRadius: "0.5rem",
-                    background: SURFACE_2,
-                    padding: "0.6rem",
-                    textAlign: "center",
-                  }}
-                >
-                  <div style={{ fontSize: "0.72rem", color: MUTED }}>
-                    Expected Delivery
-                  </div>
-                  <div
-                    style={{
-                      fontFamily: "var(--font-display)",
-                      fontWeight: 600,
-                      color: "var(--samurai-lime)",
-                    }}
-                  >
-                    {poActionTarget.expected_delivery}
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
-                  borderTop: `1px solid ${BORDER}`,
-                  paddingTop: "0.75rem",
-                }}
-              >
-                <p
-                  style={{
-                    fontSize: "0.72rem",
-                    color: MUTED,
-                    marginBottom: "0.6rem",
-                  }}
-                >
-                  Select action to send to Chotatsu (Procurement Agent):
-                </p>
-                <div className="sd-stack" style={{ gap: "0.4rem" }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("receive_grn", poActionTarget);
-                      setPoActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: "space-between" }}
-                  >
-                    <span>Receive Goods (GRN)</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("sync_bill", poActionTarget);
-                      setPoActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: "space-between" }}
-                  >
-                    <span>Sync Bill to Accounting</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("send_reminder", poActionTarget);
-                      setPoActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: "space-between" }}
-                  >
-                    <span>Send Delivery Reminder to Vendor</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.("cancel_po", poActionTarget);
-                      setPoActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{
-                      justifyContent: "space-between",
-                      color: "var(--samurai-danger)",
-                    }}
-                  >
-                    <span>Cancel Purchase Order</span>
-                    <span style={{ fontSize: "0.72rem" }}>→</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* Vendor Scorecard & Spend Concentration */}
-      <div className="sd-row">
-        <div className="sd-chart-card">
-          <h3 className="sd-chart-title">Vendor Scorecard & SLA Ratings</h3>
-          {stats.vendorScorecard.length === 0 ? (
-            <p style={{ color: MUTED, fontSize: "0.85rem" }}>
-              No vendor scorecard data available yet.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table
-                className="w-full text-sm"
-                style={{ borderCollapse: "collapse" }}
-              >
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <Th align="left">Vendor Name</Th>
-                    <Th align="right">YTD Spend</Th>
-                    <Th align="right">On-Time</Th>
-                    <Th align="right">Quality</Th>
-                    <Th align="center">SLA Rating</Th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {stats.vendorScorecard.map((v) => (
-                    <tr
-                      key={v.vendor}
-                      style={{ borderBottom: `1px solid ${BORDER}` }}
-                    >
-                      <td
-                        className="py-2"
-                        style={{ fontWeight: 600, color: TEXT }}
-                      >
-                        {v.vendor}
-                      </td>
-                      <td
-                        className="py-2 text-right"
-                        style={{ fontWeight: 600, color: TEXT }}
-                      >
-                        RM{" "}
-                        {(v.ytd_spend || 0).toLocaleString("en-MY", {
-                          minimumFractionDigits: 2,
-                        })}
-                      </td>
-                      <td
-                        className="py-2 text-right"
-                        style={{
-                          fontWeight: 600,
-                          color:
-                            v.on_time_delivery_rate >= 90
-                              ? "var(--samurai-ok)"
-                              : v.on_time_delivery_rate >= 75
-                                ? "var(--samurai-warning)"
-                                : "var(--samurai-danger)",
-                        }}
-                      >
-                        {(v.on_time_delivery_rate || 0).toFixed(0)}%
-                      </td>
-                      <td
-                        className="py-2 text-right"
-                        style={{
-                          fontWeight: 600,
-                          color:
-                            v.quality_acceptance_rate >= 95
-                              ? "var(--samurai-ok)"
-                              : v.quality_acceptance_rate >= 85
-                                ? "var(--samurai-warning)"
-                                : "var(--samurai-danger)",
-                        }}
-                      >
-                        {(v.quality_acceptance_rate || 0).toFixed(0)}%
-                      </td>
-                      <td className="py-2 text-center">
-                        <span
-                          className={`sd-chip ${SLA_STYLE[v.sla_status] ?? "muted"}`}
-                        >
-                          {v.sla_status}
-                        </span>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-
-        {/* Vendor Spend Concentration Donut */}
-        <div className="sd-chart-card">
-          <h3 className="sd-chart-title">Vendor Spend Concentration</h3>
-          {concentrationAlert && (
-            <div
-              className="sd-alert-row critical"
-              style={{ marginBottom: "0.75rem" }}
-            >
-              <AlertTriangle className="h-4 w-4 shrink-0" />
-              <span>
-                {concentrationAlert.vendor} represents{" "}
-                {(concentrationAlert.spend_pct || 0).toFixed(1)}% of spend — supplier
-                dependency risk (&gt;25%)
-              </span>
-            </div>
-          )}
-          {stats.vendorSpendConcentration.length === 0 ? (
-            <p style={{ color: MUTED, fontSize: "0.85rem" }}>
-              No vendor spend data available yet.
-            </p>
-          ) : (
-            <div>
-              <PieChart
-                data={[...stats.vendorSpendConcentration]
-                  .sort((a, b) => (b.spend ?? 0) - (a.spend ?? 0))
-                  .map((v) => ({ name: v.vendor, value: v.spend }))}
-                color={color}
-                unit="RM "
-                height={200}
-                innerRadius={45}
-                showLegend={false}
-              />
-              <div
-                style={{
-                  marginTop: "0.75rem",
-                  borderTop: `1px solid ${BORDER}`,
-                  paddingTop: "0.5rem",
-                }}
-              >
-                {[...stats.vendorSpendConcentration]
-                  .sort((a, b) => (b.spend ?? 0) - (a.spend ?? 0))
-                  .map((v, i) => {
-                    const colors = chartColors(
-                      color,
-                      stats.vendorSpendConcentration.length,
-                    );
-                    return (
-                      <div
-                        key={v.vendor}
-                        style={{
-                          display: "flex",
-                          alignItems: "center",
-                          justifyContent: "space-between",
-                          padding: "0.375rem 0",
-                          fontSize: "0.75rem",
-                          borderBottom: `1px solid ${BORDER}`,
-                        }}
-                      >
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.5rem",
-                            minWidth: 0,
-                            flex: 1,
-                            overflow: "hidden",
-                            textOverflow: "ellipsis",
-                            whiteSpace: "nowrap",
-                          }}
-                        >
-                          <span
-                            style={{
-                              display: "inline-block",
-                              height: "0.625rem",
-                              width: "0.625rem",
-                              borderRadius: "999px",
-                              flexShrink: 0,
-                              background: colors[i % colors.length],
-                            }}
-                          />
-                          <span
-                            style={{
-                              fontWeight: 500,
-                              color: TEXT,
-                              overflow: "hidden",
-                              textOverflow: "ellipsis",
-                              whiteSpace: "nowrap",
-                            }}
-                          >
-                            {v.vendor}
-                          </span>
-                        </div>
-                        <div
-                          style={{
-                            display: "flex",
-                            alignItems: "center",
-                            gap: "0.75rem",
-                            flexShrink: 0,
-                          }}
-                        >
-                          <span style={{ fontWeight: 600, color: TEXT }}>
-                            RM {(v.spend || 0).toLocaleString()}
-                          </span>
-                          <span
-                            style={{
-                              width: "3rem",
-                              textAlign: "right",
-                              fontFamily: "var(--font-display)",
-                              fontWeight: 500,
-                              color: MUTED,
-                            }}
-                          >
-                            {(v.spend_pct || 0).toFixed(1)}%
-                          </span>
-                        </div>
-                      </div>
-                    );
-                  })}
-              </div>
-            </div>
-          )}
-        </div>
       </div>
 
       {/* Create PO Modal */}
