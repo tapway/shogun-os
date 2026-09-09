@@ -4864,7 +4864,7 @@ def _parse_gbrain_employee_profiles(pages: list) -> list:
             continue
 
         def _field(label: str) -> str:
-            m = _re.search(r"\*\*" + _re.escape(label) + r":\*\*\s*(.+)", body)
+            m = _re.search(r"\*\*" + _re.escape(label) + r":\*\*\s*(.+?)(?:\s*\*\*|$)", body, _re.MULTILINE)
             return m.group(1).strip() if m else ""
 
         name = (str((p.get("title") or "")).strip()
@@ -4980,44 +4980,56 @@ async def get_hr_stats(
     # rows and appends staff not yet in the portal DB.
     try:
         brain_pages = await _fetch_brain_pages_safe(
-            "hr", limit=200, slug_prefix="hr/profiles/")
+            "hr", limit=500, slug_prefix="hr/profiles/")
         brain_emps = _parse_gbrain_employee_profiles(brain_pages)
     except Exception as exc:
         logger.warning("gbrain employee profiles fetch failed: %s", exc)
         brain_emps = []
 
-    portal_by_name = {_norm_emp_name(e.employees_name): e for e in employees}
-    merged_employees = list(employees)
+    # Build display-only dicts to avoid mutating ORM objects in a GET endpoint
+    portal_dicts = []
+    for e in employees:
+        d = e.to_dict() if hasattr(e, 'to_dict') else {
+            "id": e.id, "employees_name": e.employees_name, "role": e.role or "",
+            "department": e.department or "", "manager_name": e.manager_name or "",
+            "date_of_hire": e.date_of_hire or "", "phone_number": e.phone_number or "",
+            "linkedin_profile": getattr(e, 'linkedin_profile', '') or "",
+            "notion_page_id": getattr(e, 'notion_page_id', '') or "",
+        }
+        portal_dicts.append(d)
+    portal_by_name = {_norm_emp_name(d["employees_name"]): d for d in portal_dicts}
+    merged_employees = list(portal_dicts)
     for be in brain_emps:
         key = _norm_emp_name(be["employees_name"])
         existing = portal_by_name.get(key)
         if existing is not None:
-            # backfill empty fields from the brain profile
-            if not existing.role and be.get("role"):
-                existing.role = be["role"]
-            if not existing.department and be.get("department"):
-                existing.department = be["department"]
-            if not existing.manager_name and be.get("manager_name"):
-                existing.manager_name = be["manager_name"]
-            if not existing.date_of_hire and be.get("date_of_hire"):
-                existing.date_of_hire = be["date_of_hire"]
-            if not existing.phone_number and be.get("phone_number"):
-                existing.phone_number = be["phone_number"]
+            # backfill empty fields from the brain profile (on dict copy, not ORM)
+            if not existing.get("role") and be.get("role"):
+                existing["role"] = be["role"]
+            if not existing.get("department") and be.get("department"):
+                existing["department"] = be["department"]
+            if not existing.get("manager_name") and be.get("manager_name"):
+                existing["manager_name"] = be["manager_name"]
+            if not existing.get("date_of_hire") and be.get("date_of_hire"):
+                existing["date_of_hire"] = be["date_of_hire"]
+            if not existing.get("phone_number") and be.get("phone_number"):
+                existing["phone_number"] = be["phone_number"]
         else:
-            # staff member with a brain profile but no portal record — append
-            new_emp = HrEmployee(
-                tenant_id=tenant.id,
-                employees_name=be["employees_name"],
-                department=be.get("department") or "",
-                role=be.get("role") or "",
-                manager_name=be.get("manager_name") or "",
-                date_of_hire=be.get("date_of_hire") or "",
-                phone_number=be.get("phone_number") or "",
-                linkedin_profile=be.get("linkedin_profile") or "",
-                notion_page_id=be.get("notion_page_id") or "",
-            )
-            merged_employees.append(new_emp)
-    employees = merged_employees
+            # staff member with a brain profile but no portal record — append as dict
+            # Use brain slug as stable identifier since these are display-only
+            merged_employees.append({
+                "id": None,
+                "employees_name": be["employees_name"],
+                "department": be.get("department") or "",
+                "role": be.get("role") or "",
+                "manager_name": be.get("manager_name") or "",
+                "date_of_hire": be.get("date_of_hire") or "",
+                "phone_number": be.get("phone_number") or "",
+                "linkedin_profile": be.get("linkedin_profile") or "",
+                "notion_page_id": be.get("notion_page_id") or "",
+                "_source": "gbrain",  # flag for UI to distinguish non-portal records
+            })
+    employees = merged_employees  # now a list of dicts, not ORM objects
     job_openings = db.execute(select(HrJobOpening).where(HrJobOpening.tenant_id == tenant.id)).scalars().all()
     candidates = db.execute(select(HrCandidate).where(HrCandidate.tenant_id == tenant.id)).scalars().all()
     onboarding = db.execute(select(HrOnboardingTask).where(HrOnboardingTask.tenant_id == tenant.id)).scalars().all()
@@ -5400,7 +5412,8 @@ async def _fetch_candidate_doc(url: str) -> str:
         try:
             from config import get_config
             upload_dir = pathlib.Path(get_config().db_path).parent / "dashboard_uploads"
-            safe = pathlib.Path(url).name
+            from urllib.parse import urlparse as _urlparse
+            safe = pathlib.Path(_urlparse(url).path).name
             fp = (upload_dir / safe).resolve()
             # no path traversal: must stay inside the uploads dir
             if not str(fp).startswith(str(upload_dir.resolve())) or not fp.is_file():
@@ -5832,7 +5845,8 @@ async def hr_extract_resume(
     content = await file.read()
     if len(content) > 10 * 1024 * 1024:
         raise HTTPException(status_code=422, detail="File too large (max 10 MB)")
-    text = _extract_text_from_upload(content)
+    import asyncio as _asyncio
+    text = await _asyncio.to_thread(_extract_text_from_upload, content)
 
     result = {"name": "", "email": "", "phone": "", "summary": "", "source": "empty",
               "resume_text": text.strip()[:8000]}
@@ -6200,7 +6214,7 @@ async def update_hr_interview_status(
 
 
 class HrQuestionsBody(BaseModel):
-    questions: list = []
+    questions: list[str] = Field(default_factory=list)
 
 
 class HrSaveTemplateBody(BaseModel):
@@ -6215,7 +6229,7 @@ class HrTemplateBody(BaseModel):
     department: str = ""
     role_pattern: str = ""
     round: str = "first"
-    questions: list = []
+    questions: list[str] = Field(default_factory=list)
 
 
 class HrApplyTemplateBody(BaseModel):
@@ -6284,8 +6298,16 @@ def _interview_questions(iv) -> list:
         return []
 
 
+_MAX_INTERVIEW_QUESTIONS = 30
+
+
 def _set_interview_questions(iv, questions: list) -> None:
-    cleaned = [str(q).strip() for q in questions if str(q).strip()][:30]
+    cleaned = [str(q).strip() for q in questions if str(q).strip()]
+    if len(cleaned) > _MAX_INTERVIEW_QUESTIONS:
+        raise HTTPException(
+            status_code=422,
+            detail=f"Too many questions ({len(cleaned)}). Maximum is {_MAX_INTERVIEW_QUESTIONS}.",
+        )
     iv.questions_json = json.dumps(cleaned)
 
 
@@ -6325,6 +6347,7 @@ async def generate_hr_interview_questions(
     source = "ai"
     try:
         resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
+        # Note: _fetch_candidate_doc already uses async httpx for Drive; local files use sync I/O but are small
         jd = (job.job_description or "") if job else ""
         prompt = (
             "You are an experienced hiring manager. Generate exactly 10 interview questions "

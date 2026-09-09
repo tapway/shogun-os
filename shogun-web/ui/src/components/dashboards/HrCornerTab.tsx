@@ -48,19 +48,36 @@ function resolveIcon(name?: string) {
   return ICON_MAP[name] || FileText;
 }
 
-// Section/topic structure — content loaded from gbrain at runtime
+const ALLOWED_IFRAME_HOSTS = new Set([
+  'youtube.com', 'www.youtube.com', 'youtube-nocookie.com',
+  'drive.google.com', 'docs.google.com', 'www.googleapis.com',
+  'player.vimeo.com', 'embed.cloudflarestream.com',
+]);
+
+function isSafeIframeUrl(url?: string): boolean {
+  if (!url) return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === 'https:' && ALLOWED_IFRAME_HOSTS.has(parsed.hostname);
+  } catch {
+    return false;
+  }
+}
+
+// Section/topic structure — titles and content loaded from gbrain at runtime.
+// These defaults define the expected section/topic IDs and types only.
 const DEFAULT_SECTIONS: Section[] = [
   {
     id: 'team',
     title: 'Team',
     icon: Users,
     topics: [
-      { id: 'handbook', title: 'Employee Handbook 2026', type: 'pdf', icon: BookOpen },
+      { id: 'handbook', title: 'Employee Handbook', type: 'pdf', icon: BookOpen },
       { id: 'mission', title: 'Mission, Vision, Values', type: 'document', icon: Target },
       { id: 'core-values-video', title: 'Core Values Video', type: 'video', icon: Play },
       { id: 'org-chart', title: 'Organisational Chart', type: 'image', icon: Building },
       { id: 'office-tour', title: 'Office Tour', type: 'document', icon: Eye },
-      { id: 'directions-itmax', title: 'How to Get to ITMAX new office', type: 'document', icon: MapPin },
+      { id: 'directions', title: 'Office Directions', type: 'document', icon: MapPin },
     ],
   },
   {
@@ -68,15 +85,15 @@ const DEFAULT_SECTIONS: Section[] = [
     title: 'SOP',
     icon: BookOpen,
     topics: [
-      { id: 'briohr-video', title: 'BRIOHR & Attendance Video Guidelines', type: 'document', icon: Clock },
-      { id: 'jibble-clock', title: 'How to Clock In/Out (Jibble)', type: 'document', icon: Clock },
-      { id: 'jibble-project', title: 'Jibble - Project & Support Team Activities SOP', type: 'document', icon: Briefcase },
-      { id: 'jibble-product', title: 'Jibble - Product & Secondment Project SOP', type: 'document', icon: Briefcase },
-      { id: 'submit-claim', title: 'How To Submit Claim?', type: 'document', icon: CreditCard },
-      { id: 'roller-shutter', title: 'Roller Shutter Guide', type: 'document', icon: Building },
-      { id: 'collect-parcel', title: 'Collecting Parcel', type: 'document', icon: Package },
-      { id: 'visitor-log', title: 'Visitor Log', type: 'document', icon: UserCheck },
-      { id: 'tidy-office', title: 'Keeping a Tidy Office', type: 'document', icon: Star },
+      { id: 'attendance', title: 'Attendance Guidelines', type: 'document', icon: Clock },
+      { id: 'clock-in-out', title: 'Clock In/Out Guide', type: 'document', icon: Clock },
+      { id: 'project-sop', title: 'Project Activities SOP', type: 'document', icon: Briefcase },
+      { id: 'product-sop', title: 'Product & Secondment SOP', type: 'document', icon: Briefcase },
+      { id: 'submit-claim', title: 'Claims Submission', type: 'document', icon: CreditCard },
+      { id: 'facility-guide', title: 'Facility Guide', type: 'document', icon: Building },
+      { id: 'parcel', title: 'Parcel Collection', type: 'document', icon: Package },
+      { id: 'visitor-log', title: 'Visitor Protocol', type: 'document', icon: UserCheck },
+      { id: 'office-tidy', title: 'Office Cleanliness', type: 'document', icon: Star },
     ],
   },
   {
@@ -84,10 +101,10 @@ const DEFAULT_SECTIONS: Section[] = [
     title: 'Official Website/Training',
     icon: Globe,
     topics: [
-      { id: 'acloudguru', title: 'AcloudGuru Free Learning!', type: 'link', icon: GraduationCap },
-      { id: 'tapway-website', title: 'Tapway Website', type: 'link', icon: Globe },
+      { id: 'learning-platform', title: 'Learning Platform', type: 'link', icon: GraduationCap },
+      { id: 'company-website', title: 'Company Website', type: 'link', icon: Globe },
       { id: 'social-media', title: 'Social Media', type: 'document', icon: Heart },
-      { id: 'aws-cert', title: 'AWS Certification Guideline', type: 'document', icon: Trophy },
+      { id: 'cert-guideline', title: 'Certification Guideline', type: 'document', icon: Trophy },
     ],
   },
   {
@@ -96,13 +113,13 @@ const DEFAULT_SECTIONS: Section[] = [
     icon: Shield,
     topics: [
       { id: 'code-conduct', title: 'Code of Conduct', type: 'document', icon: Shield },
-      { id: 'leave-rules', title: 'Leave Rule & Categories', type: 'document', icon: Calendar },
-      { id: 'wages', title: 'Wages', type: 'document', icon: CreditCard },
-      { id: 'overtime', title: 'Overtime (OT)', type: 'document', icon: Clock },
-      { id: 'commission', title: 'Commission', type: 'document', icon: Trophy },
+      { id: 'leave-rules', title: 'Leave Rules & Categories', type: 'document', icon: Calendar },
+      { id: 'wages', title: 'Wages & Payroll', type: 'document', icon: CreditCard },
+      { id: 'overtime', title: 'Overtime Policy', type: 'document', icon: Clock },
+      { id: 'commission', title: 'Commission Policy', type: 'document', icon: Trophy },
       { id: 'expenses', title: 'Claimable Expenses', type: 'document', icon: CreditCard },
       { id: 'training-dev', title: 'Training & Development', type: 'document', icon: GraduationCap },
-      { id: 'anti-harassment', title: 'Anti-harassment and non-discrimination Policy', type: 'document', icon: Shield },
+      { id: 'anti-harassment', title: 'Anti-harassment Policy', type: 'document', icon: Shield },
     ],
   },
 ];
@@ -139,6 +156,20 @@ export function HrCornerTab({ department, color }: Props) {
             });
             return { ...defSection, topics: mergedTopics };
           });
+          // Append any gbrain-only sections not in defaults
+          const defaultIds = new Set(DEFAULT_SECTIONS.map(s => s.id));
+          for (const apiSection of data) {
+            if (!defaultIds.has(apiSection.id)) {
+              merged.push({
+                ...apiSection,
+                icon: resolveIcon(apiSection.icon),
+                topics: (apiSection.topics || []).map((t: any) => ({
+                  ...t,
+                  icon: t.icon ? resolveIcon(t.icon) : undefined,
+                })),
+              });
+            }
+          }
           setSections(merged);
         }
       } catch {
@@ -343,7 +374,7 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
           </div>
         </div>
         <div style={{ height: '75vh', width: '100%' }}>
-          <iframe src={topic.pdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title={topic.title} />
+          {isSafeIframeUrl(topic.pdfUrl) ? <iframe src={topic.pdfUrl} style={{ width: '100%', height: '100%', border: 'none' }} title={topic.title} /> : <div style={{ padding: '40px', textAlign: 'center', color: MUTED }}>PDF preview unavailable — <a href={topic.pdfUrl} download style={{ color: LIME }}>Download instead</a></div>}
         </div>
       </div>
     );
@@ -367,7 +398,7 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
         </div>
         <div style={{ position: 'relative', paddingBottom: '56.25%', height: 0, overflow: 'hidden' }}>
           <iframe 
-            src={topic.videoUrl} 
+            src={isSafeIframeUrl(topic.videoUrl) ? topic.videoUrl : ''} 
             style={{ position: 'absolute', top: 0, left: 0, width: '100%', height: '100%', border: 'none' }} 
             title={topic.title}
             allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
@@ -419,7 +450,7 @@ function TopicDetailView({ topic, onClose }: { topic: TopicItem; onClose: () => 
         </div>
         <div style={{ height: '75vh', width: '100%' }}>
           <iframe 
-            src={topic.embedUrl} 
+            src={isSafeIframeUrl(topic.embedUrl) ? topic.embedUrl : ''} 
             style={{ width: '100%', height: '100%', border: 'none' }} 
             title={topic.title}
             frameBorder="0"
