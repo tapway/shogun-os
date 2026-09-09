@@ -77,7 +77,7 @@ function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'r
   return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
 }
 
-export function InventoryCatalogTab({ stats, onAction }: Props) {
+export function SupplierItemHistoryTab({ stats, onAction }: Props) {
   const [query, setQuery] = useState('');
   const [category, setCategory] = useState('all');
   const [statusFilter, setStatusFilter] = useState('all');

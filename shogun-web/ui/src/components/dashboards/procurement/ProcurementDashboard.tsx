@@ -8,7 +8,7 @@ import type {
   ProcurementDashboardStats,
 } from "../../../lib/types";
 import { ExecutiveProcurementPulseTab } from "./ExecutiveProcurementPulseTab";
-import { InventoryCatalogTab } from "./InventoryCatalogTab";
+import { SupplierItemHistoryTab } from "./SupplierItemHistoryTab";
 import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
 import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
 import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
@@ -143,7 +143,7 @@ export function ProcurementDashboard({
         />
       )}
       {activeTab === "history" && (
-        <InventoryCatalogTab
+        <SupplierItemHistoryTab
           stats={stats}
           color={color}
           onAction={handleAction}
