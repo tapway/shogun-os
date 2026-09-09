@@ -161,7 +161,7 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
       {/* Filter Pills */}
       <div className="sd-chart-card">
         <div className="sd-theme-seg" style={{ padding: "0.25rem", flexWrap: "wrap", gap: "0.35rem" }}>
-          {["All", "Pending Finance Approval", "Approved", "Rejected", "Clarification Requested"].map((f) => (
+          {["All", "Pending Finance Approval", "Approved", "Rejected"].map((f) => (
             <button
               key={f}
               type="button"
@@ -169,7 +169,7 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
               className={filter === f ? "active" : ""}
               style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
             >
-              {f} ({f === "All" ? MOCK_PRS.length : MOCK_PRS.filter((p) => p.status === f).length})
+              {f} ({f === "All" ? prs.length : prs.filter((p) => p.status === f).length})
             </button>
           ))}
         </div>
@@ -220,26 +220,14 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
                       <span className={`sd-chip ${STATUS_STYLE[pr.status] ?? "muted"}`}>{pr.status}</span>
                     </td>
                     <td className="px-3 py-2.5 text-center">
-                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
-                        {pr.status === "Pending Finance Approval" && (
-                          <button
-                            type="button"
-                            onClick={() => handleApprovePR(pr.pr_number)}
-                            className="sd-btn sd-btn-primary"
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                          >
-                            Approve
-                          </button>
-                        )}
-                        <button
-                          type="button"
-                          onClick={() => setViewingPR(pr)}
-                          className="sd-btn sd-btn-secondary"
-                          style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                        >
-                          View Details
-                        </button>
-                      </div>
+                      <button
+                        type="button"
+                        onClick={() => setViewingPR(pr)}
+                        className="sd-btn sd-btn-secondary"
+                        style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                      >
+                        View Details
+                      </button>
                     </td>
                   </tr>
                 ))}
@@ -613,7 +601,19 @@ export function PurchaseRequisitionsTab({ stats, onAction }: Props) {
                 ))}
               </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", paddingTop: "1rem", borderTop: `1px solid ${BORDER}` }}>
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "1rem", borderTop: `1px solid ${BORDER}` }}>
+                {viewingPR.status === "Pending Finance Approval" && (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      handleApprovePR(viewingPR.pr_number);
+                      setViewingPR(null);
+                    }}
+                    className="sd-btn sd-btn-primary"
+                  >
+                    Approve PR
+                  </button>
+                )}
                 <button type="button" onClick={() => setViewingPR(null)} className="sd-btn sd-btn-secondary">
                   Close
                 </button>
