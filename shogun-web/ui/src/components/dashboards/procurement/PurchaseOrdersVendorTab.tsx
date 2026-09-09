@@ -80,20 +80,26 @@ const PIPELINE_COLORS = [
 ];
 
 export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
-  const [statusFilter, setStatusFilter] = useState<string>(
-    "Pending Executive Approval",
-  );
-  const [activePoApprovalFilter, setActivePoApprovalFilter] =
-    useState<string>("All");
-  const [poActionTarget, setPoActionTarget] = useState<PurchaseOrderRow | null>(
-    null,
-  );
-  const [execActionTarget, setExecActionTarget] =
-    useState<ExecutiveApprovalRow | null>(null);
+  const [statusFilter, setStatusFilter] = useState<string>("All");
+  const [activePoApprovalFilter, setActivePoApprovalFilter] = useState<string>("All");
+  const [poActionTarget, setPoActionTarget] = useState<PurchaseOrderRow | null>(null);
+  const [execActionTarget, setExecActionTarget] = useState<ExecutiveApprovalRow | null>(null);
   
   // Create PO modal state
   const [showCreatePOModal, setShowCreatePOModal] = useState(false);
   const [selectedPR, setSelectedPR] = useState<string>("");
+  const [generatedPO, setGeneratedPO] = useState<any>(null); // Store generated PO for preview
+  
+  // Local state for POs so we can manage status in demo mode
+  const [pos, setPos] = useState<Array<{
+    po_number: string;
+    parent_pr: string;
+    supplier_name: string;
+    total_amount: number;
+    status: 'Draft' | 'Pending Boss Approval' | 'Boss Approved' | 'Sent to Vendor' | 'Partially Received' | 'Fully Received';
+    created_at: string;
+    items: Array<{ name: string; quantity: number; unit_price: number; total: number }>;
+  }>>([]);
 
   const approvedPRs = MOCK_PRS.filter(pr => pr.status === "Approved" || pr.status === "Converted to PO");
 
@@ -154,6 +160,133 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
           <Plus className="h-4 w-4" />
           Create PO from PR
         </button>
+      </div>
+
+      {/* Unified PO List - All POs with Boss Approval */}
+      <div className="sd-chart-card">
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+          <div>
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>All Purchase Orders</h3>
+            <p className="sd-chart-sub" style={{ margin: 0 }}>Track PO status from creation to vendor delivery</p>
+          </div>
+          <div className="sd-theme-seg" style={{ flexWrap: "wrap", gap: "0.35rem" }}>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("All")}
+              className={statusFilter === "All" ? "active" : ""}
+              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+            >
+              All ({pos.length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Pending Boss Approval")}
+              className={statusFilter === "Pending Boss Approval" ? "active" : ""}
+              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+            >
+              Pending Boss Approval ({pos.filter(p => p.status === "Pending Boss Approval").length})
+            </button>
+            <button
+              type="button"
+              onClick={() => setStatusFilter("Boss Approved")}
+              className={statusFilter === "Boss Approved" ? "active" : ""}
+              style={{ fontSize: "0.72rem", padding: "0.35rem 0.7rem", borderRadius: "0.4rem", whiteSpace: "nowrap", width: "auto" }}
+            >
+              Boss Approved ({pos.filter(p => p.status === "Boss Approved").length})
+            </button>
+          </div>
+        </div>
+
+        {pos.length === 0 ? (
+          <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.85rem", color: MUTED }}>
+            No purchase orders created yet. Use "Create PO from PR" above to get started.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+              <thead>
+                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                  <Th align="left">PO Number</Th>
+                  <Th align="left">Parent PR</Th>
+                  <Th align="left">Supplier</Th>
+                  <Th align="right">Amount</Th>
+                  <Th align="left">Created</Th>
+                  <Th align="center">Status</Th>
+                  <Th align="center">Actions</Th>
+                </tr>
+              </thead>
+              <tbody>
+                {pos.filter(po => statusFilter === "All" || po.status === statusFilter).map((po) => (
+                  <tr key={po.po_number} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td className="px-3 py-2.5" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 600, color: TEXT }}>
+                      {po.po_number}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
+                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
+                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
+                      RM {po.total_amount.toLocaleString()}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
+                      {new Date(po.created_at).toLocaleDateString("en-MY")}
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <span className={`sd-chip ${
+                        po.status === "Pending Boss Approval" ? "warn" :
+                        po.status === "Boss Approved" ? "ok" :
+                        po.status === "Sent to Vendor" ? "muted" :
+                        "muted"
+                      }`}>
+                        {po.status}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
+                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
+                        {po.status === "Pending Boss Approval" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPos(prev => prev.map(p => 
+                                p.po_number === po.po_number 
+                                  ? { ...p, status: "Boss Approved" as const }
+                                  : p
+                              ));
+                              alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
+                            }}
+                            className="sd-btn sd-btn-primary"
+                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                          >
+                            Approve
+                          </button>
+                        )}
+                        {po.status === "Boss Approved" && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setPos(prev => prev.map(p => 
+                                p.po_number === po.po_number 
+                                  ? { ...p, status: "Sent to Vendor" as const }
+                                  : p
+                              ));
+                              alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
+                            }}
+                            className="sd-btn sd-btn-secondary"
+                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                          >
+                            <Mail className="h-3 w-3" />
+                            Email to Vendor
+                          </button>
+                        )}
+                        {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
+                          <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </div>
 
       {/* PO Pipeline Card (Funnel) */}
@@ -1306,110 +1439,194 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
           <button
             type="button"
             style={{ position: "fixed", inset: 0, zIndex: 40, background: "rgba(0,0,0,0.4)", border: "none", cursor: "default" }}
-            onClick={() => setShowCreatePOModal(false)}
+            onClick={() => {
+              setShowCreatePOModal(false);
+              setGeneratedPO(null);
+              setSelectedPR("");
+            }}
             aria-label="Close"
           />
           <div
             style={{ position: "fixed", inset: 0, zIndex: 50, display: "flex", alignItems: "center", justifyContent: "center", padding: "1rem" }}
-            onClick={() => setShowCreatePOModal(false)}
+            onClick={() => {
+              setShowCreatePOModal(false);
+              setGeneratedPO(null);
+              setSelectedPR("");
+            }}
           >
             <div
               className="sd-card"
-              style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "40rem", maxHeight: "90vh", overflow: "auto", padding: "1.5rem" }}
+              style={{ position: "relative", zIndex: 50, width: "100%", maxWidth: "45rem", maxHeight: "90vh", overflow: "auto", padding: "1.5rem" }}
               onClick={(e) => e.stopPropagation()}
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1rem", borderBottom: `1px solid ${BORDER}`, paddingBottom: "0.75rem" }}>
                 <h2 style={{ fontFamily: "var(--font-display)", fontSize: "1.1rem", fontWeight: 600, color: TEXT, margin: 0 }}>
-                  Create Purchase Order from PR
+                  {generatedPO ? "Review Purchase Order" : "Create Purchase Order from PR"}
                 </h2>
-                <button type="button" className="sd-icon-btn" onClick={() => setShowCreatePOModal(false)} aria-label="Close">
+                <button type="button" className="sd-icon-btn" onClick={() => {
+                  setShowCreatePOModal(false);
+                  setGeneratedPO(null);
+                  setSelectedPR("");
+                }} aria-label="Close">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div style={{ marginBottom: "1.5rem" }}>
-                <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 500, color: MUTED, marginBottom: "0.5rem" }}>
-                  Select Approved PR
-                </label>
-                <select
-                  value={selectedPR}
-                  onChange={(e) => setSelectedPR(e.target.value)}
-                  className="sd-input"
-                  style={{ width: "100%" }}
-                >
-                  <option value="">-- Select a Purchase Requisition --</option>
-                  {approvedPRs.map((pr) => (
-                    <option key={pr.pr_number} value={pr.pr_number}>
-                      {pr.pr_number} - {pr.project_name} (RM {pr.total_amount.toLocaleString()})
-                    </option>
-                  ))}
-                </select>
-              </div>
+              {!generatedPO ? (
+                // Step 1: Select PR
+                <>
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 500, color: MUTED, marginBottom: "0.5rem" }}>
+                      Select Approved PR
+                    </label>
+                    <select
+                      value={selectedPR}
+                      onChange={(e) => setSelectedPR(e.target.value)}
+                      className="sd-input"
+                      style={{ width: "100%" }}
+                    >
+                      <option value="">-- Select a Purchase Requisition --</option>
+                      {approvedPRs.map((pr) => (
+                        <option key={pr.pr_number} value={pr.pr_number}>
+                          {pr.pr_number} - {pr.project_name} (RM {pr.total_amount.toLocaleString()})
+                        </option>
+                      ))}
+                    </select>
+                  </div>
 
-              {selectedPR && (() => {
-                const pr = approvedPRs.find(p => p.pr_number === selectedPR);
-                if (!pr) return null;
-                
-                return (
-                  <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--samurai-surface-2)", borderRadius: "0.5rem" }}>
-                    <div style={{ fontSize: "0.85rem", fontWeight: 600, color: TEXT, marginBottom: "0.75rem" }}>
-                      PR Details: {pr.pr_number}
-                    </div>
-                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.72rem", marginBottom: "0.75rem" }}>
-                      <div><span style={{ color: MUTED }}>Project:</span> <span style={{ color: TEXT }}>{pr.project_name}</span></div>
-                      <div><span style={{ color: MUTED }}>Requester:</span> <span style={{ color: TEXT }}>{pr.requester}</span></div>
-                      <div><span style={{ color: MUTED }}>Department:</span> <span style={{ color: TEXT }}>{pr.department}</span></div>
-                      <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {pr.total_amount.toLocaleString()}</span></div>
-                    </div>
+                  {selectedPR && (() => {
+                    const pr = approvedPRs.find(p => p.pr_number === selectedPR);
+                    if (!pr) return null;
                     
-                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>Items to be ordered:</div>
-                    {pr.items.map((item, idx) => (
-                      <div key={idx} style={{ padding: "0.5rem", marginBottom: "0.5rem", background: "var(--samurai-surface)", borderRadius: "0.25rem", borderLeft: "3px solid var(--samurai-ok)" }}>
-                        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
-                          <div>
-                            <div style={{ fontWeight: 600, fontSize: "0.75rem", color: TEXT }}>{item.name}</div>
-                            <div style={{ fontSize: "0.65rem", color: MUTED }}>{item.quantity} {item.unit}</div>
-                          </div>
-                          <div style={{ textAlign: "right" }}>
-                            <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--samurai-ok)" }}>{item.selected_supplier.supplier_name}</div>
-                            <div style={{ fontSize: "0.65rem", color: MUTED }}>RM {item.selected_supplier.amount.toLocaleString()} • {item.selected_supplier.lead_time_days} days</div>
-                          </div>
+                    return (
+                      <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "var(--samurai-surface-2)", borderRadius: "0.5rem" }}>
+                        <div style={{ fontSize: "0.85rem", fontWeight: 600, color: TEXT, marginBottom: "0.75rem" }}>
+                          PR Details: {pr.pr_number}
                         </div>
+                        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.72rem", marginBottom: "0.75rem" }}>
+                          <div><span style={{ color: MUTED }}>Project:</span> <span style={{ color: TEXT }}>{pr.project_name}</span></div>
+                          <div><span style={{ color: MUTED }}>Requester:</span> <span style={{ color: TEXT }}>{pr.requester}</span></div>
+                          <div><span style={{ color: MUTED }}>Department:</span> <span style={{ color: TEXT }}>{pr.department}</span></div>
+                          <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {pr.total_amount.toLocaleString()}</span></div>
+                        </div>
+                        
+                        <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>Items to be ordered:</div>
+                        {pr.items.map((item, idx) => (
+                          <div key={idx} style={{ padding: "0.5rem", marginBottom: "0.5rem", background: "var(--samurai-surface)", borderRadius: "0.25rem", borderLeft: "3px solid var(--samurai-ok)" }}>
+                            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+                              <div>
+                                <div style={{ fontWeight: 600, fontSize: "0.75rem", color: TEXT }}>{item.name}</div>
+                                <div style={{ fontSize: "0.65rem", color: MUTED }}>{item.quantity} {item.unit}</div>
+                              </div>
+                              <div style={{ textAlign: "right" }}>
+                                <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--samurai-ok)" }}>{item.selected_supplier.supplier_name}</div>
+                                <div style={{ fontSize: "0.65rem", color: MUTED }}>RM {item.selected_supplier.amount.toLocaleString()} • {item.selected_supplier.lead_time_days} days</div>
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    );
+                  })()}
+
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "1rem", borderTop: `1px solid ${BORDER}` }}>
+                    <button type="button" onClick={() => setShowCreatePOModal(false)} className="sd-btn sd-btn-secondary">
+                      Cancel
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        if (!selectedPR) return;
+                        const pr = approvedPRs.find(p => p.pr_number === selectedPR);
+                        if (!pr) return;
+
+                        // Generate PO preview data
+                        const poNumber = `PO-${new Date().getFullYear()}-${String(pos.length + 1).padStart(3, '0')}`;
+                        const newPO = {
+                          po_number: poNumber,
+                          parent_pr: pr.pr_number,
+                          supplier_name: pr.items[0]?.selected_supplier?.supplier_name || "Multiple Suppliers",
+                          total_amount: pr.total_amount,
+                          status: "Draft" as const,
+                          created_at: new Date().toISOString(),
+                          items: pr.items.map(item => ({
+                            name: item.name,
+                            quantity: item.quantity,
+                            unit_price: item.selected_supplier.amount / item.quantity,
+                            total: item.selected_supplier.amount,
+                          })),
+                        };
+                        setGeneratedPO(newPO);
+                      }}
+                      className="sd-btn sd-btn-primary"
+                      disabled={!selectedPR}
+                    >
+                      Create PO
+                    </button>
+                  </div>
+                </>
+              ) : (
+                // Step 2: Review and Confirm PO
+                <>
+                  <div style={{ marginBottom: "1.5rem", padding: "1rem", background: "rgba(34, 197, 94, 0.1)", borderLeft: "3px solid var(--samurai-ok)", borderRadius: "0.25rem" }}>
+                    <div style={{ fontSize: "0.85rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>
+                      Purchase Order Preview
+                    </div>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "0.5rem", fontSize: "0.72rem" }}>
+                      <div><span style={{ color: MUTED }}>PO Number:</span> <span style={{ color: TEXT, fontWeight: 600 }}>{generatedPO.po_number}</span></div>
+                      <div><span style={{ color: MUTED }}>Parent PR:</span> <span style={{ color: TEXT }}>{generatedPO.parent_pr}</span></div>
+                      <div><span style={{ color: MUTED }}>Supplier:</span> <span style={{ color: TEXT }}>{generatedPO.supplier_name}</span></div>
+                      <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {generatedPO.total_amount.toLocaleString()}</span></div>
+                    </div>
+                  </div>
+
+                  <div style={{ marginBottom: "1.5rem" }}>
+                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>Items:</div>
+                    {generatedPO.items.map((item: any, idx: number) => (
+                      <div key={idx} style={{ padding: "0.5rem", marginBottom: "0.5rem", background: "var(--samurai-surface-2)", borderRadius: "0.25rem" }}>
+                        <div style={{ display: "flex", justifyContent: "space-between" }}>
+                          <div style={{ fontWeight: 500, fontSize: "0.75rem", color: TEXT }}>{item.name}</div>
+                          <div style={{ fontSize: "0.72rem", color: TEXT }}>RM {item.total.toLocaleString()}</div>
+                        </div>
+                        <div style={{ fontSize: "0.65rem", color: MUTED }}>{item.quantity} units @ RM {item.unit_price.toLocaleString()}/unit</div>
                       </div>
                     ))}
                   </div>
-                );
-              })()}
 
-              <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "rgba(59, 130, 246, 0.1)", borderLeft: "3px solid var(--samurai-blue)", borderRadius: "0.25rem" }}>
-                <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.25rem" }}>PO Generation Info</div>
-                <div style={{ fontSize: "0.65rem", color: MUTED }}>
-                  • PO will be generated in standard format (template v1.0)<br/>
-                  • Separate POs will be created for each supplier<br/>
-                  • PO PDF will be attached to email<br/>
-                  • Email will be sent directly to vendor contact
-                </div>
-              </div>
+                  <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "rgba(251, 191, 36, 0.1)", borderLeft: "3px solid var(--samurai-warning)", borderRadius: "0.25rem" }}>
+                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.25rem" }}>Next Steps After Confirmation:</div>
+                    <div style={{ fontSize: "0.65rem", color: MUTED }}>
+                      • PO will be added to list with status "Pending Boss Approval"<br/>
+                      • Boss must approve before PO can be emailed to vendor<br/>
+                      • You can track approval status in the PO list below
+                    </div>
+                  </div>
 
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "1rem", borderTop: `1px solid ${BORDER}` }}>
-                <button type="button" onClick={() => setShowCreatePOModal(false)} className="sd-btn sd-btn-secondary">
-                  Cancel
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    alert(`PO generated successfully from ${selectedPR}! (Demo mode)`);
-                    setShowCreatePOModal(false);
-                    setSelectedPR("");
-                  }}
-                  className="sd-btn sd-btn-primary"
-                  disabled={!selectedPR}
-                  style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-                >
-                  <Mail className="h-4 w-4" />
-                  Generate & Email PO
-                </button>
-              </div>
+                  <div style={{ display: "flex", justifyContent: "flex-end", gap: "0.5rem", paddingTop: "1rem", borderTop: `1px solid ${BORDER}` }}>
+                    <button 
+                      type="button" 
+                      onClick={() => setGeneratedPO(null)} 
+                      className="sd-btn sd-btn-secondary"
+                    >
+                      Back
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        // Add PO to list with Pending Boss Approval status
+                        setPos(prev => [...prev, { ...generatedPO, status: "Pending Boss Approval" }]);
+                        alert(`PO ${generatedPO.po_number} created successfully!\n\nStatus: Pending Boss Approval\nNext: Boss must approve before emailing to vendor.`);
+                        setShowCreatePOModal(false);
+                        setGeneratedPO(null);
+                        setSelectedPR("");
+                      }}
+                      className="sd-btn sd-btn-primary"
+                    >
+                      Confirm & Submit for Approval
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </>
