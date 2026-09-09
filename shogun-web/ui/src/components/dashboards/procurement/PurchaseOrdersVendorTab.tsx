@@ -254,28 +254,11 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
         )}
       </div>
 
-      {/* Create PO Button */}
-      <div className="sd-chart-card" style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <div>
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>Create Purchase Order</h3>
-          <p className="sd-chart-sub" style={{ margin: 0 }}>Convert approved PR to PO and email to vendor</p>
-        </div>
-        <button
-          type="button"
-          onClick={() => setShowCreatePOModal(true)}
-          className="sd-btn sd-btn-primary"
-          style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}
-        >
-          <Plus className="h-4 w-4" />
-          Create PO from PR
-        </button>
-      </div>
-
       {/* Unified PO List - All POs with Boss Approval */}
       <div className="sd-chart-card">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
           <div>
-            <h3 className="sd-chart-title" style={{ margin: 0 }}>All Purchase Orders</h3>
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>Purchase Orders</h3>
             <p className="sd-chart-sub" style={{ margin: 0 }}>Track PO status from creation to vendor delivery</p>
           </div>
           <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
