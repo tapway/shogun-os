@@ -436,47 +436,34 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                           </span>
                         </td>
                         <td className="px-3 py-2.5 text-center">
-                          <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
-                            {po.status === "Pending Boss Approval" && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPos(prev => prev.map(p => 
-                                    p.po_number === po.po_number 
-                                      ? { ...p, status: "Boss Approved" as const }
-                                      : p
-                                  ));
-                                  alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
-                                }}
-                                className="sd-btn sd-btn-primary"
-                                style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                              >
-                                Approve
-                              </button>
-                            )}
-                            {po.status === "Boss Approved" && (
-                              <button
-                                type="button"
-                                onClick={(e) => {
-                                  e.stopPropagation();
-                                  setPos(prev => prev.map(p => 
-                                    p.po_number === po.po_number 
-                                      ? { ...p, status: "Sent to Vendor" as const }
-                                      : p
-                                  ));
-                                  alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
-                                }}
-                                className="sd-btn sd-btn-secondary"
-                                style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                              >
-                                <Mail className="h-3 w-3" />
-                                Email to Vendor
-                              </button>
-                            )}
-                            {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
-                              <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
-                            )}
+                          <div style={{ display: "flex", justifyContent: "center" }}>
+                            <select
+                              value={po.status}
+                              onClick={(e) => e.stopPropagation()}
+                              onChange={(e) => {
+                                e.stopPropagation();
+                                const newStatus = e.target.value as typeof po.status;
+                                setPos(prev => prev.map(p => 
+                                  p.po_number === po.po_number 
+                                    ? { ...p, status: newStatus }
+                                    : p
+                                ));
+                                alert(`PO ${po.po_number} status changed to: ${newStatus}`);
+                              }}
+                              className="sd-input"
+                              style={{ 
+                                padding: "0.3rem 0.6rem", 
+                                fontSize: "0.72rem",
+                                minWidth: "140px",
+                                cursor: "pointer"
+                              }}
+                            >
+                              <option value="Pending Boss Approval">Pending Boss Approval</option>
+                              <option value="Boss Approved">Boss Approved</option>
+                              <option value="Sent to Vendor">Sent to Vendor</option>
+                              <option value="Partially Received">Partially Received</option>
+                              <option value="Fully Received">Fully Received</option>
+                            </select>
                           </div>
                         </td>
                       </tr>
