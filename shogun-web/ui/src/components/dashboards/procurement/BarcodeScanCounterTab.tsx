@@ -17,13 +17,15 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
   const [selectedProject, setSelectedProject] = useState<string>('');
   const [selectedPO, setSelectedPO] = useState<string>('');
   const [selectedItem, setSelectedItem] = useState<string>('');
-  const [generatedBarcode, setGeneratedBarcode] = useState<{
+  const [generatedBarcodes, setGeneratedBarcodes] = useState<Array<{
     code: string;
     itemName: string;
     poNumber: string;
     projectName: string;
     generatedAt: string;
-  } | null>(null);
+    unitIndex: number;
+    totalUnits: number;
+  }> | null>(null);
 
   // Section 2: View All Items State
   const [searchQuery, setSearchQuery] = useState('');
@@ -56,27 +58,34 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
     
     if (!project || !item) return;
 
-    // Generate barcode code: PO-ITEM_INDEX
+    // Generate barcode codes for each unit: PO-ITEM_INDEX-UNIT_NUMBER
     const itemIndex = availableItems.findIndex(i => i.id === selectedItem) + 1;
-    const barcodeCode = `${selectedPO}-${String(itemIndex).padStart(3, '0')}`;
+    const barcodes = [];
+    
+    for (let unitNum = 1; unitNum <= item.quantity; unitNum++) {
+      const barcodeCode = `${selectedPO}-${String(itemIndex).padStart(3, '0')}-${String(unitNum).padStart(3, '0')}`;
+      barcodes.push({
+        code: barcodeCode,
+        itemName: item.name,
+        poNumber: selectedPO,
+        projectName: project.name,
+        generatedAt: new Date().toISOString(),
+        unitIndex: unitNum,
+        totalUnits: item.quantity,
+      });
+    }
 
-    setGeneratedBarcode({
-      code: barcodeCode,
-      itemName: item.name,
-      poNumber: selectedPO,
-      projectName: project.name,
-      generatedAt: new Date().toISOString(),
-    });
+    setGeneratedBarcodes(barcodes);
 
     // In real app, this would save to database
-    alert(`Barcode generated and recorded in system!\n\nBarcode: ${barcodeCode}\nItem: ${item.name}\nPO: ${selectedPO}\nProject: ${project.name}`);
+    alert(`${barcodes.length} barcode(s) generated and recorded in system!\n\nItem: ${item.name}\nQuantity: ${item.quantity} units\nPO: ${selectedPO}\nProject: ${project.name}\n\nBarcodes:\n${barcodes.map(b => b.code).join('\n')}`);
   };
 
   const handlePrintBarcode = () => {
-    if (!generatedBarcode) return;
+    if (!generatedBarcodes || generatedBarcodes.length === 0) return;
     
     // In real app, this would trigger print dialog with barcode label template
-    alert(`Printing barcode label for:\n${generatedBarcode.code}\n\n(Demo mode - no actual print)`);
+    alert(`Printing ${generatedBarcodes.length} barcode label(s):\n\n${generatedBarcodes.map(b => b.code).join('\n')}\n\n(Demo mode - no actual print)`);
   };
 
   const toggleProjectExpand = (projectId: string) => {
@@ -121,7 +130,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                 setSelectedProject(e.target.value);
                 setSelectedPO('');
                 setSelectedItem('');
-                setGeneratedBarcode(null);
+                setGeneratedBarcodes(null);
               }}
               className="sd-input"
               style={{ width: '100%' }}
@@ -145,7 +154,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
               onChange={(e) => {
                 setSelectedPO(e.target.value);
                 setSelectedItem('');
-                setGeneratedBarcode(null);
+                setGeneratedBarcodes(null);
               }}
               className="sd-input"
               style={{ width: '100%' }}
@@ -169,7 +178,7 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
               value={selectedItem}
               onChange={(e) => {
                 setSelectedItem(e.target.value);
-                setGeneratedBarcode(null);
+                setGeneratedBarcodes(null);
               }}
               className="sd-input"
               style={{ width: '100%' }}
@@ -197,14 +206,17 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
           </button>
         </div>
 
-        {/* Generated Barcode Display */}
-        {generatedBarcode && (
+        {/* Generated Barcodes Display */}
+        {generatedBarcodes && generatedBarcodes.length > 0 && (
           <div style={{ marginTop: '1.5rem', padding: '1rem', background: 'rgba(34, 197, 94, 0.1)', borderLeft: '3px solid var(--samurai-ok)', borderRadius: '0.25rem' }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
               <div>
-                <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Generated Barcode</div>
-                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: TEXT, letterSpacing: '0.1em' }}>
-                  {generatedBarcode.code}
+                <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Generated Barcodes ({generatedBarcodes.length})</div>
+                <div style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 700, color: TEXT }}>
+                  {generatedBarcodes[0].itemName}
+                </div>
+                <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.25rem' }}>
+                  {generatedBarcodes[0].totalUnits} units • PO: {generatedBarcodes[0].poNumber}
                 </div>
               </div>
               <button
@@ -214,33 +226,40 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
                 <Printer className="h-4 w-4" />
-                Print Label
+                Print All Labels ({generatedBarcodes.length})
               </button>
             </div>
 
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', fontSize: '0.72rem' }}>
-              <div>
-                <span style={{ color: MUTED }}>Item:</span>{' '}
-                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.itemName}</span>
-              </div>
-              <div>
-                <span style={{ color: MUTED }}>PO Number:</span>{' '}
-                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.poNumber}</span>
-              </div>
-              <div>
-                <span style={{ color: MUTED }}>Project:</span>{' '}
-                <span style={{ color: TEXT, fontWeight: 500 }}>{generatedBarcode.projectName}</span>
-              </div>
-              <div>
-                <span style={{ color: MUTED }}>Generated:</span>{' '}
-                <span style={{ color: TEXT, fontWeight: 500 }}>
-                  {new Date(generatedBarcode.generatedAt).toLocaleString('en-MY')}
-                </span>
-              </div>
+            {/* Barcode List */}
+            <div style={{ maxHeight: '15rem', overflowY: 'auto', marginTop: '0.75rem' }}>
+              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Unit #</th>
+                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Barcode Code</th>
+                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Generated At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {generatedBarcodes.map((barcode, idx) => (
+                    <tr key={idx} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <td className="px-3 py-2" style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>
+                        Unit {barcode.unitIndex} of {barcode.totalUnits}
+                      </td>
+                      <td className="px-3 py-2" style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: TEXT, letterSpacing: '0.05em' }}>
+                        {barcode.code}
+                      </td>
+                      <td className="px-3 py-2" style={{ fontSize: '0.72rem', color: MUTED }}>
+                        {new Date(barcode.generatedAt).toLocaleString('en-MY')}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
 
             <div style={{ marginTop: '0.75rem', fontSize: '0.65rem', color: MUTED, fontStyle: 'italic' }}>
-              ✓ Barcode recorded in system. This barcode links item to PO {generatedBarcode.poNumber} from project {generatedBarcode.projectName}
+              ✓ All {generatedBarcodes.length} barcode(s) recorded in system. Each barcode links individual unit to PO {generatedBarcodes[0].poNumber} from project {generatedBarcodes[0].projectName}
             </div>
           </div>
         )}
