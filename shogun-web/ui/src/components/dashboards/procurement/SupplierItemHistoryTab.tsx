@@ -1,399 +1,282 @@
-import { useMemo, useState } from 'react';
-import { Search, X } from 'lucide-react';
-import type { AbcParetoClass, ProcurementDashboardStats, SkuItem } from '../../../lib/types';
+import { useState } from 'react';
+import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck } from 'lucide-react';
+import { MOCK_SUPPLIER_HISTORY } from '../../../lib/procurement-mock-data';
 
 interface Props {
-  stats: ProcurementDashboardStats;
+  stats: any;
   color: string;
   onAction?: (actionType: string, entity: unknown) => void;
 }
 
-const fmtMyr = (n: number) => `RM ${n.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-
-function computeAbcPareto(catalog: SkuItem[]): AbcParetoClass[] {
-  const items = catalog
-    .map((s) => ({ sku: s.sku, value: (s.unit_cost || 0) * (s.current_qty || 0) }))
-    .filter((it) => it.value > 0)
-    .sort((a, b) => b.value - a.value);
-  const total = items.reduce((sum, it) => sum + it.value, 0);
-  if (total <= 0 || items.length === 0) {
-    return [
-      { class_label: 'A', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-      { class_label: 'B', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-      { class_label: 'C', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-    ];
-  }
-  const classes: AbcParetoClass[] = [
-    { class_label: 'A', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-    { class_label: 'B', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-    { class_label: 'C', sku_count: 0, sku_pct: 0, capital_value: 0, value_pct: 0 },
-  ];
-  let cumulative = 0;
-  for (const it of items) {
-    cumulative += it.value;
-    const share = cumulative / total;
-    let idx: number;
-    if (share <= 0.80) idx = 0;
-    else if (share <= 0.95) idx = 1;
-    else idx = 2;
-    classes[idx].sku_count += 1;
-    classes[idx].capital_value += it.value;
-  }
-  const totalSkus = items.length;
-  classes.forEach((c) => {
-    c.sku_pct = totalSkus > 0 ? (c.sku_count / totalSkus) * 100 : 0;
-    c.value_pct = total > 0 ? (c.capital_value / total) * 100 : 0;
-  });
-  return classes;
+// Supplier directory data structure
+interface SupplierRecord {
+  id: string;
+  companyName: string;
+  companyRegNo: string;
+  officePhone: string;
+  registeredAddress: string;
+  website: string;
+  picName: string;
+  picContact: string;
+  picEmail: string;
+  paymentTerm: string;
+  paymentCurrency: string;
+  paymentBank: string;
+  bankAccountNo: string;
+  bankSwiftCode?: string;
+  preferredCourier: string;
 }
 
-const ABC_STYLE: Record<string, string> = {
-  A: 'ok',
-  B: 'muted',
-  C: 'muted',
-};
-
-const STATUS_STYLE: Record<string, string> = {
-  'In Stock':     'ok',
-  'Low Stock':    'warn',
-  'Out of Stock': 'bad',
-  'Overstocked':  'muted',
-};
-
-const ACTION_STYLE: Record<string, string> = {
-  '25% Promo Discount':          'warn',
-  'Vendor Clearance Return':    'muted',
-  'Bundle Promo with Top SKU':   'muted',
-  'Scrap / Write-off':           'bad',
-};
+// Mock supplier directory data with variance
+const MOCK_SUPPLIERS: SupplierRecord[] = [
+  {
+    id: 'sup-001',
+    companyName: 'TechWorld Sdn Bhd',
+    companyRegNo: '1234567-X',
+    officePhone: '+603-2145-6789',
+    registeredAddress: 'Level 15, Menara UOA, Bangsar South, 59200 Kuala Lumpur',
+    website: 'www.techworld.com.my',
+    picName: 'Sarah Lim',
+    picContact: '+6012-345-6789',
+    picEmail: 'sarah@techworld.my',
+    paymentTerm: '50% upfront, 50% on delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Maybank',
+    bankAccountNo: '5623-4567-8901',
+    bankSwiftCode: 'MBBEMYKL',
+    preferredCourier: 'DHL Express',
+  },
+  {
+    id: 'sup-002',
+    companyName: 'OfficePro Malaysia',
+    companyRegNo: '2345678-W',
+    officePhone: '+603-7890-1234',
+    registeredAddress: 'Lot 23, Jalan Teknologi 3/5, Taman Sains Selangor, 47810 Petaling Jaya',
+    website: 'www.officepro.com.my',
+    picName: 'Ahmad Razak',
+    picContact: '+6019-876-5432',
+    picEmail: 'ahmad@officepro.com.my',
+    paymentTerm: '100% upfront',
+    paymentCurrency: 'MYR',
+    paymentBank: 'CIMB Bank',
+    bankAccountNo: '8012-3456-7890',
+    bankSwiftCode: 'CIBBMYKL',
+    preferredCourier: 'Pos Laju',
+  },
+  {
+    id: 'sup-003',
+    companyName: 'Dell Technologies Malaysia',
+    companyRegNo: '3456789-V',
+    officePhone: '+603-2053-8888',
+    registeredAddress: 'Suite 28-01, The Gardens North Tower, Mid Valley City, 59200 Kuala Lumpur',
+    website: 'www.dell.com.my',
+    picName: 'David Chen',
+    picContact: '+6016-234-5678',
+    picEmail: 'david.chen@dell.com',
+    paymentTerm: 'Net 30 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'HSBC Bank',
+    bankAccountNo: '012-345678-901',
+    bankSwiftCode: 'HBMBMYKL',
+    preferredCourier: 'FedEx',
+  },
+  {
+    id: 'sup-004',
+    companyName: 'Toyota Material Handling',
+    companyRegNo: '4567890-U',
+    officePhone: '+603-5567-8901',
+    registeredAddress: 'Plot 12, Jalan Subang 1, Subang Industrial Park, 47610 Subang Jaya',
+    website: 'www.toyota-mh.com.my',
+    picName: 'Mohd Faisal',
+    picContact: '+6013-456-7890',
+    picEmail: 'faisal@toyota-mh.com.my',
+    paymentTerm: '30% deposit, 70% before delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Public Bank',
+    bankAccountNo: '3123-4567-8901',
+    bankSwiftCode: 'PBBEMYKL',
+    preferredCourier: 'Self-pickup / Company truck',
+  },
+  {
+    id: 'sup-005',
+    companyName: 'Storage Solutions MY',
+    companyRegNo: '5678901-T',
+    officePhone: '+603-6789-0123',
+    registeredAddress: 'No. 45, Jalan Industri 2/3, Kawasan Perindustrian Batu Caves, 68100 Batu Caves',
+    website: 'www.storagesolutions.my',
+    picName: 'Lisa Wong',
+    picContact: '+6017-567-8901',
+    picEmail: 'lisa@storagesolutions.my',
+    paymentTerm: '50% upfront, 50% on delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'RHB Bank',
+    bankAccountNo: '1234-5678-9012',
+    bankSwiftCode: 'RHBBMYKL',
+    preferredCourier: 'J&T Express',
+  },
+  {
+    id: 'sup-006',
+    companyName: 'Epson Malaysia',
+    companyRegNo: '6789012-S',
+    officePhone: '+603-8901-2345',
+    registeredAddress: 'Unit 12-03, Sunway Pyramid Tower, Jalan PJS 11/15, 47500 Petaling Jaya',
+    website: 'www.epson.com.my',
+    picName: 'Rajesh Kumar',
+    picContact: '+6018-678-9012',
+    picEmail: 'rajesh@epson.com.my',
+    paymentTerm: 'Net 14 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'AmBank',
+    bankAccountNo: '888-1234567-890',
+    bankSwiftCode: 'ARBKMYKL',
+    preferredCourier: 'Ninja Van',
+  },
+  {
+    id: 'sup-007',
+    companyName: 'Apple Authorized Reseller',
+    companyRegNo: '7890123-R',
+    officePhone: '+603-9012-3456',
+    registeredAddress: 'G-02, Pavilion KL, 168 Jalan Bukit Bintang, 55100 Kuala Lumpur',
+    website: 'www.applestore.com.my',
+    picName: 'Priya Nair',
+    picContact: '+6011-789-0123',
+    picEmail: 'priya@applestore.com.my',
+    paymentTerm: '100% upfront',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Standard Chartered',
+    bankAccountNo: '012-3456789-012',
+    bankSwiftCode: 'SCBLMYKL',
+    preferredCourier: 'SF Express',
+  },
+  {
+    id: 'sup-008',
+    companyName: 'CompAsia',
+    companyRegNo: '8901234-Q',
+    officePhone: '+603-0123-4567',
+    registeredAddress: 'Level 8, Wisma Genting, Jalan Sultan Ismail, 50250 Kuala Lumpur',
+    website: 'www.compasia.com',
+    picName: 'Tan Wei Ming',
+    picContact: '+6014-890-1234',
+    picEmail: 'weiming@compasia.com',
+    paymentTerm: 'Net 7 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Hong Leong Bank',
+    bankAccountNo: '123-4567890-123',
+    bankSwiftCode: 'HLBBMYKL',
+    preferredCourier: 'DHL eCommerce',
+  },
+];
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 
-const th = { fontSize: '0.72rem', fontWeight: 500, color: MUTED } as const;
-function Th({ children, align }: { children: React.ReactNode; align: 'left' | 'right' | 'center' }) {
-  return <th className="px-3 py-2.5" style={{ ...th, textAlign: align }}>{children}</th>;
-}
-
-export function SupplierItemHistoryTab({ stats, onAction }: Props) {
+export function SupplierItemHistoryTab({ stats, color }: Props) {
   const [query, setQuery] = useState('');
-  const [category, setCategory] = useState('all');
-  const [statusFilter, setStatusFilter] = useState('all');
-  const [skuActionTarget, setSkuActionTarget] = useState<SkuItem | null>(null);
-  const [deadStockTarget, setDeadStockTarget] = useState<any | null>(null);
-  const [selectedComboStrategy, setSelectedComboStrategy] = useState<string>('bundle_top_sku');
-  const [customIdeaInput, setCustomIdeaInput] = useState<string>('');
+  const [viewingSupplier, setViewingSupplier] = useState<SupplierRecord | null>(null);
 
-  const categories = useMemo(
-    () => Array.from(new Set(stats.skuCatalog.map((s) => s.category))).sort(),
-    [stats.skuCatalog],
-  );
-
-  const filtered = useMemo(() => {
+  const filtered = MOCK_SUPPLIERS.filter((s) => {
     const q = query.trim().toLowerCase();
-    return stats.skuCatalog.filter((s: SkuItem) => {
-      if (q && !(s.sku || '').toLowerCase().includes(q) && !(s.item_name || '').toLowerCase().includes(q)) return false;
-      if (category !== 'all' && s.category !== category) return false;
-      if (statusFilter !== 'all' && s.status !== statusFilter) return false;
-      return true;
-    });
-  }, [stats.skuCatalog, query, category, statusFilter]);
-
-  const abcClasses = useMemo(() => computeAbcPareto(stats.skuCatalog), [stats.skuCatalog]);
-  const abcTotalCapital = abcClasses.reduce((sum, c) => sum + c.capital_value, 0);
+    if (!q) return true;
+    return (
+      s.companyName.toLowerCase().includes(q) ||
+      s.companyRegNo.toLowerCase().includes(q) ||
+      s.picName.toLowerCase().includes(q) ||
+      s.picEmail.toLowerCase().includes(q) ||
+      s.website.toLowerCase().includes(q)
+    );
+  });
 
   return (
     <div className="sd-stack">
-      {/* SKU Catalog & Search Table */}
+      {/* Header Card */}
       <div className="sd-chart-card">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>SKU Catalog</h3>
+          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>Supplier Directory</h3>
           <div style={{ position: 'relative' }}>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: MUTED }} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search SKU or item name…"
-              style={{ width: '14rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
+              placeholder="Search company, PIC, email…"
+              style={{ width: '18rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
             />
           </div>
-          <select
-            value={category}
-            onChange={(e) => setCategory(e.target.value)}
-            style={{ borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', color: TEXT, padding: '0.375rem 0.5rem', fontSize: '0.85rem' }}
-          >
-            <option value="all">All Categories</option>
-            {categories.map((c) => (
-              <option key={c} value={c}>{c}</option>
-            ))}
-          </select>
-          <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
-            style={{ borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', color: TEXT, padding: '0.375rem 0.5rem', fontSize: '0.85rem' }}
-          >
-            <option value="all">All Status</option>
-            <option value="In Stock">In Stock</option>
-            <option value="Low Stock">Low Stock</option>
-            <option value="Out of Stock">Out of Stock</option>
-            <option value="Overstocked">Overstocked</option>
-          </select>
         </div>
+        <p className="sd-chart-sub">
+          Complete supplier contact and payment information for procurement reference
+        </p>
+      </div>
 
+      {/* Supplier Table */}
+      <div className="sd-chart-card">
         {filtered.length === 0 ? (
-          <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>No SKUs match the current filters.</p>
+          <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
+            No suppliers match the search criteria.
+          </p>
         ) : (
           <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+            <table className="w-full min-w-[1400px] text-sm" style={{ borderCollapse: 'collapse' }}>
               <thead>
                 <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">SKU</Th>
-                  <Th align="left">Item Name</Th>
-                  <Th align="left">Category</Th>
-                  <Th align="right">Unit Cost</Th>
-                  <Th align="right">Qty</Th>
-                  <Th align="right">Reorder Pt</Th>
-                  <Th align="left">Location/Bin</Th>
-                  <Th align="center">Status</Th>
-                  <Th align="center">Actions</Th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Company Name</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Reg. No.</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Office Phone</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Name</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Contact</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Email</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Payment Term</th>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Bank</th>
+                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Actions</th>
                 </tr>
               </thead>
               <tbody>
-                {filtered.map((s) => (
-                  <tr key={s.sku} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="px-3 py-2" style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>{s.sku}</td>
-                    <td className="px-3 py-2" style={{ fontWeight: 600, color: TEXT }}>{s.item_name}</td>
-                    <td className="px-3 py-2" style={{ color: MUTED }}>{s.category}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: TEXT }}>{fmtMyr(s.unit_cost)}</td>
-                    <td className="px-3 py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{(s.current_qty || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2 text-right" style={{ color: MUTED }}>{(s.safety_reorder_point || 0).toLocaleString()}</td>
-                    <td className="px-3 py-2" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>{s.location_bin}</td>
-                    <td className="px-3 py-2 text-center">
-                      <span className={`sd-chip ${STATUS_STYLE[s.status] ?? 'muted'}`}>
-                        {s.status}
-                      </span>
+                {filtered.map((supplier) => (
+                  <tr key={supplier.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <td className="px-3 py-2.5">
+                      <div style={{ fontWeight: 600, color: TEXT }}>{supplier.companyName}</div>
+                      <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                        <Globe className="inline h-3 w-3 mr-1" />
+                        {supplier.website}
+                      </div>
                     </td>
-                    <td className="px-3 py-2 text-center">
-                      {(s.status === 'Low Stock' || s.status === 'Out of Stock') ? (
-                        <button
-                          type="button"
-                          onClick={() => setSkuActionTarget(s)}
-                          className="sd-btn sd-btn-secondary"
-                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem', color: 'var(--samurai-warning)' }}
-                        >
-                          Send PR
-                        </button>
-                      ) : (
-                        <span style={{ fontSize: '0.72rem', color: MUTED, fontStyle: 'italic' }}>—</span>
-                      )}
+                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>
+                      {supplier.companyRegNo}
                     </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
-      {/* Dunning-Style Inventory Action Modal */}
-      {skuActionTarget && (
-        <>
-          <button type="button" style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)', border: 'none', cursor: 'default' }} onClick={() => setSkuActionTarget(null)} aria-label="Close" />
-          <div style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }} onClick={() => setSkuActionTarget(null)}>
-            <div className="sd-card" style={{ position: 'relative', zIndex: 50, width: '100%', maxWidth: '26rem', height: 'fit-content', padding: '1.25rem' }} onClick={(e) => e.stopPropagation()}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
-                <div>
-                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 600, color: TEXT, margin: 0 }}>Inventory Action</h2>
-                  <p style={{ fontSize: '0.72rem', color: MUTED, margin: 0 }}>{skuActionTarget.item_name} · {skuActionTarget.sku}</p>
-                </div>
-                <button type="button" className="sd-icon-btn" onClick={() => setSkuActionTarget(null)} aria-label="Close">
-                  <X className="h-5 w-5" />
-                </button>
-              </div>
-
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: MUTED }}>Current Qty</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: 'var(--samurai-danger)' }}>{(skuActionTarget.current_qty || 0).toLocaleString()} units</div>
-                </div>
-                <div style={{ borderRadius: '0.5rem', background: SURFACE_2, padding: '0.6rem', textAlign: 'center' }}>
-                  <div style={{ fontSize: '0.72rem', color: MUTED }}>Safety Reorder Point</div>
-                  <div style={{ fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT }}>{(skuActionTarget.safety_reorder_point || 0).toLocaleString()} units</div>
-                </div>
-              </div>
-
-              <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem' }}>
-                <p style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.6rem' }}>Select action to send to Chotatsu (Procurement Agent):</p>
-                <div className="sd-stack" style={{ gap: '0.4rem' }}>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.('raise_pr_for_sku', skuActionTarget);
-                      setSkuActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-primary"
-                    style={{ justifyContent: 'space-between' }}
-                  >
-                    <span>Send Purchase Requisition (PR)</span>
-                    <span style={{ fontSize: '0.72rem' }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.('record_adjustment', skuActionTarget);
-                      setSkuActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: 'space-between' }}
-                  >
-                    <span>Record Stock Adjustment</span>
-                    <span style={{ fontSize: '0.72rem' }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.('edit_sku', skuActionTarget);
-                      setSkuActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: 'space-between' }}
-                  >
-                    <span>Edit SKU Details</span>
-                    <span style={{ fontSize: '0.72rem' }}>→</span>
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      onAction?.('draft_po', skuActionTarget);
-                      setSkuActionTarget(null);
-                    }}
-                    className="sd-btn sd-btn-secondary"
-                    style={{ justifyContent: 'space-between' }}
-                  >
-                    <span>Draft Urgent PO</span>
-                    <span style={{ fontSize: '0.72rem' }}>→</span>
-                  </button>
-                </div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      {/* ABC Inventory Pareto Analysis */}
-      <div className="sd-chart-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>ABC Inventory Pareto Analysis</h3>
-          <span className="sd-chip muted">client-side · skuCatalog</span>
-        </div>
-        <p className="sd-chart-sub">
-          Class A (≈80% of capital value), Class B (next ≈15%), Class C (remaining ≈5%). Capital value = unit cost × current qty; classes set by cumulative value breakpoints.
-        </p>
-        {abcTotalCapital <= 0 ? (
-          <p style={{ color: MUTED, fontSize: '0.85rem' }}>No SKUs with positive value to classify.</p>
-        ) : (
-          <div className="sd-stack" style={{ gap: '0.75rem' }}>
-            {abcClasses.map((c) => (
-              <div key={c.class_label} style={{ borderRadius: '0.5rem', border: `1px solid ${BORDER}`, padding: '0.75rem' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.5rem' }}>
-                  <span className={`sd-chip ${ABC_STYLE[c.class_label] ?? 'muted'}`}>Class {c.class_label}</span>
-                  <span style={{ fontSize: '0.72rem', color: MUTED }}>
-                    {(c.sku_count || 0).toLocaleString()} SKU{c.sku_count === 1 ? '' : 's'} · {(c.sku_pct || 0).toFixed(1)}% of items
-                  </span>
-                  <span style={{ marginLeft: 'auto', fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{fmtMyr(c.capital_value)}</span>
-                </div>
-                <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-                  <div style={{ height: '0.5rem', flex: 1, borderRadius: 999, overflow: 'hidden', background: SURFACE_2 }}>
-                    <div
-                      style={{ height: '100%', borderRadius: 999, background: c.class_label === 'A' ? 'var(--samurai-ok)' : c.class_label === 'B' ? 'var(--samurai-blue)' : 'var(--samurai-muted)', width: `${Math.min(c.value_pct, 100)}%` }}
-                    />
-                  </div>
-                  <span style={{ width: '3rem', textAlign: 'right', fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>{(c.value_pct || 0).toFixed(1)}%</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
-
-      {/* Dead & Slow-Moving Stock Analysis Hub */}
-      <div className="sd-chart-card">
-        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.25rem' }}>
-          <h3 className="sd-chart-title" style={{ margin: 0 }}>Dead & Slow-Moving Stock Analysis</h3>
-          <span className="sd-chip muted">P0 · dead-slow-stock-detector</span>
-        </div>
-        <p className="sd-chart-sub">
-          SKUs with &gt;8 months inventory cover (90-day velocity) or zero movement in &gt;180 days. Ranked by total capital tied up.
-        </p>
-        {stats.deadSlowStock.length === 0 ? (
-          <p style={{ color: MUTED, fontSize: '0.85rem' }}>No dead or slow-moving stock detected. Chotatsu (Procurement Agent) generates this from stock movement history.</p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <Th align="left">SKU & Item</Th>
-                  <Th align="left">Category</Th>
-                  <Th align="right">Qty</Th>
-                  <Th align="right">Days No Movement</Th>
-                  <Th align="right">Months Cover</Th>
-                  <Th align="right">Tied-Up Value</Th>
-                  <Th align="center">Flush Recommendation</Th>
-                  <Th align="center">Action</Th>
-                </tr>
-              </thead>
-              <tbody>
-                {stats.deadSlowStock.map((d) => (
-                  <tr key={d.sku} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="py-2">
-                      <div style={{ fontFamily: 'var(--font-display)', fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>{d.sku}</div>
-                      <div style={{ fontSize: '0.72rem', color: MUTED }}>{d.item_name}</div>
+                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                      <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                      {supplier.officePhone}
                     </td>
-                    <td className="py-2" style={{ color: MUTED }}>{d.category}</td>
-                    <td className="py-2 text-right" style={{ fontWeight: 600, color: TEXT }}>{(d.current_qty || 0).toLocaleString()}</td>
-                    <td className="py-2 text-right" style={{ color: TEXT }}>{d.days_since_last_movement}d</td>
-                    <td className="py-2 text-right" style={{ color: TEXT }}>{(d.months_of_cover || 0).toFixed(1)}</td>
-                    <td className="py-2 text-right" style={{ color: 'var(--samurai-danger)', fontWeight: 700 }}>
-                      <div style={{ fontSize: '0.65rem', color: MUTED, textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 600 }}>RM</div>
-                      {d.total_tied_value >= 1_000_000
-                        ? `${(d.total_tied_value / 1_000_000).toFixed(2)}M`
-                        : d.total_tied_value >= 1_000
-                          ? `${(d.total_tied_value / 1_000).toFixed(0)}K`
-                          : (d.total_tied_value || 0).toLocaleString()}
+                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>
+                      {supplier.picName}
                     </td>
-                    <td className="py-2 text-center">
-                      {d.action_recommendation === 'Bundle Promo with Top SKU' ? (
-                        <span
-                          className="sd-chip"
-                          style={{
-                            background: 'color-mix(in srgb, #8b5cf6 20%, transparent)',
-                            color: '#a78bfa',
-                            border: '1px solid color-mix(in srgb, #8b5cf6 40%, transparent)',
-                            fontWeight: 600,
-                          }}
-                        >
-                          Bundle Promo with Top SKU
-                        </span>
-                      ) : (
-                        <span className={`sd-chip ${ACTION_STYLE[d.action_recommendation] ?? 'muted'}`}>
-                          {d.action_recommendation}
-                        </span>
-                      )}
+                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                      <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                      {supplier.picContact}
                     </td>
-                    <td className="py-2 text-center">
+                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                      <Mail className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                      {supplier.picEmail}
+                    </td>
+                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: MUTED }}>
+                      {supplier.paymentTerm}
+                    </td>
+                    <td className="px-3 py-2.5">
+                      <div style={{ fontSize: '0.72rem', fontWeight: 500, color: TEXT }}>{supplier.paymentBank}</div>
+                      <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                        <CreditCard className="inline h-3 w-3 mr-1" />
+                        {supplier.bankAccountNo}
+                      </div>
+                    </td>
+                    <td className="px-3 py-2.5 text-center">
                       <button
                         type="button"
-                        onClick={() => {
-                          setDeadStockTarget(d);
-                          setSelectedComboStrategy('bundle_top_sku');
-                          setCustomIdeaInput('');
-                        }}
+                        onClick={() => setViewingSupplier(supplier)}
                         className="sd-btn sd-btn-secondary"
                         style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
                       >
-                        Launch
+                        View Full
                       </button>
                     </td>
                   </tr>
@@ -404,170 +287,160 @@ export function SupplierItemHistoryTab({ stats, onAction }: Props) {
         )}
       </div>
 
-      {/* Combination Sales Strategy Modal for Dead/Slow-Moving Stock */}
-      {deadStockTarget && (
+      {/* View Supplier Details Modal */}
+      {viewingSupplier && (
         <>
           <button
             type="button"
             style={{ position: 'fixed', inset: 0, zIndex: 40, background: 'rgba(0,0,0,0.4)', border: 'none', cursor: 'default' }}
-            onClick={() => setDeadStockTarget(null)}
+            onClick={() => setViewingSupplier(null)}
             aria-label="Close"
           />
           <div
             style={{ position: 'fixed', inset: 0, zIndex: 50, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '1rem' }}
-            onClick={() => setDeadStockTarget(null)}
+            onClick={() => setViewingSupplier(null)}
           >
             <div
               className="sd-card"
-              style={{ position: 'relative', zIndex: 50, width: '100%', maxWidth: '32rem', height: 'fit-content', padding: '1.25rem' }}
+              style={{ position: 'relative', zIndex: 50, width: '100%', maxWidth: '45rem', maxHeight: '90vh', overflow: 'auto', padding: '1.5rem' }}
               onClick={(e) => e.stopPropagation()}
             >
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.75rem', marginBottom: '0.75rem' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1rem', borderBottom: `1px solid ${BORDER}`, paddingBottom: '0.75rem' }}>
                 <div>
-                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1rem', fontWeight: 600, color: TEXT, margin: 0 }}>
-                    Flush Strategy: Combination Sales
+                  <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.1rem', fontWeight: 600, color: TEXT, margin: 0 }}>
+                    {viewingSupplier.companyName}
                   </h2>
-                  <p style={{ fontSize: '0.72rem', color: MUTED, margin: 0 }}>
-                    {deadStockTarget.item_name} ({deadStockTarget.sku}) · Tied Capital: RM {deadStockTarget.total_tied_value?.toLocaleString()}
-                  </p>
+                  <p style={{ fontSize: '0.72rem', color: MUTED, margin: 0 }}>Company Reg. No: {viewingSupplier.companyRegNo}</p>
                 </div>
-                <button type="button" className="sd-icon-btn" onClick={() => setDeadStockTarget(null)} aria-label="Close">
+                <button type="button" className="sd-icon-btn" onClick={() => setViewingSupplier(null)} aria-label="Close">
                   <X className="h-5 w-5" />
                 </button>
               </div>
 
-              <div style={{ marginBottom: '0.75rem' }}>
-                <label style={{ display: 'block', fontSize: '0.75rem', fontWeight: 600, color: TEXT, marginBottom: '0.5rem' }}>
-                  Select Sales Combination Strategy:
-                </label>
-
-                <div className="sd-stack" style={{ gap: '0.5rem' }}>
-                  {/* Option 1 */}
-                  <div
-                    onClick={() => setSelectedComboStrategy('bundle_top_sku')}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${selectedComboStrategy === 'bundle_top_sku' ? 'var(--samurai-lime)' : BORDER}`,
-                      background: selectedComboStrategy === 'bundle_top_sku' ? 'var(--samurai-hover-ui)' : SURFACE_2,
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms ease, background 150ms ease',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: selectedComboStrategy === 'bundle_top_sku' ? 'var(--samurai-lime)' : TEXT }}>
-                      1. Bundle Promo with Top-Selling SKU
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.15rem' }}>
-                      Pair this slow-moving stock with a high-velocity Category A item at a 20% discount.
+              {/* Company Information */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Building2 className="h-4 w-4" />
+                  Company Information
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Registered Address</div>
+                    <div style={{ fontSize: '0.75rem', color: TEXT, display: 'flex', alignItems: 'start', gap: '0.5rem' }}>
+                      <MapPin className="h-4 w-4 mt-0.5 flex-shrink-0" style={{ color: MUTED }} />
+                      <span>{viewingSupplier.registeredAddress}</span>
                     </div>
                   </div>
-
-                  {/* Option 2 */}
-                  <div
-                    onClick={() => setSelectedComboStrategy('bogo_clearance')}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${selectedComboStrategy === 'bogo_clearance' ? 'var(--samurai-lime)' : BORDER}`,
-                      background: selectedComboStrategy === 'bogo_clearance' ? 'var(--samurai-hover-ui)' : SURFACE_2,
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms ease, background 150ms ease',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: selectedComboStrategy === 'bogo_clearance' ? 'var(--samurai-lime)' : TEXT }}>
-                      2. Buy 1 Get 1 Free (BOGO) Clearance
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.15rem' }}>
-                      Run an instant BOGO clearance push to double stock turnover velocity.
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Website</div>
+                    <div style={{ fontSize: '0.75rem', color: TEXT, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Globe className="h-4 w-4 flex-shrink-0" style={{ color: MUTED }} />
+                      <a href={`https://${viewingSupplier.website}`} target="_blank" rel="noopener noreferrer" style={{ color: 'var(--samurai-blue)', textDecoration: 'underline' }}>
+                        {viewingSupplier.website}
+                      </a>
                     </div>
                   </div>
-
-                  {/* Option 3 */}
-                  <div
-                    onClick={() => setSelectedComboStrategy('bulk_vendor_liquidation')}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${selectedComboStrategy === 'bulk_vendor_liquidation' ? 'var(--samurai-lime)' : BORDER}`,
-                      background: selectedComboStrategy === 'bulk_vendor_liquidation' ? 'var(--samurai-hover-ui)' : SURFACE_2,
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms ease, background 150ms ease',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: selectedComboStrategy === 'bulk_vendor_liquidation' ? 'var(--samurai-lime)' : TEXT }}>
-                      3. Bulk Wholesale Liquidation to Secondary Vendor
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Office Phone</div>
+                    <div style={{ fontSize: '0.75rem', color: TEXT, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Phone className="h-4 w-4 flex-shrink-0" style={{ color: MUTED }} />
+                      {viewingSupplier.officePhone}
                     </div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.15rem' }}>
-                      Offload remaining batch to secondary liquidation vendor at 40% off cost.
-                    </div>
-                  </div>
-
-                  {/* Option 4: Custom Idea */}
-                  <div
-                    onClick={() => setSelectedComboStrategy('custom_idea')}
-                    style={{
-                      padding: '0.65rem 0.85rem',
-                      borderRadius: '0.5rem',
-                      border: `1px solid ${selectedComboStrategy === 'custom_idea' ? 'var(--samurai-lime)' : BORDER}`,
-                      background: selectedComboStrategy === 'custom_idea' ? 'var(--samurai-hover-ui)' : SURFACE_2,
-                      cursor: 'pointer',
-                      transition: 'border-color 150ms ease, background 150ms ease',
-                    }}
-                  >
-                    <div style={{ fontSize: '0.8rem', fontWeight: 600, color: selectedComboStrategy === 'custom_idea' ? 'var(--samurai-lime)' : TEXT }}>
-                      4. Type Custom Strategy / Idea
-                    </div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.15rem', marginBottom: selectedComboStrategy === 'custom_idea' ? '0.4rem' : '0' }}>
-                      Specify your own sales combination idea for Chotatsu (Procurement Agent).
-                    </div>
-                    {selectedComboStrategy === 'custom_idea' && (
-                      <textarea
-                        value={customIdeaInput}
-                        onChange={(e) => setCustomIdeaInput(e.target.value)}
-                        placeholder="e.g. Bundle with Q4 Corporate Gift Box and offer 15% instant rebate..."
-                        rows={2}
-                        onClick={(e) => e.stopPropagation()}
-                        style={{
-                          width: '100%',
-                          borderRadius: '0.4rem',
-                          border: `1px solid ${BORDER}`,
-                          background: 'var(--samurai-surface)',
-                          padding: '0.4rem 0.6rem',
-                          fontSize: '0.8rem',
-                          color: TEXT,
-                          fontFamily: 'var(--font-body)',
-                        }}
-                      />
-                    )}
                   </div>
                 </div>
               </div>
 
-              <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem', display: 'flex', justifyContent: 'flex-end', gap: '0.5rem' }}>
-                <button
-                  type="button"
-                  onClick={() => setDeadStockTarget(null)}
-                  className="sd-btn sd-btn-secondary"
-                  style={{ padding: '0.4rem 0.8rem', fontSize: '0.75rem' }}
-                >
-                  Cancel
+              {/* Person In Charge */}
+              <div style={{ marginBottom: '1.5rem', padding: '1rem', background: SURFACE_2, borderRadius: '0.5rem' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Building2 className="h-4 w-4" />
+                  Person In Charge (PIC)
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Name</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>{viewingSupplier.picName}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Contact No.</div>
+                    <div style={{ fontSize: '0.75rem', color: TEXT, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Phone className="h-3 w-3" style={{ color: MUTED }} />
+                      {viewingSupplier.picContact}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Email</div>
+                    <div style={{ fontSize: '0.75rem', color: TEXT, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                      <Mail className="h-3 w-3" style={{ color: MUTED }} />
+                      <a href={`mailto:${viewingSupplier.picEmail}`} style={{ color: 'var(--samurai-blue)', textDecoration: 'underline' }}>
+                        {viewingSupplier.picEmail}
+                      </a>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Payment Information */}
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <CreditCard className="h-4 w-4" />
+                  Payment Information
+                </h3>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0.75rem' }}>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Payment Term</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT }}>{viewingSupplier.paymentTerm}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Payment Currency</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT }}>{viewingSupplier.paymentCurrency}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Bank Name</div>
+                    <div style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT }}>{viewingSupplier.paymentBank}</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Bank Account No.</div>
+                    <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT }}>
+                      {viewingSupplier.bankAccountNo}
+                    </div>
+                  </div>
+                  {viewingSupplier.bankSwiftCode && (
+                    <div>
+                      <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>SWIFT Code</div>
+                      <div style={{ fontSize: '0.75rem', fontFamily: 'var(--font-display)', fontWeight: 600, color: TEXT }}>
+                        {viewingSupplier.bankSwiftCode}
+                      </div>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Logistics */}
+              <div style={{ marginBottom: '1rem', padding: '1rem', background: 'rgba(59, 130, 246, 0.1)', borderLeft: '3px solid var(--samurai-blue)', borderRadius: '0.25rem' }}>
+                <h3 style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.5rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                  <Truck className="h-4 w-4" />
+                  Preferred Courier Services
+                </h3>
+                <div style={{ fontSize: '0.75rem', fontWeight: 500, color: TEXT }}>
+                  {viewingSupplier.preferredCourier}
+                </div>
+              </div>
+
+              {/* Actions */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '0.5rem', paddingTop: '1rem', borderTop: `1px solid ${BORDER}` }}>
+                <button type="button" onClick={() => setViewingSupplier(null)} className="sd-btn sd-btn-secondary">
+                  Close
                 </button>
                 <button
                   type="button"
                   onClick={() => {
-                    const strategyText =
-                      selectedComboStrategy === 'bundle_top_sku' ? 'Bundle Promo with Top-Selling SKU'
-                      : selectedComboStrategy === 'bogo_clearance' ? 'Buy 1 Get 1 Free (BOGO) Clearance'
-                      : selectedComboStrategy === 'bulk_vendor_liquidation' ? 'Bulk Wholesale Liquidation to Secondary Vendor'
-                      : customIdeaInput || 'Custom Sales Combination Strategy';
-
-                    onAction?.('trigger_liquidation', { ...deadStockTarget, combination_strategy: strategyText });
-                    setDeadStockTarget(null);
+                    alert(`Create PR for ${viewingSupplier.companyName}? (Demo mode)`);
+                    setViewingSupplier(null);
                   }}
                   className="sd-btn sd-btn-primary"
-                  style={{ padding: '0.4rem 0.9rem', fontSize: '0.75rem' }}
                 >
-                  Confirm & Dispatch Strategy
+                  Create PR for This Supplier
                 </button>
               </div>
             </div>
