@@ -4,7 +4,7 @@
 
 from __future__ import annotations
 
-
+import json
 
 from datetime import datetime, date, timezone, timedelta
 
@@ -2164,11 +2164,22 @@ class HrInterview(Base):
     interviewer_employee_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     location: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
     status: Mapped[str] = mapped_column(String(32), nullable=False, default="scheduled")
+    questions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    review_rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
 
     def to_dict(self) -> Dict[str, Any]:
+        questions: List[str] = []
+        if self.questions_json:
+            try:
+                parsed = json.loads(self.questions_json)
+                if isinstance(parsed, list):
+                    questions = [str(q) for q in parsed if q]
+            except Exception:
+                questions = []
         return {
             "id": self.id,
             "candidate_id": self.candidate_id,
@@ -2179,4 +2190,44 @@ class HrInterview(Base):
             "interviewer_employee_id": self.interviewer_employee_id,
             "location": self.location,
             "status": self.status,
+            "questions": questions,
+            "rating": self.review_rating,
+            "comment": self.review_comment,
         }
+
+
+class HrInterviewTemplate(Base):
+
+    """Reusable interview question set (per department / role pattern / round)."""
+
+    __tablename__ = "hr_interview_templates"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    name: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    department: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    role_pattern: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    round: Mapped[str] = mapped_column(String(16), nullable=False, default="first")
+    questions_json: Mapped[str] = mapped_column(Text, nullable=False, default="[]")
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, default=utcnow
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        questions: List[str] = []
+        try:
+            parsed = json.loads(self.questions_json)
+            if isinstance(parsed, list):
+                questions = [str(q) for q in parsed if q]
+        except Exception:
+            questions = []
+        return {
+            "id": self.id,
+            "name": self.name,
+            "department": self.department,
+            "role_pattern": self.role_pattern,
+            "round": self.round,
+            "questions": questions,
+            "created_at": self.created_at.isoformat() if self.created_at else "",
+        }
+

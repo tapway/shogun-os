@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
 import type { HrCandidate, HrCandidateEvent, HrDashboardStats, HrInterview, HrJobOpening } from "../../../lib/types";
+import { InterviewQuestionsPanel } from "./InterviewQuestionsPanel";
 
 interface Props {
   candidate: HrCandidate;
@@ -89,6 +90,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [error, setError] = useState("");
   const [feedback, setFeedback] = useState("");
   const [showTimeline, setShowTimeline] = useState(false);
+  const [showQuestions, setShowQuestions] = useState(false);
   // schedule form
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
@@ -222,6 +224,19 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
   const nextInterview = interviews.filter((i) => i.status === "scheduled").sort((a, b) => (a.scheduled_at || "").localeCompare(b.scheduled_at || ""))[0];
 
+  // Interview-scheduled stages get the 📋 Questions panel, bound to the
+  // scheduled interview record of the matching round.
+  const STAGE_ROUND: Record<string, string> = {
+    "1st Interview Scheduled": "first",
+    "Manager Interview Scheduled": "manager",
+    "CEO Interview Scheduled": "ceo",
+  };
+  const questionsInterview = STAGE_ROUND[stage] != null
+    ? interviews.find(
+        (i) => i.status === "scheduled" && ((i.round || "").trim().toLowerCase() === STAGE_ROUND[stage]),
+      )
+    : undefined;
+
   return (
     <>
       <div onClick={onClose}
@@ -321,6 +336,11 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 <button type="button" disabled={busy} onClick={() => move("Interview Email Sent - Waiting Reply", "Move to Interview Email Sent")} style={btnOutline}>→ Interview Email Sent</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
+              {stage === "CEO Interview Scheduled" && questionsInterview && (
+                <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME, marginTop: "0.5rem" }}>
+                  {showQuestions ? "▲ Close Questions" : "📋 Questions"}
+                </button>
+              )}
             </div>
           )}
 
@@ -404,6 +424,11 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
                 <button type="button" disabled={busy} onClick={saveFeedback} style={btnOutline}>💾 Save feedback only</button>
+                {questionsInterview && (
+                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
+                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
+                  </button>
+                )}
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
@@ -467,6 +492,11 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
+                {questionsInterview && (
+                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
+                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
+                  </button>
+                )}
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
@@ -522,6 +552,17 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
             </div>
           )}
         </div>
+
+        {/* Interview questions panel (interview-scheduled stages only) */}
+        {questionsInterview && showQuestions && (
+          <InterviewQuestionsPanel
+            interview={questionsInterview}
+            candidate={candidate}
+            job={job}
+            department={department}
+            onChanged={() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] })}
+          />
+        )}
 
         {/* Timeline */}
         <div>

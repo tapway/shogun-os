@@ -3,7 +3,7 @@ import { useEffect, useState, useMemo } from 'react';
 import { Link, NavLink, Outlet, useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import {
-  BarChart3, Boxes, Brain, ChevronDown, ChevronLeft, ChevronRight, Clock,
+  BarChart3, BookOpen, Boxes, Brain, ChevronDown, ChevronLeft, ChevronRight, Clock,
   Code2, Handshake, History, Kanban, LayoutDashboard, LifeBuoy, LogOut,
   Megaphone, Moon, Package, Plug, Settings, Shield, Sun, Users, UserCog, Wallet, Wrench,
 
@@ -271,6 +271,10 @@ export default function Layout() {
             {!collapsed && <span className="sd-nav-label">Staff</span>}
           </NavLink>
         )}
+        <NavLink to="/hr-corner" onClick={() => setMobileOpen(false)} className={({ isActive }) => clsx('sd-nav-item', isActive && 'active')}>
+          <span className="sd-nav-icon"><BookOpen className="h-4 w-4" /></span>
+          {!collapsed && <span className="sd-nav-label">HR Corner</span>}
+        </NavLink>
 
 
         <div className="sd-sidebar-section">{collapsed ? '' : 'Departments'}</div>

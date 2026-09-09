@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, ExternalLink, Briefcase } from "lucide-react";
 import { hrApi } from "../../../lib/api";
@@ -14,7 +14,8 @@ interface Props {
 
 // Canonical pipeline stages (ordered) — folds variant spellings across the
 // fulltime / internship / freelancer / virtual-bench trackers into one stage.
-const STATUS_ORDER = [
+// Exported so the Overview funnel chart renders the same canonical order.
+export const STATUS_ORDER = [
   "Resume Received",
   "Shortlisted",
   "Interview Email Sent - Waiting Reply",
@@ -22,6 +23,9 @@ const STATUS_ORDER = [
   "HR Interview Done",
   "Waiting Manager Interview Confirm",
   "Manager Interview Scheduled",
+  "Manager Interview Done",
+  "Waiting CEO Interview Confirm",
+  "CEO Interview Scheduled",
   "Waiting Interview Result",
   "Waiting Offer Confirmation",
   "Offer Sent - Waiting Reply",
@@ -42,6 +46,8 @@ const STATUS_ALIASES: Record<string, string> = {
   "1st Interview": "1st Interview Scheduled",
   "Schedule Manager Interview": "Waiting Manager Interview Confirm",
   "Manager Interview": "Manager Interview Scheduled",
+  "Schedule CEO Interview": "Waiting CEO Interview Confirm",
+  "CEO Interview": "CEO Interview Scheduled",
   "Assessment DONE": "Waiting Offer Confirmation",
   "Assessment Sent": "Waiting Offer Confirmation",
   "Offer Sent": "Offer Sent - Waiting Reply",
@@ -65,6 +71,8 @@ const STATUS_CHIP: Record<string, string> = {
   "HR Interview Done": "warn",
   "Waiting Manager Interview Confirm": "warn",
   "Manager Interview Scheduled": "warn",
+  "Waiting CEO Interview Confirm": "warn",
+  "CEO Interview Scheduled": "warn",
   "Waiting Interview Result": "warn",
   "Waiting Offer Confirmation": "warn",
   "Offer Sent - Waiting Reply": "warn",
@@ -122,6 +130,15 @@ function isOpenJob(j: HrJobOpening): boolean {
   return !s.includes("hired") && !s.includes("closed") && !s.includes("not initiated");
 }
 
+/** Employment-family compatibility: internship candidates only match
+ * Internship-typed openings, and internship openings are never matched by
+ * fulltime candidates — keeps interns out of the Full Time pipeline sections. */
+function employmentMatches(c: HrCandidate, j: HrJobOpening): boolean {
+  const candIntern = (c.candidate_type || "").trim().toLowerCase() === "internship";
+  const jobIntern = (j.employment_type || "").trim().toLowerCase().includes("intern");
+  return candIntern === jobIntern;
+}
+
 /** Candidates stay visible in the pipeline only while they are still in the
  * recruitment process (not Hired/Rejected) AND have at least one matching job
  * opening that is not Hired/Closed. Manually curated in_pipeline candidates
@@ -130,7 +147,9 @@ const TERMINAL_STAGES = new Set(["Done", "Rejected"]);
 
 function isInActiveRecruitment(c: HrCandidate, jobOpenings: HrJobOpening[]): boolean {
   if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return false;
-  const matching = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title));
+  const matching = jobOpenings.filter(
+    (j) => roleMatchesJobTitle(c.role, j.job_title) && employmentMatches(c, j),
+  );
   if (matching.length === 0) return false;
   return matching.some((j) => isOpenJob(j));
 }
@@ -149,8 +168,13 @@ const OTHER_KEY = "Other";
  * opening (position-based). in_pipeline candidates with no open match go to
  * "Other". Returns null when the candidate must stay hidden. */
 function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string | null {
-  if (TERMINAL_STAGES.has(canonicalStatus(c.status))) return null;
-  const openMatches = jobOpenings.filter((j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j));
+  const stage = canonicalStatus(c.status);
+  if (TERMINAL_STAGES.has(stage)) return null;
+  // Resume Received candidates don't enter the pipeline until Shortlisted.
+  if (stage === "Resume Received") return null;
+  const openMatches = jobOpenings.filter(
+    (j) => roleMatchesJobTitle(c.role, j.job_title) && isOpenJob(j) && employmentMatches(c, j),
+  );
   if (openMatches.length > 0) {
     const t = (openMatches[0].employment_type || "").trim();
     const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
@@ -163,13 +187,13 @@ function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string |
 export function RecruitmentPipelineTab({ stats, department }: Props) {
   const queryClient = useQueryClient();
   const [search, setSearch] = useState("");
-  const [roleFilter, setRoleFilter] = useState("");
   const [jobTitleFilter, setJobTitleFilter] = useState("");
   const [stageFilter, setStageFilter] = useState("");
-  const [trackerFilter, setTrackerFilter] = useState("");
   const [selected, setSelected] = useState<HrCandidate | null>(null);
   const [detailsCandidate, setDetailsCandidate] = useState<HrCandidate | null>(null);
   const [view, setView] = useState<"pipeline" | "schedule">("pipeline");
+  const [scheduleSubView, setScheduleSubView] = useState<"list" | "calendar">("list");
+  const [calOffset, setCalOffset] = useState(0);
   const [dragId, setDragId] = useState<number | null>(null);
   const [dragOver, setDragOver] = useState<string | null>(null);
   // Local stage overrides applied immediately on drop (optimistic) until the
@@ -190,7 +214,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     setMoves((m) => ({ ...m, [id]: newStage }));
     try {
       await hrApi.candidateMove(department, id, newStage);
-      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] });
+      await queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] });
     } catch (err) {
       setMoveError(err instanceof Error ? err.message : "Failed to move candidate.");
       setMoves((m) => {
@@ -201,28 +225,12 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     }
   }
 
-  const roles = useMemo(() => {
-    const s = new Set<string>();
-    candidates.forEach((c) => c.role && s.add(c.role));
-    return Array.from(s).sort();
-  }, [candidates]);
-
   // Job titles from the Job Openings database.
   const jobTitles = useMemo(() => {
     const s = new Set<string>();
     jobOpenings.forEach((j) => j.job_title && s.add(j.job_title.trim()));
     return Array.from(s).sort();
   }, [jobOpenings]);
-
-  // Tracker types (fulltime / internship / freelancer) — virtual_bench is a
-  // holding bucket, not a recruitment tracker, so it is not offered as a filter.
-  const trackers = useMemo(() => {
-    const s = new Set<string>();
-    candidates.forEach((c) => {
-      if (c.candidate_type && c.candidate_type !== "virtual_bench") s.add(c.candidate_type);
-    });
-    return Array.from(s).sort();
-  }, [candidates]);
 
   // Pipeline stages (canonical, ordered) present across ALL candidates
   const stages = useMemo(() => {
@@ -243,9 +251,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (!c.in_pipeline && !isInActiveRecruitment(c, jobOpenings)) return false;
-      if (trackerFilter && c.candidate_type !== trackerFilter) return false;
       if (stageFilter && canonicalStatus(c.status) !== stageFilter) return false;
-      if (roleFilter && c.role !== roleFilter) return false;
       if (jobTitleFilter && !roleMatchesJobTitle(c.role, jobTitleFilter)) return false;
       if (!q) return true;
       return (
@@ -254,7 +260,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, search, roleFilter, jobTitleFilter, stageFilter, trackerFilter, jobOpenings]);
+  }, [candidates, search, jobTitleFilter, stageFilter, jobOpenings]);
 
   // Bucket candidates into the three position-based pipelines (with local
   // drag overrides applied).
@@ -291,6 +297,21 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
 
   const sections = PIPELINE_SECTIONS.map((s) => ({ ...s, candidates: bySection[s.key] || [] }));
   const otherCandidates = bySection[OTHER_KEY] || [];
+
+  // Keep open modals in sync when stats refetch (e.g. after a drag-and-drop
+  // move) — the candidate object in `selected`/`detailsCandidate` goes stale.
+  useEffect(() => {
+    const freshList = stats.candidates || [];
+    if (selected) {
+      const fresh = freshList.find((c) => c.id === selected.id);
+      if (fresh) setSelected(fresh);
+    }
+    if (detailsCandidate) {
+      const fresh = freshList.find((c) => c.id === detailsCandidate.id);
+      if (fresh) setDetailsCandidate(fresh);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stats.candidates]);
 
   return (
     <div className="sd-stack">
@@ -338,15 +359,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
           />
         </div>
         <FilterSelect label="All Job Titles" value={jobTitleFilter} onChange={setJobTitleFilter} options={jobTitles} />
-        <FilterSelect label="All Roles" value={roleFilter} onChange={setRoleFilter} options={roles} />
         <FilterSelect label="All Stages" value={stageFilter} onChange={setStageFilter} options={stages} />
-        <FilterSelect
-          label="All Trackers"
-          value={trackerFilter}
-          onChange={setTrackerFilter}
-          options={trackers}
-          capitalize
-        />
       </div>
 
       {/* View toggle: pipeline vs interview schedule */}
@@ -383,8 +396,43 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
 
       {view === "schedule" && (
         <div className="sd-chart-card">
-          <h3 className="sd-chart-title" style={{ marginBottom: "0.75rem" }}>Interview Schedule</h3>
-          {interviews.length === 0 ? (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
+            <h3 className="sd-chart-title" style={{ margin: 0 }}>Interview Schedule</h3>
+            <div style={{ display: "flex", gap: "0.35rem", marginLeft: "auto" }}>
+              {([
+                { id: "list", label: "List View" },
+                { id: "calendar", label: "Calendar View" },
+              ] as const).map((v) => (
+                <button
+                  key={v.id}
+                  type="button"
+                  onClick={() => setScheduleSubView(v.id)}
+                  style={{
+                    padding: "0.35rem 0.7rem",
+                    borderRadius: "0.45rem",
+                    border: `1px solid ${scheduleSubView === v.id ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+                    background: scheduleSubView === v.id ? "var(--samurai-surface-2)" : "var(--samurai-surface)",
+                    color: scheduleSubView === v.id ? "var(--samurai-lime)" : "var(--samurai-text)",
+                    fontSize: "0.78rem",
+                    fontWeight: 600,
+                    cursor: "pointer",
+                  }}
+                >
+                  {v.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          {scheduleSubView === "calendar" ? (
+            <InterviewCalendar
+              interviews={interviews}
+              candidates={candidates}
+              monthOffset={calOffset}
+              onPrevMonth={() => setCalOffset((o) => o - 1)}
+              onNextMonth={() => setCalOffset((o) => o + 1)}
+              onToday={() => setCalOffset(0)}
+            />
+          ) : interviews.length === 0 ? (
             <p style={{ padding: "1rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
               No interviews scheduled yet — confirm a date/time from a Schedule stage card.
             </p>
@@ -419,7 +467,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
                           {upcoming && (
                             <button
                               type="button"
-                              onClick={() => hrApi.interviewStatus(department, iv.id, "completed").then(() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats"] }))}
+                              onClick={() => hrApi.interviewStatus(department, iv.id, "completed").then(() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] }))}
                               style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--samurai-lime)", background: "transparent", border: "1px solid var(--samurai-lime)", borderRadius: "0.4rem", padding: "0.2rem 0.5rem", cursor: "pointer" }}
                             >
                               Mark completed
@@ -476,21 +524,16 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         return (
           <div key={section.key} className="sd-chart-card">
             <SectionHeader label={section.label} count={section.candidates.length} />
-            {section.candidates.length === 0 ? (
-              <p style={{ padding: "0.75rem 0", textAlign: "center", fontSize: "0.82rem", color: "var(--samurai-muted)" }}>
-                No active candidates in this pipeline yet.
-              </p>
-            ) : (
-              <KanbanBoard
-                candidates={section.candidates}
-                onSelect={setSelected}
-                dragId={dragId}
-                dragOver={dragOver}
-                setDragId={setDragId}
-                setDragOver={setDragOver}
-                onDropStage={moveCandidate}
-              />
-            )}
+            <KanbanBoard
+              candidates={section.candidates}
+              onSelect={setSelected}
+              dragId={dragId}
+              dragOver={dragOver}
+              setDragId={setDragId}
+              setDragOver={setDragOver}
+              onDropStage={moveCandidate}
+              excludeStages={section.key === "Internship" ? ["Waiting CEO Interview Confirm", "CEO Interview Scheduled"] : undefined}
+            />
           </div>
         );
       })}
@@ -510,7 +553,7 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         </div>
       )}
 
-      {view === "pipeline" && globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
+      {view === "pipeline" && candidates.length > 0 && globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
         <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
           No candidates match the current filters.
           <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
@@ -577,6 +620,7 @@ function KanbanBoard({
   setDragId,
   setDragOver,
   onDropStage,
+  excludeStages,
 }: {
   candidates: HrCandidate[];
   onSelect: (c: HrCandidate) => void;
@@ -585,6 +629,8 @@ function KanbanBoard({
   setDragId: (v: number | null) => void;
   setDragOver: (v: string | null) => void;
   onDropStage: (id: number, stage: string) => void;
+  /** Stages this board should not render (e.g. CEO rounds in the internship track). */
+  excludeStages?: string[];
 }) {
   const byStage = useMemo(() => {
     const map: Record<string, HrCandidate[]> = {};
@@ -598,15 +644,14 @@ function KanbanBoard({
 
   const columns = useMemo(() => {
     const present = new Set(candidates.map((c) => canonicalStatus(c.status)));
-    const ordered: string[] = [];
-    STATUS_ORDER.forEach((s) => {
-      if (present.has(s)) ordered.push(s);
-    });
     const unlisted = Array.from(present)
       .filter((s) => !STATUS_ORDER.includes(s))
       .sort();
-    return [...ordered, ...unlisted];
-  }, [candidates]);
+    // Always render the full canonical pipeline — empty stages stay visible
+    // and remain valid drag-and-drop targets. Sections may opt out of
+    // specific stages (e.g. no CEO interview rounds in the internship track).
+    return [...STATUS_ORDER, ...unlisted].filter((s) => !excludeStages?.includes(s));
+  }, [candidates, excludeStages]);
 
   return (
     <div
@@ -827,6 +872,154 @@ function FilterSelect({
         </option>
       ))}
     </select>
+  );
+}
+
+const ROUND_META: Record<string, { label: string; color: string }> = {
+  first: { label: "HR", color: "#3b82f6" },
+  hr: { label: "HR", color: "#3b82f6" },
+  manager: { label: "Manager", color: "#a3e635" },
+  ceo: { label: "CEO", color: "#f59e0b" },
+};
+
+function roundMeta(round: string | undefined): { label: string; color: string } {
+  return ROUND_META[((round || "").trim().toLowerCase())] || { label: (round || "").trim() || "Interview", color: "#3b82f6" };
+}
+
+const WEEKDAYS = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
+
+function InterviewCalendar({
+  interviews,
+  candidates,
+  monthOffset,
+  onPrevMonth,
+  onNextMonth,
+  onToday,
+}: {
+  interviews: HrInterview[];
+  candidates: HrCandidate[];
+  monthOffset: number;
+  onPrevMonth: () => void;
+  onNextMonth: () => void;
+  onToday: () => void;
+}) {
+  const now = new Date();
+  const first = new Date(now.getFullYear(), now.getMonth() + monthOffset, 1);
+  const year = first.getFullYear();
+  const month = first.getMonth();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+  const startWeekday = first.getDay();
+  const today = new Date();
+  const isCurrentMonth = today.getFullYear() === year && today.getMonth() === month;
+
+  const byDay: Record<number, HrInterview[]> = {};
+  for (const iv of interviews) {
+    if (!iv.scheduled_at) continue;
+    const d = new Date(iv.scheduled_at);
+    if (isNaN(d.getTime())) continue;
+    if (d.getFullYear() === year && d.getMonth() === month) {
+      (byDay[d.getDate()] ||= []).push(iv);
+    }
+  }
+
+  const cells: (number | null)[] = [
+    ...Array.from({ length: startWeekday }, () => null),
+    ...Array.from({ length: daysInMonth }, (_, i) => i + 1),
+  ];
+
+  const NAV_BTN: React.CSSProperties = {
+    padding: "0.35rem 0.7rem",
+    borderRadius: "0.45rem",
+    border: "1px solid var(--samurai-border)",
+    background: "var(--samurai-surface)",
+    color: "var(--samurai-text)",
+    fontSize: "0.78rem",
+    cursor: "pointer",
+  };
+
+  return (
+    <div>
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", flexWrap: "wrap", gap: "0.5rem", marginBottom: "0.75rem" }}>
+        <div style={{ display: "flex", gap: "0.4rem", alignItems: "center" }}>
+          <button type="button" onClick={onPrevMonth} style={NAV_BTN}>‹ Prev</button>
+          <span style={{ fontSize: "1rem", fontWeight: 700, color: "var(--samurai-text)", minWidth: "11rem", textAlign: "center" }}>
+            {first.toLocaleDateString("en-MY", { month: "long", year: "numeric" })}
+          </span>
+          <button type="button" onClick={onNextMonth} style={NAV_BTN}>Next ›</button>
+          {monthOffset !== 0 && (
+            <button type="button" onClick={onToday} style={NAV_BTN}>Today</button>
+          )}
+        </div>
+        {/* Legend: round colors */}
+        <div style={{ display: "flex", gap: "0.75rem", color: "var(--samurai-muted)", fontSize: "0.72rem" }}>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ width: "0.6rem", height: "0.6rem", borderRadius: "0.15rem", background: "#3b82f6" }} /> HR
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ width: "0.6rem", height: "0.6rem", borderRadius: "0.15rem", background: "#a3e635" }} /> Manager
+          </span>
+          <span style={{ display: "inline-flex", alignItems: "center", gap: "0.3rem" }}>
+            <span style={{ width: "0.6rem", height: "0.6rem", borderRadius: "0.15rem", background: "#f59e0b" }} /> CEO
+          </span>
+        </div>
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(7, 1fr)", gap: "0.4rem" }}>
+        {WEEKDAYS.map((w) => (
+          <div key={w} style={{ textAlign: "center", fontSize: "0.7rem", fontWeight: 600, color: "var(--samurai-muted)", padding: "0.25rem 0" }}>
+            {w}
+          </div>
+        ))}
+        {cells.map((day, i) =>
+          day == null ? (
+            <div key={`empty-${i}`} />
+          ) : (
+            <div
+              key={day}
+              style={{
+                minHeight: "6rem",
+                borderRadius: "0.5rem",
+                border: `1px solid ${isCurrentMonth && day === today.getDate() ? "var(--samurai-lime)" : "var(--samurai-border)"}`,
+                background: "var(--samurai-surface)",
+                padding: "0.3rem",
+                display: "flex",
+                flexDirection: "column",
+                gap: "0.2rem",
+                overflow: "hidden",
+              }}
+            >
+              <span style={{ fontSize: "0.7rem", fontWeight: 700, color: isCurrentMonth && day === today.getDate() ? "var(--samurai-lime)" : "var(--samurai-text)" }}>
+                {day}
+              </span>
+              {(byDay[day] || []).map((iv) => {
+                const cand = candidates.find((c) => c.id === iv.candidate_id);
+                const meta = roundMeta(iv.round);
+                return (
+                  <div
+                    key={iv.id}
+                    title={`${meta.label} · ${iv.interviewer_name || "no interviewer"} · ${iv.status}`}
+                    style={{
+                      fontSize: "0.68rem",
+                      padding: "0.15rem 0.35rem",
+                      borderRadius: "0.3rem",
+                      background: `${meta.color}22`,
+                      color: meta.color,
+                      border: `1px solid ${meta.color}66`,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      opacity: iv.status === "completed" ? 0.55 : 1,
+                      textDecoration: iv.status === "completed" ? "line-through" : "none",
+                    }}
+                  >
+                    {cand?.name || `#${iv.candidate_id}`} · {meta.label}
+                  </div>
+                );
+              })}
+            </div>
+          ),
+        )}
+      </div>
+    </div>
   );
 }
 

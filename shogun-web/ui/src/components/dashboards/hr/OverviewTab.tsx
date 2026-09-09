@@ -1,6 +1,7 @@
 import { useMemo } from "react";
 import { BarChart, PieChart } from "../charts";
 import type { HrDashboardStats } from "../../../lib/types";
+import { STATUS_ORDER } from "./RecruitmentPipelineTab";
 
 interface Props {
   stats: HrDashboardStats;
@@ -30,28 +31,26 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
     "HR Interview Done": "HR Done",
     "Waiting Manager Interview Confirm": "Mgr Confirm",
     "Manager Interview Scheduled": "Mgr Scheduled",
+    "Manager Interview Done": "Mgr Done",
+    "Waiting CEO Interview Confirm": "CEO Confirm",
+    "CEO Interview Scheduled": "CEO Scheduled",
     "Waiting Interview Result": "Result",
     "Waiting Offer Confirmation": "Offer Confirm",
     "Offer Sent - Waiting Reply": "Offer Sent",
     "Done": "Done",
   };
   const funnelData = useMemo(() => {
-    const ordered = [
-      "Resume Received",
-      "Shortlisted",
-      "Interview Email Sent - Waiting Reply",
-      "1st Interview Scheduled",
-      "HR Interview Done",
-      "Waiting Manager Interview Confirm",
-      "Manager Interview Scheduled",
-      "Waiting Interview Result",
-      "Waiting Offer Confirmation",
-      "Offer Sent - Waiting Reply",
-      "Done",
-    ];
-    return ordered
-      .filter((s) => stats.pipeline_counts?.[s])
-      .map((name) => ({ name: FUNNEL_SHORT[name] || name, value: stats.pipeline_counts[name] }));
+    // Active funnel stages only: everything in the canonical pipeline order
+    // up to and including "Done" (excludes bench/KIV/On Hold/No Response/Rejected).
+    const doneIdx = STATUS_ORDER.indexOf("Done");
+    const ordered = doneIdx >= 0 ? STATUS_ORDER.slice(0, doneIdx + 1) : STATUS_ORDER;
+    const counts = stats.pipeline_counts || {};
+    // Always emit the full stage list so the chart frame (axes/grid) renders
+    // even with zero candidates — empty stages become 0.
+    return ordered.map((name) => ({
+      name: FUNNEL_SHORT[name] || name,
+      value: counts[name] || 0,
+    }));
   }, [stats.pipeline_counts]);
 
   const KPIs = [
@@ -80,11 +79,6 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
       value: `${stats.onboarding_in_progress}`,
       sub: `${stats.onboarding_done} completed`,
       targetTab: "onboarding",
-    },
-    {
-      label: "Performance Reviews",
-      value: `${stats.total_reviews}`,
-      targetTab: "performance",
     },
     {
       label: "Equipment On Loan",
@@ -145,7 +139,7 @@ export function OverviewTab({ stats, onNavigateTab }: Props) {
         <div className="sd-chart-card">
           <h3 className="sd-chart-title">Recruitment Pipeline Funnel</h3>
           <p className="sd-chart-sub">{stats.total_candidates} total candidates</p>
-          {funnelData.length > 0 && <BarChart data={funnelData} xKey="name" yKey="value" color="var(--samurai-lime)" xAngle={-25} />}
+          <BarChart data={funnelData} xKey="name" yKey="value" color="var(--samurai-lime)" xAngle={-25} />
         </div>
       </div>
 

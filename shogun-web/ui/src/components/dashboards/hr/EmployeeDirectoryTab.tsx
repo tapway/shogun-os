@@ -77,14 +77,18 @@ export function EmployeeDirectoryTab({ stats, color }: Props) {
 
   const filtered = useMemo(() => {
     const q = query.trim().toLowerCase();
-    return (stats.employees || []).filter((e: HrEmployee) => {
-      if (q) {
-        const hay = `${e.employees_name} ${e.role} ${e.department} ${e.manager_name}`.toLowerCase();
-        if (!hay.includes(q)) return false;
-      }
-      if (deptFilter !== "all" && e.department !== deptFilter) return false;
-      return true;
-    });
+    return (stats.employees || [])
+      .filter((e: HrEmployee) => {
+        if (q) {
+          const hay = `${e.employees_name} ${e.role} ${e.department} ${e.manager_name}`.toLowerCase();
+          if (!hay.includes(q)) return false;
+        }
+        if (deptFilter !== "all" && e.department !== deptFilter) return false;
+        return true;
+      })
+      // Sort by tenure, most years first — employees without a recorded
+      // tenure sink to the bottom.
+      .sort((a: HrEmployee, b: HrEmployee) => (b.no_of_years ?? -1) - (a.no_of_years ?? -1));
   }, [stats.employees, query, deptFilter]);
 
   const totalEmployees = stats.employees?.length ?? 0;

@@ -91,7 +91,14 @@ const inputStyle: React.CSSProperties = {
 };
 
 export function OnboardingTab({ stats, color, department, onChanged }: Props) {
-  const tasks = stats.onboarding_tasks || [];
+  // Newest start date first; entries without a start date sink to the bottom.
+  const tasks = useMemo(
+    () =>
+      [...(stats.onboarding_tasks || [])].sort((a, b) =>
+        (b.start_date || "").localeCompare(a.start_date || ""),
+      ),
+    [stats.onboarding_tasks],
+  );
   const checklistItems = useMemo(
     () =>
       [...(stats.onboarding_checklist_items || [])].sort(

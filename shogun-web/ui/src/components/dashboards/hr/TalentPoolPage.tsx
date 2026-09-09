@@ -23,6 +23,14 @@ import { CandidateReviewsPanel, reviewEvents } from "./CandidateReviewsPanel";
 import { findCandidatesForJob } from "./hrCandidateMatch";
 import { JourneyStepperModal } from "./JourneyStepperModal";
 
+/** Long date format for Date Entry: "11 September 2026". */
+function fmtDateEntry(s: string | null | undefined): string {
+  if (!s) return "—";
+  const d = new Date(s);
+  if (isNaN(d.getTime())) return s;
+  return d.toLocaleDateString("en-GB", { day: "numeric", month: "long", year: "numeric" });
+}
+
 interface Props {
   jobId: number;
   fallbackJob: HrJobOpening;
@@ -785,7 +793,7 @@ export function TalentPoolPage({
                       <td style={tdStyle}>{c.email || "—"}</td>
                       <td style={tdStyle}>{c.phone_no || "—"}</td>
                       <td style={{ ...tdStyle, fontSize: "0.75rem" }}>
-                        {c.date_entry || "—"}
+                        {fmtDateEntry(c.date_entry)}
                       </td>
                       <td style={tdStyle}>
                         {c.resume_url ? (
@@ -1003,6 +1011,7 @@ const APPLICANT_SOURCES = [
   "LinkedIn",
   "JobStreet",
   "Indeed",
+  "Hiredly",
   "WhatsApp",
   "Walk-in",
   "Referral",

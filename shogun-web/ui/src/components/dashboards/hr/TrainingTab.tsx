@@ -217,10 +217,10 @@ export function TrainingTab({ stats, color, department, onChanged }: Props) {
               <tbody>
                 {trainings.map((t) => {
                   const parts = participantsForTraining(t.id);
+                  const staffDisplay = t.staff_name || "—";
                   return (
                     <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
                       <td className="px-3 py-2" style={{ fontWeight: 600, color: TEXT }}>{t.training_name || "—"}</td>
-                      <td className="px-3 py-2" style={{ color: MUTED }}>{t.staff_name || "—"}</td>
                       <td className="px-3 py-2" style={{ color: MUTED }}>{t.trainer_name || "—"}</td>
                       <td className="px-3 py-2" style={{ color: TEXT }}>{t.training_format || "—"}</td>
                       <td className="px-3 py-2" style={{ color: MUTED, fontSize: "0.78rem" }}>{fmtDate(t.start_date)}</td>
@@ -251,6 +251,14 @@ export function TrainingTab({ stats, color, department, onChanged }: Props) {
                         >
                           {parts.length > 0 ? `${parts.length} Manage` : "Add"}
                         </button>
+                        {(parts.length > 0 || staffDisplay !== "—") && (
+                          <div style={{ fontSize: "0.72rem", color: MUTED, marginTop: "0.3rem", maxWidth: "11rem" }}>
+                            {(parts.length > 0
+                              ? parts.map((p) => p.staff_name)
+                              : [t.staff_name]
+                            ).filter(Boolean).join(", ")}
+                          </div>
+                        )}
                       </td>
                     </tr>
                   );
