@@ -148,6 +148,8 @@ export function ExecutiveProcurementPulseTab({
             height={220}
             dataKeys={["value"]}
             colors={[color]}
+            xAngle={-35}
+            interval={0}
           />
         </div>
         <div className="sd-chart-card">

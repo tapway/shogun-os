@@ -47,7 +47,7 @@ export function BarChart({
     <ResponsiveContainer width="100%" height={height}>
       <RechartsBarChart
         data={data}
-        margin={{ top: 5, right: 10, left: 10, bottom: xAngle ? 40 : 15 }}
+        margin={{ top: 5, right: 10, left: 20, bottom: xAngle ? 40 : 15 }}
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onClick={(e: any) => {
           if (e?.activePayload?.[0]?.payload) onClick?.(e.activePayload[0].payload);
