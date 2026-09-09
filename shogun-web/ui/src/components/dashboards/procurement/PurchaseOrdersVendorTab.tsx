@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { AlertTriangle, X, Plus, FileText, Mail } from "lucide-react";
+import React, { useState, useMemo } from "react";
+import { AlertTriangle, X, Plus, FileText, Mail, ChevronDown } from "lucide-react";
 import { PieChart } from "../charts";
 import { chartColors } from "../../../lib/palette";
 import type {
@@ -89,6 +89,9 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
   const [showCreatePOModal, setShowCreatePOModal] = useState(false);
   const [selectedPR, setSelectedPR] = useState<string>("");
   const [generatedPO, setGeneratedPO] = useState<any>(null); // Store generated PO for preview
+  
+  // Track which POs are expanded to show items
+  const [expandedPOs, setExpandedPOs] = useState<Set<string>>(new Set());
   
   // Local state for POs so we can manage status in demo mode
   const [pos, setPos] = useState<Array<{
@@ -386,73 +389,133 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                 </tr>
               </thead>
               <tbody>
-                {pos.filter(po => statusFilter === "All" || po.status === statusFilter).map((po) => (
-                  <tr key={po.po_number} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="px-3 py-2.5" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 600, color: TEXT }}>
-                      {po.po_number}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
-                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
-                    <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
-                      RM {po.total_amount.toLocaleString()}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
-                      {new Date(po.created_at).toLocaleDateString("en-MY")}
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <span className={`sd-chip ${
-                        po.status === "Pending Boss Approval" ? "warn" :
-                        po.status === "Boss Approved" ? "ok" :
-                        po.status === "Sent to Vendor" ? "muted" :
-                        "muted"
-                      }`}>
-                        {po.status}
-                      </span>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
-                        {po.status === "Pending Boss Approval" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPos(prev => prev.map(p => 
-                                p.po_number === po.po_number 
-                                  ? { ...p, status: "Boss Approved" as const }
-                                  : p
-                              ));
-                              alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
-                            }}
-                            className="sd-btn sd-btn-primary"
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
-                          >
-                            Approve
-                          </button>
-                        )}
-                        {po.status === "Boss Approved" && (
-                          <button
-                            type="button"
-                            onClick={() => {
-                              setPos(prev => prev.map(p => 
-                                p.po_number === po.po_number 
-                                  ? { ...p, status: "Sent to Vendor" as const }
-                                  : p
-                              ));
-                              alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
-                            }}
-                            className="sd-btn sd-btn-secondary"
-                            style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
-                          >
-                            <Mail className="h-3 w-3" />
-                            Email to Vendor
-                          </button>
-                        )}
-                        {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
-                          <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
-                        )}
-                      </div>
-                    </td>
-                  </tr>
-                ))}
+                {pos.filter(po => statusFilter === "All" || po.status === statusFilter).map((po) => {
+                  const isExpanded = expandedPOs.has(po.po_number);
+                  
+                  return (
+                    <React.Fragment key={po.po_number}>
+                      {/* Main PO Row */}
+                      <tr 
+                        onClick={() => {
+                          const newSet = new Set(expandedPOs);
+                          if (newSet.has(po.po_number)) {
+                            newSet.delete(po.po_number);
+                          } else {
+                            newSet.add(po.po_number);
+                          }
+                          setExpandedPOs(newSet);
+                        }}
+                        style={{ 
+                          borderBottom: isExpanded ? "none" : `1px solid ${BORDER}`,
+                          cursor: "pointer",
+                          background: isExpanded ? "var(--samurai-surface-2)" : "transparent"
+                        }}
+                      >
+                        <td className="px-3 py-2.5" style={{ fontFamily: "var(--font-display)", fontSize: "0.75rem", fontWeight: 600, color: TEXT }}>
+                          <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                            {isExpanded ? <ChevronDown className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" style={{ transform: "rotate(-90deg)" }} />}
+                            {po.po_number}
+                          </div>
+                        </td>
+                        <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
+                        <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
+                        <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
+                          RM {po.total_amount.toLocaleString()}
+                        </td>
+                        <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
+                          {new Date(po.created_at).toLocaleDateString("en-MY")}
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <span className={`sd-chip ${
+                            po.status === "Pending Boss Approval" ? "warn" :
+                            po.status === "Boss Approved" ? "ok" :
+                            po.status === "Sent to Vendor" ? "muted" :
+                            "muted"
+                          }`}>
+                            {po.status}
+                          </span>
+                        </td>
+                        <td className="px-3 py-2.5 text-center">
+                          <div style={{ display: "flex", justifyContent: "center", gap: "0.25rem" }}>
+                            {po.status === "Pending Boss Approval" && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPos(prev => prev.map(p => 
+                                    p.po_number === po.po_number 
+                                      ? { ...p, status: "Boss Approved" as const }
+                                      : p
+                                  ));
+                                  alert(`PO ${po.po_number} approved by boss!\n\nNext step: Email PO to vendor.`);
+                                }}
+                                className="sd-btn sd-btn-primary"
+                                style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem" }}
+                              >
+                                Approve
+                              </button>
+                            )}
+                            {po.status === "Boss Approved" && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  setPos(prev => prev.map(p => 
+                                    p.po_number === po.po_number 
+                                      ? { ...p, status: "Sent to Vendor" as const }
+                                      : p
+                                  ));
+                                  alert(`PO ${po.po_number} emailed to vendor!\n\nVendor: ${po.supplier_name}`);
+                                }}
+                                className="sd-btn sd-btn-secondary"
+                                style={{ padding: "0.3rem 0.6rem", fontSize: "0.72rem", display: "flex", alignItems: "center", gap: "0.25rem" }}
+                              >
+                                <Mail className="h-3 w-3" />
+                                Email to Vendor
+                              </button>
+                            )}
+                            {po.status !== "Pending Boss Approval" && po.status !== "Boss Approved" && (
+                              <span style={{ fontSize: "0.72rem", color: MUTED, fontStyle: "italic" }}>—</span>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                      
+                      {/* Expanded Items Row */}
+                      {isExpanded && (
+                        <tr>
+                          <td colSpan={7} style={{ padding: 0, borderBottom: `1px solid ${BORDER}`, background: "var(--samurai-surface-2)" }}>
+                            <div style={{ padding: "1rem", marginLeft: "2rem" }}>
+                              <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>
+                                Items in this PO ({po.items.length}):
+                              </div>
+                              <table className="w-full text-sm" style={{ borderCollapse: "collapse" }}>
+                                <thead>
+                                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                    <th className="px-3 py-1.5 text-left" style={{ fontSize: "0.65rem", fontWeight: 500, color: MUTED }}>Item Name</th>
+                                    <th className="px-3 py-1.5 text-right" style={{ fontSize: "0.65rem", fontWeight: 500, color: MUTED }}>Quantity</th>
+                                    <th className="px-3 py-1.5 text-right" style={{ fontSize: "0.65rem", fontWeight: 500, color: MUTED }}>Unit Price</th>
+                                    <th className="px-3 py-1.5 text-right" style={{ fontSize: "0.65rem", fontWeight: 500, color: MUTED }}>Total</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {po.items.map((item, idx) => (
+                                    <tr key={idx} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                      <td className="px-3 py-1.5" style={{ fontWeight: 500, color: TEXT }}>{item.name}</td>
+                                      <td className="px-3 py-1.5 text-right" style={{ color: TEXT }}>{item.quantity}</td>
+                                      <td className="px-3 py-1.5 text-right" style={{ color: MUTED }}>RM {item.unit_price.toLocaleString()}</td>
+                                      <td className="px-3 py-1.5 text-right" style={{ fontWeight: 600, color: TEXT }}>RM {item.total.toLocaleString()}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </React.Fragment>
+                  );
+                })}
               </tbody>
             </table>
           </div>
