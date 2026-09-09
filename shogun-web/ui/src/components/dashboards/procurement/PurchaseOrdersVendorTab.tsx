@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { AlertTriangle, X, Plus, FileText, Mail } from "lucide-react";
 import { PieChart } from "../charts";
 import { chartColors } from "../../../lib/palette";
@@ -99,9 +99,77 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
     status: 'Draft' | 'Pending Boss Approval' | 'Boss Approved' | 'Sent to Vendor' | 'Partially Received' | 'Fully Received';
     created_at: string;
     items: Array<{ name: string; quantity: number; unit_price: number; total: number }>;
-  }>>([]);
+  }>>([
+    // Initial mock POs with varied statuses
+    {
+      po_number: "PO-2025-0042",
+      parent_pr: "PR-2025-001",
+      supplier_name: "TechWorld Sdn Bhd",
+      total_amount: 12500,
+      status: "Fully Received",
+      created_at: "2025-10-03T09:20:00Z",
+      items: [{ name: "Dell XPS 15 Laptop", quantity: 5, unit_price: 2500, total: 12500 }],
+    },
+    {
+      po_number: "PO-2025-0043",
+      parent_pr: "PR-2025-001",
+      supplier_name: "OfficePro Malaysia",
+      total_amount: 8400,
+      status: "Partially Received",
+      created_at: "2025-10-03T09:25:00Z",
+      items: [{ name: "Ergonomic Office Chair", quantity: 20, unit_price: 420, total: 8400 }],
+    },
+    {
+      po_number: "PO-2025-0044",
+      parent_pr: "PR-2025-004",
+      supplier_name: "Toyota Material Handling",
+      total_amount: 9000,
+      status: "Sent to Vendor",
+      created_at: "2025-09-22T10:00:00Z",
+      items: [{ name: "Electric Pallet Jack", quantity: 3, unit_price: 3000, total: 9000 }],
+    },
+    {
+      po_number: "PO-2025-0045",
+      parent_pr: "PR-2025-004",
+      supplier_name: "Storage Solutions MY",
+      total_amount: 4500,
+      status: "Boss Approved",
+      created_at: "2025-09-22T10:05:00Z",
+      items: [{ name: "Heavy Duty Shelving Unit", quantity: 10, unit_price: 450, total: 4500 }],
+    },
+    {
+      po_number: "PO-2025-0046",
+      parent_pr: "PR-2025-002",
+      supplier_name: "Dell Technologies Malaysia",
+      total_amount: 45000,
+      status: "Pending Boss Approval",
+      created_at: "2025-10-06T17:00:00Z",
+      items: [{ name: "Dell PowerEdge R750 Server", quantity: 2, unit_price: 22500, total: 45000 }],
+    },
+  ]);
 
   const approvedPRs = MOCK_PRS.filter(pr => pr.status === "Approved" || pr.status === "Converted to PO");
+
+  // Calculate PO Pipeline from local pos state
+  const poPipelineData = useMemo(() => {
+    const stages = [
+      { stage: "Pending Boss Approval", count: 0, value: 0 },
+      { stage: "Boss Approved", count: 0, value: 0 },
+      { stage: "Sent to Vendor", count: 0, value: 0 },
+      { stage: "Partially Received", count: 0, value: 0 },
+      { stage: "Fully Received", count: 0, value: 0 },
+    ];
+    
+    pos.forEach(po => {
+      const stageIndex = stages.findIndex(s => s.stage === po.status);
+      if (stageIndex >= 0) {
+        stages[stageIndex].count++;
+        stages[stageIndex].value += po.total_amount;
+      }
+    });
+    
+    return stages.filter(s => s.count > 0); // Only show stages with POs
+  }, [pos]);
 
   const approvalQueue = stats.executiveApprovalQueue ?? [];
   const filteredQueue = approvalQueue.filter((item) => {
@@ -148,9 +216,9 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
       {/* PO Lifecycle Pipeline (Funnel) - Moved to Top */}
       <div className="sd-chart-card">
         <h3 className="sd-chart-title">PO Lifecycle Pipeline (Funnel)</h3>
-        {stats.poPipeline.length === 0 ? (
+        {poPipelineData.length === 0 ? (
           <p style={{ color: MUTED, fontSize: "0.85rem" }}>
-            No PO pipeline stages available yet.
+            No POs created yet. Use "Create PO" button below to get started.
           </p>
         ) : (
           <>
@@ -164,8 +232,8 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                 marginBottom: "0.5rem",
               }}
             >
-              {stats.poPipeline.map((stage, i) => {
-                const totalCount = stats.poPipeline.reduce(
+              {poPipelineData.map((stage, i) => {
+                const totalCount = poPipelineData.reduce(
                   (sum, s) => sum + s.count,
                   0,
                 );
@@ -199,8 +267,8 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                 fontSize: "0.72rem",
               }}
             >
-              {stats.poPipeline.map((stage, i) => {
-                const totalCount = stats.poPipeline.reduce(
+              {poPipelineData.map((stage, i) => {
+                const totalCount = poPipelineData.reduce(
                   (sum, s) => sum + s.count,
                   0,
                 );
@@ -247,8 +315,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
             <p
               style={{ marginTop: "0.5rem", fontSize: "0.72rem", color: MUTED }}
             >
-              Pipeline flow: Draft → Pending Approval → Issued to Vendor →
-              Partially Received → Fully Received & Billed
+              Pipeline flow: Pending Boss Approval → Boss Approved → Sent to Vendor → Partially Received → Fully Received
             </p>
           </>
         )}
