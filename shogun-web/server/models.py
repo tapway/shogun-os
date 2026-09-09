@@ -2230,3 +2230,4 @@ class HrInterviewTemplate(Base):
             "questions": questions,
             "created_at": self.created_at.isoformat() if self.created_at else "",
         }
+

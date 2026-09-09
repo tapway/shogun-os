@@ -4892,6 +4892,55 @@ def _parse_gbrain_employee_profiles(pages: list) -> list:
     return out
 
 
+@router.get("/hr-corner/sections")
+async def get_hr_corner_sections(
+    user: User = Depends(get_current_user),
+) -> list[dict]:
+    """Return HR Corner sections and topics from gbrain.
+
+    Reads hr/hr-corner/* pages from gbrain. Each top-level page is a section;
+    child pages are topics. Returns empty list if gbrain has no data yet.
+    """
+    try:
+        pages = await gbrain_fetch_pages("hr", limit=100, slug_prefix=("hr-corner/",))
+        if not pages:
+            return []
+
+        # Group by section (first path segment after hr-corner/)
+        sections_map: dict[str, dict] = {}
+        for p in pages:
+            slug = p.get("slug", "")
+            parts = slug.replace("hr-corner/", "").split("/")
+            if len(parts) < 1 or not parts[0]:
+                continue
+            section_key = parts[0]
+            if section_key not in sections_map:
+                sections_map[section_key] = {
+                    "id": section_key,
+                    "title": p.get("frontmatter", {}).get("section_title", section_key.replace("-", " ").title()),
+                    "icon": p.get("frontmatter", {}).get("icon", "FileText"),
+                    "topics": [],
+                }
+            # If this is a topic page (has a second path segment)
+            if len(parts) >= 2 and parts[1]:
+                fm = p.get("frontmatter", {})
+                sections_map[section_key]["topics"].append({
+                    "id": parts[1],
+                    "title": fm.get("title", parts[1].replace("-", " ").title()),
+                    "type": fm.get("content_type", "document"),
+                    "icon": fm.get("icon"),
+                    "content": p.get("body", ""),
+                    "pdfUrl": fm.get("pdf_url"),
+                    "videoUrl": fm.get("video_url"),
+                    "imageUrl": fm.get("image_url"),
+                    "embedUrl": fm.get("embed_url"),
+                })
+
+        return list(sections_map.values())
+    except Exception:
+        return []
+
+
 @router.get("/hr-stats")
 async def get_hr_stats(
     name: str = Path(...),
