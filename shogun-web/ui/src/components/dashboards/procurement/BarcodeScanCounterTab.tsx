@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { Printer, Package, ChevronDown, Search, Tag, Building2 } from 'lucide-react';
+import JsBarcode from 'jsbarcode';
 import { MOCK_PROGRESS_TRACKER, MOCK_BARCODE_BATCHES } from '../../../lib/procurement-mock-data';
 
 interface Props {
@@ -11,6 +12,59 @@ const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
+
+// Barcode Card Component - renders visual barcode using JsBarcode
+function BarcodeCard({ barcode }: { barcode: { code: string; itemName: string; poNumber: string; projectName: string; generatedAt: string; unitIndex: number; totalUnits: number } }) {
+  const canvasRef = useRef<HTMLCanvasElement>(null);
+
+  useEffect(() => {
+    if (canvasRef.current) {
+      try {
+        JsBarcode(canvasRef.current, barcode.code, {
+          format: "CODE128",
+          width: 2,
+          height: 50,
+          displayValue: true,
+          fontSize: 14,
+          margin: 10,
+          background: "#ffffff",
+          lineColor: "#000000"
+        });
+      } catch (e) {
+        console.error('Barcode generation error:', e);
+      }
+    }
+  }, [barcode.code]);
+
+  return (
+    <div style={{
+      padding: '1rem',
+      border: `1px solid ${BORDER}`,
+      borderRadius: '0.5rem',
+      background: '#ffffff',
+      textAlign: 'center'
+    }}>
+      {/* Barcode Visual */}
+      <canvas ref={canvasRef} style={{ maxWidth: '100%', height: 'auto' }} />
+      
+      {/* Item Info */}
+      <div style={{ marginTop: '0.75rem', borderTop: `1px solid ${BORDER}`, paddingTop: '0.5rem' }}>
+        <div style={{ fontSize: '0.72rem', fontWeight: 600, color: TEXT }}>
+          {barcode.itemName}
+        </div>
+        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.25rem' }}>
+          Unit {barcode.unitIndex} of {barcode.totalUnits}
+        </div>
+        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+          PO: {barcode.poNumber}
+        </div>
+        <div style={{ fontSize: '0.6rem', color: MUTED, marginTop: '0.25rem', fontStyle: 'italic' }}>
+          Generated: {new Date(barcode.generatedAt).toLocaleTimeString('en-MY')}
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
   // Section 1: Generate Barcode State
@@ -230,32 +284,24 @@ export function BarcodeScanCounterTab({ stats, color = '#2563eb' }: Props) {
               </button>
             </div>
 
-            {/* Barcode List */}
-            <div style={{ maxHeight: '15rem', overflowY: 'auto', marginTop: '0.75rem' }}>
-              <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Unit #</th>
-                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Barcode Code</th>
-                    <th className="px-3 py-2 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Generated At</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {generatedBarcodes.map((barcode, idx) => (
-                    <tr key={idx} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      <td className="px-3 py-2" style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT }}>
-                        Unit {barcode.unitIndex} of {barcode.totalUnits}
-                      </td>
-                      <td className="px-3 py-2" style={{ fontFamily: 'var(--font-display)', fontSize: '0.85rem', fontWeight: 700, color: TEXT, letterSpacing: '0.05em' }}>
-                        {barcode.code}
-                      </td>
-                      <td className="px-3 py-2" style={{ fontSize: '0.72rem', color: MUTED }}>
-                        {new Date(barcode.generatedAt).toLocaleString('en-MY')}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+            {/* Barcode Visual Display */}
+            <div style={{ marginTop: '1rem' }}>
+              <div style={{ fontSize: '0.72rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem' }}>
+                Generated Barcodes ({generatedBarcodes.length}):
+              </div>
+              
+              <div style={{ 
+                display: 'grid', 
+                gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
+                gap: '1rem',
+                maxHeight: '25rem',
+                overflowY: 'auto',
+                padding: '0.5rem'
+              }}>
+                {generatedBarcodes.map((barcode, idx) => (
+                  <BarcodeCard key={idx} barcode={barcode} />
+                ))}
+              </div>
             </div>
 
             <div style={{ marginTop: '0.75rem', fontSize: '0.65rem', color: MUTED, fontStyle: 'italic' }}>
