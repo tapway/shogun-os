@@ -50,7 +50,7 @@ export function InterviewScorecardPage() {
   useEffect(() => {
     if (!token) return;
     setLoading(true);
-    apiFetch<ScorecardData>(`/api/interview-scorecard/${token}`)
+    apiFetch<ScorecardData>(`/api/departments/hr/dashboard/interview-scorecard/${token}`)
       .then((res) => {
         setData(res);
         // Pre-populate answers if already submitted
@@ -78,7 +78,7 @@ export function InterviewScorecardPage() {
     setSubmitting(true);
     setError("");
     try {
-      await apiFetch(`/api/interview-scorecard/${token}/submit`, {
+      await apiFetch(`/api/departments/hr/dashboard/interview-scorecard/${token}/submit`, {
         method: "POST",
         body: JSON.stringify({
           rating,
