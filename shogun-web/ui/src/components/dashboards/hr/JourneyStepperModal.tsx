@@ -251,27 +251,27 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     console.log("[DEBUG] Matched interview:", questionsInterview);
   }
 
-  // Filter employees for scorecard assignment (use stats.employees as base)
+  // Filter employees for scorecard assignment (use stats.employees which is HrEmployee[])
   useEffect(() => {
-    const allEmployees = (stats.employees || []).map((e: any) => ({
+    const allEmployees = (stats.employees || []).map((e) => ({
       id: e.id,
-      name: e.employees_name || e.name || "",
-      email: e.email || "",
+      name: e.employees_name || "",
+      email: "", // HrEmployee doesn't have email field
       department: e.department || "",
     }));
     
     if (!scorecardEmployeeSearch.trim()) {
       // Show all employees when search is empty
-      setScorecardEmployees(allEmployees.slice(0, 20)); // Limit to 20 initially
+      setScorecardEmployees(allEmployees.slice(0, 50)); // Show more initially
       return;
     }
     
-    // Filter by search term
+    // Filter by search term (name or department)
     const searchLower = scorecardEmployeeSearch.toLowerCase();
     const filtered = allEmployees.filter(
-      (e) => e.name.toLowerCase().includes(searchLower) || e.email.toLowerCase().includes(searchLower)
+      (e) => e.name.toLowerCase().includes(searchLower) || e.department.toLowerCase().includes(searchLower)
     );
-    setScorecardEmployees(filtered.slice(0, 20));
+    setScorecardEmployees(filtered.slice(0, 50));
   }, [scorecardEmployeeSearch, stats.employees]);
 
   const handleCreateScorecard = async () => {
