@@ -278,6 +278,21 @@ def init_db() -> None:
                 created_at DATETIME DEFAULT CURRENT_TIMESTAMP
             )
         """))
+        # Interview scorecards table (one per candidate, tracks access tokens)
+        conn.execute(text("""
+            CREATE TABLE IF NOT EXISTS hr_interview_scorecards (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                tenant_id INTEGER NOT NULL REFERENCES tenants(id) ON DELETE CASCADE,
+                candidate_id INTEGER NOT NULL REFERENCES hr_candidates(id) ON DELETE CASCADE,
+                token VARCHAR(64) UNIQUE NOT NULL,
+                assigned_to_user_id INTEGER NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+                status VARCHAR(16) NOT NULL DEFAULT 'pending',
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                expires_at DATETIME NOT NULL,
+                completed_at DATETIME,
+                submitted_by_user_id INTEGER REFERENCES users(id)
+            )
+        """))
         # Defensive ALTERs for HR workflow columns added after the tables
         # already existed (create_all cannot ALTER existing tables).
         for table, col, ddl in [
@@ -302,6 +317,8 @@ def init_db() -> None:
             ("hr_interviews", "review_rating", "INTEGER"),
             ("hr_interviews", "review_comment", "TEXT"),
             ("hr_interviews", "question_answers_json", "TEXT"),
+            ("hr_candidates", "resume_gbrain_url", "VARCHAR(1024)"),
+            ("hr_candidates", "screening_answers_json", "TEXT"),
         ]:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:

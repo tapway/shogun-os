@@ -6649,6 +6649,169 @@ async def post_hr_interview_review(
     return {"ok": True, "interview": iv.to_dict()}
 
 
+# ── Interview Scorecards ──────────────────────────────────────────────
+
+class HrScorecardCreateBody(BaseModel):
+    candidate_id: int
+    assigned_to_user_id: int
+    expires_days: int = 3
+
+
+@router.post("/hr/scorecards")
+async def create_hr_scorecard(
+    body: HrScorecardCreateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Generate a new interview scorecard token for a candidate."""
+    import secrets
+    from datetime import timedelta
+    from models import HrInterviewScorecard, HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Validate candidate exists and belongs to tenant
+    candidate = db.get(HrCandidate, body.candidate_id)
+    if candidate is None or candidate.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Validate assigned user exists
+    assigned_user = db.get(User, body.assigned_to_user_id)
+    if assigned_user is None:
+        raise HTTPException(status_code=404, detail="Assigned user not found")
+
+    # Check if active scorecard already exists for this candidate
+    existing = db.query(HrInterviewScorecard).filter(
+        HrInterviewScorecard.candidate_id == body.candidate_id,
+        HrInterviewScorecard.status.in_(["pending"])
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Active scorecard already exists for this candidate")
+
+    # Generate secure token
+    token = secrets.token_urlsafe(48)
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=max(1, min(body.expires_days, 30)))
+
+    scorecard = HrInterviewScorecard(
+        tenant_id=tenant.id,
+        candidate_id=body.candidate_id,
+        token=token,
+        assigned_to_user_id=body.assigned_to_user_id,
+        status="pending",
+        created_at=now,
+        expires_at=expires_at,
+    )
+    db.add(scorecard)
+    db.commit()
+    db.refresh(scorecard)
+
+    return {"ok": True, "scorecard": scorecard.to_dict()}
+
+
+@router.get("/hr/scorecards")
+async def list_hr_scorecards(
+    name: str = Path(...),
+    status: Optional[str] = None,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List all scorecards (HR admin only)."""
+    from models import HrInterviewScorecard, HrCandidate
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    query = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.tenant_id == tenant.id)
+    if status:
+        query = query.filter(HrInterviewScorecard.status == status)
+
+    scorecards = query.order_by(HrInterviewScorecard.created_at.desc()).all()
+
+    # Enrich with candidate info
+    result = []
+    for sc in scorecards:
+        candidate = db.get(HrCandidate, sc.candidate_id)
+        assigned_user = db.get(User, sc.assigned_to_user_id)
+        item = sc.to_dict()
+        item["candidate_name"] = candidate.name if candidate else "Unknown"
+        item["candidate_role"] = candidate.role if candidate else ""
+        item["assigned_to_name"] = assigned_user.name if assigned_user else "Unknown"
+        item["assigned_to_email"] = assigned_user.email if assigned_user else ""
+        result.append(item)
+
+    return {"scorecards": result}
+
+
+@router.delete("/hr/scorecards/{scorecard_id}")
+async def revoke_hr_scorecard(
+    scorecard_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Revoke an active scorecard."""
+    from models import HrInterviewScorecard
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    scorecard = db.get(HrInterviewScorecard, scorecard_id)
+    if scorecard is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    if scorecard.status != "pending":
+        raise HTTPException(status_code=422, detail=f"Cannot revoke scorecard with status '{scorecard.status}'")
+
+    scorecard.status = "revoked"
+    db.commit()
+
+    return {"ok": True, "scorecard": scorecard.to_dict()}
+
+
+@router.get("/hr/employees/search")
+async def search_hr_employees(
+    q: str = "",
+    limit: int = 10,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Search employees by name or email for interviewer selection."""
+    from models import User as UserModel
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    if not q.strip():
+        # Return first N employees if no query
+        users = db.query(UserModel).filter(UserModel.tenant_id == tenant.id).limit(limit).all()
+    else:
+        search_term = f"%{q.strip()}%"
+        users = db.query(UserModel).filter(
+            UserModel.tenant_id == tenant.id,
+            (UserModel.name.ilike(search_term)) | (UserModel.email.ilike(search_term))
+        ).limit(limit).all()
+
+    return {
+        "employees": [
+            {
+                "id": u.id,
+                "name": u.name or "",
+                "email": u.email or "",
+                "department": getattr(u, "department", "") or "",
+            }
+            for u in users
+        ]
+    }
+
+
 @router.post("/hr/candidates/{candidate_id}/waiting")
 async def set_hr_candidate_waiting(
     candidate_id: int,

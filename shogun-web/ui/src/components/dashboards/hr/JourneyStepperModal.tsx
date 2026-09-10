@@ -236,6 +236,13 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
         (i) => i.status === "scheduled" && ((i.round || "").trim().toLowerCase() === STAGE_ROUND[stage]),
       )
     : undefined;
+  
+  // DEBUG: Log interview matching
+  if (STAGE_ROUND[stage] != null) {
+    console.log("[DEBUG] Stage:", stage, "Expected round:", STAGE_ROUND[stage]);
+    console.log("[DEBUG] All interviews for candidate:", interviews.map(i => ({ id: i.id, round: i.round, status: i.status })));
+    console.log("[DEBUG] Matched interview:", questionsInterview);
+  }
 
   return (
     <>

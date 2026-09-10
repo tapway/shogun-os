@@ -40,6 +40,7 @@ import type {
   HrDashboardStats,
   HrEquipment,
   HrInterview,
+  HrInterviewScorecard,
   HrInterviewTemplate,
   HrJobOpening,
   HrOnboardingChecklistItem,
@@ -1045,6 +1046,25 @@ export const hrApi = {
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(
       `/api/departments/${dept}/dashboard/hr/candidates/${candidateId}/attach-job`,
       { method: 'POST', body: JSON.stringify({ job_id: jobId }) },
+    ),
+  // Interview Scorecards
+  createScorecard: (dept: string, payload: { candidate_id: number; assigned_to_user_id: number; expires_days?: number }) =>
+    apiFetch<{ ok: boolean; scorecard: HrInterviewScorecard }>(
+      `/api/departments/${dept}/dashboard/hr/scorecards`,
+      { method: 'POST', body: JSON.stringify(payload) },
+    ),
+  listScorecards: (dept: string, status?: string) =>
+    apiFetch<{ scorecards: Array<HrInterviewScorecard & { candidate_name: string; candidate_role: string; assigned_to_name: string; assigned_to_email: string }> }>(
+      `/api/departments/${dept}/dashboard/hr/scorecards${status ? `?status=${status}` : ''}`,
+    ),
+  revokeScorecard: (dept: string, scorecardId: number) =>
+    apiFetch<{ ok: boolean; scorecard: HrInterviewScorecard }>(
+      `/api/departments/${dept}/dashboard/hr/scorecards/${scorecardId}`,
+      { method: 'DELETE' },
+    ),
+  searchEmployees: (dept: string, query: string, limit?: number) =>
+    apiFetch<{ employees: Array<{ id: number; name: string; email: string; department: string }> }>(
+      `/api/departments/${dept}/dashboard/hr/employees/search?q=${encodeURIComponent(query)}${limit ? `&limit=${limit}` : ''}`,
     ),
   candidateRemove: (dept: string, id: number, note: string) =>
     apiFetch<{ ok: boolean; candidate: HrCandidate }>(

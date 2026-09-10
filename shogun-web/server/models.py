@@ -1260,6 +1260,8 @@ class HrCandidate(Base):
 
     removed_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     job_opening_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    resume_gbrain_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    screening_answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -2243,5 +2245,35 @@ class HrInterviewTemplate(Base):
             "round": self.round,
             "questions": questions,
             "created_at": self.created_at.isoformat() if self.created_at else "",
+        }
+
+
+class HrInterviewScorecard(Base):
+    """Interview scorecard access token — one per candidate, grants authenticated access."""
+
+    __tablename__ = "hr_interview_scorecards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    assigned_to_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    submitted_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "candidate_id": self.candidate_id,
+            "token": self.token,
+            "assigned_to_user_id": self.assigned_to_user_id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else "",
+            "expires_at": self.expires_at.isoformat() if self.expires_at else "",
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "submitted_by_user_id": self.submitted_by_user_id,
         }
 
