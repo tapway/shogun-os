@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
 import { hrApi } from "../../../lib/api";
@@ -91,6 +91,13 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [feedback, setFeedback] = useState("");
   const [showTimeline, setShowTimeline] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
+  // Scorecard generation
+  const [showScorecardModal, setShowScorecardModal] = useState(false);
+  const [scorecardEmployeeSearch, setScorecardEmployeeSearch] = useState("");
+  const [scorecardEmployees, setScorecardEmployees] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  const [selectedInterviewerId, setSelectedInterviewerId] = useState<number | null>(null);
+  const [scorecardExpiresDays, setScorecardExpiresDays] = useState(3);
+  const [creatingScorecard, setCreatingScorecard] = useState(false);
   // schedule form
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
@@ -243,6 +250,52 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     console.log("[DEBUG] All interviews for candidate:", interviews.map(i => ({ id: i.id, round: i.round, status: i.status })));
     console.log("[DEBUG] Matched interview:", questionsInterview);
   }
+
+  // Search employees for scorecard assignment
+  useEffect(() => {
+    if (!scorecardEmployeeSearch.trim()) {
+      setScorecardEmployees([]);
+      return;
+    }
+    const timer = setTimeout(async () => {
+      try {
+        const res = await hrApi.searchEmployees(department, scorecardEmployeeSearch, 10);
+        setScorecardEmployees(res.employees || []);
+      } catch {
+        // Ignore search errors
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [scorecardEmployeeSearch, department]);
+
+  const handleCreateScorecard = async () => {
+    if (!selectedInterviewerId) {
+      setError("Please select an interviewer");
+      return;
+    }
+    setCreatingScorecard(true);
+    setError("");
+    try {
+      const res = await hrApi.createScorecard(department, {
+        candidate_id: candidate.id,
+        assigned_to_user_id: selectedInterviewerId,
+        expires_days: scorecardExpiresDays,
+      });
+      const url = `${window.location.origin}/interview-scorecard/${res.scorecard.token}`;
+      navigator.clipboard.writeText(url).then(() => {
+        alert(`✅ Scorecard created! Link copied to clipboard:\n\n${url}`);
+      }).catch(() => {
+        prompt("Scorecard created! Copy this link:", url);
+      });
+      setShowScorecardModal(false);
+      setScorecardEmployeeSearch("");
+      setSelectedInterviewerId(null);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create scorecard");
+    } finally {
+      setCreatingScorecard(false);
+    }
+  };
 
   return (
     <>
@@ -436,6 +489,9 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                     {showQuestions ? "▲ Close Questions" : "📋 Questions"}
                   </button>
                 )}
+                <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
+                  🔗 Generate Scorecard
+                </button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
@@ -569,6 +625,106 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
             department={department}
             onChanged={() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] })}
           />
+        )}
+
+        {/* Scorecard Generation Modal */}
+        {showScorecardModal && (
+          <div style={{ marginTop: "1rem", padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: "var(--samurai-surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: TEXT }}>
+                🔗 Generate Interview Scorecard
+              </h3>
+              <button type="button" onClick={() => setShowScorecardModal(false)} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: "1.2rem" }}>
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+                  Assign Interviewer
+                </label>
+                <input
+                  type="text"
+                  value={scorecardEmployeeSearch}
+                  onChange={(e) => {
+                    setScorecardEmployeeSearch(e.target.value);
+                    setSelectedInterviewerId(null);
+                  }}
+                  placeholder="Search employee name..."
+                  style={inputStyle}
+                />
+                {scorecardEmployees.length > 0 && (
+                  <div style={{ marginTop: "0.25rem", maxHeight: "150px", overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: "0.4rem", background: "var(--samurai-bg)" }}>
+                    {scorecardEmployees.map((emp) => (
+                      <div
+                        key={emp.id}
+                        onClick={() => {
+                          setSelectedInterviewerId(emp.id);
+                          setScorecardEmployeeSearch(emp.name);
+                          setScorecardEmployees([]);
+                        }}
+                        style={{
+                          padding: "0.5rem",
+                          cursor: "pointer",
+                          borderBottom: `1px solid ${BORDER}`,
+                          fontSize: "0.8rem",
+                          color: TEXT,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = SURFACE_2)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <strong>{emp.name}</strong> · {emp.department} · {emp.email}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedInterviewerId && (
+                  <p style={{ margin: "0.25rem 0 0", fontSize: "0.7rem", color: OK }}>
+                    ✓ Assigned to: {scorecardEmployeeSearch}
+                  </p>
+                )}
+              </div>
+
+              <div>
+                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+                  Expires In
+                </label>
+                <select
+                  value={scorecardExpiresDays}
+                  onChange={(e) => setScorecardExpiresDays(parseInt(e.target.value))}
+                  style={{ ...inputStyle, cursor: "pointer" }}
+                >
+                  <option value={1}>1 day</option>
+                  <option value={3}>3 days</option>
+                  <option value={7}>7 days</option>
+                  <option value={14}>14 days</option>
+                </select>
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={handleCreateScorecard}
+                  disabled={creatingScorecard || !selectedInterviewerId}
+                  style={{
+                    ...btnPrimary,
+                    opacity: (!selectedInterviewerId || creatingScorecard) ? 0.5 : 1,
+                    cursor: (!selectedInterviewerId || creatingScorecard) ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {creatingScorecard ? "Creating..." : "Generate & Copy Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScorecardModal(false)}
+                  style={btnOutline}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Timeline */}
