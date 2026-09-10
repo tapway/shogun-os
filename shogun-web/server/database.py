@@ -301,6 +301,7 @@ def init_db() -> None:
             ("hr_interviews", "questions_json", "TEXT"),
             ("hr_interviews", "review_rating", "INTEGER"),
             ("hr_interviews", "review_comment", "TEXT"),
+            ("hr_interviews", "question_answers_json", "TEXT"),
         ]:
             cols = {r[1] for r in conn.execute(text(f"PRAGMA table_info({table})"))}
             if cols and col not in cols:

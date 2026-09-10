@@ -2167,9 +2167,22 @@ class HrInterview(Base):
     questions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     review_rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    question_answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # [{"q": "...", "a": "..."}, ...]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
+
+    def _get_question_answers(self) -> List[Dict[str, str]]:
+        """Parse question_answers_json into list of {q, a} dicts."""
+        if not self.question_answers_json:
+            return []
+        try:
+            parsed = json.loads(self.question_answers_json)
+            if isinstance(parsed, list):
+                return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in parsed]
+        except Exception:
+            pass
+        return []
 
     def to_dict(self) -> Dict[str, Any]:
         questions: List[str] = []
@@ -2193,6 +2206,7 @@ class HrInterview(Base):
             "questions": questions,
             "rating": self.review_rating,
             "comment": self.review_comment,
+            "question_answers": self._get_question_answers(),
         }
 
 

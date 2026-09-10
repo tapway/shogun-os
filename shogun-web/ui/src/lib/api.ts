@@ -1016,7 +1016,7 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/apply-template`,
       { method: 'POST', body: JSON.stringify({ template_id: templateId }) },
     ),
-  postInterviewReview: (dept: string, interviewId: number, payload: { rating: number | null; comment: string }) =>
+  postInterviewReview: (dept: string, interviewId: number, payload: { rating: number | null; comment: string; question_answers?: Array<{q: string; a: string}> }) =>
     apiFetch<{ ok: boolean; interview: HrInterview }>(
       `/api/departments/${dept}/dashboard/hr/interviews/${interviewId}/post-interview`,
       { method: 'POST', body: JSON.stringify(payload) },

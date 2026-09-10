@@ -1651,6 +1651,7 @@ export interface HrInterview {
   questions?: string[];
   rating?: number | null;
   comment?: string | null;
+  question_answers?: Array<{q: string; a: string}>;
 }
 
 export interface HrInterviewTemplate {

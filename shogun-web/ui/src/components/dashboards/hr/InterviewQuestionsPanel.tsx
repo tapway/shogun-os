@@ -13,6 +13,7 @@ interface Props {
 const MUTED = "var(--samurai-muted)";
 const TEXT = "var(--samurai-text)";
 const BORDER = "var(--samurai-border)";
+const SURFACE = "var(--samurai-surface)";
 const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
 const OK = "var(--samurai-ok)";
@@ -71,6 +72,7 @@ export function InterviewQuestionsPanel({ interview, candidate, job, department,
 
   const [rating, setRating] = useState<number | null>(interview.rating ?? null);
   const [comment, setComment] = useState(interview.comment || "");
+  const [questionAnswers, setQuestionAnswers] = useState<{q: string; a: string}[]>(interview.question_answers || []);
   const [postBusy, setPostBusy] = useState(false);
 
   const roundLabel = ROUND_LABEL[((interview.round || "").trim().toLowerCase())] || (interview.round || "Interview");
@@ -195,6 +197,7 @@ export function InterviewQuestionsPanel({ interview, candidate, job, department,
       await hrApi.postInterviewReview(department, interview.id, {
         rating: rating ?? null,
         comment: comment.trim(),
+        question_answers: questionAnswers.filter(qa => qa.a.trim()),
       });
       flash("Assessment saved");
       onChanged?.();
@@ -375,6 +378,35 @@ export function InterviewQuestionsPanel({ interview, candidate, job, department,
 
       {tab === "post" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "0.6rem" }}>
+          {/* Question-by-question answers */}
+          {questions.length > 0 && (
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+              <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT, marginBottom: "0.2rem" }}>
+                📝 Question Answers
+              </div>
+              {questions.map((q, i) => (
+                <div key={i} style={{ display: "flex", flexDirection: "column", gap: "0.3rem", padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
+                  <div style={{ fontSize: "0.75rem", fontWeight: 600, color: LIME }}>
+                    Q{i + 1}: {q}
+                  </div>
+                  <textarea
+                    value={questionAnswers[i]?.a || ""}
+                    onChange={(e) => {
+                      const newAnswers = [...questionAnswers];
+                      while (newAnswers.length <= i) newAnswers.push({ q: questions[newAnswers.length], a: "" });
+                      newAnswers[i] = { q, a: e.target.value };
+                      setQuestionAnswers(newAnswers);
+                    }}
+                    placeholder={`Your answer/notes for this question…`}
+                    rows={3}
+                    style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", fontSize: "0.8rem" }}
+                  />
+                </div>
+              ))}
+            </div>
+          )}
+          
+          {/* Rating section */}
           <div>
             <div style={{ fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
               Candidate rating
@@ -405,6 +437,8 @@ export function InterviewQuestionsPanel({ interview, candidate, job, department,
               )}
             </div>
           </div>
+          
+          {/* Overall assessment */}
           <div>
             <div style={{ fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
               Overall assessment
@@ -417,9 +451,10 @@ export function InterviewQuestionsPanel({ interview, candidate, job, department,
               style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
             />
           </div>
+          
           <div>
             <button type="button" onClick={savePost} disabled={postBusy} style={{ ...btnPrimary, opacity: postBusy ? 0.6 : 1 }}>
-              {postBusy ? "Saving…" : "Save Comment"}
+              {postBusy ? "Saving…" : "Save Assessment"}
             </button>
           </div>
         </div>

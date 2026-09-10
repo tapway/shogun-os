@@ -6268,6 +6268,7 @@ class HrApplyTemplateBody(BaseModel):
 class HrPostInterviewBody(BaseModel):
     rating: Optional[int] = None
     comment: str = ""
+    question_answers: List[Dict[str, str]] = Field(default_factory=list)  # [{"q": "...", "a": "..."}, ...]
 
 
 _ROUND_QUESTION_TEMPLATES: Dict[str, list] = {
@@ -6641,6 +6642,9 @@ async def post_hr_interview_review(
         raise HTTPException(status_code=422, detail="Rating must be between 1 and 5")
     iv.review_rating = rating
     iv.review_comment = (body.comment or "").strip()[:5000]
+    if body.question_answers:
+        import json as _json
+        iv.question_answers_json = _json.dumps(body.question_answers)
     db.commit()
     return {"ok": True, "interview": iv.to_dict()}
 
