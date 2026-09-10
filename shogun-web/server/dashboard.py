@@ -6774,6 +6774,106 @@ async def revoke_hr_scorecard(
     return {"ok": True, "scorecard": scorecard.to_dict()}
 
 
+# ── Interview Scorecard Access (Authenticated) ────────────────────────
+
+@router.get("/interview-scorecard/{token}")
+async def get_interview_scorecard(
+    token: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get scorecard data for an interviewer (requires auth + assignment)."""
+    from models import HrInterviewScorecard, HrCandidate, HrInterview
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # Check authorization: must be assigned user or HR admin
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status == "revoked":
+        raise HTTPException(status_code=410, detail="This scorecard has been revoked")
+
+    if scorecard.status == "expired" or scorecard.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    candidate = db.get(HrCandidate, scorecard.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Get all interviews for this candidate
+    interviews = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id
+    ).order_by(HrInterview.created_at).all()
+
+    # Find current scheduled interview
+    current = next((i for i in interviews if i.status == "scheduled"), None)
+
+    return {
+        "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
+        "interviews": [i.to_dict() for i in interviews],
+        "current_interview": current.to_dict() if current else None,
+        "scorecard": scorecard.to_dict(),
+    }
+
+
+@router.post("/interview-scorecard/{token}/submit")
+async def submit_interview_scorecard(
+    token: str,
+    body: HrPostInterviewBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Submit assessment for a scorecard."""
+    import json as _json
+    from models import HrInterviewScorecard, HrInterview
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status != "pending":
+        raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}")
+
+    if scorecard.expires_at < datetime.utcnow():
+        scorecard.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    # Find current scheduled interview
+    current = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id,
+        HrInterview.status == "scheduled"
+    ).order_by(HrInterview.created_at.desc()).first()
+
+    if not current:
+        raise HTTPException(status_code=404, detail="No active interview found")
+
+    # Save assessment data
+    if body.rating is not None and 1 <= body.rating <= 5:
+        current.review_rating = body.rating
+    current.review_comment = (body.comment or "").strip()[:5000]
+    if body.question_answers:
+        current.question_answers_json = _json.dumps(body.question_answers)
+
+    # Mark scorecard as completed
+    scorecard.status = "completed"
+    scorecard.completed_at = datetime.utcnow()
+    scorecard.submitted_by_user_id = user.id
+
+    db.commit()
+    return {"ok": True}
+
+
 @router.get("/hr/employees/search")
 async def search_hr_employees(
     q: str = "",

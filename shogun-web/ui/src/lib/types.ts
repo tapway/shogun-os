@@ -1600,6 +1600,8 @@ export interface HrCandidate {
   source: string;
   resume_url: string;
   screening_answers_url: string;
+  screening_answers_json?: string;
+  resume_gbrain_url?: string;
   candidate_type: string;
   date_entry: string;
   last_edited: string;
