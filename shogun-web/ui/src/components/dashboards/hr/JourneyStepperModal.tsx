@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { hrApi } from "../../../lib/api";
+import { hrApi, staffApi } from "../../../lib/api";
 import type { HrCandidate, HrCandidateEvent, HrDashboardStats, HrInterview, HrJobOpening } from "../../../lib/types";
 import { InterviewQuestionsPanel } from "./InterviewQuestionsPanel";
 
@@ -251,28 +251,40 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     console.log("[DEBUG] Matched interview:", questionsInterview);
   }
 
-  // Filter employees for scorecard assignment (use stats.employees which is HrEmployee[])
+  // Fetch staff list for scorecard assignment (from /api/staff - system users)
+  const [allStaff, setAllStaff] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  
   useEffect(() => {
-    const allEmployees = (stats.employees || []).map((e) => ({
-      id: e.id,
-      name: e.employees_name || "",
-      email: "", // HrEmployee doesn't have email field
-      department: e.department || "",
-    }));
-    
+    // Load all staff once when modal opens
+    if (showScorecardModal && allStaff.length === 0) {
+      staffApi.list().then((res) => {
+        const staff = (res.staff || []).map((s: any) => ({
+          id: s.id,
+          name: s.name || "",
+          email: s.email || "",
+          department: s.department || "",
+        }));
+        setAllStaff(staff);
+        setScorecardEmployees(staff.slice(0, 50));
+      }).catch(() => {
+        // Ignore errors
+      });
+    }
+  }, [showScorecardModal]);
+
+  // Filter staff by search term
+  useEffect(() => {
     if (!scorecardEmployeeSearch.trim()) {
-      // Show all employees when search is empty
-      setScorecardEmployees(allEmployees.slice(0, 50)); // Show more initially
+      setScorecardEmployees(allStaff.slice(0, 50));
       return;
     }
     
-    // Filter by search term (name or department)
     const searchLower = scorecardEmployeeSearch.toLowerCase();
-    const filtered = allEmployees.filter(
-      (e) => e.name.toLowerCase().includes(searchLower) || e.department.toLowerCase().includes(searchLower)
+    const filtered = allStaff.filter(
+      (s) => s.name.toLowerCase().includes(searchLower) || s.email.toLowerCase().includes(searchLower) || s.department.toLowerCase().includes(searchLower)
     );
     setScorecardEmployees(filtered.slice(0, 50));
-  }, [scorecardEmployeeSearch, stats.employees]);
+  }, [scorecardEmployeeSearch, allStaff]);
 
   const handleCreateScorecard = async () => {
     if (!selectedInterviewerId) {
