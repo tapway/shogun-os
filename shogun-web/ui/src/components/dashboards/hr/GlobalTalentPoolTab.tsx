@@ -45,16 +45,23 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
   const [error, setError] = useState("");
   const [addToJobCandidate, setAddToJobCandidate] = useState<HrCandidate | null>(null);
 
-  // Only candidates linked to a closed job
+  // Normalize status to one of 3 pool statuses
+  const getPoolStatus = (c: HrCandidate): string => {
+    const status = (c.status || "").toLowerCase().trim();
+    if (status.includes("reject")) return "Rejected";
+    if (status.includes("no response")) return "No Response";
+    return "Job Close"; // Everything else = Job Close
+  };
+
+  // All candidates with normalized pool status
   const poolCandidates = useMemo(() => {
-    const closedJobIds = new Set(closedJobs.map((j) => j.id));
-    return allCandidates.filter((c) => c.job_opening_id && closedJobIds.has(c.job_opening_id));
-  }, [allCandidates, closedJobs]);
+    return allCandidates.map((c) => ({ ...c, poolStatus: getPoolStatus(c) }));
+  }, [allCandidates]);
 
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return poolCandidates.filter((c) => {
-      if (statusFilter !== "all" && (c.status || "").trim() !== statusFilter) return false;
+      if (statusFilter !== "all" && c.poolStatus !== statusFilter) return false;
       if (!q) return true;
       return (
         (c.name || "").toLowerCase().includes(q) ||
@@ -84,7 +91,7 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
       <div className="sd-chart-card">
         <div style={{ display: "flex", flexWrap: "wrap", alignItems: "center", gap: "0.5rem", marginBottom: "0.75rem" }}>
           <h3 className="sd-chart-title" style={{ margin: 0, marginRight: "auto" }}>
-            Talent Pool — candidates from closed jobs
+            Talent Pool — every candidate
           </h3>
           <div style={{ display: "inline-flex", alignItems: "center", gap: "0.35rem", padding: "0.35rem 0.6rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
             <Search size={13} style={{ color: MUTED }} />
@@ -150,11 +157,11 @@ export function GlobalTalentPoolTab({ stats, department }: Props) {
                         fontSize: "0.72rem",
                         fontWeight: 600,
                         color: "#0a0a0a",
-                        background: (c.status || "").includes("Rejected") ? DANGER
-                          : (c.status || "").includes("No Response") ? WARNING
+                        background: c.poolStatus === "Rejected" ? DANGER
+                          : c.poolStatus === "No Response" ? WARNING
                           : MUTED,
                       }}>
-                        {c.status || "—"}
+                        {c.poolStatus}
                       </span>
                     </td>
                     <td style={{ ...tdStyle, fontSize: "0.75rem" }}>
