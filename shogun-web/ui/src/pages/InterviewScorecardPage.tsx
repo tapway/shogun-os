@@ -12,6 +12,7 @@ const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
 const WARNING = "var(--samurai-warning)";
 const OK = "var(--samurai-ok)";
+const DANGER = "var(--samurai-danger)";
 
 const inputStyle: React.CSSProperties = {
   width: "100%",
@@ -58,12 +59,15 @@ export function InterviewScorecardPage() {
   const [submitting, setSubmitting] = useState(false);
 
   // Questions & Templates state
-  const [qTab, setQTab] = useState<"questions" | "templates">("questions");
+  const [qTab, setQTab] = useState<"questions" | "templates" | "edit">("questions");
   const [genSource, setGenSource] = useState("");
   const [generating, setGenerating] = useState(false);
   const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
   const [templates, setTemplates] = useState<HrInterviewTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
+  const [editingQuestions, setEditingQuestions] = useState<string[]>([]);
+  const [templateName, setTemplateName] = useState("");
+  const [savingTemplate, setSavingTemplate] = useState(false);
 
   useEffect(() => {
     if (!token) return;
@@ -399,9 +403,28 @@ export function InterviewScorecardPage() {
                     "HR/cultural fit focus"
                   }
                 </div>
-                {generatedQuestions.length > 0 && (
+                {generatedQuestions.length > 0 && (qTab as string) !== "edit" && (
                   <div style={{ marginTop: "1rem" }}>
-                    <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Generated Questions:</h4>
+                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
+                      <h4 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Generated Questions:</h4>
+                      <button
+                        onClick={() => {
+                          setEditingQuestions([...generatedQuestions]);
+                          setQTab("edit");
+                        }}
+                        style={{
+                          padding: "0.25rem 0.6rem",
+                          borderRadius: "0.3rem",
+                          border: `1px solid ${BORDER}`,
+                          background: "transparent",
+                          color: TEXT,
+                          fontSize: "0.75rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✏️ Edit
+                      </button>
+                    </div>
                     <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                       {generatedQuestions.map((q, i) => (
                         <div key={i} style={{ padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2, fontSize: "0.8rem", color: TEXT }}>
@@ -409,25 +432,161 @@ export function InterviewScorecardPage() {
                         </div>
                       ))}
                     </div>
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem" }}>
+                      <button
+                        onClick={() => {
+                          setQuestionAnswers(generatedQuestions.map((q) => ({ q, a: "" })));
+                        }}
+                        style={{
+                          padding: "0.4rem 0.8rem",
+                          borderRadius: "0.4rem",
+                          border: "none",
+                          background: OK,
+                          color: "#0a0a0a",
+                          fontWeight: 600,
+                          fontSize: "0.8rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✓ Use These Questions
+                      </button>
+                      <button
+                        onClick={() => {
+                          setEditingQuestions([...generatedQuestions]);
+                          setQTab("edit");
+                        }}
+                        style={{
+                          padding: "0.4rem 0.8rem",
+                          borderRadius: "0.4rem",
+                          border: `1px solid ${BORDER}`,
+                          background: "transparent",
+                          color: TEXT,
+                          fontWeight: 600,
+                          fontSize: "0.8rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✏️ Edit Questions
+                      </button>
+                    </div>
+                  </div>
+                )}
+
+                {/* Edit Questions Tab */}
+                {(qTab as string) === "edit" && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Edit Questions:</h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {editingQuestions.map((q, i) => (
+                        <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
+                          <span style={{ color: LIME, fontWeight: 600, fontSize: "0.8rem", minWidth: "2rem", paddingTop: "0.4rem" }}>Q{i + 1}</span>
+                          <textarea
+                            value={q}
+                            onChange={(e) => {
+                              const updated = [...editingQuestions];
+                              updated[i] = e.target.value;
+                              setEditingQuestions(updated);
+                            }}
+                            rows={2}
+                            style={{ ...inputStyle, flex: 1, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
+                          />
+                          <button
+                            onClick={() => {
+                              const updated = editingQuestions.filter((_, idx) => idx !== i);
+                              setEditingQuestions(updated);
+                            }}
+                            style={{
+                              padding: "0.3rem 0.5rem",
+                              borderRadius: "0.3rem",
+                              border: `1px solid ${DANGER}`,
+                              background: "transparent",
+                              color: DANGER,
+                              fontSize: "0.75rem",
+                              cursor: "pointer",
+                              alignSelf: "flex-start",
+                            }}
+                          >
+                            ✕
+                          </button>
+                        </div>
+                      ))}
+                    </div>
                     <button
-                      onClick={() => {
-                        setQuestionAnswers(generatedQuestions.map((q) => ({ q, a: "" })));
-                        setQTab("questions");
-                      }}
+                      onClick={() => setEditingQuestions([...editingQuestions, ""])}
                       style={{
-                        marginTop: "0.75rem",
-                        padding: "0.4rem 0.8rem",
-                        borderRadius: "0.4rem",
-                        border: "none",
-                        background: OK,
-                        color: "#0a0a0a",
-                        fontWeight: 600,
-                        fontSize: "0.8rem",
+                        marginTop: "0.5rem",
+                        padding: "0.3rem 0.6rem",
+                        borderRadius: "0.3rem",
+                        border: `1px dashed ${BORDER}`,
+                        background: "transparent",
+                        color: MUTED,
+                        fontSize: "0.75rem",
                         cursor: "pointer",
+                        width: "100%",
                       }}
                     >
-                      ✓ Use These Questions
+                      + Add Question
                     </button>
+                    <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
+                      <button
+                        onClick={() => {
+                          setGeneratedQuestions(editingQuestions.filter((q) => q.trim()));
+                          setQTab("questions");
+                        }}
+                        style={{
+                          padding: "0.4rem 0.8rem",
+                          borderRadius: "0.4rem",
+                          border: "none",
+                          background: OK,
+                          color: "#0a0a0a",
+                          fontWeight: 600,
+                          fontSize: "0.8rem",
+                          cursor: "pointer",
+                        }}
+                      >
+                        ✓ Done Editing
+                      </button>
+                      <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
+                        <input
+                          value={templateName}
+                          onChange={(e) => setTemplateName(e.target.value)}
+                          placeholder="Template name..."
+                          style={{ ...inputStyle, width: "180px", fontSize: "0.8rem", padding: "0.35rem 0.5rem" }}
+                        />
+                        <button
+                          onClick={async () => {
+                            if (!templateName.trim() || !data?.current_interview) return;
+                            setSavingTemplate(true);
+                            try {
+                              await apiFetch(`/api/departments/hr/dashboard/hr/interviews/${data.current_interview.id}/save-template`, {
+                                method: "POST",
+                                body: JSON.stringify({ name: templateName.trim() }),
+                              });
+                              setTemplateName("");
+                              // Refresh templates
+                              hrApi.listInterviewTemplates("hr").then((res) => setTemplates(res.templates || []));
+                            } catch (e) {
+                              setError(e instanceof Error ? e.message : "Failed to save template");
+                            } finally {
+                              setSavingTemplate(false);
+                            }
+                          }}
+                          disabled={savingTemplate || !templateName.trim()}
+                          style={{
+                            padding: "0.35rem 0.6rem",
+                            borderRadius: "0.4rem",
+                            border: "none",
+                            background: savingTemplate || !templateName.trim() ? MUTED : WARNING,
+                            color: "#0a0a0a",
+                            fontWeight: 600,
+                            fontSize: "0.78rem",
+                            cursor: savingTemplate || !templateName.trim() ? "not-allowed" : "pointer",
+                          }}
+                        >
+                          {savingTemplate ? "Saving..." : "💾 Save Template"}
+                        </button>
+                      </div>
+                    </div>
                   </div>
                 )}
               </div>
@@ -484,33 +643,68 @@ export function InterviewScorecardPage() {
           <div style={{ padding: "1.25rem", borderRadius: "0.75rem", border: `2px solid ${LIME}`, background: SURFACE }}>
             <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem", fontWeight: 700, color: TEXT }}>✏️ Your Assessment</h2>
 
-            {/* Questions */}
-            {current_interview.questions && current_interview.questions.length > 0 && (
-              <div style={{ marginBottom: "1.5rem" }}>
-                <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.9rem", fontWeight: 600, color: TEXT }}>Question Answers</h3>
-                <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-                  {current_interview.questions.map((q, i) => (
-                    <div key={i} style={{ padding: "0.75rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
-                      <div style={{ fontSize: "0.8rem", fontWeight: 600, color: LIME, marginBottom: "0.4rem" }}>
-                        Q{i + 1}: {q}
-                      </div>
-                      <textarea
-                        value={questionAnswers[i]?.a || ""}
-                        onChange={(e) => {
-                          const newAnswers = [...questionAnswers];
-                          while (newAnswers.length <= i) newAnswers.push({ q: current_interview.questions![newAnswers.length], a: "" });
-                          newAnswers[i] = { q, a: e.target.value };
-                          setQuestionAnswers(newAnswers);
-                        }}
-                        placeholder="Candidate's answer / your notes…"
-                        rows={3}
-                        style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", fontSize: "0.8rem" }}
-                      />
-                    </div>
+            {/* Question & Answer Table */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.9rem", fontWeight: 600, color: TEXT }}>Question & Answer</h3>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
+                <thead>
+                  <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                    <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "45%" }}>Question</th>
+                    <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "55%" }}>Candidate Answer / Notes</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {questionAnswers.map((qa, i) => (
+                    <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <td style={{ padding: "0.5rem", verticalAlign: "top" }}>
+                        <div style={{ display: "flex", gap: "0.3rem", alignItems: "flex-start" }}>
+                          <span style={{ color: LIME, fontWeight: 700, fontSize: "0.75rem", minWidth: "1.5rem", paddingTop: "0.15rem" }}>Q{i + 1}</span>
+                          <textarea
+                            value={qa.q}
+                            onChange={(e) => {
+                              const updated = [...questionAnswers];
+                              updated[i] = { ...updated[i], q: e.target.value };
+                              setQuestionAnswers(updated);
+                            }}
+                            rows={2}
+                            style={{ ...inputStyle, flex: 1, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
+                          />
+                        </div>
+                      </td>
+                      <td style={{ padding: "0.5rem", verticalAlign: "top" }}>
+                        <textarea
+                          value={qa.a}
+                          onChange={(e) => {
+                            const updated = [...questionAnswers];
+                            updated[i] = { ...updated[i], a: e.target.value };
+                            setQuestionAnswers(updated);
+                          }}
+                          placeholder="Candidate's response…"
+                          rows={2}
+                          style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", fontSize: "0.8rem" }}
+                        />
+                      </td>
+                    </tr>
                   ))}
-                </div>
-              </div>
-            )}
+                </tbody>
+              </table>
+              <button
+                onClick={() => setQuestionAnswers([...questionAnswers, { q: "", a: "" }])}
+                style={{
+                  marginTop: "0.5rem",
+                  padding: "0.35rem 0.8rem",
+                  borderRadius: "0.3rem",
+                  border: `1px dashed ${BORDER}`,
+                  background: "transparent",
+                  color: MUTED,
+                  fontSize: "0.78rem",
+                  cursor: "pointer",
+                  width: "100%",
+                }}
+              >
+                + Add Row
+              </button>
+            </div>
 
             {/* Rating */}
             <div style={{ marginBottom: "1rem" }}>
