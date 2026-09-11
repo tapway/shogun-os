@@ -247,23 +247,6 @@ export function InterviewScorecardsTab({ department }: Props) {
               )}
             </div>
 
-            {/* Expiry */}
-            <div>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
-                Expires In (days)
-              </label>
-              <select
-                value={expiresDays}
-                onChange={(e) => setExpiresDays(parseInt(e.target.value))}
-                style={{ padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "var(--samurai-bg)", color: TEXT }}
-              >
-                <option value={1}>1 day</option>
-                <option value={3}>3 days</option>
-                <option value={7}>7 days</option>
-                <option value={14}>14 days</option>
-              </select>
-            </div>
-
             <button
               onClick={handleCreate}
               disabled={creating || !candidateId || !assignedUserId}
@@ -301,7 +284,6 @@ export function InterviewScorecardsTab({ department }: Props) {
                 <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Assigned To</th>
                 <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Status</th>
                 <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Generated</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Expires</th>
                 <th style={{ textAlign: "right", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Actions</th>
               </tr>
             </thead>
@@ -328,9 +310,6 @@ export function InterviewScorecardsTab({ department }: Props) {
                   </td>
                   <td style={{ padding: "0.5rem", color: MUTED, fontSize: "0.8rem" }}>
                     {new Date(sc.created_at).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: "0.5rem", color: sc.status === "pending" ? WARNING : MUTED, fontSize: "0.8rem" }}>
-                    {formatExpiry(sc.expires_at)}
                   </td>
                   <td style={{ padding: "0.5rem", textAlign: "right" }}>
                     {sc.status === "pending" && (

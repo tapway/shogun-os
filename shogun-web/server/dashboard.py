@@ -6695,7 +6695,7 @@ async def create_hr_scorecard(
     # Generate secure token
     token = secrets.token_urlsafe(48)
     now = datetime.utcnow()
-    expires_at = now + timedelta(days=max(1, min(body.expires_days, 30)))
+    expires_at = now + timedelta(days=365)  # No user-set expiry; HR revokes manually
 
     scorecard = HrInterviewScorecard(
         tenant_id=tenant.id,

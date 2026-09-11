@@ -704,22 +704,6 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 )}
               </div>
 
-              <div>
-                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
-                  Expires In
-                </label>
-                <select
-                  value={scorecardExpiresDays}
-                  onChange={(e) => setScorecardExpiresDays(parseInt(e.target.value))}
-                  style={{ ...inputStyle, cursor: "pointer" }}
-                >
-                  <option value={1}>1 day</option>
-                  <option value={3}>3 days</option>
-                  <option value={7}>7 days</option>
-                  <option value={14}>14 days</option>
-                </select>
-              </div>
-
               <div style={{ display: "flex", gap: "0.5rem" }}>
                 <button
                   type="button"
