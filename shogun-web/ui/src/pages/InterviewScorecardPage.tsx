@@ -307,17 +307,18 @@ export function InterviewScorecardPage() {
         })}
 
         {/* Active Tab Content */}
-        {rd.submitted ? (
-          <div style={{ padding: "2rem", textAlign: "center", borderRadius: "0.75rem", border: `1px solid ${OK}`, background: SURFACE }}>
-            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>✅</div>
-            <h2 style={{ color: TEXT, marginBottom: "0.5rem" }}>{ROUND_LABELS[activeTab]} — Submitted</h2>
-            <p style={{ color: MUTED }}>This round has been completed.</p>
-          </div>
-        ) : (
-          <div style={{ padding: "1rem", borderRadius: "0.75rem", border: `2px solid ${LIME}`, background: SURFACE }}>
-            <h2 style={{ margin: "0 0 1rem", fontSize: "1rem", fontWeight: 700, color: TEXT }}>✏️ {ROUND_LABELS[activeTab]}</h2>
+        <div style={{ padding: "1rem", borderRadius: "0.75rem", border: rd.submitted ? `2px solid ${OK}` : `2px solid ${LIME}`, background: SURFACE }}>
+            {/* Status Banner */}
+            {rd.submitted && (
+              <div style={{ marginBottom: "1rem", padding: "0.6rem 1rem", borderRadius: "0.5rem", background: OK, display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                <span style={{ fontSize: "1.2rem" }}>✅</span>
+                <span style={{ fontWeight: 700, color: "#0a0a0a", fontSize: "0.9rem" }}>{ROUND_LABELS[activeTab]} — Submitted</span>
+              </div>
+            )}
+            <h2 style={{ margin: "0 0 1rem", fontSize: "1rem", fontWeight: 700, color: TEXT }}>{rd.submitted ? "📋" : "✏️"} {ROUND_LABELS[activeTab]}</h2>
 
-            {/* AI Questions */}
+            {/* AI Questions - hidden when submitted */}
+            {!rd.submitted && (
             <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
               <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>🤖 AI Questions</h3>
               <textarea value={rd.genSource} onChange={(e) => updateRound(activeTab, { genSource: e.target.value })} placeholder={`Custom focus for ${ROUND_LABELS[activeTab]} (optional)...`} rows={2} style={{ ...inputStyle, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit", marginBottom: "0.5rem" }} />
@@ -372,6 +373,7 @@ export function InterviewScorecardPage() {
                 </div>
               )}
             </div>
+            )}
 
             {/* Q&A Table */}
             <div style={{ marginBottom: "1rem" }}>
@@ -381,26 +383,26 @@ export function InterviewScorecardPage() {
                 <tbody>
                   {rd.questionAnswers.map((qa, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.q} onChange={(e) => { const u = [...rd.questionAnswers]; u[i] = { ...u[i], q: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit" }} /></td>
-                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.a} onChange={(e) => { const u = [...rd.questionAnswers]; u[i] = { ...u[i], a: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} placeholder="Candidate response…" rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit" }} /></td>
+                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.q} readOnly={rd.submitted} onChange={(e) => { if (rd.submitted) return; const u = [...rd.questionAnswers]; u[i] = { ...u[i], q: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit", opacity: rd.submitted ? 0.8 : 1 }} /></td>
+                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.a} readOnly={rd.submitted} onChange={(e) => { if (rd.submitted) return; const u = [...rd.questionAnswers]; u[i] = { ...u[i], a: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} placeholder="Candidate response…" rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit", opacity: rd.submitted ? 0.8 : 1 }} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <button onClick={() => updateRound(activeTab, { questionAnswers: [...rd.questionAnswers, { q: "", a: "" }] })} style={{ marginTop: "0.4rem", padding: "0.3rem", borderRadius: "0.3rem", border: `1px dashed ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.75rem", cursor: "pointer", width: "100%" }}>+ Add Row</button>
+              {!rd.submitted && <button onClick={() => updateRound(activeTab, { questionAnswers: [...rd.questionAnswers, { q: "", a: "" }] })} style={{ marginTop: "0.4rem", padding: "0.3rem", borderRadius: "0.3rem", border: `1px dashed ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.75rem", cursor: "pointer", width: "100%" }}>+ Add Row</button>}
             </div>
 
             {/* Notes */}
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>📝 Notes (Focus / Preparation)</label>
-              <textarea value={rd.notes} onChange={(e) => updateRound(activeTab, { notes: e.target.value })} placeholder="Key points to focus on during interview…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+              <textarea value={rd.notes} readOnly={rd.submitted} onChange={(e) => { if (!rd.submitted) updateRound(activeTab, { notes: e.target.value }); }} placeholder="Key points to focus on during interview…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", opacity: rd.submitted ? 0.8 : 1 }} />
             </div>
 
             {/* Rating */}
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Overall Rating</label>
               <div style={{ display: "flex", gap: "0.2rem" }}>
-                {[1, 2, 3, 4, 5].map((n) => (<button key={n} type="button" onClick={() => updateRound(activeTab, { rating: rd.rating === n ? null : n })} style={{ border: "none", background: "transparent", fontSize: "1.4rem", cursor: "pointer", color: (rd.rating ?? 0) >= n ? WARNING : MUTED, padding: "0 0.1rem" }}>{n <= (rd.rating ?? 0) ? "★" : "☆"}</button>))}
+                {[1, 2, 3, 4, 5].map((n) => (<button key={n} type="button" disabled={rd.submitted} onClick={() => updateRound(activeTab, { rating: rd.rating === n ? null : n })} style={{ border: "none", background: "transparent", fontSize: "1.4rem", cursor: rd.submitted ? "default" : "pointer", color: (rd.rating ?? 0) >= n ? WARNING : MUTED, padding: "0 0.1rem" }}>{n <= (rd.rating ?? 0) ? "★" : "☆"}</button>))}
                 {rd.rating != null && <span style={{ fontSize: "0.8rem", color: MUTED, alignSelf: "center", marginLeft: "0.4rem" }}>{rd.rating}/5</span>}
               </div>
             </div>
@@ -408,20 +410,21 @@ export function InterviewScorecardPage() {
             {/* Comment */}
             <div style={{ marginBottom: "1rem" }}>
               <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Overall Comment</label>
-              <textarea value={rd.comment} onChange={(e) => updateRound(activeTab, { comment: e.target.value })} placeholder="Overall assessment…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
+              <textarea value={rd.comment} readOnly={rd.submitted} onChange={(e) => { if (!rd.submitted) updateRound(activeTab, { comment: e.target.value }); }} placeholder="Overall assessment…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", opacity: rd.submitted ? 0.8 : 1 }} />
             </div>
 
             {/* Error */}
             {error && <div style={{ marginBottom: "0.75rem", padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${DANGER}`, color: DANGER, fontSize: "0.8rem" }}>{error}</div>}
 
-            {/* Actions */}
+            {/* Actions - hidden when submitted */}
+            {!rd.submitted && (
             <div style={{ display: "flex", gap: "0.5rem" }}>
               <button onClick={() => handleSaveDraft(activeTab)} style={{ flex: 1, padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}>💾 Save Draft</button>
               <button onClick={() => handleSubmit(activeTab)} style={{ flex: 1, padding: "0.5rem", borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}>Submit {ROUND_LABELS[activeTab]}</button>
             </div>
-            {rd.draftSavedAt && <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", color: OK }}>✓ Draft saved {new Date(rd.draftSavedAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</div>}
+            )}
+            {!rd.submitted && rd.draftSavedAt && <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", color: OK }}>✓ Draft saved {new Date(rd.draftSavedAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</div>}
           </div>
-        )}
       </div>
     </div>
   );
