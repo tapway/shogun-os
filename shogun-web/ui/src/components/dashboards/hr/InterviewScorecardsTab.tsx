@@ -40,7 +40,11 @@ export function InterviewScorecardsTab({ department }: Props) {
     setError("");
     try {
       const res = await hrApi.listScorecards(department);
-      setScorecards(res.scorecards || []);
+      const all = res.scorecards || [];
+      // Show only pending scorecards (auto-hide expired/completed/revoked)
+      const now = new Date().toISOString();
+      const pending = all.filter((sc) => sc.status === "pending" && sc.expires_at > now);
+      setScorecards(pending);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load scorecards");
     } finally {
@@ -324,6 +328,22 @@ export function InterviewScorecardsTab({ department }: Props) {
                   <td style={{ padding: "0.5rem", textAlign: "right" }}>
                     {sc.status === "pending" && (
                       <>
+                        <button
+                          onClick={() => window.open(`/interview-scorecard/${sc.token}`, "_blank")}
+                          style={{
+                            marginRight: "0.5rem",
+                            padding: "0.3rem 0.6rem",
+                            borderRadius: "0.3rem",
+                            border: `1px solid ${LIME}`,
+                            background: LIME,
+                            color: "#0a0a0a",
+                            fontSize: "0.75rem",
+                            fontWeight: 600,
+                            cursor: "pointer",
+                          }}
+                        >
+                          🔗 Open Link
+                        </button>
                         <button
                           onClick={() => copyLink(sc.token)}
                           style={{
