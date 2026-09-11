@@ -270,29 +270,32 @@ export function InterviewScorecardPage() {
 
         {/* Resume & Screening (shared across tabs) */}
         <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-          <details>
+          <details open>
             <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", color: TEXT }}>📄 Resume & Screening Answers</summary>
-            <div style={{ marginTop: "0.75rem" }}>
+            <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "1rem" }}>
               {/* Resume PDF */}
               {candidate.resume_url && (
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>Resume</div>
-                  <iframe src={candidate.resume_url} style={{ width: "100%", height: "300px", border: `1px solid ${BORDER}`, borderRadius: "0.4rem" }} title="Resume" />
+                <div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT, marginBottom: "0.4rem" }}>📋 Resume</div>
+                  <iframe src={candidate.resume_url} style={{ width: "100%", height: "600px", border: `1px solid ${BORDER}`, borderRadius: "0.5rem" }} title="Resume" />
                 </div>
               )}
               {/* Screening Answer PDF (uploaded file) */}
-              {(candidate as any).screening_answers_url && (
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>Screening Answer (PDF)</div>
-                  <iframe src={(candidate as any).screening_answers_url} style={{ width: "100%", height: "300px", border: `1px solid ${BORDER}`, borderRadius: "0.4rem" }} title="Screening Answers" />
+              {candidate.screening_answers_url && (
+                <div>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT, marginBottom: "0.4rem" }}>📝 Screening Answer (PDF)</div>
+                  <iframe src={candidate.screening_answers_url} style={{ width: "100%", height: "600px", border: `1px solid ${BORDER}`, borderRadius: "0.5rem" }} title="Screening Answers" />
                 </div>
               )}
               {/* Screening Answers JSON (structured data) */}
               {candidate.screening_answers_json && (
-                <div style={{ marginTop: "0.75rem", padding: "0.5rem", borderRadius: "0.4rem", background: SURFACE_2, fontSize: "0.8rem", color: TEXT, whiteSpace: "pre-wrap" }}>
-                  <div style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>Screening Answers (Structured)</div>
-                  {(() => { try { const a = JSON.parse(candidate.screening_answers_json!); if (Array.isArray(a.questions)) return a.questions.map((q: any, i: number) => <div key={i} style={{ marginBottom: "0.3rem" }}><strong style={{ color: LIME }}>Q{i + 1}: {q.q}</strong><div>{q.a}</div></div>); return JSON.stringify(a, null, 2); } catch { return candidate.screening_answers_json; } })()}
+                <div style={{ padding: "0.75rem", borderRadius: "0.5rem", background: SURFACE_2, fontSize: "0.8rem", color: TEXT, whiteSpace: "pre-wrap" }}>
+                  <div style={{ fontSize: "0.8rem", fontWeight: 700, color: TEXT, marginBottom: "0.4rem" }}>📊 Screening Answers (Structured)</div>
+                  {(() => { try { const a = JSON.parse(candidate.screening_answers_json!); if (Array.isArray(a.questions)) return a.questions.map((q: any, i: number) => <div key={i} style={{ marginBottom: "0.4rem", paddingBottom: "0.4rem", borderBottom: `1px solid ${BORDER}` }}><strong style={{ color: LIME }}>Q{i + 1}: {q.q}</strong><div style={{ marginTop: "0.2rem", color: TEXT }}>{q.a}</div></div>); return JSON.stringify(a, null, 2); } catch { return candidate.screening_answers_json; } })()}
                 </div>
+              )}
+              {!candidate.resume_url && !candidate.screening_answers_url && !candidate.screening_answers_json && (
+                <p style={{ color: MUTED, fontSize: "0.8rem", textAlign: "center", padding: "1rem" }}>No resume or screening answers uploaded yet.</p>
               )}
             </div>
           </details>
