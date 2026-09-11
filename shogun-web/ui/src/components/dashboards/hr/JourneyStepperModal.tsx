@@ -102,6 +102,8 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
   const [schedLocation, setSchedLocation] = useState("");
+  const [screeningFile, setScreeningFile] = useState<File | null>(null);
+  const [screeningUploading, setScreeningUploading] = useState(false);
 
   const events: HrCandidateEvent[] = useMemo(
     () => (stats.candidate_events || []).filter((e) => e.candidate_id === candidate.id),
@@ -473,6 +475,46 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Once the candidate replies, schedule the 1st interview — this moves them to <strong>1st Interview Scheduled</strong>.
               </p>
+              {/* Optional: Upload Screening Answer PDF */}
+              <div style={{ marginBottom: "0.75rem", padding: "0.6rem", borderRadius: "0.5rem", border: `1px dashed ${BORDER}`, background: SURFACE_2 }}>
+                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
+                  📎 Screening Answer (PDF) — optional
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setScreeningFile(e.target.files?.[0] || null)}
+                    style={{ fontSize: "0.78rem", color: TEXT, flex: 1 }}
+                  />
+                  {screeningFile && (
+                    <button
+                      type="button"
+                      disabled={screeningUploading}
+                      onClick={async () => {
+                        if (!screeningFile || !candidate) return;
+                        setScreeningUploading(true);
+                        try {
+                          await hrApi.candidateFileUpload(department, candidate.id, screeningFile, "screening_answers");
+                          alert("Screening answer uploaded!");
+                          setScreeningFile(null);
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : "Upload failed");
+                        } finally {
+                          setScreeningUploading(false);
+                        }
+                      }}
+                      style={{ padding: "0.3rem 0.6rem", borderRadius: "0.3rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.75rem", fontWeight: 600, cursor: screeningUploading ? "wait" : "pointer" }}
+                    >
+                      {screeningUploading ? "Uploading…" : "Upload"}
+                    </button>
+                  )}
+                </div>
+                <div style={{ fontSize: "0.68rem", color: MUTED, marginTop: "0.2rem" }}>
+                  Upload the candidate's screening answer PDF. It will appear in the interview scorecard.
+                </div>
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>

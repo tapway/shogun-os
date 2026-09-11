@@ -6059,6 +6059,11 @@ async def upload_hr_candidate_file(
     ))
     _hr_event(db, tenant.id, candidate_id, "upload",
               note=f"{kind.replace('_', ' ').title()} uploaded: {safe_name}", user=user)
+    # Auto-update candidate fields for key document types
+    if kind == "screening_answers":
+        cand.screening_answers_url = file_url
+    elif kind == "resume":
+        cand.resume_url = file_url
     db.commit()
     return {"ok": True, "file_url": file_url, "filename": safe_name}
 
