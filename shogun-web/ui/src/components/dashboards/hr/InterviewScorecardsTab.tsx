@@ -41,10 +41,17 @@ export function InterviewScorecardsTab({ department }: Props) {
     try {
       const res = await hrApi.listScorecards(department);
       const all = res.scorecards || [];
-      // Show only pending scorecards (auto-hide expired/completed/revoked)
+      // Show scorecards that are not expired and not revoked
+      // - pending: still active, within expiry period
+      // - completed: all rounds done, but still within expiry period (for reference)
+      // Auto-hide: expired (past expires_at) or revoked
       const now = new Date().toISOString();
-      const pending = all.filter((sc) => sc.status === "pending" && sc.expires_at > now);
-      setScorecards(pending);
+      const visible = all.filter((sc) => {
+        if (sc.status === "revoked") return false;
+        if (sc.expires_at <= now) return false; // expired
+        return true; // pending or completed within expiry
+      });
+      setScorecards(visible);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load scorecards");
     } finally {
@@ -376,7 +383,23 @@ export function InterviewScorecardsTab({ department }: Props) {
                       </>
                     )}
                     {sc.status === "completed" && (
-                      <span style={{ fontSize: "0.75rem", color: OK }}>✓ Submitted</span>
+                      <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", alignItems: "center" }}>
+                        <button
+                          onClick={() => window.open(`/interview-scorecard/${sc.token}`, "_blank")}
+                          style={{
+                            padding: "0.3rem 0.6rem",
+                            borderRadius: "0.3rem",
+                            border: `1px solid ${BORDER}`,
+                            background: "transparent",
+                            color: TEXT,
+                            fontSize: "0.75rem",
+                            cursor: "pointer",
+                          }}
+                        >
+                          👁️ View
+                        </button>
+                        <span style={{ fontSize: "0.75rem", color: OK }}>✓ Done</span>
+                      </div>
                     )}
                   </td>
                 </tr>
