@@ -33,7 +33,9 @@ interface ScorecardData {
     job_title: string;
     department: string;
     description?: string;
-    requirements?: string;
+    employment_type?: string;
+    experience?: string;
+    budget_max?: number | null;
   } | null;
   scorecard: {
     id: number;
@@ -112,7 +114,9 @@ export function InterviewScorecardPage() {
     // Job description if available
     if (data.job_opening) {
       if (data.job_opening.description) parts.push(`\nJOB DESCRIPTION:\n${data.job_opening.description}`);
-      if (data.job_opening.requirements) parts.push(`\nREQUIREMENTS:\n${data.job_opening.requirements}`);
+      if (data.job_opening.employment_type) parts.push(`EMPLOYMENT TYPE: ${data.job_opening.employment_type}`);
+      if (data.job_opening.experience) parts.push(`EXPERIENCE REQUIRED: ${data.job_opening.experience}`);
+      if (data.job_opening.budget_max) parts.push(`SALARY BUDGET: RM ${data.job_opening.budget_max.toLocaleString()}`);
     }
     
     // Screening answers

@@ -6823,8 +6823,10 @@ async def get_interview_scorecard(
                 "id": jo.id,
                 "job_title": jo.job_title,
                 "department": jo.department,
-                "description": jo.description,
-                "requirements": jo.requirements,
+                "description": jo.job_description or "",
+                "employment_type": jo.employment_type or "",
+                "experience": jo.experience or "",
+                "budget_max": jo.budget_max,
             }
 
     return {
