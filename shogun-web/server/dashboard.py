@@ -6351,13 +6351,14 @@ def _set_interview_questions(iv, questions: list) -> None:
 async def generate_hr_interview_questions(
     interview_id: int,
     name: str = Path(...),
+    request: Request = None,
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Generate 10 interview questions for the interview round.
+    """Generate interview questions for the interview round.
 
-    Tries a real LLM call (deepseek) grounded on the candidate's resume and the
-    job description; falls back to a per-round template on any failure.
+    Uses source_text from request body (built by frontend with resume + JD + screening).
+    Falls back to server-side fetching if source_text not provided.
     """
     from models import HrCandidate, HrInterview, HrJobOpening
 
@@ -6379,30 +6380,54 @@ async def generate_hr_interview_questions(
         "ceo": "CEO",
     }.get((iv.round or "").strip().lower(), iv.round or "interview")
 
+    # Parse request body for source_text and count
+    body = {}
+    try:
+        body = await request.json() if request else {}
+    except Exception:
+        pass
+    source_text = (body.get("source_text") or "").strip()
+    count = min(int(body.get("count", 10)), 15)
+
     questions: list = []
     source = "ai"
     try:
-        resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
-        # Note: _fetch_candidate_doc already uses async httpx for Drive; local files use sync I/O but are small
-        jd = (job.job_description or "") if job else ""
+        # Use frontend-provided source_text if available (includes resume + JD + screening)
+        if not source_text:
+            # Fallback: fetch resume and JD server-side
+            resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
+            jd = (job.job_description or "") if job else ""
+            source_text = (
+                f"CANDIDATE: {cand.name if cand else 'Unknown'}\n"
+                f"APPLIED FOR: {job_title}\n\n"
+                f"RESUME:\n{resume_text[:6000] or '(not available)'}\n\n"
+                f"JOB DESCRIPTION:\n{jd[:3000] or '(not available)'}"
+            )
+
         prompt = (
-            "You are an experienced hiring manager. Generate exactly 10 interview questions "
-            f"for a {round_label} interview with {cand.name if cand else 'the candidate'} applying "
-            f"for {job_title}.\n\n"
-            f"Resume text:\n{resume_text[:4000] or '(not available)'}\n\n"
-            f"Job description:\n{jd[:2000] or '(not available)'}\n\n"
-            "Return ONLY valid JSON — an array of 10 strings."
+            f"You are an expert interviewer conducting a {round_label} interview.\n\n"
+            f"Based on ALL the context below, generate exactly {count} specific, tailored interview questions "
+            f"for {cand.name if cand else 'the candidate'} applying for {job_title}.\n\n"
+            "CRITICAL RULES:\n"
+            "- Questions MUST reference specific details from the candidate's resume, experience, or screening answers\n"
+            "- Ask about specific projects, technologies, achievements, or gaps mentioned in their resume\n"
+            "- Reference their screening answers to probe deeper on interesting points\n"
+            "- Match questions to the job description requirements\n"
+            "- Do NOT ask generic questions that could apply to any candidate\n"
+            "- Each question should be unique and targeted to THIS specific candidate\n\n"
+            f"CONTEXT:\n{source_text[:12000]}\n\n"
+            f"Return ONLY valid JSON — an array of {count} strings."
         )
         from gateway import _call_deepseek
         raw = await _call_deepseek(
             prompt,
-            system_prompt="You generate tailored interview questions. Reply with ONLY valid JSON: an array of strings.",
-            max_tokens=1200,
+            system_prompt="You generate highly specific, tailored interview questions based on candidate resume, screening answers, and job description. Never ask generic questions. Reply with ONLY valid JSON: an array of strings.",
+            max_tokens=1500,
         )
         if raw:
             parsed = _extract_json_from_text(raw)
             if isinstance(parsed, list):
-                questions = [str(q).strip() for q in parsed if str(q).strip()][:10]
+                questions = [str(q).strip() for q in parsed if str(q).strip()][:count]
     except Exception:
         questions = []
     if not questions:
