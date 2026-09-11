@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useParams } from "react-router-dom";
 import { apiFetch, hrApi } from "../lib/api";
 import type { HrInterviewTemplate, HrInterview, HrCandidate } from "../lib/types";
@@ -78,6 +78,8 @@ export function InterviewScorecardPage() {
 
   // Per-round state
   const [rounds, setRounds] = useState<Record<RoundKey, RoundData>>({ hr: { ...EMPTY_ROUND }, manager: { ...EMPTY_ROUND }, ceo: { ...EMPTY_ROUND } });
+  const roundsRef = useRef(rounds);
+  useEffect(() => { roundsRef.current = rounds; }, [rounds]);
   const [templates, setTemplates] = useState<HrInterviewTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
   const [templateName, setTemplateName] = useState("");
@@ -182,6 +184,27 @@ export function InterviewScorecardPage() {
       parts.push(`\nSCREENING ANSWERS DOCUMENT:\n${screeningText}`);
     }
 
+    // Include previous round questions to avoid repetition
+    const roundOrder: RoundKey[] = ["hr", "manager", "ceo"];
+    const currentIdx = roundOrder.indexOf(round);
+    const prevQuestions: string[] = [];
+    for (let i = 0; i < currentIdx; i++) {
+      const prevRound = roundOrder[i];
+      const prevRd = roundsRef.current?.[prevRound];
+      if (prevRd) {
+        // Get questions from Q&A table (submitted or draft)
+        const qas = prevRd.questionAnswers || [];
+        qas.forEach((qa: { q: string; a: string }) => { if (qa.q.trim()) prevQuestions.push(qa.q.trim()); });
+        // Also include generated questions that haven't been used yet
+        const genQs = prevRd.generatedQuestions || [];
+        genQs.forEach((q: string) => { if (q.trim() && !prevQuestions.includes(q.trim())) prevQuestions.push(q.trim()); });
+      }
+    }
+    if (prevQuestions.length > 0) {
+      parts.push("\n\nPREVIOUS INTERVIEW QUESTIONS (DO NOT REPEAT THESE):");
+      prevQuestions.forEach((q, i) => parts.push(`${i + 1}. ${q}`));
+    }
+
     parts.push(`\n\nFOCUS: ${ROUND_FOCUS[round]}`);
     return parts.join("\n");
   };
@@ -200,7 +223,7 @@ export function InterviewScorecardPage() {
       if (!ivId) throw new Error("No interview found for this round");
       const res = await apiFetch<{ questions: string[] }>(`/api/departments/hr/dashboard/hr/interviews/${ivId}/generate-questions`, {
         method: "POST",
-        body: JSON.stringify({ source_text: combinedSource, count: 5 }),
+        body: JSON.stringify({ source_text: combinedSource, count: 10 }),
       });
       updateRound(round, { generatedQuestions: res.questions || [], generating: false });
     } catch (e) {

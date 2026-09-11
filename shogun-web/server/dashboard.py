@@ -6426,20 +6426,24 @@ async def generate_hr_interview_questions(
             "2. Questions should probe technical depth, problem-solving approach, or specific experiences\n"
             "3. Reference company names, project names, technologies, or achievements from the context\n"
             "4. If screening answers mention specific challenges, ask follow-up questions about those\n"
-            "5. Match questions to job requirements listed in the job description\n\n"
+            "5. Match questions to job requirements listed in the job description\n"
+            "6. STRICTLY follow the FOCUS area specified for this interview round\n"
+            "7. NEVER repeat or rephrase any question listed under 'PREVIOUS INTERVIEW QUESTIONS'\n"
+            "8. Each question must be unique and cover a DIFFERENT aspect of the candidate's background\n\n"
             f"Return ONLY valid JSON — an array of {count} strings. No explanation, no markdown."
         )
         from gateway import _call_deepseek
         raw = await _call_deepseek(
             prompt,
             system_prompt=(
-                "You are an expert technical interviewer. You ALWAYS generate questions that reference "
+                f"You are an expert {round_label} interviewer. You ALWAYS generate questions that reference "
                 "specific details from the candidate's resume and screening answers. You NEVER ask generic "
-                "interview questions. Every question must contain at least one specific reference to the "
-                "candidate's experience, projects, companies, or technologies mentioned in the provided context. "
+                "interview questions. You NEVER repeat questions from previous interview rounds. "
+                "Every question must contain at least one specific reference to the candidate's experience, "
+                "projects, companies, or technologies. You STRICTLY follow the FOCUS area for this round. "
                 "Reply with ONLY valid JSON: an array of strings."
             ),
-            max_tokens=1500,
+            max_tokens=2500,
         )
         if raw:
             _logging.getLogger("shogun.web").info(f"generate-questions RAW RESPONSE (first 500): {raw[:500]}")
