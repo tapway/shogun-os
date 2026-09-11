@@ -42,6 +42,9 @@ const JOURNEY_STAGES = [
   { status: "HR Interview Done", label: "HR Interview Done" },
   { status: "Waiting Manager Interview Confirm", label: "Waiting Manager Confirm" },
   { status: "Manager Interview Scheduled", label: "Manager Interview Scheduled" },
+  { status: "Manager Interview Done", label: "Manager Interview Done" },
+  { status: "Waiting CEO Interview Confirm", label: "Waiting CEO Confirm" },
+  { status: "CEO Interview Scheduled", label: "CEO Interview Scheduled" },
   { status: "Waiting Interview Result", label: "Waiting Result" },
   { status: "Waiting Offer Confirmation", label: "Waiting Offer Confirm" },
   { status: "Offer Sent - Waiting Reply", label: "Offer Sent" },
@@ -186,7 +189,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     run(() => hrApi.candidateMove(department, candidate.id, "Interview Email Sent - Waiting Reply"), "Send interview email");
   };
 
-  const confirmSchedule = (round: "first" | "manager") => {
+  const confirmSchedule = (round: "first" | "manager" | "ceo") => {
     if (!schedAt) {
       setError("Pick an interview date & time first");
       return;
@@ -257,7 +260,24 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   // Fetch staff list for scorecard assignment (from /api/staff - system users)
   const [allStaff, setAllStaff] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
   
+  // Staff directory for interviewer selection in scheduling forms
+  const [staffDirectory, setStaffDirectory] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  const [staffLoaded, setStaffLoaded] = useState(false);
+  
   useEffect(() => {
+    // Load staff directory once when modal opens
+    if (!staffLoaded) {
+      staffApi.list().then((res) => {
+        const staff = (res.staff || []).map((s: any) => ({
+          id: s.id,
+          name: s.name || "",
+          email: s.email || "",
+          department: s.department || "",
+        }));
+        setStaffDirectory(staff);
+        setStaffLoaded(true);
+      }).catch(() => {});
+    }
     // Load all staff once when modal opens
     if (showScorecardModal && allStaff.length === 0) {
       staffApi.list().then((res) => {
@@ -530,11 +550,13 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
-                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
-                  <datalist id="journey-interviewers">
-                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
-                  </datalist>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
@@ -571,14 +593,14 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
                 {hasScorecard ? (
                   <button type="button" onClick={async () => {
-                    // Open scorecard in new tab
+                    // Open scorecard in new tab — HR round
                     try {
                       const existing = await hrApi.listScorecards(department);
                       const sc = (existing.scorecards || []).find(
                         (s) => s.candidate_id === candidate.id && s.status !== "revoked"
                       );
                       if (sc) {
-                        window.open(`/interview-scorecard/${sc.token}`, "_blank");
+                        window.open(`/interview-scorecard/${sc.token}?round=hr`, "_blank");
                       }
                     } catch {}
                   }} style={{ ...btnOutline, color: LIME }}>
@@ -619,11 +641,13 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
-                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
-                  <datalist id="journey-interviewers">
-                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
-                  </datalist>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
@@ -651,6 +675,86 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 Interview is set. When it happens, mark that you are waiting for the interviewer's result.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Manager Interview Done", "Manager interview done")} style={btnPrimary}>✓ Manager Interview Done →</button>
+                <button type="button" onClick={async () => {
+                  try {
+                    const existing = await hrApi.listScorecards(department);
+                    const sc = (existing.scorecards || []).find(
+                      (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                    );
+                    if (sc) {
+                      window.open(`/interview-scorecard/${sc.token}?round=manager`, "_blank");
+                    } else {
+                      alert("No scorecard found for this candidate.");
+                    }
+                  } catch {}
+                }} style={{ ...btnOutline, color: LIME }}>
+                  🔗 Scorecard Link
+                </button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Manager Interview Done" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Manager interview done</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Candidate passed the Manager round? Continue to request a CEO interview slot, or reject.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Waiting CEO Interview Confirm", "Request CEO Interview")} style={btnPrimary}>✓ Continue — Request CEO Interview →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject (reason required)</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Waiting CEO Interview Confirm" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for CEO interview confirmation</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Waiting for the CEO to confirm a date/time. Once confirmed, schedule it below.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>
+                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
+                  <input value={schedLocation} onChange={(e) => setSchedLocation(e.target.value)} placeholder="Office / Meet link" style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => confirmSchedule("ceo")} style={btnPrimary}>✓ CEO Confirmed — Schedule →</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "CEO Interview Scheduled" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — CEO interview scheduled</p>
+              {nextInterview && (
+                <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
+                  📅 {fmtDateTime(nextInterview.scheduled_at)}
+                  {nextInterview.interviewer_name ? ` · Interviewer: ${nextInterview.interviewer_name}` : ""}
+                  {nextInterview.location ? ` · ${nextInterview.location}` : ""}
+                </p>
+              )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                CEO interview is set. When it happens, mark that you are waiting for the result.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
                 <button type="button" onClick={async () => {
                   try {
@@ -659,7 +763,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                       (s) => s.candidate_id === candidate.id && s.status !== "revoked"
                     );
                     if (sc) {
-                      window.open(`/interview-scorecard/${sc.token}`, "_blank");
+                      window.open(`/interview-scorecard/${sc.token}?round=ceo`, "_blank");
                     } else {
                       alert("No scorecard found for this candidate.");
                     }
@@ -674,7 +778,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Interview Result" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for interview result</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 11 — Waiting for interview result</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Follow up with the interviewer. Once the result is in, confirm whether to proceed to offer.
               </p>
@@ -688,7 +792,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Offer Confirmation" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for offer confirmation</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 12 — Waiting for offer confirmation</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Confirm the offer details with management. Once confirmed, send the offer to the candidate.
               </p>
@@ -701,7 +805,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Offer Sent - Waiting Reply" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — Offer sent, waiting for reply</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 13 — Offer sent, waiting for reply</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Waiting for the candidate's answer. If they accept, mark Done — then close the job from Job Openings.
               </p>

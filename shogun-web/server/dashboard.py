@@ -5696,14 +5696,18 @@ async def move_hr_candidate(
     _VALID_PIPELINE_STAGES = {
         "Resume Received", "Screening - Pending", "Screening - Review", "Screening - Passed",
         "Screening - Failed", "Screening", "HR Review",
+        "Shortlisted",
         "1st Interview Scheduled", "1st Interview Done", "1st Interview",
         "Schedule 1st Round of Interview", "Interview Email Sent - Waiting Reply",
         "HR Interview Scheduled", "HR Interview Done",
         "Manager Interview Scheduled", "Manager Interview Done", "Manager Interview",
         "Schedule Manager Interview", "Waiting Manager Interview Confirm",
+        "Waiting CEO Interview Confirm", "CEO Interview Scheduled", "CEO Interview Done", "CEO Interview",
+        "Schedule CEO Interview",
         "Waiting Interview Result", "Waiting Offer Confirmation",
         "Offer Sent - Waiting Reply", "Offer Sent", "Offer Accepted",
         "Done", "Rejected", "Withdrawn",
+        "Virtual Bench", "KIV", "On Hold", "No Response",
     }
     if status not in _VALID_PIPELINE_STAGES:
         raise HTTPException(status_code=422, detail=f"Invalid pipeline stage: {status}")
@@ -5718,7 +5722,9 @@ async def move_hr_candidate(
     old_status = cand.status
     cand.status = status
     if status in ("1st Interview Scheduled", "HR Interview Done",
-                  "Manager Interview Scheduled", "Waiting Interview Result",
+                  "Manager Interview Scheduled", "Manager Interview Done",
+                  "Waiting CEO Interview Confirm", "CEO Interview Scheduled",
+                  "Waiting Interview Result",
                   "Waiting Offer Confirmation", "Offer Sent - Waiting Reply", "Done"):
         cand.waiting_since = None
         cand.waiting_reason = None
@@ -6122,16 +6128,20 @@ async def decide_hr_candidate(
 
     cur = (cand.status or "").strip()
     if decision == "continue":
-        if cur.lower() != "hr interview done":
-            raise HTTPException(status_code=422, detail="Continue is only valid after the HR interview is done")
-        new_status = "Waiting Manager Interview Confirm"
+        if cur.lower() == "hr interview done":
+            new_status = "Waiting Manager Interview Confirm"
+        elif cur.lower() == "manager interview done":
+            new_status = "Waiting CEO Interview Confirm"
+        else:
+            raise HTTPException(status_code=422, detail="Continue is only valid after HR or Manager interview is done")
     elif decision == "offer":
         if cur.lower() != "waiting offer confirmation":
             raise HTTPException(status_code=422, detail="Offer is only valid after the interview result is confirmed")
         new_status = "Offer Sent - Waiting Reply"
-    else:  # reject — allowed from HR interview done, waiting result, or offer confirmation stages
-        if cur.lower() not in ("hr interview done", "waiting interview result", "waiting offer confirmation"):
-            raise HTTPException(status_code=422, detail="Reject is only valid after the HR interview or before the offer")
+    else:  # reject — allowed from HR interview done, manager interview done, waiting result, or offer confirmation stages
+        if cur.lower() not in ("hr interview done", "manager interview done", "waiting ceo interview confirm",
+                                "ceo interview scheduled", "waiting interview result", "waiting offer confirmation"):
+            raise HTTPException(status_code=422, detail="Reject is only valid after an interview or before the offer")
         new_status = "Rejected"
 
     old = cand.status
@@ -6175,8 +6185,8 @@ async def schedule_hr_interview(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     rnd = (body.round or "").strip().lower()
-    if rnd not in ("first", "manager"):
-        raise HTTPException(status_code=422, detail="round must be 'first' or 'manager'")
+    if rnd not in ("first", "manager", "ceo"):
+        raise HTTPException(status_code=422, detail="round must be 'first', 'manager', or 'ceo'")
     when = (body.scheduled_at or "").strip()
     if not when:
         raise HTTPException(status_code=422, detail="Interview date/time is required")
@@ -6193,7 +6203,11 @@ async def schedule_hr_interview(
             job_id = job.id
 
     old = cand.status
-    new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
+    new_status = {
+        "first": "1st Interview Scheduled",
+        "manager": "Manager Interview Scheduled",
+        "ceo": "CEO Interview Scheduled",
+    }.get(rnd, "1st Interview Scheduled")
     interview = HrInterview(
         tenant_id=tenant.id, candidate_id=candidate_id, job_id=job_id,
         round=rnd, scheduled_at=when,

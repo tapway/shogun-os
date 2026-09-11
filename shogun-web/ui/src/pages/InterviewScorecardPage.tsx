@@ -1,5 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useParams, useSearchParams } from "react-router-dom";
 import { apiFetch, hrApi } from "../lib/api";
 import type { HrInterviewTemplate, HrInterview, HrCandidate } from "../lib/types";
 
@@ -71,10 +71,16 @@ interface ScorecardData {
 
 export function InterviewScorecardPage() {
   const { token } = useParams<{ token: string }>();
+  const [searchParams] = useSearchParams();
   const [data, setData] = useState<ScorecardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [activeTab, setActiveTab] = useState<RoundKey>("hr");
+  // Support ?round=manager|ceo|hr query param to open a specific tab directly
+  const initialRound = useMemo<RoundKey>(() => {
+    const r = (searchParams.get("round") || "").toLowerCase() as RoundKey;
+    return ["hr", "manager", "ceo"].includes(r) ? r : "hr";
+  }, [searchParams]);
+  const [activeTab, setActiveTab] = useState<RoundKey>(initialRound);
 
   // Per-round state
   const [rounds, setRounds] = useState<Record<RoundKey, RoundData>>({ hr: { ...EMPTY_ROUND }, manager: { ...EMPTY_ROUND }, ceo: { ...EMPTY_ROUND } });
