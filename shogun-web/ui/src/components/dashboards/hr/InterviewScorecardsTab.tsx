@@ -133,6 +133,14 @@ export function InterviewScorecardsTab({ department }: Props) {
     return r;
   };
 
+  // Compute overall scorecard status: Done if all existing rounds are completed
+  const getOverallStatus = (rounds: Record<string, RoundInfo>): "Done" | "Pending" => {
+    const roundKeys = Object.keys(rounds);
+    if (roundKeys.length === 0) return "Pending";
+    const allCompleted = roundKeys.every((k) => rounds[k].status === "completed");
+    return allCompleted ? "Done" : "Pending";
+  };
+
   const statusBadge = (status: string) => {
     const colors: Record<string, string> = {
       scheduled: WARNING,
@@ -162,9 +170,10 @@ export function InterviewScorecardsTab({ department }: Props) {
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "35%" }}>Candidate</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "25%" }}>Position</th>
-                <th style={{ textAlign: "right", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "40%" }}>Actions</th>
+                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "30%" }}>Candidate</th>
+                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "20%" }}>Position</th>
+                <th style={{ textAlign: "center", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "15%" }}>Status</th>
+                <th style={{ textAlign: "right", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "35%" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
@@ -183,6 +192,24 @@ export function InterviewScorecardsTab({ department }: Props) {
                         {c.candidate_name}
                       </td>
                       <td style={{ padding: "0.6rem 0.5rem", color: MUTED }}>{c.candidate_role || "—"}</td>
+                      <td style={{ padding: "0.6rem 0.5rem", textAlign: "center" }}>
+                        {(() => {
+                          const overall = getOverallStatus(c.rounds);
+                          return (
+                            <span style={{
+                              display: "inline-block",
+                              padding: "0.15rem 0.5rem",
+                              borderRadius: "0.3rem",
+                              fontSize: "0.72rem",
+                              fontWeight: 700,
+                              color: "#0a0a0a",
+                              background: overall === "Done" ? OK : WARNING,
+                            }}>
+                              {overall}
+                            </span>
+                          );
+                        })()}
+                      </td>
                       <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
                         <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
                           <button
@@ -209,7 +236,7 @@ export function InterviewScorecardsTab({ department }: Props) {
                     {/* Expanded Round Details */}
                     {isExpanded && (
                       <tr>
-                        <td colSpan={3} style={{ padding: "0 0.5rem 0.75rem", background: SURFACE_2 }}>
+                        <td colSpan={4} style={{ padding: "0 0.5rem 0.75rem", background: SURFACE_2 }}>
                           <div style={{ padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE, marginTop: "0.25rem" }}>
                             <div style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.5rem" }}>Interview Rounds</div>
                             {(["hr", "manager", "ceo"] as const).map((rk) => {
