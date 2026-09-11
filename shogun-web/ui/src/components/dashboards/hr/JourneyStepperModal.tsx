@@ -287,24 +287,43 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   }, [scorecardEmployeeSearch, allStaff]);
 
   const handleCreateScorecard = async () => {
-    if (!selectedInterviewerId) {
-      setError("Please select an interviewer");
-      return;
-    }
     setCreatingScorecard(true);
     setError("");
     try {
-      const res = await hrApi.createScorecard(department, {
-        candidate_id: candidate.id,
-        assigned_to_user_id: selectedInterviewerId,
-        expires_days: scorecardExpiresDays,
-      });
-      const url = `${window.location.origin}/interview-scorecard/${res.scorecard.token}`;
-      navigator.clipboard.writeText(url).then(() => {
-        alert(`✅ Scorecard created! Link copied to clipboard:\n\n${url}`);
-      }).catch(() => {
-        prompt("Scorecard created! Copy this link:", url);
-      });
+      // Check if scorecard already exists for this candidate
+      const existing = await hrApi.listScorecards(department);
+      const existingForCandidate = (existing.scorecards || []).find(
+        (sc) => sc.candidate_id === candidate.id && sc.status !== "revoked"
+      );
+      
+      let url: string;
+      if (existingForCandidate) {
+        // Reuse existing scorecard link
+        url = `${window.location.origin}/interview-scorecard/${existingForCandidate.token}`;
+        navigator.clipboard.writeText(url).then(() => {
+          alert(`📋 Scorecard already exists! Link copied to clipboard:\n\n${url}\n\nAll interview rounds (HR/Manager/CEO) share this same link.`);
+        }).catch(() => {
+          prompt("Scorecard already exists! Copy this link:", url);
+        });
+      } else {
+        // Create new scorecard
+        if (!selectedInterviewerId) {
+          setError("Please select an interviewer");
+          setCreatingScorecard(false);
+          return;
+        }
+        const res = await hrApi.createScorecard(department, {
+          candidate_id: candidate.id,
+          assigned_to_user_id: selectedInterviewerId,
+          expires_days: 365,
+        });
+        url = `${window.location.origin}/interview-scorecard/${res.scorecard.token}`;
+        navigator.clipboard.writeText(url).then(() => {
+          alert(`✅ Scorecard created! Link copied to clipboard:\n\n${url}\n\nAll interview rounds (HR/Manager/CEO) share this same link.`);
+        }).catch(() => {
+          prompt("Scorecard created! Copy this link:", url);
+        });
+      }
       setShowScorecardModal(false);
       setScorecardEmployeeSearch("");
       setSelectedInterviewerId(null);
@@ -573,11 +592,9 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
-                {questionsInterview && (
-                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
-                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
-                  </button>
-                )}
+                <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
+                  🔗 Scorecard Link
+                </button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
