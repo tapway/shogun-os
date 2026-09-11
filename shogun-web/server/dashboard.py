@@ -6351,7 +6351,7 @@ def _set_interview_questions(iv, questions: list) -> None:
 async def generate_hr_interview_questions(
     interview_id: int,
     name: str = Path(...),
-    request: Request = None,
+    body: dict = Body(default={}),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
@@ -6380,14 +6380,11 @@ async def generate_hr_interview_questions(
         "ceo": "CEO",
     }.get((iv.round or "").strip().lower(), iv.round or "interview")
 
-    # Parse request body for source_text and count
-    body = {}
-    try:
-        body = await request.json() if request else {}
-    except Exception:
-        pass
+    # Parse body for source_text and count
     source_text = (body.get("source_text") or "").strip()
     count = min(int(body.get("count", 10)), 15)
+    import logging as _logging
+    _logging.getLogger("shogun.web").info(f"generate-questions: source_text length={len(source_text)}, count={count}, has_resume={'RESUME' in source_text}, has_screening={'SCREENING' in source_text}")
 
     questions: list = []
     source = "ai"
@@ -6404,30 +6401,52 @@ async def generate_hr_interview_questions(
                 f"JOB DESCRIPTION:\n{jd[:3000] or '(not available)'}"
             )
 
+        # Build prompt with context FIRST, then instructions
+        candidate_name = cand.name if cand else "the candidate"
+        context_block = source_text[:12000]
         prompt = (
-            f"You are an expert interviewer conducting a {round_label} interview.\n\n"
-            f"Based on ALL the context below, generate exactly {count} specific, tailored interview questions "
-            f"for {cand.name if cand else 'the candidate'} applying for {job_title}.\n\n"
-            "CRITICAL RULES:\n"
-            "- Questions MUST reference specific details from the candidate's resume, experience, or screening answers\n"
-            "- Ask about specific projects, technologies, achievements, or gaps mentioned in their resume\n"
-            "- Reference their screening answers to probe deeper on interesting points\n"
-            "- Match questions to the job description requirements\n"
-            "- Do NOT ask generic questions that could apply to any candidate\n"
-            "- Each question should be unique and targeted to THIS specific candidate\n\n"
-            f"CONTEXT:\n{source_text[:12000]}\n\n"
-            f"Return ONLY valid JSON — an array of {count} strings."
+            f"=== CANDIDATE CONTEXT FOR {candidate_name.upper()} ===\n\n"
+            f"{context_block}\n\n"
+            f"=== END CONTEXT ===\n\n"
+            f"TASK: You are conducting a {round_label} interview with {candidate_name} for the {job_title} position.\n"
+            f"Generate exactly {count} interview questions based SPECIFICALLY on the context above.\n\n"
+            "GOOD EXAMPLES (specific to candidate):\n"
+            '- "You mentioned building a microservices architecture at Company X — what was the biggest scaling challenge you faced?"\n'
+            '- "Your resume shows you migrated from MongoDB to PostgreSQL — what drove that decision and what trade-offs did you consider?"\n'
+            '- "In your screening answer about handling tight deadlines, you mentioned prioritizing features — can you walk through a specific example?"\n'
+            '- "You listed React and Next.js as your primary stack — how do you handle state management in large-scale applications?"\n\n'
+            "BAD EXAMPLES (generic — DO NOT generate these):\n"
+            '- "Walk us through your background" ❌\n'
+            '- "What are your strengths and weaknesses?" ❌\n'
+            '- "Where do you see yourself in 5 years?" ❌\n'
+            '- "Why should we hire you?" ❌\n'
+            '- "Tell me about a difficult situation" ❌\n\n'
+            "REQUIREMENTS:\n"
+            "1. Every question MUST mention something specific from the candidate's resume, projects, or screening answers\n"
+            "2. Questions should probe technical depth, problem-solving approach, or specific experiences\n"
+            "3. Reference company names, project names, technologies, or achievements from the context\n"
+            "4. If screening answers mention specific challenges, ask follow-up questions about those\n"
+            "5. Match questions to job requirements listed in the job description\n\n"
+            f"Return ONLY valid JSON — an array of {count} strings. No explanation, no markdown."
         )
         from gateway import _call_deepseek
         raw = await _call_deepseek(
             prompt,
-            system_prompt="You generate highly specific, tailored interview questions based on candidate resume, screening answers, and job description. Never ask generic questions. Reply with ONLY valid JSON: an array of strings.",
+            system_prompt=(
+                "You are an expert technical interviewer. You ALWAYS generate questions that reference "
+                "specific details from the candidate's resume and screening answers. You NEVER ask generic "
+                "interview questions. Every question must contain at least one specific reference to the "
+                "candidate's experience, projects, companies, or technologies mentioned in the provided context. "
+                "Reply with ONLY valid JSON: an array of strings."
+            ),
             max_tokens=1500,
         )
         if raw:
-            parsed = _extract_json_from_text(raw)
+            _logging.getLogger("shogun.web").info(f"generate-questions RAW RESPONSE (first 500): {raw[:500]}")
+            parsed = _extract_json_from_text(raw, is_array=True)
             if isinstance(parsed, list):
                 questions = [str(q).strip() for q in parsed if str(q).strip()][:count]
+                _logging.getLogger("shogun.web").info(f"generate-questions PARSED {len(questions)} questions: {questions[:3]}")
     except Exception:
         questions = []
     if not questions:
