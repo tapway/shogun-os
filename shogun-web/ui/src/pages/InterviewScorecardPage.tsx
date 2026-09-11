@@ -29,6 +29,7 @@ interface ScorecardData {
   candidate: HrCandidate;
   interviews: HrInterview[];
   current_interview: HrInterview | null;
+  draft_notes?: string;
   job_opening?: {
     id: number;
     job_title: string;
@@ -56,7 +57,10 @@ export function InterviewScorecardPage() {
   const [questionAnswers, setQuestionAnswers] = useState<Array<{ q: string; a: string }>>([]);
   const [rating, setRating] = useState<number | null>(null);
   const [comment, setComment] = useState("");
+  const [notes, setNotes] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [savingDraft, setSavingDraft] = useState(false);
+  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
 
   // Questions & Templates state
   const [qTab, setQTab] = useState<"questions" | "templates">("questions");
@@ -85,6 +89,22 @@ export function InterviewScorecardPage() {
         }
         if (res.current_interview?.comment) {
           setComment(res.current_interview.comment);
+        }
+        // Load draft notes if saved previously
+        if (res.draft_notes) {
+          setNotes(res.draft_notes);
+        }
+        // Load draft question_answers if stored in new format
+        if (res.current_interview?.question_answers) {
+          const qa = res.current_interview.question_answers;
+          // Check if it's the new structured format with notes
+          if (!Array.isArray(qa) && typeof qa === "object" && "question_answers" in qa) {
+            const structured = qa as any;
+            if (structured.question_answers) setQuestionAnswers(structured.question_answers);
+            if (structured.notes) setNotes(structured.notes);
+            if (structured.rating) setRating(structured.rating);
+            if (structured.comment) setComment(structured.comment);
+          }
         }
         if (res.scorecard.status === "completed") {
           setSubmitted(true);
@@ -177,6 +197,31 @@ export function InterviewScorecardPage() {
     }
   };
 
+  const handleSaveDraft = async () => {
+    if (!token || !data?.current_interview) return;
+    setSavingDraft(true);
+    setError("");
+    try {
+      const res = await apiFetch<{ ok: boolean; saved_at: string }>(
+        `/api/departments/hr/dashboard/interview-scorecard/${token}/save-draft`,
+        {
+          method: "POST",
+          body: JSON.stringify({
+            rating,
+            comment: comment.trim(),
+            notes: notes.trim(),
+            question_answers: questionAnswers.filter((qa) => qa.q.trim()),
+          }),
+        }
+      );
+      setDraftSavedAt(res.saved_at);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to save draft");
+    } finally {
+      setSavingDraft(false);
+    }
+  };
+
   const handleSubmit = async () => {
     if (!token || !data?.current_interview) return;
     setSubmitting(true);
@@ -187,7 +232,8 @@ export function InterviewScorecardPage() {
         body: JSON.stringify({
           rating,
           comment: comment.trim(),
-          question_answers: questionAnswers.filter((qa) => qa.a.trim()),
+          notes: notes.trim(),
+          question_answers: questionAnswers.filter((qa) => qa.q.trim()),
         }),
       });
       setSubmitted(true);
@@ -693,6 +739,50 @@ export function InterviewScorecardPage() {
                 + Add Row
               </button>
             </div>
+
+            {/* Notes Section - Interview Focus / Preparation */}
+            <div style={{ marginBottom: "1.5rem" }}>
+              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
+                📝 Notes (Focus Areas / Preparation)
+              </label>
+              <textarea
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Key points to focus on during interview, areas to probe deeper, reminders..."
+                rows={4}
+                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
+              />
+              <div style={{ marginTop: "0.3rem", fontSize: "0.7rem", color: MUTED }}>
+                Private notes for your reference during the interview
+              </div>
+            </div>
+
+            {/* Save Draft Button */}
+            {!submitted && (
+              <div style={{ marginBottom: "1.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                <button
+                  onClick={handleSaveDraft}
+                  disabled={savingDraft}
+                  style={{
+                    padding: "0.5rem 1rem",
+                    borderRadius: "0.4rem",
+                    border: `1px solid ${BORDER}`,
+                    background: savingDraft ? MUTED : SURFACE_2,
+                    color: TEXT,
+                    fontWeight: 600,
+                    fontSize: "0.85rem",
+                    cursor: savingDraft ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {savingDraft ? "Saving..." : "💾 Save Draft"}
+                </button>
+                {draftSavedAt && (
+                  <span style={{ fontSize: "0.75rem", color: OK }}>
+                    ✓ Saved {new Date(draftSavedAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}
+                  </span>
+                )}
+              </div>
+            )}
 
             {/* Rating */}
             <div style={{ marginBottom: "1rem" }}>

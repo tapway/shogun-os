@@ -6268,6 +6268,7 @@ class HrApplyTemplateBody(BaseModel):
 class HrPostInterviewBody(BaseModel):
     rating: Optional[int] = None
     comment: str = ""
+    notes: str = ""  # Interviewer preparation notes / focus areas
     question_answers: List[Dict[str, str]] = Field(default_factory=list)  # [{"q": "...", "a": "..."}, ...]
 
 
@@ -6829,13 +6830,81 @@ async def get_interview_scorecard(
                 "budget_max": jo.budget_max,
             }
 
+    # Parse draft data if stored in new format
+    draft_notes = ""
+    if current and current.question_answers_json:
+        try:
+            parsed = __import__("json").loads(current.question_answers_json)
+            if isinstance(parsed, dict) and "notes" in parsed:
+                draft_notes = parsed.get("notes", "")
+        except (ValueError, TypeError):
+            pass
+
     return {
         "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
         "interviews": [i.to_dict() for i in interviews],
         "current_interview": current.to_dict() if current else None,
+        "draft_notes": draft_notes,
         "job_opening": job_opening,
         "scorecard": scorecard.to_dict(),
     }
+
+
+# ── Save Draft (pre-interview preparation) ────────────────────────────
+
+@router.post("/interview-scorecard/{token}/save-draft")
+async def save_interview_scorecard_draft(
+    token: str,
+    body: HrPostInterviewBody,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save draft assessment (questions, notes) without submitting. Interviewer can come back later."""
+    import json as _json
+    from models import HrInterviewScorecard, HrInterview
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status != "pending":
+        raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}, cannot save draft")
+
+    if scorecard.expires_at < datetime.utcnow():
+        scorecard.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    # Find current scheduled interview
+    current = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id,
+        HrInterview.status == "scheduled"
+    ).order_by(HrInterview.created_at.desc()).first()
+
+    if not current:
+        raise HTTPException(status_code=404, detail="No active interview found")
+
+    # Save draft data (don't mark as completed)
+    if body.question_answers:
+        current.question_answers_json = _json.dumps(body.question_answers)
+    current.review_comment = (body.comment or "").strip()[:5000]
+    # Store notes in a separate field - use comment prefix pattern since no dedicated column
+    # Actually, let's store notes alongside question_answers in the JSON
+    draft_data = {
+        "question_answers": body.question_answers,
+        "notes": (body.notes or "").strip()[:5000],
+        "rating": body.rating,
+        "comment": (body.comment or "").strip(),
+    }
+    current.question_answers_json = _json.dumps(draft_data)
+
+    db.commit()
+    return {"ok": True, "saved_at": datetime.utcnow().isoformat()}
 
 
 @router.post("/interview-scorecard/{token}/submit")
@@ -6880,7 +6949,14 @@ async def submit_interview_scorecard(
         current.review_rating = body.rating
     current.review_comment = (body.comment or "").strip()[:5000]
     if body.question_answers:
-        current.question_answers_json = _json.dumps(body.question_answers)
+        # Store both Q&A and notes in structured format
+        full_data = {
+            "question_answers": body.question_answers,
+            "notes": (body.notes or "").strip()[:5000],
+            "rating": body.rating,
+            "comment": (body.comment or "").strip(),
+        }
+        current.question_answers_json = _json.dumps(full_data)
 
     # Mark scorecard as completed
     scorecard.status = "completed"
