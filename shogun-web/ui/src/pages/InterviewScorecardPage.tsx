@@ -320,6 +320,74 @@ export function InterviewScorecardPage() {
           ))}
         </div>
 
+        {/* AI Extracted Details */}
+        {(() => {
+          try {
+            const extract = candidate.ai_extract_json ? JSON.parse(candidate.ai_extract_json) : null;
+            if (!extract) return null;
+            const skills: string[] = extract.skills || [];
+            const exp: Array<{ title?: string; company?: string; period?: string }> = extract.experience || [];
+            const edu: string[] = extract.education || [];
+            const keyDetails = extract.key_details || {};
+            const summary = extract.summary || candidate.ai_summary || "";
+            if (!summary && skills.length === 0 && exp.length === 0 && edu.length === 0) return null;
+            return (
+              <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
+                <details open>
+                  <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", color: TEXT }}>✨ AI Extracted Details</summary>
+                  <div style={{ marginTop: "0.75rem", display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+                    {summary && (
+                      <div>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: MUTED, marginBottom: "0.25rem" }}>Summary</div>
+                        <p style={{ whiteSpace: "pre-wrap", fontSize: "0.82rem", color: TEXT, margin: 0 }}>{summary}</p>
+                      </div>
+                    )}
+                    {skills.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: MUTED, marginBottom: "0.3rem" }}>Skills</div>
+                        <div style={{ display: "flex", flexWrap: "wrap", gap: "0.3rem" }}>
+                          {skills.map((s: string) => (
+                            <span key={s} style={{ fontSize: "0.75rem", color: TEXT, border: `1px solid ${BORDER}`, background: SURFACE_2, padding: "0.12rem 0.5rem", borderRadius: "999px" }}>{s}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                    {exp.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: MUTED, marginBottom: "0.3rem" }}>Experience</div>
+                        {exp.map((e, i) => (
+                          <div key={i} style={{ marginBottom: "0.3rem", fontSize: "0.82rem" }}>
+                            <div style={{ color: TEXT, fontWeight: 600 }}>{e.title || "—"}</div>
+                            <div style={{ color: MUTED, fontSize: "0.75rem" }}>{[e.company, e.period].filter(Boolean).join(" · ")}</div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                    {edu.length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: MUTED, marginBottom: "0.3rem" }}>Education</div>
+                        <ul style={{ margin: 0, paddingLeft: "1.1rem", fontSize: "0.82rem", color: TEXT }}>
+                          {edu.map((e: string, i: number) => <li key={i}>{e}</li>)}
+                        </ul>
+                      </div>
+                    )}
+                    {Object.keys(keyDetails).length > 0 && (
+                      <div>
+                        <div style={{ fontSize: "0.78rem", fontWeight: 700, color: MUTED, marginBottom: "0.3rem" }}>Key Details</div>
+                        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(150px, 1fr))", gap: "0.3rem", fontSize: "0.8rem" }}>
+                          {Object.entries(keyDetails).map(([k, v]) => (
+                            <div key={k}><span style={{ color: MUTED }}>{k.replace(/_/g, " ")}:</span> <span style={{ color: TEXT }}>{String(v || "—")}</span></div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </details>
+              </div>
+            );
+          } catch { return null; }
+        })()}
+
         {/* Resume & Screening (shared across tabs) */}
         <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
           <details open>
