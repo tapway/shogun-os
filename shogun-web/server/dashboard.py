@@ -6830,21 +6830,24 @@ async def get_interview_scorecard(
                 "budget_max": jo.budget_max,
             }
 
-    # Parse draft data if stored in new format
-    draft_notes = ""
-    if current and current.question_answers_json:
-        try:
-            parsed = __import__("json").loads(current.question_answers_json)
-            if isinstance(parsed, dict) and "notes" in parsed:
-                draft_notes = parsed.get("notes", "")
-        except (ValueError, TypeError):
-            pass
+    # Group interviews by round
+    rounds = {}
+    for iv in interviews:
+        d = iv.to_dict()
+        r = (iv.round or "first").lower()
+        # Normalize round names
+        if r in ("first", "hr"):
+            r = "hr"
+        elif r == "manager":
+            r = "manager"
+        elif r == "ceo":
+            r = "ceo"
+        rounds[r] = d
 
     return {
         "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
         "interviews": [i.to_dict() for i in interviews],
-        "current_interview": current.to_dict() if current else None,
-        "draft_notes": draft_notes,
+        "rounds": rounds,
         "job_opening": job_opening,
         "scorecard": scorecard.to_dict(),
     }
@@ -6856,10 +6859,11 @@ async def get_interview_scorecard(
 async def save_interview_scorecard_draft(
     token: str,
     body: HrPostInterviewBody,
+    round: str = Query("hr", description="Round: hr, manager, ceo"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Save draft assessment (questions, notes) without submitting. Interviewer can come back later."""
+    """Save draft assessment for a specific round. Interviewer can come back later."""
     import json as _json
     from models import HrInterviewScorecard, HrInterview
 
@@ -6880,11 +6884,23 @@ async def save_interview_scorecard_draft(
         db.commit()
         raise HTTPException(status_code=410, detail="This scorecard has expired")
 
-    # Find current scheduled interview
+    # Normalize round
+    r = round.lower().strip()
+    if r in ("first", "hr"):
+        r = "first"
+    
+    # Find interview for this round
     current = db.query(HrInterview).filter(
         HrInterview.candidate_id == scorecard.candidate_id,
-        HrInterview.status == "scheduled"
+        HrInterview.round == r
     ).order_by(HrInterview.created_at.desc()).first()
+    
+    # Fallback: any scheduled interview
+    if not current:
+        current = db.query(HrInterview).filter(
+            HrInterview.candidate_id == scorecard.candidate_id,
+            HrInterview.status == "scheduled"
+        ).order_by(HrInterview.created_at.desc()).first()
 
     if not current:
         raise HTTPException(status_code=404, detail="No active interview found")
@@ -6911,10 +6927,11 @@ async def save_interview_scorecard_draft(
 async def submit_interview_scorecard(
     token: str,
     body: HrPostInterviewBody,
+    round: str = Query("hr", description="Round: hr, manager, ceo"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Submit assessment for a scorecard."""
+    """Submit assessment for a specific round."""
     import json as _json
     from models import HrInterviewScorecard, HrInterview
 
@@ -6935,11 +6952,23 @@ async def submit_interview_scorecard(
         db.commit()
         raise HTTPException(status_code=410, detail="This scorecard has expired")
 
-    # Find current scheduled interview
+    # Normalize round
+    r = round.lower().strip()
+    if r in ("first", "hr"):
+        r = "first"
+    
+    # Find interview for this round
     current = db.query(HrInterview).filter(
         HrInterview.candidate_id == scorecard.candidate_id,
-        HrInterview.status == "scheduled"
+        HrInterview.round == r
     ).order_by(HrInterview.created_at.desc()).first()
+    
+    # Fallback: any scheduled interview
+    if not current:
+        current = db.query(HrInterview).filter(
+            HrInterview.candidate_id == scorecard.candidate_id,
+            HrInterview.status == "scheduled"
+        ).order_by(HrInterview.created_at.desc()).first()
 
     if not current:
         raise HTTPException(status_code=404, detail="No active interview found")

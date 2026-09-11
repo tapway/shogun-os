@@ -1,8 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
 import { apiFetch, hrApi } from "../lib/api";
-import type { HrInterviewTemplate } from "../lib/types";
-import type { HrInterview, HrCandidate } from "../lib/types";
+import type { HrInterviewTemplate, HrInterview, HrCandidate } from "../lib/types";
 
 const MUTED = "var(--samurai-muted)";
 const TEXT = "var(--samurai-text)";
@@ -25,25 +24,49 @@ const inputStyle: React.CSSProperties = {
   boxSizing: "border-box",
 };
 
+type RoundKey = "hr" | "manager" | "ceo";
+
+interface RoundData {
+  questionAnswers: Array<{ q: string; a: string }>;
+  rating: number | null;
+  comment: string;
+  notes: string;
+  generatedQuestions: string[];
+  editingQuestions: string[];
+  isEditingGen: boolean;
+  genSource: string;
+  generating: boolean;
+  submitted: boolean;
+  draftSavedAt: string | null;
+}
+
+const EMPTY_ROUND: RoundData = {
+  questionAnswers: [],
+  rating: null,
+  comment: "",
+  notes: "",
+  generatedQuestions: [],
+  editingQuestions: [],
+  isEditingGen: false,
+  genSource: "",
+  generating: false,
+  submitted: false,
+  draftSavedAt: null,
+};
+
+const ROUND_LABELS: Record<RoundKey, string> = { hr: "HR Interview", manager: "Manager Interview", ceo: "CEO Interview" };
+const ROUND_FOCUS: Record<RoundKey, string> = {
+  hr: "HR screening — assess cultural fit, motivation, communication skills, career goals, salary expectations, availability.",
+  manager: "Manager/Technical interview — assess technical skills, problem-solving, domain expertise, team collaboration, past project experience, leadership potential.",
+  ceo: "CEO/Final interview — assess strategic thinking, vision alignment, leadership qualities, long-term commitment, company values fit, growth mindset.",
+};
+
 interface ScorecardData {
   candidate: HrCandidate;
   interviews: HrInterview[];
-  current_interview: HrInterview | null;
-  draft_notes?: string;
-  job_opening?: {
-    id: number;
-    job_title: string;
-    department: string;
-    description?: string;
-    employment_type?: string;
-    experience?: string;
-    budget_max?: number | null;
-  } | null;
-  scorecard: {
-    id: number;
-    status: string;
-    expires_at: string;
-  };
+  rounds: Record<string, any>;
+  job_opening?: { id: number; job_title: string; department: string; description?: string; employment_type?: string; experience?: string; budget_max?: number | null } | null;
+  scorecard: { id: number; status: string; expires_at: string };
 }
 
 export function InterviewScorecardPage() {
@@ -51,812 +74,352 @@ export function InterviewScorecardPage() {
   const [data, setData] = useState<ScorecardData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [submitted, setSubmitted] = useState(false);
+  const [activeTab, setActiveTab] = useState<RoundKey>("hr");
 
-  // Form state
-  const [questionAnswers, setQuestionAnswers] = useState<Array<{ q: string; a: string }>>([]);
-  const [rating, setRating] = useState<number | null>(null);
-  const [comment, setComment] = useState("");
-  const [notes, setNotes] = useState("");
-  const [submitting, setSubmitting] = useState(false);
-  const [savingDraft, setSavingDraft] = useState(false);
-  const [draftSavedAt, setDraftSavedAt] = useState<string | null>(null);
-
-  // Questions & Templates state
-  const [qTab, setQTab] = useState<"questions" | "templates">("questions");
-  const [genSource, setGenSource] = useState("");
-  const [generating, setGenerating] = useState(false);
-  const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
+  // Per-round state
+  const [rounds, setRounds] = useState<Record<RoundKey, RoundData>>({ hr: { ...EMPTY_ROUND }, manager: { ...EMPTY_ROUND }, ceo: { ...EMPTY_ROUND } });
   const [templates, setTemplates] = useState<HrInterviewTemplate[]>([]);
   const [templatesLoading, setTemplatesLoading] = useState(false);
-  const [editingQuestions, setEditingQuestions] = useState<string[]>([]);
-  const [isEditingGen, setIsEditingGen] = useState(false);
   const [templateName, setTemplateName] = useState("");
   const [savingTemplate, setSavingTemplate] = useState(false);
 
+  // Helper to update one round's state
+  const updateRound = (round: RoundKey, patch: Partial<RoundData>) => {
+    setRounds((prev) => ({ ...prev, [round]: { ...prev[round], ...patch } }));
+  };
+
+  const rd = rounds[activeTab];
+
+  // Load scorecard data
   useEffect(() => {
     if (!token) return;
     setLoading(true);
     apiFetch<ScorecardData>(`/api/departments/hr/dashboard/interview-scorecard/${token}`)
       .then((res) => {
         setData(res);
-        // Pre-populate answers if already submitted
-        if (res.current_interview?.question_answers) {
-          setQuestionAnswers(res.current_interview.question_answers);
-        }
-        if (res.current_interview?.rating) {
-          setRating(res.current_interview.rating);
-        }
-        if (res.current_interview?.comment) {
-          setComment(res.current_interview.comment);
-        }
-        // Load draft data if saved previously
-        if (res.current_interview) {
-          const iv = res.current_interview as any;
-          // Use draft_data from to_dict (new structured format)
-          if (iv.draft_data && typeof iv.draft_data === "object" && iv.draft_data.question_answers) {
-            const draft = iv.draft_data;
-            if (draft.question_answers?.length) setQuestionAnswers(draft.question_answers);
-            if (draft.notes) setNotes(draft.notes);
-            if (draft.rating) setRating(draft.rating);
-            if (draft.comment) setComment(draft.comment);
-          } else if (res.draft_notes) {
-            // Fallback to draft_notes from scorecard endpoint
-            setNotes(res.draft_notes);
+        // Populate each round from server data
+        const newRounds: Record<RoundKey, RoundData> = { hr: { ...EMPTY_ROUND }, manager: { ...EMPTY_ROUND }, ceo: { ...EMPTY_ROUND } };
+        for (const [key, iv] of Object.entries(res.rounds || {})) {
+          const rk = key as RoundKey;
+          if (!(rk in newRounds)) continue;
+          const draft = (iv as any).draft_data;
+          if (draft && typeof draft === "object" && draft.question_answers) {
+            newRounds[rk] = {
+              ...EMPTY_ROUND,
+              questionAnswers: draft.question_answers || [],
+              notes: draft.notes || "",
+              rating: draft.rating ?? null,
+              comment: draft.comment || "",
+            };
+          } else if ((iv as any).question_answers?.length) {
+            newRounds[rk] = {
+              ...EMPTY_ROUND,
+              questionAnswers: (iv as any).question_answers,
+              rating: (iv as any).rating ?? null,
+              comment: (iv as any).comment || "",
+            };
+          }
+          // Check if already submitted
+          if ((iv as any).status === "completed" || (iv as any).review_rating != null) {
+            newRounds[rk].submitted = true;
           }
         }
-        if (res.scorecard.status === "completed") {
-          setSubmitted(true);
-        }
+        setRounds(newRounds);
       })
-      .catch((e) => {
-        setError(e instanceof Error ? e.message : "Failed to load scorecard");
-      })
+      .catch((e) => setError(e instanceof Error ? e.message : "Failed to load scorecard"))
       .finally(() => setLoading(false));
   }, [token]);
 
-  // Load interview templates
+  // Load templates
   useEffect(() => {
-    if (data?.current_interview && templates.length === 0) {
+    if (data && templates.length === 0) {
       setTemplatesLoading(true);
-      hrApi.listInterviewTemplates("hr")
-        .then((res) => setTemplates(res.templates || []))
-        .catch(() => {})
-        .finally(() => setTemplatesLoading(false));
+      hrApi.listInterviewTemplates("hr").then((res) => setTemplates(res.templates || [])).catch(() => {}).finally(() => setTemplatesLoading(false));
     }
-  }, [data?.current_interview]);
+  }, [data]);
 
-  // Build auto-source from candidate data + stage-specific focus
-  const buildAutoSource = () => {
+  // Build auto-source for AI generation
+  const buildAutoSource = (round: RoundKey) => {
     if (!data) return "";
     const parts: string[] = [];
-    
-    // Candidate info
     parts.push(`CANDIDATE: ${data.candidate.name}`);
     if (data.candidate.role) parts.push(`APPLIED FOR: ${data.candidate.role}`);
-    
-    // Job description if available
     if (data.job_opening) {
       if (data.job_opening.description) parts.push(`\nJOB DESCRIPTION:\n${data.job_opening.description}`);
       if (data.job_opening.employment_type) parts.push(`EMPLOYMENT TYPE: ${data.job_opening.employment_type}`);
       if (data.job_opening.experience) parts.push(`EXPERIENCE REQUIRED: ${data.job_opening.experience}`);
       if (data.job_opening.budget_max) parts.push(`SALARY BUDGET: RM ${data.job_opening.budget_max.toLocaleString()}`);
     }
-    
-    // Screening answers
     if (data.candidate.screening_answers_json) {
       try {
         const answers = JSON.parse(data.candidate.screening_answers_json);
         if (Array.isArray(answers.questions)) {
           parts.push("\nSCREENING ANSWERS:");
-          answers.questions.forEach((qa: any, i: number) => {
-            parts.push(`Q${i+1}: ${qa.q}\nA: ${qa.a}`);
-          });
+          answers.questions.forEach((qa: any, i: number) => parts.push(`Q${i + 1}: ${qa.q}\nA: ${qa.a}`));
         }
       } catch {}
     }
-    
-    // Stage-specific focus
-    const round = (data.current_interview?.round || "").toLowerCase();
-    if (round === "first" || round === "hr") {
-      parts.push("\n\nFOCUS: HR screening — assess cultural fit, motivation, communication skills, career goals, salary expectations, availability.");
-    } else if (round === "manager") {
-      parts.push("\n\nFOCUS: Manager/Technical interview — assess technical skills, problem-solving, domain expertise, team collaboration, past project experience, leadership potential.");
-    } else if (round === "ceo") {
-      parts.push("\n\nFOCUS: CEO/Final interview — assess strategic thinking, vision alignment, leadership qualities, long-term commitment, company values fit, growth mindset.");
-    }
-    
+    parts.push(`\n\nFOCUS: ${ROUND_FOCUS[round]}`);
     return parts.join("\n");
   };
 
-  const handleGenerateQuestions = async () => {
-    if (!data?.candidate || !data?.current_interview) return;
-    setGenerating(true);
+  const handleGenerateQuestions = async (round: RoundKey) => {
+    const r = rounds[round];
+    if (!data?.candidate) return;
+    updateRound(round, { generating: true });
     setError("");
     try {
-      // Combine auto-source with user's custom specifications
-      const autoSource = buildAutoSource();
-      const customSpec = genSource.trim();
-      const combinedSource = customSpec 
-        ? `${autoSource}\n\nADDITIONAL SPECIFICATIONS FROM INTERVIEWER:\n${customSpec}`
-        : autoSource;
-      
-      const res = await apiFetch<{ questions: string[] }>(
-        `/api/departments/hr/dashboard/hr/interviews/${data.current_interview.id}/generate-questions`,
-        {
-          method: "POST",
-          body: JSON.stringify({ source_text: combinedSource, count: 5 }),
-        }
-      );
-      setGeneratedQuestions(res.questions || []);
+      const autoSource = buildAutoSource(round);
+      const customSpec = r.genSource.trim();
+      const combinedSource = customSpec ? `${autoSource}\n\nADDITIONAL SPECIFICATIONS:\n${customSpec}` : autoSource;
+      // Find interview ID for this round
+      const ivId = data.rounds?.[round]?.id || data.interviews?.find((i) => i.round === round || (round === "hr" && i.round === "first"))?.id;
+      if (!ivId) throw new Error("No interview found for this round");
+      const res = await apiFetch<{ questions: string[] }>(`/api/departments/hr/dashboard/hr/interviews/${ivId}/generate-questions`, {
+        method: "POST",
+        body: JSON.stringify({ source_text: combinedSource, count: 5 }),
+      });
+      updateRound(round, { generatedQuestions: res.questions || [], generating: false });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to generate questions");
-    } finally {
-      setGenerating(false);
+      updateRound(round, { generating: false });
     }
   };
 
-  const handleSaveDraft = async () => {
-    if (!token || !data?.current_interview) return;
-    setSavingDraft(true);
+  const handleSaveDraft = async (round: RoundKey) => {
+    if (!token) return;
+    const r = rounds[round];
+    updateRound(round, { draftSavedAt: null }); // clear old timestamp
     setError("");
     try {
-      const res = await apiFetch<{ ok: boolean; saved_at: string }>(
-        `/api/departments/hr/dashboard/interview-scorecard/${token}/save-draft`,
-        {
-          method: "POST",
-          body: JSON.stringify({
-            rating,
-            comment: comment.trim(),
-            notes: notes.trim(),
-            question_answers: questionAnswers.filter((qa) => qa.q.trim()),
-          }),
-        }
-      );
-      setDraftSavedAt(res.saved_at);
+      const res = await apiFetch<{ ok: boolean; saved_at: string }>(`/api/departments/hr/dashboard/interview-scorecard/${token}/save-draft?round=${round}`, {
+        method: "POST",
+        body: JSON.stringify({ rating: r.rating, comment: r.comment.trim(), notes: r.notes.trim(), question_answers: r.questionAnswers.filter((qa) => qa.q.trim()) }),
+      });
+      updateRound(round, { draftSavedAt: res.saved_at });
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to save draft");
-    } finally {
-      setSavingDraft(false);
     }
   };
 
-  const handleSubmit = async () => {
-    if (!token || !data?.current_interview) return;
-    setSubmitting(true);
+  const handleSubmit = async (round: RoundKey) => {
+    if (!token) return;
+    const r = rounds[round];
     setError("");
     try {
-      await apiFetch(`/api/departments/hr/dashboard/interview-scorecard/${token}/submit`, {
+      await apiFetch(`/api/departments/hr/dashboard/interview-scorecard/${token}/submit?round=${round}`, {
         method: "POST",
-        body: JSON.stringify({
-          rating,
-          comment: comment.trim(),
-          notes: notes.trim(),
-          question_answers: questionAnswers.filter((qa) => qa.q.trim()),
-        }),
+        body: JSON.stringify({ rating: r.rating, comment: r.comment.trim(), notes: r.notes.trim(), question_answers: r.questionAnswers.filter((qa) => qa.q.trim()) }),
       });
-      setSubmitted(true);
+      updateRound(round, { submitted: true });
     } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to submit assessment");
-    } finally {
-      setSubmitting(false);
+      setError(e instanceof Error ? e.message : "Failed to submit");
     }
   };
 
   if (loading) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--samurai-bg)" }}>
-        <div style={{ textAlign: "center" }}>
-          <div className="h-8 w-8 animate-spin rounded-full" style={{ border: `3px solid ${LIME}`, borderTopColor: "transparent", margin: "0 auto 1rem" }} />
-          <p style={{ color: MUTED }}>Loading scorecard…</p>
-        </div>
-      </div>
-    );
+    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--samurai-bg)" }}><div style={{ textAlign: "center" }}><div className="h-8 w-8 animate-spin rounded-full" style={{ border: `3px solid ${LIME}`, borderTopColor: "transparent", margin: "0 auto 1rem" }} /><p style={{ color: MUTED }}>Loading scorecard…</p></div></div>;
   }
 
   if (error && !data) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--samurai-bg)", padding: "2rem" }}>
-        <div style={{ maxWidth: "500px", textAlign: "center" }}>
-          <h2 style={{ color: TEXT, marginBottom: "1rem" }}>⚠️ Unable to Load Scorecard</h2>
-          <p style={{ color: MUTED }}>{error}</p>
-          <p style={{ color: MUTED, marginTop: "1rem", fontSize: "0.85rem" }}>
-            This link may have expired, been revoked, or you may not have access. Please contact HR for assistance.
-          </p>
-        </div>
-      </div>
-    );
+    return <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--samurai-bg)", padding: "2rem" }}><div style={{ maxWidth: "500px", textAlign: "center" }}><h2 style={{ color: TEXT, marginBottom: "1rem" }}>⚠️ Unable to Load Scorecard</h2><p style={{ color: MUTED }}>{error}</p></div></div>;
   }
 
   if (!data) return null;
 
-  const { candidate, interviews, current_interview, scorecard } = data;
-  const previousInterviews = interviews.filter((i) => i.id !== current_interview?.id && (i.rating || i.comment || i.question_answers?.length));
-
-  if (submitted) {
-    return (
-      <div style={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "100vh", background: "var(--samurai-bg)", padding: "2rem" }}>
-        <div style={{ maxWidth: "500px", textAlign: "center", padding: "2rem", borderRadius: "0.75rem", border: `1px solid ${OK}`, background: SURFACE }}>
-          <div style={{ fontSize: "3rem", marginBottom: "1rem" }}>✅</div>
-          <h2 style={{ color: TEXT, marginBottom: "0.5rem" }}>Assessment Submitted</h2>
-          <p style={{ color: MUTED }}>Thank you! Your interview assessment has been recorded.</p>
-          <p style={{ color: MUTED, marginTop: "1rem", fontSize: "0.85rem" }}>
-            You can close this page. HR will review your feedback.
-          </p>
-        </div>
-      </div>
-    );
-  }
+  const { candidate } = data;
 
   return (
     <div style={{ minHeight: "100vh", background: "var(--samurai-bg)", padding: "1.5rem" }}>
-      <div style={{ maxWidth: "800px", margin: "0 auto" }}>
+      <div style={{ maxWidth: "900px", margin: "0 auto" }}>
         {/* Header */}
-        <div style={{ marginBottom: "1.5rem", padding: "1.25rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-          <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.3rem", fontWeight: 700, color: TEXT }}>
-            📋 Interview Scorecard
-          </h1>
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))", gap: "0.5rem", fontSize: "0.85rem" }}>
+        <div style={{ marginBottom: "1rem", padding: "1rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
+          <h1 style={{ margin: "0 0 0.5rem", fontSize: "1.2rem", fontWeight: 700, color: TEXT }}>📋 Interview Scorecard</h1>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: "0.4rem", fontSize: "0.82rem" }}>
             <div><span style={{ color: MUTED }}>Candidate:</span> <strong style={{ color: TEXT }}>{candidate.name}</strong></div>
             <div><span style={{ color: MUTED }}>Position:</span> <strong style={{ color: TEXT }}>{candidate.role || "—"}</strong></div>
-            <div><span style={{ color: MUTED }}>Round:</span> <strong style={{ color: TEXT }}>{current_interview?.round || "Interview"}</strong></div>
-            {current_interview?.scheduled_at && (
-              <div><span style={{ color: MUTED }}>Scheduled:</span> <strong style={{ color: TEXT }}>{new Date(current_interview.scheduled_at).toLocaleString("en-MY")}</strong></div>
-            )}
+            {data.job_opening && <div><span style={{ color: MUTED }}>Dept:</span> <strong style={{ color: TEXT }}>{data.job_opening.department}</strong></div>}
           </div>
         </div>
 
-        {/* Resume & Screening */}
-        <div style={{ marginBottom: "1.5rem", padding: "1rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-          <h2 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600, color: TEXT }}>📄 Resume & Screening</h2>
-          {candidate.resume_url ? (
-            <iframe src={candidate.resume_url} style={{ width: "100%", height: "400px", border: `1px solid ${BORDER}`, borderRadius: "0.4rem" }} title="Resume" />
-          ) : (
-            <p style={{ color: MUTED, fontSize: "0.85rem" }}>No resume available</p>
-          )}
-          {candidate.screening_answers_json && (
-            <div style={{ marginTop: "1rem" }}>
-              <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.9rem", fontWeight: 600, color: TEXT }}>Screening Answers</h3>
-              <div style={{ padding: "0.75rem", borderRadius: "0.4rem", background: SURFACE_2, fontSize: "0.85rem", color: TEXT, whiteSpace: "pre-wrap" }}>
-                {(() => {
-                  try {
-                    const answers = JSON.parse(candidate.screening_answers_json);
-                    if (Array.isArray(answers.questions)) {
-                      return answers.questions.map((q: any, i: number) => (
-                        <div key={i} style={{ marginBottom: "0.5rem" }}>
-                          <strong style={{ color: LIME }}>Q{i + 1}: {q.q}</strong>
-                          <div style={{ color: TEXT, marginTop: "0.2rem" }}>{q.a}</div>
-                        </div>
-                      ));
-                    }
-                    return JSON.stringify(answers, null, 2);
-                  } catch {
-                    return candidate.screening_answers_json;
-                  }
-                })()}
-              </div>
-            </div>
-          )}
+        {/* Round Tabs */}
+        <div style={{ display: "flex", gap: "0.25rem", marginBottom: "1rem" }}>
+          {(["hr", "manager", "ceo"] as RoundKey[]).map((rk) => (
+            <button
+              key={rk}
+              onClick={() => setActiveTab(rk)}
+              style={{
+                flex: 1,
+                padding: "0.6rem",
+                borderRadius: "0.5rem",
+                border: activeTab === rk ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
+                background: activeTab === rk ? LIME : SURFACE,
+                color: activeTab === rk ? "#0a0a0a" : TEXT,
+                fontWeight: 700,
+                fontSize: "0.85rem",
+                cursor: "pointer",
+                position: "relative",
+              }}
+            >
+              {ROUND_LABELS[rk]}
+              {rounds[rk].submitted && <span style={{ marginLeft: "0.3rem" }}>✅</span>}
+              {rounds[rk].draftSavedAt && !rounds[rk].submitted && <span style={{ marginLeft: "0.3rem" }}>💾</span>}
+            </button>
+          ))}
         </div>
 
-        {/* Previous Interviews */}
-        {previousInterviews.length > 0 && (
-          <div style={{ marginBottom: "1.5rem", padding: "1rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-            <h2 style={{ margin: "0 0 0.75rem", fontSize: "1rem", fontWeight: 600, color: TEXT }}>📋 Previous Interviews (Read-Only)</h2>
-            {previousInterviews.map((iv) => (
-              <div key={iv.id} style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                  <strong style={{ color: TEXT, fontSize: "0.9rem" }}>
-                    {iv.round === "first" ? "HR" : iv.round === "manager" ? "Manager" : iv.round === "ceo" ? "CEO" : iv.round} Interview
-                  </strong>
-                  {iv.rating && (
-                    <span style={{ color: WARNING, fontSize: "0.9rem" }}>{"★".repeat(iv.rating)}{"☆".repeat(5 - iv.rating)}</span>
+        {/* Resume & Screening (shared across tabs) */}
+        <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
+          <details>
+            <summary style={{ cursor: "pointer", fontWeight: 600, fontSize: "0.85rem", color: TEXT }}>📄 Resume & Screening Answers</summary>
+            <div style={{ marginTop: "0.75rem" }}>
+              {candidate.resume_url && <iframe src={candidate.resume_url} style={{ width: "100%", height: "300px", border: `1px solid ${BORDER}`, borderRadius: "0.4rem" }} title="Resume" />}
+              {candidate.screening_answers_json && (
+                <div style={{ marginTop: "0.75rem", padding: "0.5rem", borderRadius: "0.4rem", background: SURFACE_2, fontSize: "0.8rem", color: TEXT, whiteSpace: "pre-wrap" }}>
+                  {(() => { try { const a = JSON.parse(candidate.screening_answers_json!); if (Array.isArray(a.questions)) return a.questions.map((q: any, i: number) => <div key={i} style={{ marginBottom: "0.3rem" }}><strong style={{ color: LIME }}>Q{i + 1}: {q.q}</strong><div>{q.a}</div></div>); return JSON.stringify(a, null, 2); } catch { return candidate.screening_answers_json; } })()}
+                </div>
+              )}
+            </div>
+          </details>
+        </div>
+
+        {/* Previous rounds (read-only, visible across all tabs) */}
+        {Object.entries(data.rounds || {}).filter(([k]) => k !== activeTab && k !== "first" || (activeTab !== "hr" && k === "first")).map(([key, iv]) => {
+          const rk = key === "first" ? "hr" : key as RoundKey;
+          const draft = (iv as any).draft_data;
+          const qa = draft?.question_answers || (iv as any).question_answers || [];
+          const rt = (iv as any).rating || draft?.rating;
+          const cm = (iv as any).comment || draft?.comment || "";
+          if (!qa.length && !rt && !cm) return null;
+          return (
+            <div key={key} style={{ marginBottom: "0.75rem", padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
+              <div style={{ fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>{ROUND_LABELS[rk] || rk} (Read-Only)</div>
+              {qa.slice(0, 3).map((q: any, i: number) => (
+                <div key={i} style={{ fontSize: "0.78rem", marginBottom: "0.2rem" }}>
+                  <span style={{ color: LIME, fontWeight: 600 }}>Q{i + 1}:</span> <span style={{ color: MUTED }}>{q.q}</span>
+                  {q.a && <div style={{ color: TEXT, marginLeft: "1.5rem" }}>{q.a}</div>}
+                </div>
+              ))}
+              {rt && <div style={{ fontSize: "0.78rem", color: WARNING, marginTop: "0.3rem" }}>{"★".repeat(rt)}{"☆".repeat(5 - rt)}</div>}
+              {cm && <div style={{ fontSize: "0.78rem", color: TEXT, fontStyle: "italic", marginTop: "0.2rem" }}>{cm}</div>}
+            </div>
+          );
+        })}
+
+        {/* Active Tab Content */}
+        {rd.submitted ? (
+          <div style={{ padding: "2rem", textAlign: "center", borderRadius: "0.75rem", border: `1px solid ${OK}`, background: SURFACE }}>
+            <div style={{ fontSize: "2.5rem", marginBottom: "0.5rem" }}>✅</div>
+            <h2 style={{ color: TEXT, marginBottom: "0.5rem" }}>{ROUND_LABELS[activeTab]} — Submitted</h2>
+            <p style={{ color: MUTED }}>This round has been completed.</p>
+          </div>
+        ) : (
+          <div style={{ padding: "1rem", borderRadius: "0.75rem", border: `2px solid ${LIME}`, background: SURFACE }}>
+            <h2 style={{ margin: "0 0 1rem", fontSize: "1rem", fontWeight: 700, color: TEXT }}>✏️ {ROUND_LABELS[activeTab]}</h2>
+
+            {/* AI Questions */}
+            <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
+              <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>🤖 AI Questions</h3>
+              <textarea value={rd.genSource} onChange={(e) => updateRound(activeTab, { genSource: e.target.value })} placeholder={`Custom focus for ${ROUND_LABELS[activeTab]} (optional)...`} rows={2} style={{ ...inputStyle, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit", marginBottom: "0.5rem" }} />
+              <button onClick={() => handleGenerateQuestions(activeTab)} disabled={rd.generating} style={{ padding: "0.35rem 0.7rem", borderRadius: "0.4rem", border: "none", background: rd.generating ? MUTED : LIME, color: "#0a0a0a", fontWeight: 600, fontSize: "0.78rem", cursor: rd.generating ? "not-allowed" : "pointer" }}>
+                {rd.generating ? "Generating..." : "🤖 Generate"}
+              </button>
+              <div style={{ marginTop: "0.3rem", fontSize: "0.68rem", color: MUTED }}>Auto: resume • screening • job desc • {ROUND_FOCUS[activeTab].split("—")[0]}</div>
+
+              {rd.generatedQuestions.length > 0 && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.3rem" }}>
+                    <span style={{ fontSize: "0.8rem", fontWeight: 600, color: TEXT }}>Generated:</span>
+                    {!rd.isEditingGen ? (
+                      <button onClick={() => updateRound(activeTab, { editingQuestions: [...rd.generatedQuestions], isEditingGen: true })} style={{ padding: "0.2rem 0.5rem", borderRadius: "0.3rem", border: `1px solid ${BORDER}`, background: "transparent", color: TEXT, fontSize: "0.72rem", cursor: "pointer" }}>✏️ Edit</button>
+                    ) : (
+                      <button onClick={() => { updateRound(activeTab, { generatedQuestions: rd.editingQuestions.filter((q) => q.trim()), isEditingGen: false }); }} style={{ padding: "0.2rem 0.5rem", borderRadius: "0.3rem", border: "none", background: OK, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer" }}>✓ Done</button>
+                    )}
+                  </div>
+                  {!rd.isEditingGen ? (
+                    <>
+                      {rd.generatedQuestions.map((q, i) => (<div key={i} style={{ padding: "0.4rem", borderRadius: "0.3rem", border: `1px solid ${BORDER}`, background: SURFACE, fontSize: "0.78rem", color: TEXT, marginBottom: "0.3rem" }}><strong style={{ color: LIME }}>Q{i + 1}:</strong> {q}</div>))}
+                      <div style={{ display: "flex", gap: "0.4rem", marginTop: "0.5rem", flexWrap: "wrap" }}>
+                        <button onClick={() => updateRound(activeTab, { questionAnswers: rd.generatedQuestions.map((q) => ({ q, a: "" })) })} style={{ padding: "0.3rem 0.6rem", borderRadius: "0.3rem", border: "none", background: OK, color: "#0a0a0a", fontWeight: 600, fontSize: "0.78rem", cursor: "pointer" }}>✓ Use These</button>
+                        <input value={templateName} onChange={(e) => setTemplateName(e.target.value)} placeholder="Template name..." style={{ ...inputStyle, width: "150px", fontSize: "0.78rem", padding: "0.3rem 0.5rem" }} />
+                        <button onClick={async () => { if (!templateName.trim() || !data?.rounds?.[activeTab]?.id) return; setSavingTemplate(true); try { await apiFetch(`/api/departments/hr/dashboard/hr/interviews/${data.rounds[activeTab].id}/save-template`, { method: "POST", body: JSON.stringify({ name: templateName.trim() }) }); setTemplateName(""); hrApi.listInterviewTemplates("hr").then((r) => setTemplates(r.templates || [])); } catch (e) { setError(e instanceof Error ? e.message : "Save failed"); } finally { setSavingTemplate(false); } }} disabled={savingTemplate || !templateName.trim()} style={{ padding: "0.3rem 0.5rem", borderRadius: "0.3rem", border: "none", background: savingTemplate ? MUTED : WARNING, color: "#0a0a0a", fontWeight: 600, fontSize: "0.75rem", cursor: savingTemplate ? "not-allowed" : "pointer" }}>{savingTemplate ? "..." : "💾 Save"}</button>
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      {rd.editingQuestions.map((q, i) => (
+                        <div key={i} style={{ display: "flex", gap: "0.3rem", alignItems: "flex-start", marginBottom: "0.3rem" }}>
+                          <span style={{ color: LIME, fontWeight: 600, fontSize: "0.75rem", minWidth: "1.5rem", paddingTop: "0.3rem" }}>Q{i + 1}</span>
+                          <textarea value={q} onChange={(e) => { const u = [...rd.editingQuestions]; u[i] = e.target.value; updateRound(activeTab, { editingQuestions: u }); }} rows={1} style={{ ...inputStyle, flex: 1, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit" }} />
+                          <button onClick={() => updateRound(activeTab, { editingQuestions: rd.editingQuestions.filter((_, idx) => idx !== i) })} style={{ padding: "0.2rem 0.4rem", borderRadius: "0.3rem", border: `1px solid ${DANGER}`, background: "transparent", color: DANGER, fontSize: "0.7rem", cursor: "pointer" }}>✕</button>
+                        </div>
+                      ))}
+                      <button onClick={() => updateRound(activeTab, { editingQuestions: [...rd.editingQuestions, ""] })} style={{ padding: "0.25rem", borderRadius: "0.3rem", border: `1px dashed ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.72rem", cursor: "pointer", width: "100%" }}>+ Add</button>
+                    </>
                   )}
                 </div>
-                {iv.question_answers && iv.question_answers.length > 0 && (
-                  <div style={{ marginBottom: "0.5rem" }}>
-                    {iv.question_answers.slice(0, 3).map((qa, i) => (
-                      <div key={i} style={{ fontSize: "0.8rem", marginBottom: "0.3rem" }}>
-                        <span style={{ color: LIME, fontWeight: 600 }}>Q{i + 1}:</span> <span style={{ color: MUTED }}>{qa.q}</span>
-                        <div style={{ color: TEXT, marginLeft: "1.5rem" }}>{qa.a}</div>
-                      </div>
-                    ))}
-                    {iv.question_answers.length > 3 && (
-                      <p style={{ fontSize: "0.75rem", color: MUTED, fontStyle: "italic" }}>...and {iv.question_answers.length - 3} more questions</p>
-                    )}
-                  </div>
-                )}
-                {iv.comment && (
-                  <div style={{ fontSize: "0.8rem", color: TEXT, fontStyle: "italic" }}>
-                    <strong>Comment:</strong> {iv.comment}
-                  </div>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
+              )}
 
-        {/* AI Questions & Templates */}
-        {current_interview && (
-          <div style={{ marginBottom: "1.5rem", padding: "1rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
-              <button
-                onClick={() => setQTab("questions")}
-                style={{
-                  padding: "0.4rem 0.8rem",
-                  borderRadius: "0.4rem",
-                  border: qTab === "questions" ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
-                  background: qTab === "questions" ? LIME : "transparent",
-                  color: qTab === "questions" ? "#0a0a0a" : TEXT,
-                  fontWeight: 600,
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
-                }}
-              >
-                🤖 AI Questions
-              </button>
-              <button
-                onClick={() => setQTab("templates")}
-                style={{
-                  padding: "0.4rem 0.8rem",
-                  borderRadius: "0.4rem",
-                  border: qTab === "templates" ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
-                  background: qTab === "templates" ? LIME : "transparent",
-                  color: qTab === "templates" ? "#0a0a0a" : TEXT,
-                  fontWeight: 600,
-                  fontSize: "0.8rem",
-                  cursor: "pointer",
-                }}
-              >
-                📋 Templates
-              </button>
+              {/* Templates */}
+              {templates.length > 0 && (
+                <div style={{ marginTop: "0.75rem" }}>
+                  <span style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED }}>📋 Templates:</span>
+                  <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap", marginTop: "0.3rem" }}>
+                    {templates.map((tpl) => (
+                      <button key={tpl.id} onClick={() => updateRound(activeTab, { questionAnswers: tpl.questions.map((q) => ({ q, a: "" })) })} style={{ padding: "0.25rem 0.5rem", borderRadius: "0.3rem", border: `1px solid ${BORDER}`, background: SURFACE, color: TEXT, fontSize: "0.72rem", cursor: "pointer" }}>{tpl.name} ({tpl.questions.length})</button>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
-            {qTab === "questions" && (
-              <div>
-                <div style={{ marginBottom: "0.75rem" }}>
-                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
-                    Generate Questions From
-                  </label>
-                  <textarea
-                    value={genSource}
-                    onChange={(e) => setGenSource(e.target.value)}
-                    placeholder="Add specific focus areas, skills to probe, or custom requirements (optional)...&#10;&#10;System will auto-include: resume, screening answers, job description, and stage-appropriate focus."
-                    rows={3}
-                    style={{ ...inputStyle, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
-                  />
-                </div>
-                <button
-                  onClick={handleGenerateQuestions}
-                  disabled={generating}
-                  style={{
-                    padding: "0.4rem 0.8rem",
-                    borderRadius: "0.4rem",
-                    border: "none",
-                    background: generating ? MUTED : LIME,
-                    color: "#0a0a0a",
-                    fontWeight: 600,
-                    fontSize: "0.8rem",
-                    cursor: generating ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {generating ? "Generating..." : "🤖 Generate AI Questions"}
-                </button>
-                <div style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: MUTED }}>
-                  Auto-includes: resume • screening answers • job description • {
-                    (data?.current_interview?.round || "").toLowerCase() === "manager" ? "technical focus" :
-                    (data?.current_interview?.round || "").toLowerCase() === "ceo" ? "strategic/leadership focus" :
-                    "HR/cultural fit focus"
-                  }
-                </div>
-                {generatedQuestions.length > 0 && (
-                  <div style={{ marginTop: "1rem" }}>
-                    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.5rem" }}>
-                      <h4 style={{ margin: 0, fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>
-                        Generated Questions:
-                      </h4>
-                      {!isEditingGen ? (
-                        <button
-                          onClick={() => {
-                            setEditingQuestions([...generatedQuestions]);
-                            setIsEditingGen(true);
-                          }}
-                          style={{
-                            padding: "0.25rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px solid ${BORDER}`,
-                            background: "transparent",
-                            color: TEXT,
-                            fontSize: "0.75rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✏️ Edit
-                        </button>
-                      ) : (
-                        <button
-                          onClick={() => {
-                            setGeneratedQuestions(editingQuestions.filter((q) => q.trim()));
-                            setIsEditingGen(false);
-                          }}
-                          style={{
-                            padding: "0.25rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: "none",
-                            background: OK,
-                            color: "#0a0a0a",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✓ Done
-                        </button>
-                      )}
-                    </div>
-
-                    {!isEditingGen ? (
-                      /* Read-only view */
-                      <>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                          {generatedQuestions.map((q, i) => (
-                            <div key={i} style={{ padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2, fontSize: "0.8rem", color: TEXT }}>
-                              <strong style={{ color: LIME }}>Q{i + 1}:</strong> {q}
-                            </div>
-                          ))}
-                        </div>
-                        <div style={{ display: "flex", gap: "0.5rem", marginTop: "0.75rem", flexWrap: "wrap" }}>
-                          <button
-                            onClick={() => {
-                              setQuestionAnswers(generatedQuestions.map((q) => ({ q, a: "" })));
-                            }}
-                            style={{
-                              padding: "0.4rem 0.8rem",
-                              borderRadius: "0.4rem",
-                              border: "none",
-                              background: OK,
-                              color: "#0a0a0a",
-                              fontWeight: 600,
-                              fontSize: "0.8rem",
-                              cursor: "pointer",
-                            }}
-                          >
-                            ✓ Use These Questions
-                          </button>
-                          <div style={{ display: "flex", gap: "0.25rem", alignItems: "center" }}>
-                            <input
-                              value={templateName}
-                              onChange={(e) => setTemplateName(e.target.value)}
-                              placeholder="Template name..."
-                              style={{ ...inputStyle, width: "180px", fontSize: "0.8rem", padding: "0.35rem 0.5rem" }}
-                            />
-                            <button
-                              onClick={async () => {
-                                if (!templateName.trim() || !data?.current_interview) return;
-                                setSavingTemplate(true);
-                                try {
-                                  await apiFetch(`/api/departments/hr/dashboard/hr/interviews/${data.current_interview.id}/save-template`, {
-                                    method: "POST",
-                                    body: JSON.stringify({ name: templateName.trim() }),
-                                  });
-                                  setTemplateName("");
-                                  hrApi.listInterviewTemplates("hr").then((res) => setTemplates(res.templates || []));
-                                } catch (e) {
-                                  setError(e instanceof Error ? e.message : "Failed to save template");
-                                } finally {
-                                  setSavingTemplate(false);
-                                }
-                              }}
-                              disabled={savingTemplate || !templateName.trim()}
-                              style={{
-                                padding: "0.35rem 0.6rem",
-                                borderRadius: "0.4rem",
-                                border: "none",
-                                background: savingTemplate || !templateName.trim() ? MUTED : WARNING,
-                                color: "#0a0a0a",
-                                fontWeight: 600,
-                                fontSize: "0.78rem",
-                                cursor: savingTemplate || !templateName.trim() ? "not-allowed" : "pointer",
-                              }}
-                            >
-                              {savingTemplate ? "Saving..." : "💾 Save Template"}
-                            </button>
-                          </div>
-                        </div>
-                      </>
-                    ) : (
-                      /* Edit mode - inline editing of AI generated questions */
-                      <>
-                        <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                          {editingQuestions.map((q, i) => (
-                            <div key={i} style={{ display: "flex", gap: "0.5rem", alignItems: "flex-start" }}>
-                              <span style={{ color: LIME, fontWeight: 600, fontSize: "0.8rem", minWidth: "2rem", paddingTop: "0.4rem" }}>Q{i + 1}</span>
-                              <textarea
-                                value={q}
-                                onChange={(e) => {
-                                  const updated = [...editingQuestions];
-                                  updated[i] = e.target.value;
-                                  setEditingQuestions(updated);
-                                }}
-                                rows={2}
-                                style={{ ...inputStyle, flex: 1, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
-                              />
-                              <button
-                                onClick={() => {
-                                  const updated = editingQuestions.filter((_, idx) => idx !== i);
-                                  setEditingQuestions(updated);
-                                }}
-                                style={{
-                                  padding: "0.3rem 0.5rem",
-                                  borderRadius: "0.3rem",
-                                  border: `1px solid ${DANGER}`,
-                                  background: "transparent",
-                                  color: DANGER,
-                                  fontSize: "0.75rem",
-                                  cursor: "pointer",
-                                  alignSelf: "flex-start",
-                                }}
-                              >
-                                ✕
-                              </button>
-                            </div>
-                          ))}
-                        </div>
-                        <button
-                          onClick={() => setEditingQuestions([...editingQuestions, ""])}
-                          style={{
-                            marginTop: "0.5rem",
-                            padding: "0.3rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px dashed ${BORDER}`,
-                            background: "transparent",
-                            color: MUTED,
-                            fontSize: "0.75rem",
-                            cursor: "pointer",
-                            width: "100%",
-                          }}
-                        >
-                          + Add Question
-                        </button>
-                      </>
-                    )}
-                  </div>
-                )}
-              </div>
-            )}
-
-            {qTab === "templates" && (
-              <div>
-                {templatesLoading ? (
-                  <p style={{ color: MUTED, fontSize: "0.85rem" }}>Loading templates...</p>
-                ) : templates.length === 0 ? (
-                  <p style={{ color: MUTED, fontSize: "0.85rem" }}>No templates available</p>
-                ) : (
-                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-                    {templates.map((tpl) => (
-                      <div
-                        key={tpl.id}
-                        onClick={() => {
-                          try {
-                            const qs = tpl.questions;
-                            if (Array.isArray(qs)) {
-                              setQuestionAnswers(qs.map((q: string) => ({ q, a: "" })));
-                              setQTab("questions");
-                            }
-                          } catch {
-                            // Ignore parse errors
-                          }
-                        }}
-                        style={{
-                          padding: "0.6rem",
-                          borderRadius: "0.4rem",
-                          border: `1px solid ${BORDER}`,
-                          background: SURFACE_2,
-                          cursor: "pointer",
-                          fontSize: "0.85rem",
-                        }}
-                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = LIME)}
-                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = BORDER)}
-                      >
-                        <strong style={{ color: TEXT }}>{tpl.name}</strong>
-                        <div style={{ fontSize: "0.75rem", color: MUTED, marginTop: "0.2rem" }}>
-                          {tpl.round} · {(() => { try { return tpl.questions.length; } catch { return 0; } })()} questions
-                        </div>
-                      </div>
-                    ))}
-                  </div>
-                )}
-              </div>
-            )}
-          </div>
-        )}
-
-        {/* Current Assessment Form */}
-        {current_interview && (
-          <div style={{ padding: "1.25rem", borderRadius: "0.75rem", border: `2px solid ${LIME}`, background: SURFACE }}>
-            <h2 style={{ margin: "0 0 1rem", fontSize: "1.1rem", fontWeight: 700, color: TEXT }}>✏️ Your Assessment</h2>
-
-            {/* Question & Answer Table */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.9rem", fontWeight: 600, color: TEXT }}>Question & Answer</h3>
-              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.82rem" }}>
-                <thead>
-                  <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
-                    <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "45%" }}>Question</th>
-                    <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "55%" }}>Candidate Answer / Notes</th>
-                  </tr>
-                </thead>
+            {/* Q&A Table */}
+            <div style={{ marginBottom: "1rem" }}>
+              <h3 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Question & Answer</h3>
+              <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.8rem" }}>
+                <thead><tr style={{ borderBottom: `2px solid ${BORDER}` }}><th style={{ textAlign: "left", padding: "0.4rem", color: MUTED, fontWeight: 600, width: "45%" }}>Question</th><th style={{ textAlign: "left", padding: "0.4rem", color: MUTED, fontWeight: 600 }}>Answer / Notes</th></tr></thead>
                 <tbody>
-                  {questionAnswers.map((qa, i) => (
+                  {rd.questionAnswers.map((qa, i) => (
                     <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      <td style={{ padding: "0.5rem", verticalAlign: "top" }}>
-                        <div style={{ display: "flex", gap: "0.3rem", alignItems: "flex-start" }}>
-                          <span style={{ color: LIME, fontWeight: 700, fontSize: "0.75rem", minWidth: "1.5rem", paddingTop: "0.15rem" }}>Q{i + 1}</span>
-                          <textarea
-                            value={qa.q}
-                            onChange={(e) => {
-                              const updated = [...questionAnswers];
-                              updated[i] = { ...updated[i], q: e.target.value };
-                              setQuestionAnswers(updated);
-                            }}
-                            rows={2}
-                            style={{ ...inputStyle, flex: 1, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
-                          />
-                        </div>
-                      </td>
-                      <td style={{ padding: "0.5rem", verticalAlign: "top" }}>
-                        <textarea
-                          value={qa.a}
-                          onChange={(e) => {
-                            const updated = [...questionAnswers];
-                            updated[i] = { ...updated[i], a: e.target.value };
-                            setQuestionAnswers(updated);
-                          }}
-                          placeholder="Candidate's response…"
-                          rows={2}
-                          style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit", fontSize: "0.8rem" }}
-                        />
-                      </td>
+                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.q} onChange={(e) => { const u = [...rd.questionAnswers]; u[i] = { ...u[i], q: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit" }} /></td>
+                      <td style={{ padding: "0.4rem", verticalAlign: "top" }}><textarea value={qa.a} onChange={(e) => { const u = [...rd.questionAnswers]; u[i] = { ...u[i], a: e.target.value }; updateRound(activeTab, { questionAnswers: u }); }} placeholder="Candidate response…" rows={2} style={{ ...inputStyle, fontSize: "0.78rem", resize: "vertical", fontFamily: "inherit" }} /></td>
                     </tr>
                   ))}
                 </tbody>
               </table>
-              <button
-                onClick={() => setQuestionAnswers([...questionAnswers, { q: "", a: "" }])}
-                style={{
-                  marginTop: "0.5rem",
-                  padding: "0.35rem 0.8rem",
-                  borderRadius: "0.3rem",
-                  border: `1px dashed ${BORDER}`,
-                  background: "transparent",
-                  color: MUTED,
-                  fontSize: "0.78rem",
-                  cursor: "pointer",
-                  width: "100%",
-                }}
-              >
-                + Add Row
-              </button>
+              <button onClick={() => updateRound(activeTab, { questionAnswers: [...rd.questionAnswers, { q: "", a: "" }] })} style={{ marginTop: "0.4rem", padding: "0.3rem", borderRadius: "0.3rem", border: `1px dashed ${BORDER}`, background: "transparent", color: MUTED, fontSize: "0.75rem", cursor: "pointer", width: "100%" }}>+ Add Row</button>
             </div>
 
-            {/* Notes Section - Interview Focus / Preparation */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
-                📝 Notes (Focus Areas / Preparation)
-              </label>
-              <textarea
-                value={notes}
-                onChange={(e) => setNotes(e.target.value)}
-                placeholder="Key points to focus on during interview, areas to probe deeper, reminders..."
-                rows={4}
-                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
-              />
-              <div style={{ marginTop: "0.3rem", fontSize: "0.7rem", color: MUTED }}>
-                Private notes for your reference during the interview
-              </div>
+            {/* Notes */}
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>📝 Notes (Focus / Preparation)</label>
+              <textarea value={rd.notes} onChange={(e) => updateRound(activeTab, { notes: e.target.value })} placeholder="Key points to focus on during interview…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
             </div>
-
-            {/* Save Draft Button */}
-            {!submitted && (
-              <div style={{ marginBottom: "1.5rem", display: "flex", gap: "0.5rem", alignItems: "center" }}>
-                <button
-                  onClick={handleSaveDraft}
-                  disabled={savingDraft}
-                  style={{
-                    padding: "0.5rem 1rem",
-                    borderRadius: "0.4rem",
-                    border: `1px solid ${BORDER}`,
-                    background: savingDraft ? MUTED : SURFACE_2,
-                    color: TEXT,
-                    fontWeight: 600,
-                    fontSize: "0.85rem",
-                    cursor: savingDraft ? "not-allowed" : "pointer",
-                  }}
-                >
-                  {savingDraft ? "Saving..." : "💾 Save Draft"}
-                </button>
-                {draftSavedAt && (
-                  <span style={{ fontSize: "0.75rem", color: OK }}>
-                    ✓ Saved {new Date(draftSavedAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}
-                  </span>
-                )}
-              </div>
-            )}
 
             {/* Rating */}
             <div style={{ marginBottom: "1rem" }}>
-              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
-                Overall Rating
-              </label>
-              <div style={{ display: "flex", gap: "0.25rem" }}>
-                {[1, 2, 3, 4, 5].map((n) => (
-                  <button
-                    key={n}
-                    type="button"
-                    onClick={() => setRating(rating === n ? null : n)}
-                    style={{
-                      border: "none",
-                      background: "transparent",
-                      fontSize: "1.6rem",
-                      cursor: "pointer",
-                      color: (rating ?? 0) >= n ? WARNING : MUTED,
-                      padding: "0 0.15rem",
-                    }}
-                  >
-                    {n <= (rating ?? 0) ? "★" : "☆"}
-                  </button>
-                ))}
-                {rating != null && (
-                  <span style={{ fontSize: "0.85rem", color: MUTED, alignSelf: "center", marginLeft: "0.5rem" }}>
-                    {rating}/5
-                  </span>
-                )}
+              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Overall Rating</label>
+              <div style={{ display: "flex", gap: "0.2rem" }}>
+                {[1, 2, 3, 4, 5].map((n) => (<button key={n} type="button" onClick={() => updateRound(activeTab, { rating: rd.rating === n ? null : n })} style={{ border: "none", background: "transparent", fontSize: "1.4rem", cursor: "pointer", color: (rd.rating ?? 0) >= n ? WARNING : MUTED, padding: "0 0.1rem" }}>{n <= (rd.rating ?? 0) ? "★" : "☆"}</button>))}
+                {rd.rating != null && <span style={{ fontSize: "0.8rem", color: MUTED, alignSelf: "center", marginLeft: "0.4rem" }}>{rd.rating}/5</span>}
               </div>
             </div>
 
             {/* Comment */}
-            <div style={{ marginBottom: "1.5rem" }}>
-              <label style={{ display: "block", fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
-                Overall Comment
-              </label>
-              <textarea
-                value={comment}
-                onChange={(e) => setComment(e.target.value)}
-                placeholder="Overall assessment of the candidate…"
-                rows={4}
-                style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }}
-              />
+            <div style={{ marginBottom: "1rem" }}>
+              <label style={{ display: "block", fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Overall Comment</label>
+              <textarea value={rd.comment} onChange={(e) => updateRound(activeTab, { comment: e.target.value })} placeholder="Overall assessment…" rows={3} style={{ ...inputStyle, resize: "vertical", fontFamily: "inherit" }} />
             </div>
 
-            {/* Submit */}
-            {error && (
-              <div style={{ marginBottom: "1rem", padding: "0.75rem", borderRadius: "0.4rem", border: `1px solid var(--samurai-danger)`, background: `color-mix(in srgb, var(--samurai-danger) 8%, transparent)`, color: "var(--samurai-danger)", fontSize: "0.85rem" }}>
-                {error}
-              </div>
-            )}
-            <button
-              onClick={handleSubmit}
-              disabled={submitting}
-              style={{
-                width: "100%",
-                padding: "0.75rem",
-                borderRadius: "0.5rem",
-                border: "none",
-                background: submitting ? MUTED : LIME,
-                color: "#0a0a0a",
-                fontWeight: 700,
-                fontSize: "1rem",
-                cursor: submitting ? "not-allowed" : "pointer",
-              }}
-            >
-              {submitting ? "Submitting…" : "Submit Assessment"}
-            </button>
-          </div>
-        )}
+            {/* Error */}
+            {error && <div style={{ marginBottom: "0.75rem", padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${DANGER}`, color: DANGER, fontSize: "0.8rem" }}>{error}</div>}
 
-        {!current_interview && (
-          <div style={{ padding: "2rem", textAlign: "center", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
-            <p style={{ color: MUTED }}>No active interview scheduled for this candidate.</p>
+            {/* Actions */}
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button onClick={() => handleSaveDraft(activeTab)} style={{ flex: 1, padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2, color: TEXT, fontWeight: 600, fontSize: "0.85rem", cursor: "pointer" }}>💾 Save Draft</button>
+              <button onClick={() => handleSubmit(activeTab)} style={{ flex: 1, padding: "0.5rem", borderRadius: "0.4rem", border: "none", background: LIME, color: "#0a0a0a", fontWeight: 700, fontSize: "0.85rem", cursor: "pointer" }}>Submit {ROUND_LABELS[activeTab]}</button>
+            </div>
+            {rd.draftSavedAt && <div style={{ marginTop: "0.3rem", fontSize: "0.72rem", color: OK }}>✓ Draft saved {new Date(rd.draftSavedAt).toLocaleTimeString("en-MY", { hour: "2-digit", minute: "2-digit" })}</div>}
           </div>
         )}
       </div>
