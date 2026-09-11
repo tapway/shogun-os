@@ -5810,9 +5810,9 @@ def _extract_text_from_upload(data: bytes) -> str:
                 for page in doc:
                     text += page.get_text()
             text = text.strip()
-            if len(text) >= 40:
+            if len(text) >= 10:
                 return text
-            # No usable text layer — likely a scanned PDF. Rasterize and OCR.
+            # Very little text — could be scanned PDF. Try OCR fallback.
             _MAX_OCR_PAGES = 10
             pages_text = []
             with fitz.open(stream=data, filetype="pdf") as doc:
