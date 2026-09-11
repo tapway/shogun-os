@@ -6813,10 +6813,25 @@ async def get_interview_scorecard(
     # Find current scheduled interview
     current = next((i for i in interviews if i.status == "scheduled"), None)
 
+    # Get job opening if candidate is linked to one
+    job_opening = None
+    if candidate.job_opening_id:
+        from models import HrJobOpening
+        jo = db.get(HrJobOpening, candidate.job_opening_id)
+        if jo:
+            job_opening = {
+                "id": jo.id,
+                "job_title": jo.job_title,
+                "department": jo.department,
+                "description": jo.description,
+                "requirements": jo.requirements,
+            }
+
     return {
         "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
         "interviews": [i.to_dict() for i in interviews],
         "current_interview": current.to_dict() if current else None,
+        "job_opening": job_opening,
         "scorecard": scorecard.to_dict(),
     }
 

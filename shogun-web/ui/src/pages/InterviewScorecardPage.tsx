@@ -28,6 +28,13 @@ interface ScorecardData {
   candidate: HrCandidate;
   interviews: HrInterview[];
   current_interview: HrInterview | null;
+  job_opening?: {
+    id: number;
+    job_title: string;
+    department: string;
+    description?: string;
+    requirements?: string;
+  } | null;
   scorecard: {
     id: number;
     status: string;
@@ -93,17 +100,64 @@ export function InterviewScorecardPage() {
     }
   }, [data?.current_interview]);
 
+  // Build auto-source from candidate data + stage-specific focus
+  const buildAutoSource = () => {
+    if (!data) return "";
+    const parts: string[] = [];
+    
+    // Candidate info
+    parts.push(`CANDIDATE: ${data.candidate.name}`);
+    if (data.candidate.role) parts.push(`APPLIED FOR: ${data.candidate.role}`);
+    
+    // Job description if available
+    if (data.job_opening) {
+      if (data.job_opening.description) parts.push(`\nJOB DESCRIPTION:\n${data.job_opening.description}`);
+      if (data.job_opening.requirements) parts.push(`\nREQUIREMENTS:\n${data.job_opening.requirements}`);
+    }
+    
+    // Screening answers
+    if (data.candidate.screening_answers_json) {
+      try {
+        const answers = JSON.parse(data.candidate.screening_answers_json);
+        if (Array.isArray(answers.questions)) {
+          parts.push("\nSCREENING ANSWERS:");
+          answers.questions.forEach((qa: any, i: number) => {
+            parts.push(`Q${i+1}: ${qa.q}\nA: ${qa.a}`);
+          });
+        }
+      } catch {}
+    }
+    
+    // Stage-specific focus
+    const round = (data.current_interview?.round || "").toLowerCase();
+    if (round === "first" || round === "hr") {
+      parts.push("\n\nFOCUS: HR screening — assess cultural fit, motivation, communication skills, career goals, salary expectations, availability.");
+    } else if (round === "manager") {
+      parts.push("\n\nFOCUS: Manager/Technical interview — assess technical skills, problem-solving, domain expertise, team collaboration, past project experience, leadership potential.");
+    } else if (round === "ceo") {
+      parts.push("\n\nFOCUS: CEO/Final interview — assess strategic thinking, vision alignment, leadership qualities, long-term commitment, company values fit, growth mindset.");
+    }
+    
+    return parts.join("\n");
+  };
+
   const handleGenerateQuestions = async () => {
-    if (!genSource.trim() || !data?.candidate) return;
+    if (!data?.candidate || !data?.current_interview) return;
     setGenerating(true);
     setError("");
     try {
-      if (!data.current_interview) throw new Error("No active interview");
+      // Combine auto-source with user's custom specifications
+      const autoSource = buildAutoSource();
+      const customSpec = genSource.trim();
+      const combinedSource = customSpec 
+        ? `${autoSource}\n\nADDITIONAL SPECIFICATIONS FROM INTERVIEWER:\n${customSpec}`
+        : autoSource;
+      
       const res = await apiFetch<{ questions: string[] }>(
         `/api/departments/hr/dashboard/hr/interviews/${data.current_interview.id}/generate-questions`,
         {
           method: "POST",
-          body: JSON.stringify({ source_text: genSource, count: 5 }),
+          body: JSON.stringify({ source_text: combinedSource, count: 5 }),
         }
       );
       setGeneratedQuestions(res.questions || []);
@@ -310,16 +364,17 @@ export function InterviewScorecardPage() {
                   <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
                     Generate Questions From
                   </label>
-                  <input
+                  <textarea
                     value={genSource}
                     onChange={(e) => setGenSource(e.target.value)}
-                    placeholder="Job description, resume summary, or key skills..."
-                    style={{ ...inputStyle, fontSize: "0.8rem" }}
+                    placeholder="Add specific focus areas, skills to probe, or custom requirements (optional)...&#10;&#10;System will auto-include: resume, screening answers, job description, and stage-appropriate focus."
+                    rows={3}
+                    style={{ ...inputStyle, fontSize: "0.8rem", resize: "vertical", fontFamily: "inherit" }}
                   />
                 </div>
                 <button
                   onClick={handleGenerateQuestions}
-                  disabled={generating || !genSource.trim()}
+                  disabled={generating}
                   style={{
                     padding: "0.4rem 0.8rem",
                     borderRadius: "0.4rem",
@@ -328,12 +383,18 @@ export function InterviewScorecardPage() {
                     color: "#0a0a0a",
                     fontWeight: 600,
                     fontSize: "0.8rem",
-                    cursor: generating || !genSource.trim() ? "not-allowed" : "pointer",
-                    opacity: !genSource.trim() ? 0.5 : 1,
+                    cursor: generating ? "not-allowed" : "pointer",
                   }}
                 >
                   {generating ? "Generating..." : "🤖 Generate AI Questions"}
                 </button>
+                <div style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: MUTED }}>
+                  Auto-includes: resume • screening answers • job description • {
+                    (data?.current_interview?.round || "").toLowerCase() === "manager" ? "technical focus" :
+                    (data?.current_interview?.round || "").toLowerCase() === "ceo" ? "strategic/leadership focus" :
+                    "HR/cultural fit focus"
+                  }
+                </div>
                 {generatedQuestions.length > 0 && (
                   <div style={{ marginTop: "1rem" }}>
                     <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Generated Questions:</h4>
