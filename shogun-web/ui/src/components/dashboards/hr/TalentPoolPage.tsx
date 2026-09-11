@@ -99,6 +99,7 @@ export function TalentPoolPage({
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [showAddApplicant, setShowAddApplicant] = useState(false);
   const [showAddFromPool, setShowAddFromPool] = useState(false);
@@ -146,12 +147,22 @@ export function TalentPoolPage({
     [candidates],
   );
 
+  const roles = useMemo(
+    () =>
+      Array.from(
+        new Set(candidates.map((c) => (c.role || "").trim()).filter(Boolean)),
+      ).sort(),
+    [candidates],
+  );
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (statusFilter !== "all" && (c.status || "").trim() !== statusFilter)
         return false;
       if (sourceFilter !== "all" && (c.source || "").trim() !== sourceFilter)
+        return false;
+      if (roleFilter !== "all" && (c.role || "").trim() !== roleFilter)
         return false;
       if (!q) return true;
       return (
@@ -160,7 +171,7 @@ export function TalentPoolPage({
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, statusFilter, sourceFilter, search]);
+  }, [candidates, statusFilter, sourceFilter, roleFilter, search]);
 
   const hiredCount = candidates.filter(
     (c) => candidateStatusChip(c.status) === "ok",
@@ -618,6 +629,25 @@ export function TalentPoolPage({
             {sources.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{
+              padding: "0.35rem 0.6rem",
+              borderRadius: "0.4rem",
+              border: `1px solid ${BORDER}`,
+              background: SURFACE_2,
+              color: TEXT,
+              fontSize: "0.8rem",
+            }}
+          >
+            <option value="all">All Roles</option>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {r}
               </option>
             ))}
           </select>
