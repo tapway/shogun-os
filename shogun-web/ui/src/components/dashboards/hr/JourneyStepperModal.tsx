@@ -97,6 +97,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [scorecardEmployees, setScorecardEmployees] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
   const [selectedInterviewerId, setSelectedInterviewerId] = useState<number | null>(null);
   const [scorecardExpiresDays, setScorecardExpiresDays] = useState(3);
+  const [hasScorecard, setHasScorecard] = useState(false);
   const [creatingScorecard, setCreatingScorecard] = useState(false);
   // schedule form
   const [schedAt, setSchedAt] = useState("");
@@ -274,6 +275,17 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     }
   }, [showScorecardModal]);
 
+  // Check if scorecard already exists for this candidate
+  useEffect(() => {
+    if (!candidate?.id) return;
+    hrApi.listScorecards(department).then((res) => {
+      const exists = (res.scorecards || []).some(
+        (sc) => sc.candidate_id === candidate.id && sc.status !== "revoked"
+      );
+      setHasScorecard(exists);
+    }).catch(() => {});
+  }, [candidate?.id, department]);
+
   // Filter staff by search term
   useEffect(() => {
     if (!scorecardEmployeeSearch.trim()) {
@@ -329,6 +341,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
       setShowScorecardModal(false);
       setScorecardEmployeeSearch("");
       setSelectedInterviewerId(null);
+      setHasScorecard(true);
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to create scorecard");
     } finally {
@@ -565,7 +578,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   </button>
                 )}
                 <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
-                  🔗 Generate Scorecard
+                  🔗 {hasScorecard ? "Scorecard Link" : "Generate Scorecard"}
                 </button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
