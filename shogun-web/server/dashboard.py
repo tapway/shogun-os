@@ -6876,8 +6876,10 @@ async def save_interview_scorecard_draft(
     if not (is_assigned or is_hr):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if scorecard.status != "pending":
-        raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}, cannot save draft")
+    if scorecard.status not in ("pending",):
+        # Allow draft saving unless scorecard is fully completed or revoked
+        if scorecard.status in ("completed", "revoked"):
+            raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}")
 
     if scorecard.expires_at < datetime.utcnow():
         scorecard.status = "expired"
@@ -6944,7 +6946,7 @@ async def submit_interview_scorecard(
     if not (is_assigned or is_hr):
         raise HTTPException(status_code=403, detail="Access denied")
 
-    if scorecard.status != "pending":
+    if scorecard.status in ("completed", "revoked"):
         raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}")
 
     if scorecard.expires_at < datetime.utcnow():
@@ -6987,13 +6989,21 @@ async def submit_interview_scorecard(
         }
         current.question_answers_json = _json.dumps(full_data)
 
-    # Mark scorecard as completed
-    scorecard.status = "completed"
-    scorecard.completed_at = datetime.utcnow()
-    scorecard.submitted_by_user_id = user.id
+    # Mark this specific interview round as completed (not the whole scorecard)
+    current.status = "completed"
+    
+    # Only mark scorecard as completed if ALL rounds are done
+    all_interviews = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id
+    ).all()
+    all_done = all(iv.status == "completed" for iv in all_interviews) if all_interviews else False
+    if all_done:
+        scorecard.status = "completed"
+        scorecard.completed_at = datetime.utcnow()
+        scorecard.submitted_by_user_id = user.id
 
     db.commit()
-    return {"ok": True}
+    return {"ok": True, "round_completed": r, "all_rounds_complete": all_done}
 
 
 @router.get("/hr/employees/search")
