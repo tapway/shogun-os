@@ -144,21 +144,44 @@ export function InterviewScorecardPage() {
     const parts: string[] = [];
     parts.push(`CANDIDATE: ${data.candidate.name}`);
     if (data.candidate.role) parts.push(`APPLIED FOR: ${data.candidate.role}`);
+
+    // Job description (text field)
     if (data.job_opening) {
       if (data.job_opening.description) parts.push(`\nJOB DESCRIPTION:\n${data.job_opening.description}`);
       if (data.job_opening.employment_type) parts.push(`EMPLOYMENT TYPE: ${data.job_opening.employment_type}`);
       if (data.job_opening.experience) parts.push(`EXPERIENCE REQUIRED: ${data.job_opening.experience}`);
       if (data.job_opening.budget_max) parts.push(`SALARY BUDGET: RM ${data.job_opening.budget_max.toLocaleString()}`);
     }
+
+    // Job description document (uploaded PDF/doc)
+    const jdFileText = (data as any).jd_file_text;
+    if (jdFileText) {
+      parts.push(`\nJOB DESCRIPTION DOCUMENT:\n${jdFileText}`);
+    }
+
+    // Candidate resume (extracted text)
+    const resumeText = (data as any).resume_text;
+    if (resumeText) {
+      parts.push(`\nCANDIDATE RESUME:\n${resumeText}`);
+    }
+
+    // Screening answers (structured JSON)
     if (data.candidate.screening_answers_json) {
       try {
         const answers = JSON.parse(data.candidate.screening_answers_json);
         if (Array.isArray(answers.questions)) {
-          parts.push("\nSCREENING ANSWERS:");
+          parts.push("\nSCREENING ANSWERS (STRUCTURED):");
           answers.questions.forEach((qa: any, i: number) => parts.push(`Q${i + 1}: ${qa.q}\nA: ${qa.a}`));
         }
       } catch {}
     }
+
+    // Screening answers document (uploaded PDF/doc)
+    const screeningText = (data as any).screening_text;
+    if (screeningText) {
+      parts.push(`\nSCREENING ANSWERS DOCUMENT:\n${screeningText}`);
+    }
+
     parts.push(`\n\nFOCUS: ${ROUND_FOCUS[round]}`);
     return parts.join("\n");
   };
@@ -322,7 +345,7 @@ export function InterviewScorecardPage() {
               <button onClick={() => handleGenerateQuestions(activeTab)} disabled={rd.generating} style={{ padding: "0.35rem 0.7rem", borderRadius: "0.4rem", border: "none", background: rd.generating ? MUTED : LIME, color: "#0a0a0a", fontWeight: 600, fontSize: "0.78rem", cursor: rd.generating ? "not-allowed" : "pointer" }}>
                 {rd.generating ? "Generating..." : "🤖 Generate"}
               </button>
-              <div style={{ marginTop: "0.3rem", fontSize: "0.68rem", color: MUTED }}>Auto: resume • screening • job desc • {ROUND_FOCUS[activeTab].split("—")[0]}</div>
+              <div style={{ marginTop: "0.3rem", fontSize: "0.68rem", color: MUTED }}>Auto: resume • screening • job desc • JD doc • {ROUND_FOCUS[activeTab].split("—")[0]}</div>
 
               {rd.generatedQuestions.length > 0 && (
                 <div style={{ marginTop: "0.75rem" }}>

@@ -6789,7 +6789,7 @@ async def get_interview_scorecard(
     db: Session = Depends(get_db),
 ) -> dict:
     """Get scorecard data for an interviewer (requires auth + assignment)."""
-    from models import HrInterviewScorecard, HrCandidate, HrInterview
+    from models import HrInterviewScorecard, HrCandidate, HrInterview, HrJobOpening
 
     scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
     if not scorecard:
@@ -6849,12 +6849,31 @@ async def get_interview_scorecard(
             r = "ceo"
         rounds[r] = d
 
+    # Extract resume text and JD file content for AI question generation
+    resume_text = ""
+    screening_text = ""
+    jd_file_text = ""
+    try:
+        if candidate.resume_url:
+            resume_text = await _fetch_candidate_doc(candidate.resume_url)
+        if candidate.screening_answers_url:
+            screening_text = await _fetch_candidate_doc(candidate.screening_answers_url)
+        if job_opening and candidate.job_opening_id:
+            jo_full = db.get(HrJobOpening, candidate.job_opening_id)
+            if jo_full and jo_full.jd_file_url:
+                jd_file_text = await _fetch_candidate_doc(jo_full.jd_file_url)
+    except Exception:
+        pass  # Non-critical — AI will work with whatever is available
+
     return {
         "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
         "interviews": [i.to_dict() for i in interviews],
         "rounds": rounds,
         "job_opening": job_opening,
         "scorecard": scorecard.to_dict(),
+        "resume_text": resume_text[:6000] if resume_text else "",
+        "screening_text": screening_text[:4000] if screening_text else "",
+        "jd_file_text": jd_file_text[:4000] if jd_file_text else "",
     }
 
 
