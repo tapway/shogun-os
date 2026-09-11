@@ -577,9 +577,27 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                     {showQuestions ? "▲ Close Questions" : "📋 Questions"}
                   </button>
                 )}
-                <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
-                  🔗 {hasScorecard ? "Scorecard Link" : "Generate Scorecard"}
-                </button>
+                {hasScorecard ? (
+                  <button type="button" onClick={async () => {
+                    // Copy existing scorecard link
+                    try {
+                      const existing = await hrApi.listScorecards(department);
+                      const sc = (existing.scorecards || []).find(
+                        (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                      );
+                      if (sc) {
+                        const url = `${window.location.origin}/interview-scorecard/${sc.token}`;
+                        navigator.clipboard.writeText(url).then(() => alert(`📋 Link copied:\n${url}`)).catch(() => prompt("Copy:", url));
+                      }
+                    } catch {}
+                  }} style={{ ...btnOutline, color: LIME }}>
+                    🔗 Scorecard Link
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
+                    🔗 Generate Scorecard
+                  </button>
+                )}
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
