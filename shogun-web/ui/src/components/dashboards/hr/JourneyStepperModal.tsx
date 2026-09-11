@@ -508,9 +508,6 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   {nextInterview.location ? ` · ${nextInterview.location}` : ""}
                 </p>
               )}
-              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
-                Once the HR interview is done, record the result.
-              </p>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
@@ -520,7 +517,6 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               />
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
-                <button type="button" disabled={busy} onClick={saveFeedback} style={btnOutline}>💾 Save feedback only</button>
                 {questionsInterview && (
                   <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
                     {showQuestions ? "▲ Close Questions" : "📋 Questions"}
