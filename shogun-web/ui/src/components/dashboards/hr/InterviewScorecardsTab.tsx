@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { Fragment, useEffect, useState } from "react";
 import { hrApi } from "../../../lib/api";
 import type { HrInterviewScorecard } from "../../../lib/types";
 
@@ -9,6 +9,8 @@ interface Props {
 const MUTED = "var(--samurai-muted)";
 const TEXT = "var(--samurai-text)";
 const BORDER = "var(--samurai-border)";
+const SURFACE = "var(--samurai-surface)";
+const SURFACE_2 = "var(--samurai-surface-2)";
 const LIME = "var(--samurai-lime)";
 const DANGER = "var(--samurai-danger)";
 const WARNING = "var(--samurai-warning)";
@@ -21,19 +23,27 @@ type ScorecardWithMeta = HrInterviewScorecard & {
   assigned_to_email: string;
 };
 
+interface RoundInfo {
+  round: string;
+  status: string;
+  interviewer_name: string | null;
+  scheduled_at: string;
+  rating: number | null;
+}
+
+interface CandidateRow {
+  candidate_id: number;
+  candidate_name: string;
+  candidate_role: string;
+  scorecard: ScorecardWithMeta;
+  rounds: Record<string, RoundInfo>;
+}
+
 export function InterviewScorecardsTab({ department }: Props) {
-  const [scorecards, setScorecards] = useState<ScorecardWithMeta[]>([]);
+  const [candidates, setCandidates] = useState<CandidateRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [showCreate, setShowCreate] = useState(false);
-
-  // Create form state
-  const [candidateId, setCandidateId] = useState<number | null>(null);
-  const [assignedUserId, setAssignedUserId] = useState<number | null>(null);
-  const [expiresDays, setExpiresDays] = useState(3);
-  const [employeeSearch, setEmployeeSearch] = useState("");
-  const [employees, setEmployees] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
-  const [creating, setCreating] = useState(false);
+  const [expandedId, setExpandedId] = useState<number | null>(null);
 
   const load = async () => {
     setLoading(true);
@@ -41,17 +51,51 @@ export function InterviewScorecardsTab({ department }: Props) {
     try {
       const res = await hrApi.listScorecards(department);
       const all = res.scorecards || [];
-      // Show scorecards that are not expired and not revoked
-      // - pending: still active, within expiry period
-      // - completed: all rounds done, but still within expiry period (for reference)
-      // Auto-hide: expired (past expires_at) or revoked
       const now = new Date().toISOString();
       const visible = all.filter((sc) => {
         if (sc.status === "revoked") return false;
-        if (sc.expires_at <= now) return false; // expired
-        return true; // pending or completed within expiry
+        if (sc.expires_at <= now) return false;
+        return true;
       });
-      setScorecards(visible);
+
+      // Group by candidate_id
+      const grouped: Record<number, CandidateRow> = {};
+      for (const sc of visible) {
+        const cid = sc.candidate_id;
+        if (!grouped[cid]) {
+          grouped[cid] = {
+            candidate_id: cid,
+            candidate_name: sc.candidate_name,
+            candidate_role: sc.candidate_role,
+            scorecard: sc,
+            rounds: {},
+          };
+        }
+      }
+
+      // Fetch interviews for each candidate to get round details
+      const candidateIds = Object.keys(grouped).map(Number);
+      const roundPromises = candidateIds.map(async (cid) => {
+        try {
+          const stats = await hrApi.stats(department);
+          const interviews = stats.interviews || [];
+          const candidateInterviews = interviews.filter((iv: any) => iv.candidate_id === cid);
+          for (const iv of candidateInterviews) {
+            const r = (iv.round || "first").toLowerCase();
+            const rk = r === "first" ? "hr" : r;
+            grouped[cid].rounds[rk] = {
+              round: rk,
+              status: iv.status || "scheduled",
+              interviewer_name: iv.interviewer_name || null,
+              scheduled_at: iv.scheduled_at || "",
+              rating: iv.rating ?? null,
+            };
+          }
+        } catch {}
+      });
+      await Promise.all(roundPromises);
+
+      setCandidates(Object.values(grouped));
     } catch (e) {
       setError(e instanceof Error ? e.message : "Failed to load scorecards");
     } finally {
@@ -62,48 +106,6 @@ export function InterviewScorecardsTab({ department }: Props) {
   useEffect(() => {
     load();
   }, [department]);
-
-  // Search employees for assignment
-  useEffect(() => {
-    if (!employeeSearch.trim()) {
-      setEmployees([]);
-      return;
-    }
-    const timer = setTimeout(async () => {
-      try {
-        const res = await hrApi.searchEmployees(department, employeeSearch, 10);
-        setEmployees(res.employees || []);
-      } catch {
-        // Ignore search errors
-      }
-    }, 300);
-    return () => clearTimeout(timer);
-  }, [employeeSearch, department]);
-
-  const handleCreate = async () => {
-    if (!candidateId || !assignedUserId) {
-      setError("Please select a candidate and assign an interviewer");
-      return;
-    }
-    setCreating(true);
-    setError("");
-    try {
-      await hrApi.createScorecard(department, {
-        candidate_id: candidateId,
-        assigned_to_user_id: assignedUserId,
-        expires_days: expiresDays,
-      });
-      setShowCreate(false);
-      setCandidateId(null);
-      setAssignedUserId(null);
-      setEmployeeSearch("");
-      await load();
-    } catch (e) {
-      setError(e instanceof Error ? e.message : "Failed to create scorecard");
-    } finally {
-      setCreating(false);
-    }
-  };
 
   const handleRevoke = async (id: number) => {
     if (!window.confirm("Revoke this scorecard? The link will stop working immediately.")) return;
@@ -124,265 +126,114 @@ export function InterviewScorecardsTab({ department }: Props) {
     });
   };
 
-  const statusColor = (status: string) => {
-    switch (status) {
-      case "pending": return WARNING;
-      case "completed": return OK;
-      case "expired": return MUTED;
-      case "revoked": return DANGER;
-      default: return TEXT;
-    }
+  const roundLabel = (r: string) => {
+    if (r === "hr" || r === "first") return "HR Interview";
+    if (r === "manager") return "Manager Interview";
+    if (r === "ceo") return "CEO Interview";
+    return r;
   };
 
-  const formatExpiry = (expiresAt: string) => {
-    const exp = new Date(expiresAt);
-    const now = new Date();
-    const diffMs = exp.getTime() - now.getTime();
-    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
-    const diffDays = Math.floor(diffHours / 24);
-
-    if (diffMs < 0) return "Expired";
-    if (diffDays > 0) return `${diffDays}d ${diffHours % 24}h left`;
-    return `${diffHours}h left`;
+  const statusBadge = (status: string) => {
+    const colors: Record<string, string> = {
+      scheduled: WARNING,
+      completed: OK,
+      cancelled: DANGER,
+    };
+    const bg = colors[status] || MUTED;
+    return (
+      <span style={{ padding: "0.15rem 0.4rem", borderRadius: "0.25rem", fontSize: "0.7rem", fontWeight: 600, color: "#0a0a0a", background: bg }}>
+        {status.toUpperCase()}
+      </span>
+    );
   };
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: "1rem" }}>
-      {/* Header */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <h2 style={{ margin: 0, fontSize: "1.2rem", fontWeight: 700, color: TEXT }}>
-          📋 Interview Scorecards
-        </h2>
-        <button
-          onClick={() => setShowCreate(!showCreate)}
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "0.5rem",
-            border: "none",
-            background: LIME,
-            color: "#0a0a0a",
-            fontWeight: 600,
-            cursor: "pointer",
-          }}
-        >
-          {showCreate ? "✕ Cancel" : "+ Generate Scorecard"}
-        </button>
-      </div>
-
       {error && (
-        <div style={{ padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${DANGER}`, background: `color-mix(in srgb, ${DANGER} 8%, transparent)`, color: DANGER, fontSize: "0.85rem" }}>
-          {error}
-        </div>
+        <div style={{ padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${DANGER}`, color: DANGER, fontSize: "0.85rem" }}>{error}</div>
       )}
 
-      {/* Create Form */}
-      {showCreate && (
-        <div style={{ padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: "var(--samurai-surface)" }}>
-          <h3 style={{ margin: "0 0 0.75rem", fontSize: "0.95rem", fontWeight: 600, color: TEXT }}>
-            Generate New Scorecard
-          </h3>
-
-          <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
-            {/* Candidate Selection (placeholder - would need candidate picker) */}
-            <div>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
-                Candidate ID
-              </label>
-              <input
-                type="number"
-                value={candidateId || ""}
-                onChange={(e) => setCandidateId(e.target.value ? parseInt(e.target.value) : null)}
-                placeholder="Enter candidate ID"
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "var(--samurai-bg)", color: TEXT }}
-              />
-              <p style={{ margin: "0.25rem 0 0", fontSize: "0.7rem", color: MUTED }}>
-                💡 Future: Will be a searchable dropdown from active candidates
-              </p>
-            </div>
-
-            {/* Interviewer Search */}
-            <div>
-              <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
-                Assign Interviewer
-              </label>
-              <input
-                type="text"
-                value={employeeSearch}
-                onChange={(e) => {
-                  setEmployeeSearch(e.target.value);
-                  setAssignedUserId(null);
-                }}
-                placeholder="Search by name or email..."
-                style={{ width: "100%", padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: "var(--samurai-bg)", color: TEXT }}
-              />
-              {employees.length > 0 && (
-                <div style={{ marginTop: "0.25rem", maxHeight: "150px", overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: "0.4rem" }}>
-                  {employees.map((emp) => (
-                    <div
-                      key={emp.id}
-                      onClick={() => {
-                        setAssignedUserId(emp.id);
-                        setEmployeeSearch(emp.name);
-                        setEmployees([]);
-                      }}
-                      style={{
-                        padding: "0.5rem",
-                        cursor: "pointer",
-                        borderBottom: `1px solid ${BORDER}`,
-                        fontSize: "0.8rem",
-                        color: TEXT,
-                      }}
-                      onMouseEnter={(e) => (e.currentTarget.style.background = "var(--samurai-surface-2)")}
-                      onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-                    >
-                      <strong>{emp.name}</strong> · {emp.department} · {emp.email}
-                    </div>
-                  ))}
-                </div>
-              )}
-              {assignedUserId && (
-                <p style={{ margin: "0.25rem 0 0", fontSize: "0.7rem", color: OK }}>
-                  ✓ Assigned to user ID: {assignedUserId}
-                </p>
-              )}
-            </div>
-
-            <button
-              onClick={handleCreate}
-              disabled={creating || !candidateId || !assignedUserId}
-              style={{
-                padding: "0.6rem",
-                borderRadius: "0.5rem",
-                border: "none",
-                background: creating ? MUTED : LIME,
-                color: "#0a0a0a",
-                fontWeight: 600,
-                cursor: creating ? "not-allowed" : "pointer",
-                opacity: (!candidateId || !assignedUserId) ? 0.5 : 1,
-              }}
-            >
-              {creating ? "Creating..." : "Generate Scorecard Link"}
-            </button>
-          </div>
-        </div>
-      )}
-
-      {/* Scorecards Table */}
       {loading ? (
         <p style={{ color: MUTED, textAlign: "center", padding: "2rem" }}>Loading...</p>
-      ) : scorecards.length === 0 ? (
-        <p style={{ color: MUTED, textAlign: "center", padding: "2rem" }}>
-          No scorecards yet. Click "Generate Scorecard" to create one.
-        </p>
+      ) : candidates.length === 0 ? (
+        <p style={{ color: MUTED, textAlign: "center", padding: "2rem" }}>No active scorecards.</p>
       ) : (
         <div style={{ overflowX: "auto" }}>
           <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "0.85rem" }}>
             <thead>
               <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Candidate</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Position</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Assigned To</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Status</th>
-                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Generated</th>
-                <th style={{ textAlign: "right", padding: "0.5rem", color: MUTED, fontWeight: 600 }}>Actions</th>
+                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "35%" }}>Candidate</th>
+                <th style={{ textAlign: "left", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "25%" }}>Position</th>
+                <th style={{ textAlign: "right", padding: "0.5rem", color: MUTED, fontWeight: 600, width: "40%" }}>Actions</th>
               </tr>
             </thead>
             <tbody>
-              {scorecards.map((sc) => (
-                <tr key={sc.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <td style={{ padding: "0.5rem", color: TEXT }}>{sc.candidate_name}</td>
-                  <td style={{ padding: "0.5rem", color: MUTED }}>{sc.candidate_role || "—"}</td>
-                  <td style={{ padding: "0.5rem", color: TEXT }}>
-                    {sc.assigned_to_name}
-                    <div style={{ fontSize: "0.7rem", color: MUTED }}>{sc.assigned_to_email}</div>
-                  </td>
-                  <td style={{ padding: "0.5rem" }}>
-                    <span style={{
-                      padding: "0.2rem 0.5rem",
-                      borderRadius: "0.3rem",
-                      fontSize: "0.75rem",
-                      fontWeight: 600,
-                      color: "#0a0a0a",
-                      background: statusColor(sc.status),
-                    }}>
-                      {sc.status.toUpperCase()}
-                    </span>
-                  </td>
-                  <td style={{ padding: "0.5rem", color: MUTED, fontSize: "0.8rem" }}>
-                    {new Date(sc.created_at).toLocaleDateString()}
-                  </td>
-                  <td style={{ padding: "0.5rem", textAlign: "right" }}>
-                    {sc.status === "pending" && (
-                      <>
-                        <button
-                          onClick={() => window.open(`/interview-scorecard/${sc.token}`, "_blank")}
-                          style={{
-                            marginRight: "0.5rem",
-                            padding: "0.3rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px solid ${LIME}`,
-                            background: LIME,
-                            color: "#0a0a0a",
-                            fontSize: "0.75rem",
-                            fontWeight: 600,
-                            cursor: "pointer",
-                          }}
-                        >
-                          🔗 Open Link
-                        </button>
-                        <button
-                          onClick={() => copyLink(sc.token)}
-                          style={{
-                            marginRight: "0.5rem",
-                            padding: "0.3rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px solid ${BORDER}`,
-                            background: "transparent",
-                            color: TEXT,
-                            fontSize: "0.75rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          🔗 Copy Link
-                        </button>
-                        <button
-                          onClick={() => handleRevoke(sc.id)}
-                          style={{
-                            padding: "0.3rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px solid ${DANGER}`,
-                            background: "transparent",
-                            color: DANGER,
-                            fontSize: "0.75rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          ✕ Revoke
-                        </button>
-                      </>
+              {candidates.map((c) => {
+                const isExpanded = expandedId === c.candidate_id;
+                return (
+                  <Fragment key={c.candidate_id}>
+                    <tr
+                      onClick={() => setExpandedId(isExpanded ? null : c.candidate_id)}
+                      style={{ borderBottom: `1px solid ${BORDER}`, cursor: "pointer", background: isExpanded ? SURFACE_2 : "transparent" }}
+                      onMouseEnter={(e) => { if (!isExpanded) e.currentTarget.style.background = SURFACE_2; }}
+                      onMouseLeave={(e) => { if (!isExpanded) e.currentTarget.style.background = "transparent"; }}
+                    >
+                      <td style={{ padding: "0.6rem 0.5rem", color: TEXT, fontWeight: 600 }}>
+                        <span style={{ marginRight: "0.4rem", fontSize: "0.75rem", color: MUTED }}>{isExpanded ? "▼" : "▶"}</span>
+                        {c.candidate_name}
+                      </td>
+                      <td style={{ padding: "0.6rem 0.5rem", color: MUTED }}>{c.candidate_role || "—"}</td>
+                      <td style={{ padding: "0.6rem 0.5rem", textAlign: "right" }}>
+                        <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
+                          <button
+                            onClick={() => window.open(`/interview-scorecard/${c.scorecard.token}`, "_blank")}
+                            style={{ padding: "0.25rem 0.5rem", borderRadius: "0.3rem", border: `1px solid ${LIME}`, background: LIME, color: "#0a0a0a", fontSize: "0.72rem", fontWeight: 600, cursor: "pointer" }}
+                          >
+                            🔗 Open
+                          </button>
+                          <button
+                            onClick={() => copyLink(c.scorecard.token)}
+                            style={{ padding: "0.25rem 0.5rem", borderRadius: "0.3rem", border: `1px solid ${BORDER}`, background: "transparent", color: TEXT, fontSize: "0.72rem", cursor: "pointer" }}
+                          >
+                            📋 Copy
+                          </button>
+                          <button
+                            onClick={() => handleRevoke(c.scorecard.id)}
+                            style={{ padding: "0.25rem 0.5rem", borderRadius: "0.3rem", border: `1px solid ${DANGER}`, background: "transparent", color: DANGER, fontSize: "0.72rem", cursor: "pointer" }}
+                          >
+                            ✕ Revoke
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                    {/* Expanded Round Details */}
+                    {isExpanded && (
+                      <tr>
+                        <td colSpan={3} style={{ padding: "0 0.5rem 0.75rem", background: SURFACE_2 }}>
+                          <div style={{ padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE, marginTop: "0.25rem" }}>
+                            <div style={{ fontSize: "0.78rem", fontWeight: 600, color: MUTED, marginBottom: "0.5rem" }}>Interview Rounds</div>
+                            {(["hr", "manager", "ceo"] as const).map((rk) => {
+                              const round = c.rounds[rk];
+                              return (
+                                <div key={rk} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr auto", gap: "0.5rem", padding: "0.4rem 0", borderBottom: `1px solid ${BORDER}`, fontSize: "0.8rem", alignItems: "center" }}>
+                                  <div style={{ fontWeight: 600, color: TEXT }}>{roundLabel(rk)}</div>
+                                  <div style={{ color: MUTED }}>
+                                    {round?.interviewer_name || <span style={{ fontStyle: "italic" }}>Not assigned</span>}
+                                  </div>
+                                  <div style={{ color: MUTED }}>
+                                    {round?.scheduled_at ? new Date(round.scheduled_at).toLocaleDateString("en-MY", { day: "2-digit", month: "short", year: "numeric" }) : "—"}
+                                  </div>
+                                  <div>{round ? statusBadge(round.status) : <span style={{ fontSize: "0.7rem", color: MUTED }}>—</span>}</div>
+                                </div>
+                              );
+                            })}
+                          </div>
+                        </td>
+                      </tr>
                     )}
-                    {sc.status === "completed" && (
-                      <div style={{ display: "flex", gap: "0.4rem", justifyContent: "flex-end", alignItems: "center" }}>
-                        <button
-                          onClick={() => window.open(`/interview-scorecard/${sc.token}`, "_blank")}
-                          style={{
-                            padding: "0.3rem 0.6rem",
-                            borderRadius: "0.3rem",
-                            border: `1px solid ${BORDER}`,
-                            background: "transparent",
-                            color: TEXT,
-                            fontSize: "0.75rem",
-                            cursor: "pointer",
-                          }}
-                        >
-                          👁️ View
-                        </button>
-                        <span style={{ fontSize: "0.75rem", color: OK }}>✓ Done</span>
-                      </div>
-                    )}
-                  </td>
-                </tr>
-              ))}
+                  </Fragment>
+                );
+              })}
             </tbody>
           </table>
         </div>
@@ -390,3 +241,4 @@ export function InterviewScorecardsTab({ department }: Props) {
     </div>
   );
 }
+
