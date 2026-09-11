@@ -652,7 +652,19 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
-                <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
+                <button type="button" onClick={async () => {
+                  try {
+                    const existing = await hrApi.listScorecards(department);
+                    const sc = (existing.scorecards || []).find(
+                      (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                    );
+                    if (sc) {
+                      window.open(`/interview-scorecard/${sc.token}`, "_blank");
+                    } else {
+                      alert("No scorecard found for this candidate.");
+                    }
+                  } catch {}
+                }} style={{ ...btnOutline, color: LIME }}>
                   🔗 Scorecard Link
                 </button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
