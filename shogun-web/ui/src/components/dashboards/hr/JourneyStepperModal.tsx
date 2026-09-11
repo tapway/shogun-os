@@ -448,11 +448,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 <button type="button" disabled={busy} onClick={() => move("Interview Email Sent - Waiting Reply", "Move to Interview Email Sent")} style={btnOutline}>→ Interview Email Sent</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
-              {stage === "CEO Interview Scheduled" && questionsInterview && (
-                <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME, marginTop: "0.5rem" }}>
-                  {showQuestions ? "▲ Close Questions" : "📋 Questions"}
-                </button>
-              )}
+
             </div>
           )}
 
@@ -572,11 +568,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               />
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
-                {questionsInterview && (
-                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
-                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
-                  </button>
-                )}
+
                 {hasScorecard ? (
                   <button type="button" onClick={async () => {
                     // Open scorecard in new tab
@@ -719,16 +711,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
           )}
         </div>
 
-        {/* Interview questions panel (interview-scheduled stages only) */}
-        {questionsInterview && showQuestions && (
-          <InterviewQuestionsPanel
-            interview={questionsInterview}
-            candidate={candidate}
-            job={job}
-            department={department}
-            onChanged={() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] })}
-          />
-        )}
+
 
         {/* Scorecard Generation Modal */}
         {showScorecardModal && (
