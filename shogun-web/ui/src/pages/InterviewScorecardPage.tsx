@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useParams } from "react-router-dom";
-import { apiFetch } from "../lib/api";
+import { apiFetch, hrApi } from "../lib/api";
+import type { HrInterviewTemplate } from "../lib/types";
 import type { HrInterview, HrCandidate } from "../lib/types";
 
 const MUTED = "var(--samurai-muted)";
@@ -47,6 +48,14 @@ export function InterviewScorecardPage() {
   const [comment, setComment] = useState("");
   const [submitting, setSubmitting] = useState(false);
 
+  // Questions & Templates state
+  const [qTab, setQTab] = useState<"questions" | "templates">("questions");
+  const [genSource, setGenSource] = useState("");
+  const [generating, setGenerating] = useState(false);
+  const [generatedQuestions, setGeneratedQuestions] = useState<string[]>([]);
+  const [templates, setTemplates] = useState<HrInterviewTemplate[]>([]);
+  const [templatesLoading, setTemplatesLoading] = useState(false);
+
   useEffect(() => {
     if (!token) return;
     setLoading(true);
@@ -72,6 +81,38 @@ export function InterviewScorecardPage() {
       })
       .finally(() => setLoading(false));
   }, [token]);
+
+  // Load interview templates
+  useEffect(() => {
+    if (data?.current_interview && templates.length === 0) {
+      setTemplatesLoading(true);
+      hrApi.listInterviewTemplates("hr")
+        .then((res) => setTemplates(res.templates || []))
+        .catch(() => {})
+        .finally(() => setTemplatesLoading(false));
+    }
+  }, [data?.current_interview]);
+
+  const handleGenerateQuestions = async () => {
+    if (!genSource.trim() || !data?.candidate) return;
+    setGenerating(true);
+    setError("");
+    try {
+      if (!data.current_interview) throw new Error("No active interview");
+      const res = await apiFetch<{ questions: string[] }>(
+        `/api/departments/hr/dashboard/hr/interviews/${data.current_interview.id}/generate-questions`,
+        {
+          method: "POST",
+          body: JSON.stringify({ source_text: genSource, count: 5 }),
+        }
+      );
+      setGeneratedQuestions(res.questions || []);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to generate questions");
+    } finally {
+      setGenerating(false);
+    }
+  };
 
   const handleSubmit = async () => {
     if (!token || !data?.current_interview) return;
@@ -224,6 +265,152 @@ export function InterviewScorecardPage() {
                 )}
               </div>
             ))}
+          </div>
+        )}
+
+        {/* AI Questions & Templates */}
+        {current_interview && (
+          <div style={{ marginBottom: "1.5rem", padding: "1rem", borderRadius: "0.75rem", border: `1px solid ${BORDER}`, background: SURFACE }}>
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "1rem" }}>
+              <button
+                onClick={() => setQTab("questions")}
+                style={{
+                  padding: "0.4rem 0.8rem",
+                  borderRadius: "0.4rem",
+                  border: qTab === "questions" ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
+                  background: qTab === "questions" ? LIME : "transparent",
+                  color: qTab === "questions" ? "#0a0a0a" : TEXT,
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                }}
+              >
+                🤖 AI Questions
+              </button>
+              <button
+                onClick={() => setQTab("templates")}
+                style={{
+                  padding: "0.4rem 0.8rem",
+                  borderRadius: "0.4rem",
+                  border: qTab === "templates" ? `2px solid ${LIME}` : `1px solid ${BORDER}`,
+                  background: qTab === "templates" ? LIME : "transparent",
+                  color: qTab === "templates" ? "#0a0a0a" : TEXT,
+                  fontWeight: 600,
+                  fontSize: "0.8rem",
+                  cursor: "pointer",
+                }}
+              >
+                📋 Templates
+              </button>
+            </div>
+
+            {qTab === "questions" && (
+              <div>
+                <div style={{ marginBottom: "0.75rem" }}>
+                  <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+                    Generate Questions From
+                  </label>
+                  <input
+                    value={genSource}
+                    onChange={(e) => setGenSource(e.target.value)}
+                    placeholder="Job description, resume summary, or key skills..."
+                    style={{ ...inputStyle, fontSize: "0.8rem" }}
+                  />
+                </div>
+                <button
+                  onClick={handleGenerateQuestions}
+                  disabled={generating || !genSource.trim()}
+                  style={{
+                    padding: "0.4rem 0.8rem",
+                    borderRadius: "0.4rem",
+                    border: "none",
+                    background: generating ? MUTED : LIME,
+                    color: "#0a0a0a",
+                    fontWeight: 600,
+                    fontSize: "0.8rem",
+                    cursor: generating || !genSource.trim() ? "not-allowed" : "pointer",
+                    opacity: !genSource.trim() ? 0.5 : 1,
+                  }}
+                >
+                  {generating ? "Generating..." : "🤖 Generate AI Questions"}
+                </button>
+                {generatedQuestions.length > 0 && (
+                  <div style={{ marginTop: "1rem" }}>
+                    <h4 style={{ margin: "0 0 0.5rem", fontSize: "0.85rem", fontWeight: 600, color: TEXT }}>Generated Questions:</h4>
+                    <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                      {generatedQuestions.map((q, i) => (
+                        <div key={i} style={{ padding: "0.5rem", borderRadius: "0.4rem", border: `1px solid ${BORDER}`, background: SURFACE_2, fontSize: "0.8rem", color: TEXT }}>
+                          <strong style={{ color: LIME }}>Q{i + 1}:</strong> {q}
+                        </div>
+                      ))}
+                    </div>
+                    <button
+                      onClick={() => {
+                        setQuestionAnswers(generatedQuestions.map((q) => ({ q, a: "" })));
+                        setQTab("questions");
+                      }}
+                      style={{
+                        marginTop: "0.75rem",
+                        padding: "0.4rem 0.8rem",
+                        borderRadius: "0.4rem",
+                        border: "none",
+                        background: OK,
+                        color: "#0a0a0a",
+                        fontWeight: 600,
+                        fontSize: "0.8rem",
+                        cursor: "pointer",
+                      }}
+                    >
+                      ✓ Use These Questions
+                    </button>
+                  </div>
+                )}
+              </div>
+            )}
+
+            {qTab === "templates" && (
+              <div>
+                {templatesLoading ? (
+                  <p style={{ color: MUTED, fontSize: "0.85rem" }}>Loading templates...</p>
+                ) : templates.length === 0 ? (
+                  <p style={{ color: MUTED, fontSize: "0.85rem" }}>No templates available</p>
+                ) : (
+                  <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+                    {templates.map((tpl) => (
+                      <div
+                        key={tpl.id}
+                        onClick={() => {
+                          try {
+                            const qs = tpl.questions;
+                            if (Array.isArray(qs)) {
+                              setQuestionAnswers(qs.map((q: string) => ({ q, a: "" })));
+                              setQTab("questions");
+                            }
+                          } catch {
+                            // Ignore parse errors
+                          }
+                        }}
+                        style={{
+                          padding: "0.6rem",
+                          borderRadius: "0.4rem",
+                          border: `1px solid ${BORDER}`,
+                          background: SURFACE_2,
+                          cursor: "pointer",
+                          fontSize: "0.85rem",
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.borderColor = LIME)}
+                        onMouseLeave={(e) => (e.currentTarget.style.borderColor = BORDER)}
+                      >
+                        <strong style={{ color: TEXT }}>{tpl.name}</strong>
+                        <div style={{ fontSize: "0.75rem", color: MUTED, marginTop: "0.2rem" }}>
+                          {tpl.round} · {(() => { try { return tpl.questions.length; } catch { return 0; } })()} questions
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            )}
           </div>
         )}
 
