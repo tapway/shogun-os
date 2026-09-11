@@ -2175,16 +2175,34 @@ class HrInterview(Base):
     )
 
     def _get_question_answers(self) -> List[Dict[str, str]]:
-        """Parse question_answers_json into list of {q, a} dicts."""
+        """Parse question_answers_json into list of {q, a} dicts. Handles both old list format and new structured dict format."""
         if not self.question_answers_json:
             return []
         try:
             parsed = json.loads(self.question_answers_json)
+            # New structured format: {question_answers: [...], notes: "...", ...}
+            if isinstance(parsed, dict) and "question_answers" in parsed:
+                qa_list = parsed["question_answers"]
+                if isinstance(qa_list, list):
+                    return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in qa_list]
+            # Old format: [{q, a}, ...]
             if isinstance(parsed, list):
                 return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in parsed]
         except Exception:
             pass
         return []
+
+    def _get_draft_data(self) -> Dict[str, Any]:
+        """Extract full draft data from question_answers_json (new structured format)."""
+        if not self.question_answers_json:
+            return {}
+        try:
+            parsed = json.loads(self.question_answers_json)
+            if isinstance(parsed, dict) and "question_answers" in parsed:
+                return parsed
+        except Exception:
+            pass
+        return {}
 
     def to_dict(self) -> Dict[str, Any]:
         questions: List[str] = []
@@ -2209,6 +2227,7 @@ class HrInterview(Base):
             "rating": self.review_rating,
             "comment": self.review_comment,
             "question_answers": self._get_question_answers(),
+            "draft_data": self._get_draft_data(),
         }
 
 

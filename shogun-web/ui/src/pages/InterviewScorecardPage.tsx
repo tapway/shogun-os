@@ -90,20 +90,19 @@ export function InterviewScorecardPage() {
         if (res.current_interview?.comment) {
           setComment(res.current_interview.comment);
         }
-        // Load draft notes if saved previously
-        if (res.draft_notes) {
-          setNotes(res.draft_notes);
-        }
-        // Load draft question_answers if stored in new format
-        if (res.current_interview?.question_answers) {
-          const qa = res.current_interview.question_answers;
-          // Check if it's the new structured format with notes
-          if (!Array.isArray(qa) && typeof qa === "object" && "question_answers" in qa) {
-            const structured = qa as any;
-            if (structured.question_answers) setQuestionAnswers(structured.question_answers);
-            if (structured.notes) setNotes(structured.notes);
-            if (structured.rating) setRating(structured.rating);
-            if (structured.comment) setComment(structured.comment);
+        // Load draft data if saved previously
+        if (res.current_interview) {
+          const iv = res.current_interview as any;
+          // Use draft_data from to_dict (new structured format)
+          if (iv.draft_data && typeof iv.draft_data === "object" && iv.draft_data.question_answers) {
+            const draft = iv.draft_data;
+            if (draft.question_answers?.length) setQuestionAnswers(draft.question_answers);
+            if (draft.notes) setNotes(draft.notes);
+            if (draft.rating) setRating(draft.rating);
+            if (draft.comment) setComment(draft.comment);
+          } else if (res.draft_notes) {
+            // Fallback to draft_notes from scorecard endpoint
+            setNotes(res.draft_notes);
           }
         }
         if (res.scorecard.status === "completed") {
