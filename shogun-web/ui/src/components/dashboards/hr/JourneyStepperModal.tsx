@@ -579,15 +579,14 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 )}
                 {hasScorecard ? (
                   <button type="button" onClick={async () => {
-                    // Copy existing scorecard link
+                    // Open scorecard in new tab
                     try {
                       const existing = await hrApi.listScorecards(department);
                       const sc = (existing.scorecards || []).find(
                         (s) => s.candidate_id === candidate.id && s.status !== "revoked"
                       );
                       if (sc) {
-                        const url = `${window.location.origin}/interview-scorecard/${sc.token}`;
-                        navigator.clipboard.writeText(url).then(() => alert(`📋 Link copied:\n${url}`)).catch(() => prompt("Copy:", url));
+                        window.open(`/interview-scorecard/${sc.token}`, "_blank");
                       }
                     } catch {}
                   }} style={{ ...btnOutline, color: LIME }}>
