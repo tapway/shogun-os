@@ -283,28 +283,7 @@ export function InterviewScorecardPage() {
           </details>
         </div>
 
-        {/* Previous rounds (read-only, visible across all tabs) */}
-        {Object.entries(data.rounds || {}).filter(([k]) => k !== activeTab && k !== "first" || (activeTab !== "hr" && k === "first")).map(([key, iv]) => {
-          const rk = key === "first" ? "hr" : key as RoundKey;
-          const draft = (iv as any).draft_data;
-          const qa = draft?.question_answers || (iv as any).question_answers || [];
-          const rt = (iv as any).rating || draft?.rating;
-          const cm = (iv as any).comment || draft?.comment || "";
-          if (!qa.length && !rt && !cm) return null;
-          return (
-            <div key={key} style={{ marginBottom: "0.75rem", padding: "0.75rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: SURFACE_2 }}>
-              <div style={{ fontSize: "0.8rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>{ROUND_LABELS[rk] || rk} (Read-Only)</div>
-              {qa.slice(0, 3).map((q: any, i: number) => (
-                <div key={i} style={{ fontSize: "0.78rem", marginBottom: "0.2rem" }}>
-                  <span style={{ color: LIME, fontWeight: 600 }}>Q{i + 1}:</span> <span style={{ color: MUTED }}>{q.q}</span>
-                  {q.a && <div style={{ color: TEXT, marginLeft: "1.5rem" }}>{q.a}</div>}
-                </div>
-              ))}
-              {rt && <div style={{ fontSize: "0.78rem", color: WARNING, marginTop: "0.3rem" }}>{"★".repeat(rt)}{"☆".repeat(5 - rt)}</div>}
-              {cm && <div style={{ fontSize: "0.78rem", color: TEXT, fontStyle: "italic", marginTop: "0.2rem" }}>{cm}</div>}
-            </div>
-          );
-        })}
+
 
         {/* Active Tab Content */}
         <div style={{ padding: "1rem", borderRadius: "0.75rem", border: rd.submitted ? `2px solid ${OK}` : `2px solid ${LIME}`, background: SURFACE }}>
