@@ -1260,6 +1260,8 @@ class HrCandidate(Base):
 
     removed_reason: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     job_opening_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    resume_gbrain_url: Mapped[Optional[str]] = mapped_column(String(1024), nullable=True)
+    screening_answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
 
     created_at: Mapped[datetime] = mapped_column(
 
@@ -2167,9 +2169,42 @@ class HrInterview(Base):
     questions_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     review_rating: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
     review_comment: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    question_answers_json: Mapped[Optional[str]] = mapped_column(Text, nullable=True)  # [{"q": "...", "a": "..."}, ...]
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, default=utcnow
     )
+
+    def _get_question_answers(self) -> List[Dict[str, str]]:
+        """Parse question_answers_json into list of {q, a} dicts. Handles both old list format and new structured dict format."""
+        if not self.question_answers_json:
+            return []
+        try:
+            parsed = json.loads(self.question_answers_json)
+            # New structured format: {question_answers: [...], notes: "...", ...}
+            if isinstance(parsed, dict) and "question_answers" in parsed:
+                qa_list = parsed["question_answers"]
+                if isinstance(qa_list, list):
+                    return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in qa_list]
+            # Old format: [{q, a}, ...]
+            if isinstance(parsed, list):
+                return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in parsed]
+        except Exception as _e:
+            import logging
+            logging.getLogger("shogun.web").debug(f"_get_question_answers parse error: {_e}")
+        return []
+
+    def _get_draft_data(self) -> Dict[str, Any]:
+        """Extract full draft data from question_answers_json (new structured format)."""
+        if not self.question_answers_json:
+            return {}
+        try:
+            parsed = json.loads(self.question_answers_json)
+            if isinstance(parsed, dict) and "question_answers" in parsed:
+                return parsed
+        except Exception as _e:
+            import logging
+            logging.getLogger("shogun.web").debug(f"_get_draft_data parse error: {_e}")
+        return {}
 
     def to_dict(self) -> Dict[str, Any]:
         questions: List[str] = []
@@ -2193,6 +2228,8 @@ class HrInterview(Base):
             "questions": questions,
             "rating": self.review_rating,
             "comment": self.review_comment,
+            "question_answers": self._get_question_answers(),
+            "draft_data": self._get_draft_data(),
         }
 
 
@@ -2229,5 +2266,35 @@ class HrInterviewTemplate(Base):
             "round": self.round,
             "questions": questions,
             "created_at": self.created_at.isoformat() if self.created_at else "",
+        }
+
+
+class HrInterviewScorecard(Base):
+    """Interview scorecard access token — one per candidate, grants authenticated access."""
+
+    __tablename__ = "hr_interview_scorecards"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    candidate_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    token: Mapped[str] = mapped_column(String(64), unique=True, nullable=False)
+    assigned_to_user_id: Mapped[int] = mapped_column(Integer, nullable=False)
+    status: Mapped[str] = mapped_column(String(16), nullable=False, default="pending")
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    expires_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    submitted_by_user_id: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "candidate_id": self.candidate_id,
+            "token": self.token,
+            "assigned_to_user_id": self.assigned_to_user_id,
+            "status": self.status,
+            "created_at": self.created_at.isoformat() if self.created_at else "",
+            "expires_at": self.expires_at.isoformat() if self.expires_at else "",
+            "completed_at": self.completed_at.isoformat() if self.completed_at else None,
+            "submitted_by_user_id": self.submitted_by_user_id,
         }
 

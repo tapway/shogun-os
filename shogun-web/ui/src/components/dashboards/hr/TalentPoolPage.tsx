@@ -99,8 +99,10 @@ export function TalentPoolPage({
   const queryClient = useQueryClient();
   const [statusFilter, setStatusFilter] = useState<string>("all");
   const [sourceFilter, setSourceFilter] = useState<string>("all");
+  const [roleFilter, setRoleFilter] = useState<string>("all");
   const [search, setSearch] = useState("");
   const [showAddApplicant, setShowAddApplicant] = useState(false);
+  const [showAddFromPool, setShowAddFromPool] = useState(false);
   const [showScreeningSetup, setShowScreeningSetup] = useState(false);
   const [showEditJob, setShowEditJob] = useState(false);
   const [journeyCandidate, setJourneyCandidate] = useState<HrCandidate | null>(
@@ -145,12 +147,22 @@ export function TalentPoolPage({
     [candidates],
   );
 
+  const roles = useMemo(
+    () =>
+      Array.from(
+        new Set(candidates.map((c) => (c.role || "").trim()).filter(Boolean)),
+      ).sort(),
+    [candidates],
+  );
+
   const filtered = useMemo(() => {
     const q = search.toLowerCase().trim();
     return candidates.filter((c) => {
       if (statusFilter !== "all" && (c.status || "").trim() !== statusFilter)
         return false;
       if (sourceFilter !== "all" && (c.source || "").trim() !== sourceFilter)
+        return false;
+      if (roleFilter !== "all" && (c.role || "").trim() !== roleFilter)
         return false;
       if (!q) return true;
       return (
@@ -159,7 +171,7 @@ export function TalentPoolPage({
         (c.role || "").toLowerCase().includes(q)
       );
     });
-  }, [candidates, statusFilter, sourceFilter, search]);
+  }, [candidates, statusFilter, sourceFilter, roleFilter, search]);
 
   const hiredCount = candidates.filter(
     (c) => candidateStatusChip(c.status) === "ok",
@@ -298,6 +310,25 @@ export function TalentPoolPage({
             }}
           >
             <UserPlus size={14} /> Add Applicant
+          </button>
+          <button
+            type="button"
+            onClick={() => setShowAddFromPool(true)}
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: "0.35rem",
+              padding: "0.4rem 0.85rem",
+              borderRadius: "0.5rem",
+              border: `1px solid ${BORDER}`,
+              background: "transparent",
+              color: TEXT,
+              fontSize: "0.8rem",
+              fontWeight: 600,
+              cursor: "pointer",
+            }}
+          >
+            <Users size={14} /> Add from Pool
           </button>
           <button
             type="button"
@@ -598,6 +629,25 @@ export function TalentPoolPage({
             {sources.map((s) => (
               <option key={s} value={s}>
                 {s}
+              </option>
+            ))}
+          </select>
+          <select
+            value={roleFilter}
+            onChange={(e) => setRoleFilter(e.target.value)}
+            style={{
+              padding: "0.35rem 0.6rem",
+              borderRadius: "0.4rem",
+              border: `1px solid ${BORDER}`,
+              background: SURFACE_2,
+              color: TEXT,
+              fontSize: "0.8rem",
+            }}
+          >
+            <option value="all">All Roles</option>
+            {roles.map((r) => (
+              <option key={r} value={r}>
+                {r}
               </option>
             ))}
           </select>
@@ -974,6 +1024,14 @@ export function TalentPoolPage({
           job={job}
           department={department}
           onClose={() => setShowAddApplicant(false)}
+        />
+      )}
+      {showAddFromPool && (
+        <AddFromPoolModal
+          job={job}
+          department={department}
+          allCandidates={stats.candidates || []}
+          onClose={() => setShowAddFromPool(false)}
         />
       )}
 
@@ -2043,3 +2101,124 @@ const jdBtnStyle: React.CSSProperties = {
   textDecoration: "none",
   cursor: "pointer",
 };
+
+/** Add from Pool — pick existing unassigned candidates and attach to this job */
+function AddFromPoolModal({
+  job,
+  department,
+  allCandidates,
+  onClose,
+}: {
+  job: HrJobOpening;
+  department: string;
+  allCandidates: HrCandidate[];
+  onClose: () => void;
+}) {
+  const queryClient = useQueryClient();
+  const [search, setSearch] = useState("");
+  const [selected, setSelected] = useState<Set<number>>(new Set());
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  // Show only candidates NOT already assigned to this job
+  const pool = useMemo(() => {
+    const q = search.toLowerCase().trim();
+    return allCandidates.filter((c) => {
+      if (c.job_opening_id === job.id) return false; // already in this job
+      if (!q) return true;
+      return (
+        (c.name || "").toLowerCase().includes(q) ||
+        (c.email || "").toLowerCase().includes(q) ||
+        (c.role || "").toLowerCase().includes(q)
+      );
+    });
+  }, [allCandidates, job.id, search]);
+
+  const toggle = (id: number) => {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const handleAdd = async () => {
+    if (selected.size === 0) return;
+    setBusy(true);
+    setError("");
+    try {
+      for (const cid of selected) {
+        await hrApi.candidateAttachJob(department, cid, job.id);
+      }
+      queryClient.invalidateQueries({ queryKey: ["hr-stats", department] });
+      onClose();
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to add candidates");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div style={{ position: "fixed", inset: 0, zIndex: 9999, display: "flex", alignItems: "center", justifyContent: "center", background: "rgba(0,0,0,0.5)" }}>
+      <div style={{ background: "var(--samurai-surface)", borderRadius: "0.75rem", border: "1px solid var(--samurai-border)", width: "min(500px, 90vw)", maxHeight: "80vh", display: "flex", flexDirection: "column" }}>
+        <div style={{ padding: "1rem", borderBottom: "1px solid var(--samurai-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <h3 style={{ margin: 0, fontSize: "1rem", fontWeight: 700, color: "var(--samurai-text)" }}>Add Candidates to {job.job_title}</h3>
+          <button onClick={onClose} style={{ background: "none", border: "none", cursor: "pointer", color: "var(--samurai-muted)", fontSize: "1.2rem" }}>✕</button>
+        </div>
+        <div style={{ padding: "0.75rem", borderBottom: "1px solid var(--samurai-border)" }}>
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search by name, email, or role…"
+            style={{ width: "100%", padding: "0.5rem", borderRadius: "0.4rem", border: "1px solid var(--samurai-border)", background: "var(--samurai-surface-2)", color: "var(--samurai-text)", fontSize: "0.85rem", boxSizing: "border-box" }}
+          />
+        </div>
+        <div style={{ flex: 1, overflowY: "auto", padding: "0.5rem" }}>
+          {pool.length === 0 ? (
+            <p style={{ textAlign: "center", color: "var(--samurai-muted)", padding: "2rem", fontSize: "0.85rem" }}>No candidates found.</p>
+          ) : (
+            pool.map((c) => (
+              <div
+                key={c.id}
+                onClick={() => toggle(c.id)}
+                style={{
+                  padding: "0.5rem",
+                  borderRadius: "0.4rem",
+                  border: selected.has(c.id) ? "2px solid var(--samurai-lime)" : "1px solid var(--samurai-border)",
+                  background: selected.has(c.id) ? "rgba(132, 204, 22, 0.1)" : "transparent",
+                  cursor: "pointer",
+                  marginBottom: "0.3rem",
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 600, fontSize: "0.85rem", color: "var(--samurai-text)" }}>{c.name}</div>
+                  <div style={{ fontSize: "0.75rem", color: "var(--samurai-muted)" }}>{c.role || "—"} · {c.email || "—"}</div>
+                </div>
+                {selected.has(c.id) && <span style={{ color: "var(--samurai-lime)", fontWeight: 700 }}>✓</span>}
+              </div>
+            ))
+          )}
+        </div>
+        {error && <div style={{ padding: "0.5rem 1rem", color: "var(--samurai-danger)", fontSize: "0.8rem" }}>{error}</div>}
+        <div style={{ padding: "0.75rem 1rem", borderTop: "1px solid var(--samurai-border)", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span style={{ fontSize: "0.8rem", color: "var(--samurai-muted)" }}>{selected.size} selected</span>
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button onClick={onClose} style={{ padding: "0.4rem 0.8rem", borderRadius: "0.4rem", border: "1px solid var(--samurai-border)", background: "transparent", color: "var(--samurai-text)", fontSize: "0.8rem", cursor: "pointer" }}>Cancel</button>
+            <button
+              onClick={handleAdd}
+              disabled={busy || selected.size === 0}
+              style={{ padding: "0.4rem 0.8rem", borderRadius: "0.4rem", border: "none", background: "var(--samurai-lime)", color: "#0a0a0a", fontSize: "0.8rem", fontWeight: 600, cursor: busy || selected.size === 0 ? "not-allowed" : "pointer", opacity: selected.size === 0 ? 0.5 : 1 }}
+            >
+              {busy ? "Adding…" : `Add ${selected.size} Candidate${selected.size !== 1 ? "s" : ""}`}
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}

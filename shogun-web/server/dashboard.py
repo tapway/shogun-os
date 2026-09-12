@@ -5696,14 +5696,18 @@ async def move_hr_candidate(
     _VALID_PIPELINE_STAGES = {
         "Resume Received", "Screening - Pending", "Screening - Review", "Screening - Passed",
         "Screening - Failed", "Screening", "HR Review",
+        "Shortlisted",
         "1st Interview Scheduled", "1st Interview Done", "1st Interview",
         "Schedule 1st Round of Interview", "Interview Email Sent - Waiting Reply",
         "HR Interview Scheduled", "HR Interview Done",
         "Manager Interview Scheduled", "Manager Interview Done", "Manager Interview",
         "Schedule Manager Interview", "Waiting Manager Interview Confirm",
+        "Waiting CEO Interview Confirm", "CEO Interview Scheduled", "CEO Interview Done", "CEO Interview",
+        "Schedule CEO Interview",
         "Waiting Interview Result", "Waiting Offer Confirmation",
         "Offer Sent - Waiting Reply", "Offer Sent", "Offer Accepted",
         "Done", "Rejected", "Withdrawn",
+        "Virtual Bench", "KIV", "On Hold", "No Response",
     }
     if status not in _VALID_PIPELINE_STAGES:
         raise HTTPException(status_code=422, detail=f"Invalid pipeline stage: {status}")
@@ -5718,7 +5722,9 @@ async def move_hr_candidate(
     old_status = cand.status
     cand.status = status
     if status in ("1st Interview Scheduled", "HR Interview Done",
-                  "Manager Interview Scheduled", "Waiting Interview Result",
+                  "Manager Interview Scheduled", "Manager Interview Done",
+                  "Waiting CEO Interview Confirm", "CEO Interview Scheduled",
+                  "Waiting Interview Result",
                   "Waiting Offer Confirmation", "Offer Sent - Waiting Reply", "Done"):
         cand.waiting_since = None
         cand.waiting_reason = None
@@ -5812,7 +5818,7 @@ def _extract_text_from_upload(data: bytes) -> str:
             text = text.strip()
             if len(text) >= 40:
                 return text
-            # No usable text layer — likely a scanned PDF. Rasterize and OCR.
+            # Very little text — could be scanned PDF. Try OCR fallback.
             _MAX_OCR_PAGES = 10
             pages_text = []
             with fitz.open(stream=data, filetype="pdf") as doc:
@@ -6059,6 +6065,11 @@ async def upload_hr_candidate_file(
     ))
     _hr_event(db, tenant.id, candidate_id, "upload",
               note=f"{kind.replace('_', ' ').title()} uploaded: {safe_name}", user=user)
+    # Auto-update candidate fields for key document types
+    if kind == "screening_answers":
+        cand.screening_answers_url = file_url
+    elif kind == "resume":
+        cand.resume_url = file_url
     db.commit()
     return {"ok": True, "file_url": file_url, "filename": safe_name}
 
@@ -6117,16 +6128,20 @@ async def decide_hr_candidate(
 
     cur = (cand.status or "").strip()
     if decision == "continue":
-        if cur.lower() != "hr interview done":
-            raise HTTPException(status_code=422, detail="Continue is only valid after the HR interview is done")
-        new_status = "Waiting Manager Interview Confirm"
+        if cur.lower() == "hr interview done":
+            new_status = "Waiting Manager Interview Confirm"
+        elif cur.lower() == "manager interview done":
+            new_status = "Waiting CEO Interview Confirm"
+        else:
+            raise HTTPException(status_code=422, detail="Continue is only valid after HR or Manager interview is done")
     elif decision == "offer":
         if cur.lower() != "waiting offer confirmation":
             raise HTTPException(status_code=422, detail="Offer is only valid after the interview result is confirmed")
         new_status = "Offer Sent - Waiting Reply"
-    else:  # reject — allowed from HR interview done, waiting result, or offer confirmation stages
-        if cur.lower() not in ("hr interview done", "waiting interview result", "waiting offer confirmation"):
-            raise HTTPException(status_code=422, detail="Reject is only valid after the HR interview or before the offer")
+    else:  # reject — allowed from HR interview done, manager interview done, waiting result, or offer confirmation stages
+        if cur.lower() not in ("hr interview done", "manager interview done", "waiting ceo interview confirm",
+                                "ceo interview scheduled", "waiting interview result", "waiting offer confirmation"):
+            raise HTTPException(status_code=422, detail="Reject is only valid after an interview or before the offer")
         new_status = "Rejected"
 
     old = cand.status
@@ -6170,8 +6185,8 @@ async def schedule_hr_interview(
         raise HTTPException(status_code=404, detail="Candidate not found")
 
     rnd = (body.round or "").strip().lower()
-    if rnd not in ("first", "manager"):
-        raise HTTPException(status_code=422, detail="round must be 'first' or 'manager'")
+    if rnd not in ("first", "manager", "ceo"):
+        raise HTTPException(status_code=422, detail="round must be 'first', 'manager', or 'ceo'")
     when = (body.scheduled_at or "").strip()
     if not when:
         raise HTTPException(status_code=422, detail="Interview date/time is required")
@@ -6188,7 +6203,11 @@ async def schedule_hr_interview(
             job_id = job.id
 
     old = cand.status
-    new_status = "1st Interview Scheduled" if rnd == "first" else "Manager Interview Scheduled"
+    new_status = {
+        "first": "1st Interview Scheduled",
+        "manager": "Manager Interview Scheduled",
+        "ceo": "CEO Interview Scheduled",
+    }.get(rnd, "1st Interview Scheduled")
     interview = HrInterview(
         tenant_id=tenant.id, candidate_id=candidate_id, job_id=job_id,
         round=rnd, scheduled_at=when,
@@ -6268,6 +6287,8 @@ class HrApplyTemplateBody(BaseModel):
 class HrPostInterviewBody(BaseModel):
     rating: Optional[int] = None
     comment: str = ""
+    notes: str = ""  # Interviewer preparation notes / focus areas
+    question_answers: List[Dict[str, str]] = Field(default_factory=list)  # [{"q": "...", "a": "..."}, ...]
 
 
 _ROUND_QUESTION_TEMPLATES: Dict[str, list] = {
@@ -6344,13 +6365,14 @@ def _set_interview_questions(iv, questions: list) -> None:
 async def generate_hr_interview_questions(
     interview_id: int,
     name: str = Path(...),
+    body: dict = Body(default={}),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Generate 10 interview questions for the interview round.
+    """Generate interview questions for the interview round.
 
-    Tries a real LLM call (deepseek) grounded on the candidate's resume and the
-    job description; falls back to a per-round template on any failure.
+    Uses source_text from request body (built by frontend with resume + JD + screening).
+    Falls back to server-side fetching if source_text not provided.
     """
     from models import HrCandidate, HrInterview, HrJobOpening
 
@@ -6372,30 +6394,80 @@ async def generate_hr_interview_questions(
         "ceo": "CEO",
     }.get((iv.round or "").strip().lower(), iv.round or "interview")
 
+    # Parse body for source_text and count
+    source_text = (body.get("source_text") or "").strip()
+    try:
+        count = max(1, min(int(body.get("count", 10)), 15))
+    except (TypeError, ValueError):
+        count = 10
+    import logging as _logging
+    _logging.getLogger("shogun.web").info(f"generate-questions: source_text length={len(source_text)}, count={count}, has_resume={'RESUME' in source_text}, has_screening={'SCREENING' in source_text}")
+
     questions: list = []
     source = "ai"
     try:
-        resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
-        # Note: _fetch_candidate_doc already uses async httpx for Drive; local files use sync I/O but are small
-        jd = (job.job_description or "") if job else ""
+        # Use frontend-provided source_text if available (includes resume + JD + screening)
+        if not source_text:
+            # Fallback: fetch resume and JD server-side
+            resume_text = await _fetch_candidate_doc(cand.resume_url or "") if cand and cand.resume_url else ""
+            jd = (job.job_description or "") if job else ""
+            source_text = (
+                f"CANDIDATE: {cand.name if cand else 'Unknown'}\n"
+                f"APPLIED FOR: {job_title}\n\n"
+                f"RESUME:\n{resume_text[:6000] or '(not available)'}\n\n"
+                f"JOB DESCRIPTION:\n{jd[:3000] or '(not available)'}"
+            )
+
+        # Build prompt with context FIRST, then instructions
+        candidate_name = cand.name if cand else "the candidate"
+        context_block = source_text[:12000]
         prompt = (
-            "You are an experienced hiring manager. Generate exactly 10 interview questions "
-            f"for a {round_label} interview with {cand.name if cand else 'the candidate'} applying "
-            f"for {job_title}.\n\n"
-            f"Resume text:\n{resume_text[:4000] or '(not available)'}\n\n"
-            f"Job description:\n{jd[:2000] or '(not available)'}\n\n"
-            "Return ONLY valid JSON — an array of 10 strings."
+            f"=== CANDIDATE CONTEXT FOR {candidate_name.upper()} ===\n\n"
+            f"{context_block}\n\n"
+            f"=== END CONTEXT ===\n\n"
+            f"TASK: You are conducting a {round_label} interview with {candidate_name} for the {job_title} position.\n"
+            f"Generate exactly {count} interview questions based SPECIFICALLY on the context above.\n\n"
+            "GOOD EXAMPLES (specific to candidate):\n"
+            '- "You mentioned building a microservices architecture at Company X — what was the biggest scaling challenge you faced?"\n'
+            '- "Your resume shows you migrated from MongoDB to PostgreSQL — what drove that decision and what trade-offs did you consider?"\n'
+            '- "In your screening answer about handling tight deadlines, you mentioned prioritizing features — can you walk through a specific example?"\n'
+            '- "You listed React and Next.js as your primary stack — how do you handle state management in large-scale applications?"\n\n'
+            "BAD EXAMPLES (generic — DO NOT generate these):\n"
+            '- "Walk us through your background" ❌\n'
+            '- "What are your strengths and weaknesses?" ❌\n'
+            '- "Where do you see yourself in 5 years?" ❌\n'
+            '- "Why should we hire you?" ❌\n'
+            '- "Tell me about a difficult situation" ❌\n\n'
+            "REQUIREMENTS:\n"
+            "1. Every question MUST mention something specific from the candidate's resume, projects, or screening answers\n"
+            "2. Questions should probe technical depth, problem-solving approach, or specific experiences\n"
+            "3. Reference company names, project names, technologies, or achievements from the context\n"
+            "4. If screening answers mention specific challenges, ask follow-up questions about those\n"
+            "5. Match questions to job requirements listed in the job description\n"
+            "6. STRICTLY follow the FOCUS area specified for this interview round\n"
+            "7. NEVER repeat or rephrase any question listed under 'PREVIOUS INTERVIEW QUESTIONS'\n"
+            "8. Each question must be unique and cover a DIFFERENT aspect of the candidate's background\n\n"
+            f"Return ONLY valid JSON — an array of {count} strings. No explanation, no markdown."
         )
         from gateway import _call_deepseek
         raw = await _call_deepseek(
             prompt,
-            system_prompt="You generate tailored interview questions. Reply with ONLY valid JSON: an array of strings.",
-            max_tokens=1200,
+            system_prompt=(
+                f"You are an expert {round_label} interviewer. You ALWAYS generate questions that reference "
+                "specific details from the candidate's resume and screening answers. You NEVER ask generic "
+                "interview questions. You NEVER repeat questions from previous interview rounds. "
+                "Every question must contain at least one specific reference to the candidate's experience, "
+                "projects, companies, or technologies. You STRICTLY follow the FOCUS area for this round. "
+                "Reply with ONLY valid JSON: an array of strings."
+            ),
+            max_tokens=2500,
         )
         if raw:
-            parsed = _extract_json_from_text(raw)
+            _logging.getLogger("shogun.web").info(f"generate-questions RAW RESPONSE (first 500): {raw[:500]}")
+            parsed = _extract_json_from_text(raw, is_array=True)
             if isinstance(parsed, list):
-                questions = [str(q).strip() for q in parsed if str(q).strip()][:10]
+                questions = [str(q).strip() for q in parsed if str(q).strip()][:count]
+                _logging.getLogger("shogun.web").info(f"generate-questions PARSED {len(questions)} questions: {questions[:3]}")
     except Exception:
         questions = []
     if not questions:
@@ -6641,8 +6713,473 @@ async def post_hr_interview_review(
         raise HTTPException(status_code=422, detail="Rating must be between 1 and 5")
     iv.review_rating = rating
     iv.review_comment = (body.comment or "").strip()[:5000]
+    if body.question_answers:
+        import json as _json
+        iv.question_answers_json = _json.dumps(body.question_answers)
     db.commit()
     return {"ok": True, "interview": iv.to_dict()}
+
+
+# ── Interview Scorecards ──────────────────────────────────────────────
+
+class HrScorecardCreateBody(BaseModel):
+    candidate_id: int
+    assigned_to_user_id: int
+    expires_days: int = 3
+
+
+@router.post("/hr/scorecards")
+async def create_hr_scorecard(
+    body: HrScorecardCreateBody,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Generate a new interview scorecard token for a candidate."""
+    import secrets
+    from datetime import timedelta
+    from models import HrInterviewScorecard, HrCandidate
+
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # Validate candidate exists and belongs to tenant
+    candidate = db.get(HrCandidate, body.candidate_id)
+    if candidate is None or candidate.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Validate assigned user exists and belongs to same tenant
+    assigned_user = db.get(User, body.assigned_to_user_id)
+    if assigned_user is None:
+        raise HTTPException(status_code=404, detail="Assigned user not found")
+    # B4 FIX: Cross-tenant assignment check
+    if assigned_user.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Assigned user must belong to same tenant")
+
+    # Check if active scorecard already exists for this candidate
+    now_check = datetime.utcnow()
+    existing = db.query(HrInterviewScorecard).filter(
+        HrInterviewScorecard.candidate_id == body.candidate_id,
+        HrInterviewScorecard.status == "pending",
+        HrInterviewScorecard.expires_at > now_check
+    ).first()
+    if existing:
+        raise HTTPException(status_code=409, detail="Active scorecard already exists for this candidate")
+    # S9 FIX: Auto-expire stale pending scorecards
+    db.query(HrInterviewScorecard).filter(
+        HrInterviewScorecard.candidate_id == body.candidate_id,
+        HrInterviewScorecard.status == "pending",
+        HrInterviewScorecard.expires_at <= now_check
+    ).update({"status": "expired"}, synchronize_session=False)
+
+    # Generate secure token
+    token = secrets.token_urlsafe(48)
+    now = datetime.utcnow()
+    expires_at = now + timedelta(days=365)  # No user-set expiry; HR revokes manually
+
+    scorecard = HrInterviewScorecard(
+        tenant_id=tenant.id,
+        candidate_id=body.candidate_id,
+        token=token,
+        assigned_to_user_id=body.assigned_to_user_id,
+        status="pending",
+        created_at=now,
+        expires_at=expires_at,
+    )
+    db.add(scorecard)
+    db.commit()
+    db.refresh(scorecard)
+
+    return {"ok": True, "scorecard": scorecard.to_dict()}
+
+
+@router.get("/hr/scorecards")
+async def list_hr_scorecards(
+    name: str = Path(...),
+    status: Optional[str] = None,
+    limit: Optional[int] = Query(50, description="Max results (default 50, max 200)"),
+    offset: Optional[int] = Query(0, description="Pagination offset"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List all scorecards (HR admin only)."""
+    from models import HrInterviewScorecard, HrCandidate
+
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    query = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.tenant_id == tenant.id)
+    if status:
+        query = query.filter(HrInterviewScorecard.status == status)
+
+    # B5 FIX: Pagination — default 50, max 200, clamp lower bounds
+    limit = max(1, min(int(limit) if limit else 50, 200))
+    offset_val = max(0, int(offset) if offset else 0)
+    scorecards = query.order_by(HrInterviewScorecard.created_at.desc()).offset(offset_val).limit(limit).all()
+
+    # S1-R2 FIX: Batch fetch candidates and users to eliminate N+1
+    candidate_ids = list({sc.candidate_id for sc in scorecards})
+    user_ids = list({sc.assigned_to_user_id for sc in scorecards})
+    candidates_map = {c.id: c for c in db.query(HrCandidate).filter(HrCandidate.id.in_(candidate_ids)).all()} if candidate_ids else {}
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
+    result = []
+    for sc in scorecards:
+        candidate = candidates_map.get(sc.candidate_id)
+        assigned_user = users_map.get(sc.assigned_to_user_id)
+        item = sc.to_dict()
+        # B3 FIX: Omit secret token from list response
+        item.pop("token", None)
+        item["candidate_name"] = candidate.name if candidate else "Unknown"
+        item["candidate_role"] = candidate.role if candidate else ""
+        item["assigned_to_name"] = assigned_user.name if assigned_user else "Unknown"
+        item["assigned_to_email"] = assigned_user.email if assigned_user else ""
+        result.append(item)
+
+    return {"scorecards": result}
+
+
+@router.delete("/hr/scorecards/{scorecard_id}")
+async def revoke_hr_scorecard(
+    scorecard_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Revoke an active scorecard."""
+    from models import HrInterviewScorecard
+
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    scorecard = db.get(HrInterviewScorecard, scorecard_id)
+    if scorecard is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    if scorecard.status != "pending":
+        raise HTTPException(status_code=422, detail=f"Cannot revoke scorecard with status '{scorecard.status}'")
+
+    scorecard.status = "revoked"
+    db.commit()
+
+    return {"ok": True, "scorecard": scorecard.to_dict()}
+
+
+# ── Interview Scorecard Access (Authenticated) ────────────────────────
+
+@router.get("/interview-scorecard/{token}")
+async def get_interview_scorecard(
+    token: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get scorecard data for an interviewer (requires auth + assignment)."""
+    from models import HrInterviewScorecard, HrCandidate, HrInterview, HrJobOpening
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation — scorecard must belong to user's tenant
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
+
+    # Check authorization: must be assigned user or HR admin
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status == "revoked":
+        raise HTTPException(status_code=410, detail="This scorecard has been revoked")
+
+    if scorecard.status == "expired" or scorecard.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    candidate = db.get(HrCandidate, scorecard.candidate_id)
+    if not candidate:
+        raise HTTPException(status_code=404, detail="Candidate not found")
+
+    # Get all interviews for this candidate
+    interviews = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id
+    ).order_by(HrInterview.created_at).all()
+
+    # Find current scheduled interview
+    current = next((i for i in interviews if i.status == "scheduled"), None)
+
+    # Get job opening if candidate is linked to one
+    job_opening = None
+    if candidate.job_opening_id:
+        from models import HrJobOpening
+        jo = db.get(HrJobOpening, candidate.job_opening_id)
+        # S3-R2 FIX: Validate job opening belongs to same tenant
+        if jo and jo.tenant_id == tenant.id:
+            job_opening = {
+                "id": jo.id,
+                "job_title": jo.job_title,
+                "department": jo.department,
+                "description": jo.job_description or "",
+                "employment_type": jo.employment_type or "",
+                "experience": jo.experience or "",
+                "budget_max": jo.budget_max,
+            }
+
+    # Group interviews by round
+    rounds = {}
+    for iv in interviews:
+        d = iv.to_dict()
+        r = (iv.round or "first").lower()
+        # Normalize round names
+        if r in ("first", "hr"):
+            r = "hr"
+        elif r == "manager":
+            r = "manager"
+        elif r == "ceo":
+            r = "ceo"
+        rounds[r] = d
+
+    # Extract resume text and JD file content for AI question generation
+    resume_text = ""
+    screening_text = ""
+    jd_file_text = ""
+    try:
+        if candidate.resume_url:
+            resume_text = await _fetch_candidate_doc(candidate.resume_url)
+        if candidate.screening_answers_url:
+            screening_text = await _fetch_candidate_doc(candidate.screening_answers_url)
+        if job_opening and candidate.job_opening_id:
+            jo_full = db.get(HrJobOpening, candidate.job_opening_id)
+            if jo_full and jo_full.jd_file_url:
+                jd_file_text = await _fetch_candidate_doc(jo_full.jd_file_url)
+    except Exception as _doc_err:
+        import logging as _logging
+        _logging.getLogger("shogun.web").warning(f"Failed to fetch candidate docs for scorecard {token}: {_doc_err}")
+
+    return {
+        "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
+        "interviews": [i.to_dict() for i in interviews],
+        "rounds": rounds,
+        "job_opening": job_opening,
+        "scorecard": scorecard.to_dict(),
+        "resume_text": resume_text[:6000] if resume_text else "",
+        "screening_text": screening_text[:4000] if screening_text else "",
+        "jd_file_text": jd_file_text[:4000] if jd_file_text else "",
+    }
+
+
+# ── Save Draft (pre-interview preparation) ────────────────────────────
+
+@router.post("/interview-scorecard/{token}/save-draft")
+async def save_interview_scorecard_draft(
+    token: str,
+    body: HrPostInterviewBody,
+    round: str = Query("hr", description="Round: hr, manager, ceo"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save draft assessment for a specific round. Interviewer can come back later."""
+    import json as _json
+    from models import HrInterviewScorecard, HrInterview
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
+
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status not in ("pending",):
+        # Allow draft saving unless scorecard is fully completed or revoked
+        if scorecard.status in ("completed", "revoked"):
+            raise HTTPException(status_code=422, detail=f"Scorecard is {scorecard.status}")
+
+    if scorecard.expires_at < datetime.utcnow():
+        scorecard.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    # Normalize round
+    r = round.lower().strip()
+    if r in ("first", "hr"):
+        r = "first"
+    
+    # Find interview for this round
+    current = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id,
+        HrInterview.round == r
+    ).order_by(HrInterview.created_at.desc()).first()
+    
+    # S4-R2 FIX: No cross-round fallback — require exact round match
+    if not current:
+        raise HTTPException(status_code=404, detail=f"No interview found for round '{r}'")
+
+    # Save draft data (don't mark as completed)
+    # S4 FIX: Preserve existing Q&A if client didn't send updates
+    existing_data = {}
+    if current.question_answers_json:
+        try:
+            existing_data = _json.loads(current.question_answers_json)
+        except Exception:
+            pass
+
+    qa_to_save = body.question_answers if body.question_answers else existing_data.get("question_answers", [])
+    draft_data = {
+        "question_answers": qa_to_save,
+        "notes": (body.notes or "").strip()[:5000],
+        "rating": body.rating,
+        "comment": (body.comment or "").strip(),
+    }
+    current.question_answers_json = _json.dumps(draft_data)
+    current.review_comment = (body.comment or "").strip()[:5000]
+
+    db.commit()
+    return {"ok": True, "saved_at": datetime.utcnow().isoformat()}
+
+
+@router.post("/interview-scorecard/{token}/submit")
+async def submit_interview_scorecard(
+    token: str,
+    body: HrPostInterviewBody,
+    round: str = Query("hr", description="Round: hr, manager, ceo"),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Submit assessment for a specific round."""
+    import json as _json
+    from models import HrInterviewScorecard, HrInterview
+
+    scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
+    if not scorecard:
+        raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
+
+    is_assigned = scorecard.assigned_to_user_id == user.id
+    is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
+    if not (is_assigned or is_hr):
+        raise HTTPException(status_code=403, detail="Access denied")
+
+    if scorecard.status == "revoked":
+        raise HTTPException(status_code=422, detail="Scorecard has been revoked")
+
+    if scorecard.expires_at < datetime.utcnow():
+        scorecard.status = "expired"
+        db.commit()
+        raise HTTPException(status_code=410, detail="This scorecard has expired")
+
+    # Normalize round
+    r = round.lower().strip()
+    if r in ("first", "hr"):
+        r = "first"
+    
+    # Find interview for this round
+    current = db.query(HrInterview).filter(
+        HrInterview.candidate_id == scorecard.candidate_id,
+        HrInterview.round == r
+    ).order_by(HrInterview.created_at.desc()).first()
+    
+    # S4-R2 FIX: No cross-round fallback — require exact round match
+    if not current:
+        raise HTTPException(status_code=404, detail=f"No interview found for round '{r}'")
+
+    # Save assessment data
+    if body.rating is not None and 1 <= body.rating <= 5:
+        current.review_rating = body.rating
+    current.review_comment = (body.comment or "").strip()[:5000]
+    if body.question_answers:
+        # Store both Q&A and notes in structured format
+        full_data = {
+            "question_answers": body.question_answers,
+            "notes": (body.notes or "").strip()[:5000],
+            "rating": body.rating,
+            "comment": (body.comment or "").strip(),
+        }
+        current.question_answers_json = _json.dumps(full_data)
+
+    # Mark this specific interview round as completed (scorecard stays pending)
+    current.status = "completed"
+    # S5 FIX: Set audit fields on submission
+    scorecard.submitted_by_user_id = user.id
+    scorecard.completed_at = datetime.utcnow()
+    # Scorecard NEVER auto-completes — HR controls lifecycle via Revoke
+    
+    db.commit()
+    return {"ok": True, "round_completed": r}
+
+
+@router.get("/hr/employees/search")
+async def search_hr_employees(
+    q: str = "",
+    limit: int = 10,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Search employees by name or email for interviewer selection."""
+    from models import User as UserModel
+
+    # S2-R2 FIX: Require HR/admin role to enumerate employees
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
+
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None:
+        raise HTTPException(status_code=404, detail="Tenant not found")
+
+    # S8 FIX: Clamp limit to max 50
+    limit = min(max(limit, 1), 50)
+    if not q.strip():
+        # Return first N employees if no query
+        users = db.query(UserModel).filter(UserModel.tenant_id == tenant.id).limit(limit).all()
+    else:
+        search_term = f"%{q.strip()}%"
+        users = db.query(UserModel).filter(
+            UserModel.tenant_id == tenant.id,
+            (UserModel.name.ilike(search_term)) | (UserModel.email.ilike(search_term))
+        ).limit(limit).all()
+
+    return {
+        "employees": [
+            {
+                "id": u.id,
+                "name": u.name or "",
+                "email": u.email or "",
+                "department": getattr(u, "department", "") or "",
+            }
+            for u in users
+        ]
+    }
 
 
 @router.post("/hr/candidates/{candidate_id}/waiting")

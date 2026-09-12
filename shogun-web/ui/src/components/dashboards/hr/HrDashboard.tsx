@@ -12,6 +12,7 @@ import { EquipmentTab } from "./EquipmentTab";
 import { GlobalTalentPoolTab } from "./GlobalTalentPoolTab";
 import { TrainingTab } from "./TrainingTab";
 import { ClosedJobsTab } from "./ClosedJobsTab";
+import { InterviewScorecardsTab } from "./InterviewScorecardsTab";
 
 import { TalentPoolPage } from "./TalentPoolPage";
 import { CandidateDetailPage } from "./CandidateDetailPage";
@@ -35,6 +36,7 @@ const EMPLOYEE_TABS: DashboardTab[] = [
 const RECRUITMENT_TABS: DashboardTab[] = [
   { id: "openings", label: "Job Openings", icon: "Briefcase" },
   { id: "pipeline", label: "Recruitment Pipeline", icon: "GitBranch" },
+  { id: "scorecards", label: "Interview Scorecards", icon: "ClipboardCheck" },
   { id: "talentpool", label: "Talent Pool", icon: "Database" },
   { id: "closed-jobs", label: "Closed Jobs", icon: "CheckCircle2" },
 ];
@@ -156,9 +158,10 @@ export function HrDashboard({ department, color }: HrDashboardProps) {
           onOpenTalentPool={(j) => setTalentPool({ id: j.id, job: j })}
         />
       )}
-      {activeTab === "talentpool" && <GlobalTalentPoolTab stats={stats} color={color} department={department} />}
+      {activeTab === "talentpool" && <GlobalTalentPoolTab stats={stats} department={department} />}
       {activeTab === "closed-jobs" && <ClosedJobsTab stats={stats} color={color} department={department} onOpenTalentPool={(job) => { setTalentPool({ id: job.id, job }); }} />}
       {activeTab === "pipeline" && <RecruitmentPipelineTab stats={stats} color={color} department={department} />}
+      {activeTab === "scorecards" && <InterviewScorecardsTab department={department} />}
 
       {activeTab === "onboarding" && <OnboardingTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
       {activeTab === "equipment" && <EquipmentTab stats={stats} color={color} department={department} onChanged={() => statsQuery.refetch()} />}
