@@ -5816,7 +5816,7 @@ def _extract_text_from_upload(data: bytes) -> str:
                 for page in doc:
                     text += page.get_text()
             text = text.strip()
-            if len(text) >= 10:
+            if len(text) >= 40:
                 return text
             # Very little text — could be scanned PDF. Try OCR fallback.
             _MAX_OCR_PAGES = 10
@@ -6396,7 +6396,10 @@ async def generate_hr_interview_questions(
 
     # Parse body for source_text and count
     source_text = (body.get("source_text") or "").strip()
-    count = min(int(body.get("count", 10)), 15)
+    try:
+        count = max(1, min(int(body.get("count", 10)), 15))
+    except (TypeError, ValueError):
+        count = 10
     import logging as _logging
     _logging.getLogger("shogun.web").info(f"generate-questions: source_text length={len(source_text)}, count={count}, has_resume={'RESUME' in source_text}, has_screening={'SCREENING' in source_text}")
 
@@ -6737,6 +6740,11 @@ async def create_hr_scorecard(
     from datetime import timedelta
     from models import HrInterviewScorecard, HrCandidate
 
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
+
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
@@ -6746,18 +6754,29 @@ async def create_hr_scorecard(
     if candidate is None or candidate.tenant_id != tenant.id:
         raise HTTPException(status_code=404, detail="Candidate not found")
 
-    # Validate assigned user exists
+    # Validate assigned user exists and belongs to same tenant
     assigned_user = db.get(User, body.assigned_to_user_id)
     if assigned_user is None:
         raise HTTPException(status_code=404, detail="Assigned user not found")
+    # B4 FIX: Cross-tenant assignment check
+    if assigned_user.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Assigned user must belong to same tenant")
 
     # Check if active scorecard already exists for this candidate
+    now_check = datetime.utcnow()
     existing = db.query(HrInterviewScorecard).filter(
         HrInterviewScorecard.candidate_id == body.candidate_id,
-        HrInterviewScorecard.status.in_(["pending"])
+        HrInterviewScorecard.status == "pending",
+        HrInterviewScorecard.expires_at > now_check
     ).first()
     if existing:
         raise HTTPException(status_code=409, detail="Active scorecard already exists for this candidate")
+    # S9 FIX: Auto-expire stale pending scorecards
+    db.query(HrInterviewScorecard).filter(
+        HrInterviewScorecard.candidate_id == body.candidate_id,
+        HrInterviewScorecard.status == "pending",
+        HrInterviewScorecard.expires_at <= now_check
+    ).update({"status": "expired"}, synchronize_session=False)
 
     # Generate secure token
     token = secrets.token_urlsafe(48)
@@ -6784,11 +6803,18 @@ async def create_hr_scorecard(
 async def list_hr_scorecards(
     name: str = Path(...),
     status: Optional[str] = None,
+    limit: Optional[int] = Query(50, description="Max results (default 50, max 200)"),
+    offset: Optional[int] = Query(0, description="Pagination offset"),
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
     """List all scorecards (HR admin only)."""
     from models import HrInterviewScorecard, HrCandidate
+
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
@@ -6798,7 +6824,10 @@ async def list_hr_scorecards(
     if status:
         query = query.filter(HrInterviewScorecard.status == status)
 
-    scorecards = query.order_by(HrInterviewScorecard.created_at.desc()).all()
+    # B5 FIX: Pagination — default 50, max 200
+    limit = min(int(limit) if limit else 50, 200)
+    offset_val = int(offset) if offset else 0
+    scorecards = query.order_by(HrInterviewScorecard.created_at.desc()).offset(offset_val).limit(limit).all()
 
     # Enrich with candidate info
     result = []
@@ -6806,6 +6835,8 @@ async def list_hr_scorecards(
         candidate = db.get(HrCandidate, sc.candidate_id)
         assigned_user = db.get(User, sc.assigned_to_user_id)
         item = sc.to_dict()
+        # B3 FIX: Omit secret token from list response
+        item.pop("token", None)
         item["candidate_name"] = candidate.name if candidate else "Unknown"
         item["candidate_role"] = candidate.role if candidate else ""
         item["assigned_to_name"] = assigned_user.name if assigned_user else "Unknown"
@@ -6824,6 +6855,11 @@ async def revoke_hr_scorecard(
 ) -> dict:
     """Revoke an active scorecard."""
     from models import HrInterviewScorecard
+
+    # B2 FIX: Enforce HR/admin role
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
@@ -6856,6 +6892,11 @@ async def get_interview_scorecard(
     scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
     if not scorecard:
         raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation — scorecard must belong to user's tenant
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
 
     # Check authorization: must be assigned user or HR admin
     is_assigned = scorecard.assigned_to_user_id == user.id
@@ -6924,8 +6965,9 @@ async def get_interview_scorecard(
             jo_full = db.get(HrJobOpening, candidate.job_opening_id)
             if jo_full and jo_full.jd_file_url:
                 jd_file_text = await _fetch_candidate_doc(jo_full.jd_file_url)
-    except Exception:
-        pass  # Non-critical — AI will work with whatever is available
+    except Exception as _doc_err:
+        import logging as _logging
+        _logging.getLogger("shogun.web").warning(f"Failed to fetch candidate docs for scorecard {token}: {_doc_err}")
 
     return {
         "candidate": candidate.to_dict() if hasattr(candidate, "to_dict") else {"id": candidate.id, "name": candidate.name, "role": candidate.role, "resume_url": candidate.resume_url, "screening_answers_json": candidate.screening_answers_json},
@@ -6956,6 +6998,11 @@ async def save_interview_scorecard_draft(
     scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
     if not scorecard:
         raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
 
     is_assigned = scorecard.assigned_to_user_id == user.id
     is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
@@ -6994,18 +7041,23 @@ async def save_interview_scorecard_draft(
         raise HTTPException(status_code=404, detail="No active interview found")
 
     # Save draft data (don't mark as completed)
-    if body.question_answers:
-        current.question_answers_json = _json.dumps(body.question_answers)
-    current.review_comment = (body.comment or "").strip()[:5000]
-    # Store notes in a separate field - use comment prefix pattern since no dedicated column
-    # Actually, let's store notes alongside question_answers in the JSON
+    # S4 FIX: Preserve existing Q&A if client didn't send updates
+    existing_data = {}
+    if current.question_answers_json:
+        try:
+            existing_data = _json.loads(current.question_answers_json)
+        except Exception:
+            pass
+
+    qa_to_save = body.question_answers if body.question_answers else existing_data.get("question_answers", [])
     draft_data = {
-        "question_answers": body.question_answers,
+        "question_answers": qa_to_save,
         "notes": (body.notes or "").strip()[:5000],
         "rating": body.rating,
         "comment": (body.comment or "").strip(),
     }
     current.question_answers_json = _json.dumps(draft_data)
+    current.review_comment = (body.comment or "").strip()[:5000]
 
     db.commit()
     return {"ok": True, "saved_at": datetime.utcnow().isoformat()}
@@ -7026,6 +7078,11 @@ async def submit_interview_scorecard(
     scorecard = db.query(HrInterviewScorecard).filter(HrInterviewScorecard.token == token).first()
     if not scorecard:
         raise HTTPException(status_code=404, detail="Scorecard not found")
+
+    # B1 FIX: Tenant isolation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    if tenant is None or scorecard.tenant_id != tenant.id:
+        raise HTTPException(status_code=403, detail="Access denied: tenant mismatch")
 
     is_assigned = scorecard.assigned_to_user_id == user.id
     is_hr = user.role in ("hr_admin", "admin") if hasattr(user, "role") else False
@@ -7077,6 +7134,9 @@ async def submit_interview_scorecard(
 
     # Mark this specific interview round as completed (scorecard stays pending)
     current.status = "completed"
+    # S5 FIX: Set audit fields on submission
+    scorecard.submitted_by_user_id = user.id
+    scorecard.completed_at = datetime.utcnow()
     # Scorecard NEVER auto-completes — HR controls lifecycle via Revoke
     
     db.commit()
@@ -7098,6 +7158,8 @@ async def search_hr_employees(
     if tenant is None:
         raise HTTPException(status_code=404, detail="Tenant not found")
 
+    # S8 FIX: Clamp limit to max 50
+    limit = min(max(limit, 1), 50)
     if not q.strip():
         # Return first N employees if no query
         users = db.query(UserModel).filter(UserModel.tenant_id == tenant.id).limit(limit).all()

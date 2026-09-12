@@ -2188,8 +2188,9 @@ class HrInterview(Base):
             # Old format: [{q, a}, ...]
             if isinstance(parsed, list):
                 return [{"q": str(item.get("q", "")), "a": str(item.get("a", ""))} for item in parsed]
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging
+            logging.getLogger("shogun.web").debug(f"_get_question_answers parse error: {_e}")
         return []
 
     def _get_draft_data(self) -> Dict[str, Any]:
@@ -2200,8 +2201,9 @@ class HrInterview(Base):
             parsed = json.loads(self.question_answers_json)
             if isinstance(parsed, dict) and "question_answers" in parsed:
                 return parsed
-        except Exception:
-            pass
+        except Exception as _e:
+            import logging
+            logging.getLogger("shogun.web").debug(f"_get_draft_data parse error: {_e}")
         return {}
 
     def to_dict(self) -> Dict[str, Any]:

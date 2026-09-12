@@ -252,9 +252,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   
   // DEBUG: Log interview matching
   if (STAGE_ROUND[stage] != null) {
-    console.log("[DEBUG] Stage:", stage, "Expected round:", STAGE_ROUND[stage]);
-    console.log("[DEBUG] All interviews for candidate:", interviews.map(i => ({ id: i.id, round: i.round, status: i.status })));
-    console.log("[DEBUG] Matched interview:", questionsInterview);
+
   }
 
   // Fetch staff list for scorecard assignment (from /api/staff - system users)

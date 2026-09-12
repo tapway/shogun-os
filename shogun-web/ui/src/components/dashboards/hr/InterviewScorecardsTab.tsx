@@ -73,27 +73,26 @@ export function InterviewScorecardsTab({ department }: Props) {
         }
       }
 
-      // Fetch interviews for each candidate to get round details
+      // S6 FIX: Fetch stats ONCE instead of per-candidate (eliminates N+1)
+      const allStats = await hrApi.stats(department);
+      const allInterviews = allStats.interviews || [];
+
+      // Map interviews to candidates
       const candidateIds = Object.keys(grouped).map(Number);
-      const roundPromises = candidateIds.map(async (cid) => {
-        try {
-          const stats = await hrApi.stats(department);
-          const interviews = stats.interviews || [];
-          const candidateInterviews = interviews.filter((iv: any) => iv.candidate_id === cid);
-          for (const iv of candidateInterviews) {
-            const r = (iv.round || "first").toLowerCase();
-            const rk = r === "first" ? "hr" : r;
-            grouped[cid].rounds[rk] = {
-              round: rk,
-              status: iv.status || "scheduled",
-              interviewer_name: iv.interviewer_name || null,
-              scheduled_at: iv.scheduled_at || "",
-              rating: iv.rating ?? null,
-            };
-          }
-        } catch {}
-      });
-      await Promise.all(roundPromises);
+      for (const cid of candidateIds) {
+        const candidateInterviews = allInterviews.filter((iv: any) => iv.candidate_id === cid);
+        for (const iv of candidateInterviews) {
+          const r = (iv.round || "first").toLowerCase();
+          const rk = r === "first" ? "hr" : r;
+          grouped[cid].rounds[rk] = {
+            round: rk,
+            status: iv.status || "scheduled",
+            interviewer_name: iv.interviewer_name || null,
+            scheduled_at: iv.scheduled_at || "",
+            rating: iv.rating ?? null,
+          };
+        }
+      }
 
       setCandidates(Object.values(grouped));
     } catch (e) {
