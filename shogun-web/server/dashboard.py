@@ -6824,16 +6824,21 @@ async def list_hr_scorecards(
     if status:
         query = query.filter(HrInterviewScorecard.status == status)
 
-    # B5 FIX: Pagination — default 50, max 200
-    limit = min(int(limit) if limit else 50, 200)
-    offset_val = int(offset) if offset else 0
+    # B5 FIX: Pagination — default 50, max 200, clamp lower bounds
+    limit = max(1, min(int(limit) if limit else 50, 200))
+    offset_val = max(0, int(offset) if offset else 0)
     scorecards = query.order_by(HrInterviewScorecard.created_at.desc()).offset(offset_val).limit(limit).all()
 
-    # Enrich with candidate info
+    # S1-R2 FIX: Batch fetch candidates and users to eliminate N+1
+    candidate_ids = list({sc.candidate_id for sc in scorecards})
+    user_ids = list({sc.assigned_to_user_id for sc in scorecards})
+    candidates_map = {c.id: c for c in db.query(HrCandidate).filter(HrCandidate.id.in_(candidate_ids)).all()} if candidate_ids else {}
+    users_map = {u.id: u for u in db.query(User).filter(User.id.in_(user_ids)).all()} if user_ids else {}
+
     result = []
     for sc in scorecards:
-        candidate = db.get(HrCandidate, sc.candidate_id)
-        assigned_user = db.get(User, sc.assigned_to_user_id)
+        candidate = candidates_map.get(sc.candidate_id)
+        assigned_user = users_map.get(sc.assigned_to_user_id)
         item = sc.to_dict()
         # B3 FIX: Omit secret token from list response
         item.pop("token", None)
@@ -6927,7 +6932,8 @@ async def get_interview_scorecard(
     if candidate.job_opening_id:
         from models import HrJobOpening
         jo = db.get(HrJobOpening, candidate.job_opening_id)
-        if jo:
+        # S3-R2 FIX: Validate job opening belongs to same tenant
+        if jo and jo.tenant_id == tenant.id:
             job_opening = {
                 "id": jo.id,
                 "job_title": jo.job_title,
@@ -7030,15 +7036,9 @@ async def save_interview_scorecard_draft(
         HrInterview.round == r
     ).order_by(HrInterview.created_at.desc()).first()
     
-    # Fallback: any scheduled interview
+    # S4-R2 FIX: No cross-round fallback — require exact round match
     if not current:
-        current = db.query(HrInterview).filter(
-            HrInterview.candidate_id == scorecard.candidate_id,
-            HrInterview.status == "scheduled"
-        ).order_by(HrInterview.created_at.desc()).first()
-
-    if not current:
-        raise HTTPException(status_code=404, detail="No active interview found")
+        raise HTTPException(status_code=404, detail=f"No interview found for round '{r}'")
 
     # Save draft data (don't mark as completed)
     # S4 FIX: Preserve existing Q&A if client didn't send updates
@@ -7108,15 +7108,9 @@ async def submit_interview_scorecard(
         HrInterview.round == r
     ).order_by(HrInterview.created_at.desc()).first()
     
-    # Fallback: any scheduled interview
+    # S4-R2 FIX: No cross-round fallback — require exact round match
     if not current:
-        current = db.query(HrInterview).filter(
-            HrInterview.candidate_id == scorecard.candidate_id,
-            HrInterview.status == "scheduled"
-        ).order_by(HrInterview.created_at.desc()).first()
-
-    if not current:
-        raise HTTPException(status_code=404, detail="No active interview found")
+        raise HTTPException(status_code=404, detail=f"No interview found for round '{r}'")
 
     # Save assessment data
     if body.rating is not None and 1 <= body.rating <= 5:
@@ -7153,6 +7147,11 @@ async def search_hr_employees(
 ) -> dict:
     """Search employees by name or email for interviewer selection."""
     from models import User as UserModel
+
+    # S2-R2 FIX: Require HR/admin role to enumerate employees
+    user_role = getattr(user, "role", "") or ""
+    if user_role not in ("hr_admin", "admin"):
+        raise HTTPException(status_code=403, detail="HR admin access required")
 
     tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
     if tenant is None:
