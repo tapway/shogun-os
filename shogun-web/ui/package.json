@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@tanstack/react-query": "^5.66.0",
+    "@types/jsbarcode": "^3.11.4",
     "clsx": "^2.1.1",
     "jsbarcode": "^3.12.3",
     "lucide-react": "^0.474.0",

@@ -63,6 +63,7 @@ import type {
   CronJob,
   StaffMember,
   User,
+  CsDashboardData,
 } from './types';
 
 
@@ -1133,4 +1134,19 @@ export const hrApi = {
       `/api/departments/${dept}/dashboard/hr/equipment/${id}/return`,
       { method: 'POST', body: JSON.stringify(payload) },
     ),
+};
+
+// ─── Customer Support API ───
+
+export const csApi = {
+  dashboardData: (dept: string) =>
+    apiFetch<CsDashboardData>(`/api/departments/${dept}/dashboard/cs-data`),
+  markRead: (dept: string, messageId: string) =>
+    apiFetch<{ ok: boolean }>(`/api/departments/${dept}/dashboard/cs-messages/${messageId}/read`, { method: 'POST' }),
+  bulkAction: (dept: string, payload: { ids: string[]; action: string; value?: string }) =>
+    apiFetch<{ ok: boolean; affected: number }>(`/api/departments/${dept}/dashboard/cs-messages/bulk-action`, { method: 'POST', body: JSON.stringify(payload) }),
+  flagMessage: (dept: string, messageId: string, flag: string) =>
+    apiFetch<{ ok: boolean }>(`/api/departments/${dept}/dashboard/cs-messages/${messageId}/flag`, { method: 'POST', body: JSON.stringify({ flag }) }),
+  executeAction: (dept: string, payload: { type: string; target: string; details?: string }) =>
+    apiFetch<{ ok: boolean; logId: string }>(`/api/departments/${dept}/dashboard/cs-actions/execute`, { method: 'POST', body: JSON.stringify(payload) }),
 };

@@ -1,0 +1,234 @@
+{
+  "mock": true,
+  "kpis": {
+    "openTickets": 47,
+    "avgResponseMinutes": 28,
+    "csatScore": 87.3,
+    "slaCompliancePct": 94.1,
+    "todayVolume": 63,
+    "yesterdayVolume": 58,
+    "unreadMessages": 24
+  },
+  "urgentQueue": [
+    { "id": "TKT-1041", "type": "sla_breach", "title": "Refund request — Order #SH20891", "customer": "Ahmad bin Ismail", "channel": "whatsapp", "priority": "critical", "minutesLeft": 45, "sentiment": -0.8 },
+    { "id": "TKT-1038", "type": "vip", "title": "Bulk order discrepancy — 200 units", "customer": "Siti Nurhaliza Enterprise", "channel": "shopee", "priority": "critical", "minutesLeft": 120, "sentiment": -0.5 },
+    { "id": "TKT-1035", "type": "repeat_contact", "title": "Return not processed (3rd follow-up)", "customer": "Rajesh Kumar", "channel": "lazada", "priority": "high", "minutesLeft": 180, "sentiment": -0.9 },
+    { "id": "TKT-1033", "type": "negative_sentiment", "title": "Product damaged on arrival", "customer": "Nurul Aisyah", "channel": "tiktok", "priority": "high", "minutesLeft": 240, "sentiment": -0.95 },
+    { "id": "TKT-1030", "type": "refund_threshold", "title": "Refund RM780 — wrong item sent", "customer": "Tan Wei Ming", "channel": "woocommerce", "priority": "critical", "minutesLeft": 90, "sentiment": -0.7 }
+  ],
+  "channelHealth": [
+    { "platform": "shopee", "status": "green", "backlog": 12, "lastSync": "2 min ago" },
+    { "platform": "lazada", "status": "yellow", "backlog": 67, "lastSync": "8 min ago" },
+    { "platform": "tiktok", "status": "green", "backlog": 5, "lastSync": "1 min ago" },
+    { "platform": "whatsapp", "status": "green", "backlog": 8, "lastSync": "30 sec ago" },
+    { "platform": "woocommerce", "status": "red", "backlog": 0, "lastSync": "Failed — API timeout" },
+    { "platform": "shopify", "status": "green", "backlog": 3, "lastSync": "4 min ago" }
+  ],
+  "trends": {
+    "volume": [42, 55, 48, 61, 58, 63, 53],
+    "responseTime": [32, 28, 35, 26, 30, 28, 27],
+    "csat": [85, 86, 84, 88, 87, 89, 87],
+    "dates": ["Mon", "Tue", "Wed", "Thu", "Fri", "Sat", "Sun"]
+  },
+  "aiInsight": {
+    "text": "Return inquiries ↑30% this week — sizing issues dominate. Suggest updating size charts on Shopee & Lazada listings.",
+    "actionTab": "feedback",
+    "actionFilter": "sizing"
+  },
+  "messages": [
+    { "id": "msg-001", "platform": "shopee", "sender": "Amirah Z.", "orderId": "SH20901", "preview": "Hi, my order hasn't arrived yet. Tracking shows delivered but I didn't receive it.", "timestamp": "2026-09-12T09:15:00", "unread": true, "flag": "critical", "flagReason": "Delivery dispute — potential claim", "sentiment": -0.6, "assignee": "Sarah", "tags": ["delivery", "dispute"], "thread": [
+      { "from": "customer", "text": "Hi, my order hasn't arrived yet. Tracking shows delivered but I didn't receive it.", "time": "2026-09-12T09:15:00" },
+      { "from": "agent", "text": "Hi Amirah, I'm sorry to hear that. Let me check with the courier. Can you confirm your delivery address?", "time": "2026-09-12T09:22:00" },
+      { "from": "customer", "text": "Yes, same address as always. Block C-12-3, Taman Melati.", "time": "2026-09-12T09:25:00" }
+    ]},
+    { "id": "msg-002", "platform": "lazada", "sender": "Chen Li Wei", "orderId": "LZ88432", "preview": "The color is different from the photo. Very disappointed.", "timestamp": "2026-09-12T08:45:00", "unread": true, "flag": "important", "flagReason": "Negative sentiment + description mismatch", "sentiment": -0.8, "assignee": "", "tags": ["quality", "color-mismatch"], "thread": [
+      { "from": "customer", "text": "The color is different from the photo. Very disappointed. I ordered navy blue but received something closer to purple.", "time": "2026-09-12T08:45:00" }
+    ]},
+    { "id": "msg-003", "platform": "whatsapp", "sender": "Puan Hajah Fatimah", "orderId": "WH20445", "preview": "Assalamualaikum, nak tanya pasal return policy untuk baju kurung", "timestamp": "2026-09-12T08:30:00", "unread": false, "flag": "normal", "flagReason": "", "sentiment": 0.1, "assignee": "Aiman", "tags": ["return-policy", "inquiry"], "thread": [
+      { "from": "customer", "text": "Assalamualaikum, nak tanya pasal return policy untuk baju kurung yang saya beli semalam.", "time": "2026-09-12T08:30:00" },
+      { "from": "agent", "text": "Waalaikumussalam Puan. Boleh return dalam 7 hari jika ada defect. Puan nak return sebab apa ya?", "time": "2026-09-12T08:35:00" },
+      { "from": "customer", "text": "Saiz tak sesuai. Nak tukar saiz boleh?", "time": "2026-09-12T08:38:00" },
+      { "from": "agent", "text": "Boleh Puan, kami akan hantar exchange label. Puan pilih saiz baru dan kami uruskan penghantaran.", "time": "2026-09-12T08:42:00" }
+    ]},
+    { "id": "msg-004", "platform": "tiktok", "sender": "Darren Ooi", "orderId": "TT10234", "preview": "Bro the packaging was totally crushed. Item inside broken 😡", "timestamp": "2026-09-12T07:55:00", "unread": true, "flag": "critical", "flagReason": "Shipping damage + negative sentiment", "sentiment": -0.95, "assignee": "", "tags": ["shipping-damage", "packaging"], "thread": [
+      { "from": "customer", "text": "Bro the packaging was totally crushed. Item inside broken 😡", "time": "2026-09-12T07:55:00" }
+    ]},
+    { "id": "msg-005", "platform": "shopee", "sender": "Nurul Huda", "orderId": "SH20887", "preview": "Thank you! Received in good condition. Love the quality 👍", "timestamp": "2026-09-12T07:30:00", "unread": false, "flag": "normal", "flagReason": "", "sentiment": 0.9, "assignee": "Sarah", "tags": ["positive-feedback"], "thread": [
+      { "from": "customer", "text": "Thank you! Received in good condition. Love the quality 👍", "time": "2026-09-12T07:30:00" },
+      { "from": "agent", "text": "Hi Nurul! Glad you love it 🥰 Don't forget to leave a review!", "time": "2026-09-12T07:45:00" }
+    ]},
+    { "id": "msg-006", "platform": "lazada", "sender": "Mega Electronics Sdn Bhd", "orderId": "LZ88401", "preview": "We need invoice for PO#ME-2026-0891 urgently for audit", "timestamp": "2026-09-12T07:10:00", "unread": true, "flag": "important", "flagReason": "VIP customer + urgent keyword", "sentiment": 0.0, "assignee": "", "tags": ["invoice", "b2b", "urgent"], "thread": [
+      { "from": "customer", "text": "We need invoice for PO#ME-2026-0891 urgently for audit. Please send by today EOD.", "time": "2026-09-12T07:10:00" }
+    ]},
+    { "id": "msg-007", "platform": "woocommerce", "sender": "Lee Mei Ling", "orderId": "WC55012", "preview": "Is this product compatible with iPhone 15 Pro Max?", "timestamp": "2026-09-12T06:50:00", "unread": false, "flag": "normal", "flagReason": "", "sentiment": 0.2, "assignee": "Aiman", "tags": ["product-inquiry"], "thread": [
+      { "from": "customer", "text": "Is this product compatible with iPhone 15 Pro Max?", "time": "2026-09-12T06:50:00" },
+      { "from": "agent", "text": "Hi Mei Ling! Yes, it's fully compatible with iPhone 15 Pro Max. The case supports MagSafe too.", "time": "2026-09-12T07:05:00" }
+    ]},
+    { "id": "msg-008", "platform": "shopify", "sender": "Farid Rahman", "orderId": "SP30221", "preview": "I've been waiting 5 days for refund. When will I get it?", "timestamp": "2026-09-12T06:20:00", "unread": true, "flag": "critical", "flagReason": "Repeat contact + refund delay", "sentiment": -0.7, "assignee": "", "tags": ["refund", "escalation"], "thread": [
+      { "from": "customer", "text": "I've been waiting 5 days for refund. When will I get it? This is my second message.", "time": "2026-09-12T06:20:00" }
+    ]},
+    { "id": "msg-009", "platform": "shopee", "sender": "Wong Kai Xin", "orderId": "SH20876", "preview": "Can I change my shipping address? Order just placed", "timestamp": "2026-09-11T23:10:00", "unread": false, "flag": "normal", "flagReason": "", "sentiment": 0.3, "assignee": "Sarah", "tags": ["address-change"], "thread": [
+      { "from": "customer", "text": "Can I change my shipping address? Order just placed 10 mins ago.", "time": "2026-09-11T23:10:00" },
+      { "from": "agent", "text": "Hi Kai Xin! Sure, since it hasn't shipped yet. What's the new address?", "time": "2026-09-11T23:25:00" },
+      { "from": "customer", "text": "12 Jalan SS2/55, Petaling Jaya, Selangor", "time": "2026-09-11T23:28:00" },
+      { "from": "agent", "text": "Done! Address updated. You'll receive confirmation shortly.", "time": "2026-09-11T23:32:00" }
+    ]},
+    { "id": "msg-010", "platform": "tiktok", "sender": "Aisha binti Hassan", "orderId": "TT10198", "preview": "Nak tanya, ada stok lagi ke untuk warna pink?", "timestamp": "2026-09-11T22:40:00", "unread": false, "flag": "normal", "flagReason": "", "sentiment": 0.2, "assignee": "Aiman", "tags": ["stock-inquiry"], "thread": [
+      { "from": "customer", "text": "Nak tanya, ada stok lagi ke untuk warna pink?", "time": "2026-09-11T22:40:00" },
+      { "from": "agent", "text": "Hi Aisha! Ya, masih ada 15 unit untuk warna pink. Nak order sekarang?", "time": "2026-09-11T22:55:00" }
+    ]}
+  ],
+  "customers": [
+    {
+      "id": "cust-001", "name": "Ahmad bin Ismail", "email": "ahmad.ismail@gmail.com", "phone": "+60123456789",
+      "healthScore": 42, "ltv": 2340, "totalOrders": 18, "ticketCount": 7, "avgSentiment": -0.3,
+      "riskTags": ["churn-risk", "frequent-complainer"], "opportunityTags": [],
+      "lastInteraction": "2026-09-12T09:15:00", "joinedDate": "2024-03-15",
+      "timeline": [
+        { "type": "order", "date": "2026-09-10", "detail": "Order #SH20891 — RM450 (Baju Melayu Set)", "status": "delivered" },
+        { "type": "ticket", "date": "2026-09-12", "detail": "TKT-1041 — Refund request (delivery issue)", "status": "open" },
+        { "type": "ticket", "date": "2026-08-28", "detail": "TKT-0987 — Wrong size received", "status": "resolved" },
+        { "type": "return", "date": "2026-08-30", "detail": "RET-0445 — Size exchange processed", "status": "completed" },
+        { "type": "order", "date": "2026-08-15", "detail": "Order #SH20654 — RM320 (Kain Samping)", "status": "delivered" },
+        { "type": "feedback", "date": "2026-08-18", "detail": "Shopee review ★★☆☆☆ — 'Size chart inaccurate'", "status": "" }
+      ],
+      "actionSuggestions": [
+        { "action": "Send personal apology + RM20 voucher", "reason": "High churn risk — 3 complaints in 30 days", "type": "retention" },
+        { "action": "Flag account for VIP escalation", "reason": "Lifetime value RM2,340 warrants priority handling", "type": "escalation" }
+      ]
+    },
+    {
+      "id": "cust-002", "name": "Siti Nurhaliza Enterprise", "email": "procurement@snenterprise.my", "phone": "+60312345678",
+      "healthScore": 78, "ltv": 45800, "totalOrders": 52, "ticketCount": 4, "avgSentiment": 0.1,
+      "riskTags": [], "opportunityTags": ["vip", "upsell-candidate"],
+      "lastInteraction": "2026-09-12T08:45:00", "joinedDate": "2023-06-01",
+      "timeline": [
+        { "type": "order", "date": "2026-09-08", "detail": "Order #SH20850 — RM12,500 (Bulk: 200x Baju Kurung)", "status": "delivered" },
+        { "type": "ticket", "date": "2026-09-12", "detail": "TKT-1038 — Bulk order discrepancy", "status": "open" },
+        { "type": "order", "date": "2026-08-20", "detail": "Order #LZ88201 — RM8,200 (Bulk: 150x Tudung)", "status": "delivered" },
+        { "type": "feedback", "date": "2026-08-25", "detail": "Lazada review ★★★★☆ — 'Good quality, fast delivery'", "status": "" }
+      ],
+      "actionSuggestions": [
+        { "action": "Assign dedicated account manager", "reason": "VIP B2B customer — LTV RM45,800", "type": "vip" },
+        { "action": "Offer early access to Raya collection", "reason": "Seasonal buyer — upsell opportunity", "type": "upsell" }
+      ]
+    },
+    {
+      "id": "cust-003", "name": "Rajesh Kumar", "email": "rajesh.k@yahoo.com", "phone": "+60169876543",
+      "healthScore": 35, "ltv": 890, "totalOrders": 6, "ticketCount": 5, "avgSentiment": -0.6,
+      "riskTags": ["churn-risk", "repeat-contact"], "opportunityTags": [],
+      "lastInteraction": "2026-09-12T08:30:00", "joinedDate": "2025-01-10",
+      "timeline": [
+        { "type": "ticket", "date": "2026-09-12", "detail": "TKT-1035 — Return not processed (3rd follow-up)", "status": "open" },
+        { "type": "ticket", "date": "2026-09-08", "detail": "TKT-1012 — Return status inquiry", "status": "resolved" },
+        { "type": "ticket", "date": "2026-09-03", "detail": "TKT-0998 — Return initiated", "status": "resolved" },
+        { "type": "return", "date": "2026-09-03", "detail": "RET-0467 — Pending warehouse receipt", "status": "pending" },
+        { "type": "order", "date": "2026-08-25", "detail": "Order #LZ88350 — RM180 (Phone Case)", "status": "returned" }
+      ],
+      "actionSuggestions": [
+        { "action": "Escalate to warehouse supervisor immediately", "reason": "3rd follow-up — process failure detected", "type": "escalation" },
+        { "action": "Process refund manually if item confirmed received", "reason": "Customer patience exhausted", "type": "resolution" }
+      ]
+    },
+    {
+      "id": "cust-004", "name": "Nurul Aisyah", "email": "nurul.aisyah@outlook.com", "phone": "+60112233445",
+      "healthScore": 55, "ltv": 1560, "totalOrders": 12, "ticketCount": 2, "avgSentiment": -0.4,
+      "riskTags": ["recent-negative"], "opportunityTags": ["recovery-candidate"],
+      "lastInteraction": "2026-09-12T07:55:00", "joinedDate": "2024-08-20",
+      "timeline": [
+        { "type": "ticket", "date": "2026-09-12", "detail": "TKT-1033 — Product damaged on arrival", "status": "open" },
+        { "type": "order", "date": "2026-09-08", "detail": "Order #TT10200 — RM280 (Ceramic Vase Set)", "status": "delivered-damaged" },
+        { "type": "order", "date": "2026-08-01", "detail": "Order #SH20500 — RM150 (Cushion Covers)", "status": "delivered" },
+        { "type": "feedback", "date": "2026-08-05", "detail": "Shopee review ★★★★★ — 'Beautiful design, well packed'", "status": "" }
+      ],
+      "actionSuggestions": [
+        { "action": "Send replacement + handwritten apology note", "reason": "Previously positive customer — recovery likely", "type": "recovery" },
+        { "action": "Review packaging supplier for fragile items", "reason": "2nd damage report this month for ceramics", "type": "process" }
+      ]
+    },
+    {
+      "id": "cust-005", "name": "Tan Wei Ming", "email": "wm.tan@proton.me", "phone": "+60178889999",
+      "healthScore": 62, "ltv": 3200, "totalOrders": 24, "ticketCount": 3, "avgSentiment": -0.2,
+      "riskTags": [], "opportunityTags": ["loyal-customer"],
+      "lastInteraction": "2026-09-12T06:20:00", "joinedDate": "2023-11-05",
+      "timeline": [
+        { "type": "ticket", "date": "2026-09-12", "detail": "TKT-1030 — Refund RM780 wrong item", "status": "open" },
+        { "type": "order", "date": "2026-09-05", "detail": "Order #WC55001 — RM780 (Smart Watch)", "status": "wrong-item-sent" },
+        { "type": "order", "date": "2026-08-10", "detail": "Order #WC54890 — RM450 (Earbuds)", "status": "delivered" },
+        { "type": "feedback", "date": "2026-08-15", "detail": "Website review ★★★★☆ — 'Fast shipping, good price'", "status": "" }
+      ],
+      "actionSuggestions": [
+        { "action": "Expedite refund — approve within 2 hours", "reason": "Loyal customer, clear error on our side", "type": "resolution" },
+        { "action": "Send correct item via express shipping", "reason": "Wrong item sent — fulfill original order", "type": "fulfillment" }
+      ]
+    },
+    {
+      "id": "cust-006", "name": "Lim Pei Yee", "email": "peiyee.lim@gmail.com", "phone": "+60135556677",
+      "healthScore": 91, "ltv": 5600, "totalOrders": 38, "ticketCount": 1, "avgSentiment": 0.7,
+      "riskTags": [], "opportunityTags": ["vip", "brand-advocate"],
+      "lastInteraction": "2026-09-10T14:20:00", "joinedDate": "2023-02-14",
+      "timeline": [
+        { "type": "order", "date": "2026-09-10", "detail": "Order #SH20870 — RM320 (Silk Scarf Collection)", "status": "delivered" },
+        { "type": "feedback", "date": "2026-09-11", "detail": "Shopee review ★★★★★ — 'Always excellent quality!'", "status": "" },
+        { "type": "order", "date": "2026-08-22", "detail": "Order #LZ88280 — RM580 (Batik Dress)", "status": "delivered" }
+      ],
+      "actionSuggestions": [
+        { "action": "Invite to brand ambassador program", "reason": "Consistent 5-star reviews + high LTV", "type": "loyalty" },
+        { "action": "Send exclusive preview of new collection", "reason": "Early adopter — drives word-of-mouth", "type": "engagement" }
+      ]
+    }
+  ],
+  "feedback": [
+    { "id": "fb-001", "platform": "shopee", "sku": "SKU-BM-001", "productName": "Baju Melayu Slim Fit", "rating": 2, "text": "Size chart totally wrong. Ordered L but fits like S. Very frustrating.", "timestamp": "2026-09-11T18:30:00", "sentiment": -0.8, "issueTag": "sizing", "resolved": false },
+    { "id": "fb-002", "platform": "lazada", "sku": "SKU-BK-012", "productName": "Baju Kurung Modern", "rating": 4, "text": "Nice material but the color looks different from photo. More muted in person.", "timestamp": "2026-09-11T16:20:00", "sentiment": -0.2, "issueTag": "description-mismatch", "resolved": false },
+    { "id": "fb-003", "platform": "tiktok", "sku": "SKU-CV-005", "productName": "Ceramic Vase Set", "rating": 1, "text": "Arrived shattered. Packaging was just bubble wrap in a thin box. Unacceptable for fragile items.", "timestamp": "2026-09-11T14:10:00", "sentiment": -0.95, "issueTag": "shipping-damage", "resolved": false },
+    { "id": "fb-004", "platform": "shopee", "sku": "SKU-PC-008", "productName": "Phone Case iPhone 15", "rating": 5, "text": "Perfect fit, great quality. Arrived in 2 days. Will buy again!", "timestamp": "2026-09-11T12:00:00", "sentiment": 0.9, "issueTag": "", "resolved": true },
+    { "id": "fb-005", "platform": "lazada", "sku": "SKU-TD-003", "productName": "Premium Tudung Satin", "rating": 3, "text": "Material is okay but stitching came loose after first wash. Expected better for the price.", "timestamp": "2026-09-10T20:45:00", "sentiment": -0.4, "issueTag": "quality-defect", "resolved": false },
+    { "id": "fb-006", "platform": "shopee", "sku": "SKU-BM-001", "productName": "Baju Melayu Slim Fit", "rating": 2, "text": "Second time buying, still inconsistent sizing. XL this time, still too tight at shoulders.", "timestamp": "2026-09-10T17:30:00", "sentiment": -0.7, "issueTag": "sizing", "resolved": false },
+    { "id": "fb-007", "platform": "tiktok", "sku": "SKU-SW-022", "productName": "Smart Watch Band", "rating": 1, "text": "Received wrong color entirely. Ordered black, got pink. No QC check apparently.", "timestamp": "2026-09-10T15:20:00", "sentiment": -0.9, "issueTag": "wrong-item", "resolved": false },
+    { "id": "fb-008", "platform": "woocommerce", "sku": "SKU-EB-015", "productName": "Wireless Earbuds Pro", "rating": 4, "text": "Sound quality is great. Battery life slightly less than advertised (4h vs claimed 6h).", "timestamp": "2026-09-10T11:00:00", "sentiment": 0.1, "issueTag": "description-mismatch", "resolved": false },
+    { "id": "fb-009", "platform": "lazada", "sku": "SKU-BK-012", "productName": "Baju Kurung Modern", "rating": 2, "text": "Zipper broke after wearing twice. Poor quality hardware for RM180 price point.", "timestamp": "2026-09-09T19:30:00", "sentiment": -0.8, "issueTag": "quality-defect", "resolved": false },
+    { "id": "fb-010", "platform": "shopee", "sku": "SKU-CC-019", "productName": "Cushion Cover Set", "rating": 5, "text": "Love the design! Colors are vibrant and exactly as shown. Fast delivery too.", "timestamp": "2026-09-09T16:00:00", "sentiment": 0.95, "issueTag": "", "resolved": true },
+    { "id": "fb-011", "platform": "tiktok", "sku": "SKU-CV-005", "productName": "Ceramic Vase Set", "rating": 2, "text": "One vase had a crack. Not broken but clearly defective. Disappointed.", "timestamp": "2026-09-09T13:45:00", "sentiment": -0.6, "issueTag": "quality-defect", "resolved": false },
+    { "id": "fb-012", "platform": "shopify", "sku": "SKU-SS-007", "productName": "Silk Scarf Collection", "rating": 5, "text": "Gorgeous scarves. Gifted to my mother and she loves them. Premium feel.", "timestamp": "2026-09-09T10:20:00", "sentiment": 0.9, "issueTag": "", "resolved": true },
+    { "id": "fb-013", "platform": "shopee", "sku": "SKU-BM-001", "productName": "Baju Melayu Slim Fit", "rating": 3, "text": "Material is decent but the button fell off on first wear. Had to sew it back.", "timestamp": "2026-09-08T21:00:00", "sentiment": -0.3, "issueTag": "quality-defect", "resolved": false },
+    { "id": "fb-014", "platform": "lazada", "sku": "SKU-PKG-001", "productName": "Gift Box Packaging", "rating": 1, "text": "Box arrived dented and crushed. Not suitable for gifting at all. Waste of money.", "timestamp": "2026-09-08T18:30:00", "sentiment": -0.9, "issueTag": "shipping-damage", "resolved": false },
+    { "id": "fb-015", "platform": "shopee", "sku": "SKU-TD-003", "productName": "Premium Tudung Satin", "rating": 4, "text": "Beautiful color and smooth fabric. Slightly shorter than expected though.", "timestamp": "2026-09-08T15:00:00", "sentiment": 0.3, "issueTag": "sizing", "resolved": false }
+  ],
+  "issueMatrix": {
+    "products": [
+      { "sku": "SKU-BM-001", "name": "Baju Melayu Slim Fit", "issues": { "sizing": 3, "quality-defect": 1, "wrong-item": 0, "shipping-damage": 0, "description-mismatch": 0, "packaging": 0 } },
+      { "sku": "SKU-BK-012", "name": "Baju Kurung Modern", "issues": { "sizing": 0, "quality-defect": 1, "wrong-item": 0, "shipping-damage": 0, "description-mismatch": 1, "packaging": 0 } },
+      { "sku": "SKU-CV-005", "name": "Ceramic Vase Set", "issues": { "sizing": 0, "quality-defect": 1, "wrong-item": 0, "shipping-damage": 1, "description-mismatch": 0, "packaging": 0 } },
+      { "sku": "SKU-TD-003", "name": "Premium Tudung Satin", "issues": { "sizing": 1, "quality-defect": 1, "wrong-item": 0, "shipping-damage": 0, "description-mismatch": 0, "packaging": 0 } },
+      { "sku": "SKU-SW-022", "name": "Smart Watch Band", "issues": { "sizing": 0, "quality-defect": 0, "wrong-item": 1, "shipping-damage": 0, "description-mismatch": 0, "packaging": 0 } },
+      { "sku": "SKU-EB-015", "name": "Wireless Earbuds Pro", "issues": { "sizing": 0, "quality-defect": 0, "wrong-item": 0, "shipping-damage": 0, "description-mismatch": 1, "packaging": 0 } },
+      { "sku": "SKU-PKG-001", "name": "Gift Box Packaging", "issues": { "sizing": 0, "quality-defect": 0, "wrong-item": 0, "shipping-damage": 1, "description-mismatch": 0, "packaging": 0 } }
+    ],
+    "issueTypes": ["sizing", "quality-defect", "wrong-item", "shipping-damage", "description-mismatch", "packaging"]
+  },
+  "feedbackTrends": {
+    "dates": ["Sep 2", "Sep 3", "Sep 4", "Sep 5", "Sep 6", "Sep 7", "Sep 8", "Sep 9", "Sep 10", "Sep 11"],
+    "sizing": [0, 1, 0, 0, 1, 0, 1, 0, 0, 1],
+    "qualityDefect": [1, 0, 0, 1, 0, 0, 1, 1, 1, 0],
+    "wrongItem": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    "shippingDamage": [0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+    "descriptionMismatch": [0, 0, 0, 0, 0, 1, 0, 0, 1, 1]
+  },
+  "weeklyDigest": {
+    "period": "Sep 5 – Sep 12, 2026",
+    "topIssues": [
+      { "issue": "Sizing Inconsistency", "affectedSkus": ["SKU-BM-001", "SKU-TD-003"], "count": 4, "rootCause": "Size chart not updated after factory changed measurements", "suggestion": "Update size charts on all platforms + add garment measurement photos" },
+      { "issue": "Quality Defects (Stitching/Hardware)", "affectedSkus": ["SKU-BK-012", "SKU-BM-001", "SKU-TD-003", "SKU-CV-005"], "count": 4, "rootCause": "New supplier batch #B2026-09 lacks QC inspection", "suggestion": "Pause listings for affected SKUs + initiate supplier QC audit" },
+      { "issue": "Shipping Damage (Fragile Items)", "affectedSkus": ["SKU-CV-005", "SKU-PKG-001"], "count": 3, "rootCause": "Insufficient padding for ceramics/glass in standard packaging", "suggestion": "Switch to reinforced box + foam insert for fragile category >RM100" }
+    ]
+  },
+  "actionTemplates": {
+    "sizing": { "label": "Update size chart + add fit guide", "actions": ["Update listing on Shopee", "Update listing on Lazada", "Add measurement photo to KB"] },
+    "quality-defect": { "label": "Flag batch to QC + pause listings", "actions": ["Notify supplier", "Pause affected listings", "Create QC inspection task"] },
+    "wrong-item": { "label": "Review pick-pack process", "actions": ["Audit warehouse pick list", "Add barcode scan step", "Notify fulfillment team"] },
+    "shipping-damage": { "label": "Upgrade packaging for fragile items", "actions": ["Switch to reinforced box", "Add foam inserts", "Update packaging SOP"] },
+    "description-mismatch": { "label": "Rewrite listing + replace images", "actions": ["Update product description", "Replace hero image", "Add color disclaimer"] },
+    "packaging": { "label": "Review packaging supplier", "actions": ["Request sample from alt supplier", "Compare cost per unit", "Update packaging spec"] }
+  }
+}

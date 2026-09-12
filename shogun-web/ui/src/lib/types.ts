@@ -2210,3 +2210,166 @@ export interface UatComplianceRow {
   status: string;
   flags: string[];
 }
+
+// ─── Customer Support Dashboard Types ───
+
+export interface CsKpis {
+  openTickets: number;
+  avgResponseMinutes: number;
+  csatScore: number;
+  slaCompliancePct: number;
+  todayVolume: number;
+  yesterdayVolume: number;
+  unreadMessages: number;
+}
+
+export interface CsUrgentItem {
+  id: string;
+  type: string;
+  title: string;
+  customer: string;
+  channel: string;
+  priority: string;
+  minutesLeft: number;
+  sentiment: number;
+}
+
+export interface CsChannelHealth {
+  platform: string;
+  status: 'green' | 'yellow' | 'red';
+  backlog: number;
+  lastSync: string;
+}
+
+export interface CsTrends {
+  volume: number[];
+  responseTime: number[];
+  csat: number[];
+  dates: string[];
+}
+
+export interface CsAiInsight {
+  text: string;
+  actionTab: string;
+  actionFilter: string;
+}
+
+export interface CsThreadMessage {
+  from: 'customer' | 'agent';
+  text: string;
+  time: string;
+}
+
+export interface CsMessage {
+  id: string;
+  platform: string;
+  sender: string;
+  orderId: string;
+  preview: string;
+  timestamp: string;
+  unread: boolean;
+  flag: 'critical' | 'important' | 'normal';
+  flagReason: string;
+  sentiment: number;
+  assignee: string;
+  tags: string[];
+  thread: CsThreadMessage[];
+}
+
+export interface CsTimelineEvent {
+  type: 'order' | 'ticket' | 'return' | 'feedback' | 'chat';
+  date: string;
+  detail: string;
+  status: string;
+}
+
+export interface CsActionSuggestion {
+  action: string;
+  reason: string;
+  type: string;
+}
+
+export interface CsCustomer {
+  id: string;
+  name: string;
+  email: string;
+  phone: string;
+  healthScore: number;
+  ltv: number;
+  totalOrders: number;
+  ticketCount: number;
+  avgSentiment: number;
+  riskTags: string[];
+  opportunityTags: string[];
+  lastInteraction: string;
+  joinedDate: string;
+  timeline: CsTimelineEvent[];
+  actionSuggestions: CsActionSuggestion[];
+}
+
+export interface CsFeedback {
+  id: string;
+  platform: string;
+  sku: string;
+  productName: string;
+  rating: number;
+  text: string;
+  timestamp: string;
+  sentiment: number;
+  issueTag: string;
+  resolved: boolean;
+}
+
+export interface CsIssueProduct {
+  sku: string;
+  name: string;
+  issues: Record<string, number>;
+}
+
+export interface CsIssueMatrix {
+  products: CsIssueProduct[];
+  issueTypes: string[];
+}
+
+export interface CsFeedbackTrends {
+  dates: string[];
+  sizing: number[];
+  qualityDefect: number[];
+  wrongItem: number[];
+  shippingDamage: number[];
+  descriptionMismatch: number[];
+}
+
+export interface CsDigestIssue {
+  issue: string;
+  affectedSkus: string[];
+  count: number;
+  rootCause: string;
+  suggestion: string;
+}
+
+export interface CsWeeklyDigest {
+  period: string;
+  topIssues: CsDigestIssue[];
+}
+
+export interface CsActionTemplate {
+  label: string;
+  actions: string[];
+}
+
+export interface CsDashboardData {
+  mock: boolean;
+  kpis: CsKpis;
+  urgentQueue: CsUrgentItem[];
+  channelHealth: CsChannelHealth[];
+  trends: CsTrends;
+  aiInsight: CsAiInsight;
+  messages: CsMessage[];
+  customers: CsCustomer[];
+  feedback: CsFeedback[];
+  issueMatrix: CsIssueMatrix;
+  feedbackTrends: CsFeedbackTrends;
+  weeklyDigest: CsWeeklyDigest;
+  actionTemplates: Record<string, CsActionTemplate>;
+}

@@ -672,6 +672,15 @@ async def get_dashboard_config(
                 {"id": "support", "label": "Support", "icon": "LifeBuoy"},
             ],
         },
+        "customer-support": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "inbox", "label": "Channel Inbox", "icon": "MessageSquare"},
+                {"id": "customers", "label": "Customer Insights", "icon": "Users"},
+                {"id": "feedback", "label": "Product Feedback", "icon": "MessageCircle"},
+            ],
+        },
     }
 
     return dashboard_meta.get(name, {"enabled": False, "tabs": []})
@@ -5416,3 +5425,83 @@ async def list_project_tasks(
     tasks = mock.get("tasks", [])
     project_tasks = [t for t in tasks if t.get("projectId") == project_id]
     return {"tasks": project_tasks}
+
+
+# ---------------------------------------------------------------------------
+# Customer Support Dashboard — Mock data endpoints (demo branch)
+# ---------------------------------------------------------------------------
+
+_CS_MOCK: Optional[dict] = None
+
+
+def _load_cs_mock() -> dict:
+    """Load examples/cs-dashboard-mock.json once."""
+    global _CS_MOCK
+    if _CS_MOCK is not None:
+        return _CS_MOCK
+    mock_path = pathlib.Path(__file__).resolve().parents[2] / "examples" / "cs-dashboard-mock.json"
+    if mock_path.exists():
+        try:
+            with open(mock_path, "r", encoding="utf-8") as f:
+                _CS_MOCK = json.load(f)
+        except Exception as e:
+            logger.warning("Failed to load CS mock: %s", e)
+            _CS_MOCK = {}
+    else:
+        _CS_MOCK = {}
+    return _CS_MOCK
+
+
+@router.get("/cs-data", tags=["dashboard"])
+async def get_cs_dashboard_data(
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Customer Support dashboard — full mock payload for demo branch."""
+    return _load_cs_mock()
+
+
+@router.post("/cs-messages/{message_id}/read", tags=["dashboard"])
+async def cs_mark_read(
+    message_id: str,
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Mark a CS message as read (demo: no-op success)."""
+    return {"ok": True}
+
+
+@router.post("/cs-messages/bulk-action", tags=["dashboard"])
+async def cs_bulk_action(
+    payload: dict = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Bulk action on CS messages (demo: returns affected count)."""
+    ids = payload.get("ids", [])
+    return {"ok": True, "affected": len(ids)}
+
+
+@router.post("/cs-messages/{message_id}/flag", tags=["dashboard"])
+async def cs_flag_message(
+    message_id: str,
+    payload: dict = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update flag on a CS message (demo: no-op success)."""
+    return {"ok": True}
+
+
+@router.post("/cs-actions/execute", tags=["dashboard"])
+async def cs_execute_action(
+    payload: dict = Body(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Execute a CS action (create task, notify supplier, etc). Demo: logs and returns success."""
+    import uuid
+    log_id = str(uuid.uuid4())[:8]
+    logger.info("CS action executed: type=%s target=%s logId=%s by=%s",
+                payload.get("type"), payload.get("target"), log_id, user.email)
+    return {"ok": True, "logId": log_id}

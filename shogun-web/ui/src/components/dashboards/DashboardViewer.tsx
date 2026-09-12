@@ -9,6 +9,7 @@ import { ProcurementDashboard } from './procurement/ProcurementDashboard';
 import { HrDashboard } from './hr/HrDashboard';
 import { MarketingDashboard } from './marketing/MarketingDashboard';
 import { ProjectsDashboard } from './projects/ProjectsDashboard';
+import { CsDashboard } from './cs/CsDashboard';
 
 const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: string; color: string }>> = {
   crm: CrmDashboard,
@@ -18,6 +19,7 @@ const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: str
   'facility': PlantationDashboard,
   marketing: MarketingDashboard,
   projects: ProjectsDashboard,
+  'customer-support': CsDashboard,
 };
 
 interface DashboardViewerProps {
