@@ -380,7 +380,7 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
   const padT = 8;
   const padR = 8;
   const svgW = 400;
-  const svgH = 120;
+  const svgH = 100;
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
   const barW = chartW / trends.dates.length;
