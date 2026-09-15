@@ -31,7 +31,7 @@ export function SocialMediaTab({ stats, color }: Props) {
     <div className="sd-stack">
       <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--samurai-muted)' }}>Channel status · No automation connected</h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, justifyItems: 'center' }}>
         {stats.socialChannels.map((ch, i) => (
           <div key={i} className="sd-chart-card" style={{ textAlign: 'center', padding: '24px 16px' }}>
             <div style={{ marginBottom: 10, color: 'var(--samurai-text)' }}>
