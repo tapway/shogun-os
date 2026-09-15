@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { MOCK_PROJECTS, MOCK_ACTIVITIES, MOCK_DEV_METRICS, QUALITY_METRICS } from './mockData';
 
 const MUTED = 'var(--samurai-muted)';
@@ -35,6 +35,7 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
   const [selectedProjectId, setSelectedProjectId] = useState<string>('all');
   const [heatmapHover, setHeatmapHover] = useState<{ date: string; count: number; x: number; y: number } | null>(null);
   const [heatmapMonthFilter, setHeatmapMonthFilter] = useState<string>('all'); // 'all' or 'YYYY-MM'
+  const [radarHover, setRadarHover] = useState<{ project: string; label: string; value: number; x: number; y: number; color: string; key: string } | null>(null);
 
   // Project colors for multi-project radar view
   const projectColors = ['#3b82f6', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6', '#ec4899', '#06b6d4', '#84cc16'];
@@ -189,14 +190,14 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
         </div>
 
         {/* Chart 2: Dept Health Radar (moved from Row 2) */}
-        <div className="sd-card" style={{ flex: '1 1 0', minWidth: 240, padding: '16px 20px' }}>
+        <div className="sd-card" style={{ flex: '1 1 0', minWidth: 280, padding: '16px 20px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
             <span style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{isSingleProject ? 'Project Health' : 'Dept Health'}</span>
             <span style={{ fontSize: '0.65rem', color: MUTED }}>6 dimensions</span>
           </div>
-          <svg viewBox="0 0 220 200" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
+          <svg viewBox="0 0 260 220" preserveAspectRatio="xMidYMid meet" style={{ width: '100%', height: 'auto', display: 'block' }}>
             {(() => {
-              const cx = 110, cy = 95, r = 70, n = radarAxes.length;
+              const cx = 130, cy = 110, r = 76, n = radarAxes.length;
               const angleStep = (2 * Math.PI) / n, startAngle = -Math.PI / 2;
               
               const rings = [0.25, 0.5, 0.75, 1].map(frac => {
@@ -227,9 +228,13 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
                 ];
               };
               
+              // Collect ALL dots first, render polygons THEN dots on top
+              const allDots: { projName: string; axisLabel: string; value: number; dx: number; dy: number; dotColor: string; key: string }[] = [];
+              const allPolygons: React.ReactNode[] = [];
+              
               if (!isSingleProject) {
                 const activeProjects = MOCK_PROJECTS.filter(p => p.status === 'active');
-                const polygons = activeProjects.map((proj, idx) => {
+                activeProjects.forEach((proj, idx) => {
                   const projColor = projectColors[idx % projectColors.length];
                   const projData = getProjectRadarData(proj.id, proj.progress);
                   const dataPts = projData.map((axis, i) => { 
@@ -237,41 +242,75 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
                     const f = Math.min(1, Math.max(0, axis.value / axis.max)); 
                     return `${cx + r * f * Math.cos(a)},${cy + r * f * Math.sin(a)}`; 
                   }).join(' ');
-                  return (
-                    <g key={proj.id}>
-                      <polygon points={dataPts} fill={projColor} fillOpacity={0.1} stroke={projColor} strokeWidth={1.5} />
-                      {projData.map((axis, i) => {
-                        const a = startAngle + i * angleStep;
-                        const f = Math.min(1, Math.max(0, axis.value / axis.max));
-                        return <circle key={`${proj.id}-dot-${i}`} cx={cx + r * f * Math.cos(a)} cy={cy + r * f * Math.sin(a)} r={2} fill={projColor} stroke="var(--samurai-surface)" strokeWidth={1} />;
-                      })}
-                    </g>
-                  );
+                  allPolygons.push(<polygon key={proj.id} points={dataPts} fill={projColor} fillOpacity={0.1} stroke={projColor} strokeWidth={1.5} />);
+                  projData.forEach((axis, i) => {
+                    const a = startAngle + i * angleStep;
+                    const f = Math.min(1, Math.max(0, axis.value / axis.max));
+                    allDots.push({
+                      projName: proj.name,
+                      axisLabel: axis.label,
+                      value: axis.value,
+                      dx: cx + r * f * Math.cos(a),
+                      dy: cy + r * f * Math.sin(a),
+                      dotColor: projColor,
+                      key: `${proj.id}-dot-${i}`,
+                    });
+                  });
                 });
-                return <>{rings}{axes}{polygons}</>;
               } else {
                 const dataPts = radarAxes.map((axis, i) => { const a = startAngle + i * angleStep; const f = Math.min(1, Math.max(0, axis.value / axis.max)); return `${cx + r * f * Math.cos(a)},${cy + r * f * Math.sin(a)}`; }).join(' ');
-                const dots = radarAxes.map((axis, i) => {
+                allPolygons.push(<polygon key="single" points={dataPts} fill={color} fillOpacity={0.15} stroke={color} strokeWidth={2} />);
+                radarAxes.forEach((axis, i) => {
                   const a = startAngle + i * angleStep;
                   const f = Math.min(1, Math.max(0, axis.value / axis.max));
-                  const dx = cx + r * f * Math.cos(a);
-                  const dy = cy + r * f * Math.sin(a);
-                  return (
-                    <g key={`dot-${i}`} style={{ cursor: 'pointer' }}>
-                      <circle cx={dx} cy={dy} r={12} fill="transparent"
-                        onMouseEnter={e => { const g = e.currentTarget.parentNode as SVGGElement; const vis = g.querySelector('.radar-vis') as SVGCircleElement; const tip = g.querySelector('.radar-tip') as SVGGElement; if (vis) vis.setAttribute('r', '6'); if (tip) tip.style.opacity = '1'; }}
-                        onMouseLeave={e => { const g = e.currentTarget.parentNode as SVGGElement; const vis = g.querySelector('.radar-vis') as SVGCircleElement; const tip = g.querySelector('.radar-tip') as SVGGElement; if (vis) vis.setAttribute('r', '3.5'); if (tip) tip.style.opacity = '0'; }}
-                      />
-                      <circle className="radar-vis" cx={dx} cy={dy} r={3.5} fill={color} stroke="var(--samurai-surface)" strokeWidth={1.5} style={{ transition: 'r 150ms ease', pointerEvents: 'none' }} />
-                      <g className="radar-tip" style={{ opacity: 0, transition: 'opacity 150ms', pointerEvents: 'none' }}>
-                        <rect x={dx + 8} y={dy - 22} width={Math.max(70, axis.label.length * 7 + 40)} height={22} rx={4} fill="var(--samurai-surface-2)" stroke={BORDER} strokeWidth={1} />
-                        <text x={dx + 14} y={dy - 8} fontSize={9} fontWeight={600} fill={TEXT} fontFamily="var(--font-body)">{axis.label}: {Math.round(axis.value)}</text>
-                      </g>
-                    </g>
-                  );
+                  allDots.push({
+                    projName: selectedProject!.name,
+                    axisLabel: axis.label,
+                    value: axis.value,
+                    dx: cx + r * f * Math.cos(a),
+                    dy: cy + r * f * Math.sin(a),
+                    dotColor: color,
+                    key: `dot-${i}`,
+                  });
                 });
-                return <>{rings}{axes}<polygon points={dataPts} fill={color} fillOpacity={0.15} stroke={color} strokeWidth={2} />{dots}</>;
               }
+              
+              // Render: rings → axes → polygons → dots ON TOP → shared tooltip
+              return (
+                <>
+                  {rings}
+                  {axes}
+                  {allPolygons}
+                  {allDots.map(dot => {
+                    const isHovered = radarHover?.key === dot.key;
+                    return (
+                      <circle
+                        key={dot.key}
+                        cx={dot.dx} cy={dot.dy}
+                        r={isHovered ? 6 : 3.5}
+                        fill={dot.dotColor}
+                        stroke="var(--samurai-surface)"
+                        strokeWidth={isHovered ? 2 : 1}
+                        style={{ cursor: 'pointer', transition: 'r 150ms ease' }}
+                        onMouseEnter={() => setRadarHover({ project: dot.projName, label: dot.axisLabel, value: dot.value, x: dot.dx, y: dot.dy, color: dot.dotColor, key: dot.key })}
+                        onMouseLeave={() => setRadarHover(null)}
+                      />
+                    );
+                  })}
+                  {/* Shared tooltip rendered last = always on top */}
+                  {radarHover && (
+                    <g style={{ pointerEvents: 'none' }}>
+                      <rect
+                        x={Math.min(radarHover.x + 10, 260 - 120)} y={Math.max(radarHover.y - 34, 2)}
+                        width={110} height={30} rx={4}
+                        fill="var(--samurai-surface-2)" stroke={BORDER} strokeWidth={1}
+                      />
+                      <text x={Math.min(radarHover.x + 16, 260 - 114)} y={Math.max(radarHover.y - 34, 2) + 13} fontSize={8} fontWeight={700} fill={TEXT} fontFamily="var(--font-body)">{radarHover.project}</text>
+                      <text x={Math.min(radarHover.x + 16, 260 - 114)} y={Math.max(radarHover.y - 34, 2) + 24} fontSize={8} fill={MUTED} fontFamily="var(--font-body)">{radarHover.label}: {Math.round(radarHover.value)}</text>
+                    </g>
+                  )}
+                </>
+              );
             })()}
           </svg>
           {!isSingleProject && (
