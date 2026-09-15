@@ -10,10 +10,14 @@ import type {
 import { ExecutiveProcurementPulseTab } from "./ExecutiveProcurementPulseTab";
 import { ProgressTrackerTab } from "./ProgressTrackerTab";
 import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
+import { RfqVendorSourcingTab } from "./RfqVendorSourcingTab";
 import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
+import { InventoryCatalogTab } from "./InventoryCatalogTab";
 import { SupplierItemHistoryTab } from "./SupplierItemHistoryTab";
 import { ThreeWayMatchTab } from "./ThreeWayMatchTab";
 import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
+import { AccountingBridgeTab } from "./AccountingBridgeTab";
+import { DocumentScanningTab } from "../shared/DocumentScanningTab";
 import {
   ProcurementActionModal,
   type ProcurementActionType,
@@ -23,10 +27,14 @@ const TABS: DashboardTab[] = [
   { id: "pulse", label: "Overview", icon: "LayoutDashboard" },
   { id: "progress", label: "Progress Tracker", icon: "Timer" },
   { id: "requisitions", label: "Purchase Requisitions", icon: "FileText" },
+  { id: "sourcing", label: "RFQ & Vendor Sourcing", icon: "Award" },
   { id: "po", label: "POs & Vendors", icon: "ClipboardList" },
+  { id: "inventory", label: "Inventory", icon: "Package" },
   { id: "history", label: "Supplier & Item History", icon: "Database" },
   { id: "matching", label: "3-Way Invoice Match", icon: "ShieldCheck" },
   { id: "barcode", label: "Barcode & Asset Tagging", icon: "Warehouse" },
+  { id: "bridge", label: "Accounting Bridge", icon: "Scale" },
+  { id: "scan", label: "Document Scanning", icon: "FileScan" },
 ];
 
 interface ProcurementDashboardProps {
@@ -138,8 +146,18 @@ export function ProcurementDashboard({
       {activeTab === "requisitions" && (
         <PurchaseRequisitionsTab stats={stats} onAction={handleAction} />
       )}
+      {activeTab === "sourcing" && (
+        <RfqVendorSourcingTab stats={stats} onAction={handleAction} />
+      )}
       {activeTab === "po" && (
         <PurchaseOrdersVendorTab
+          stats={stats}
+          color={color}
+          onAction={handleAction}
+        />
+      )}
+      {activeTab === "inventory" && (
+        <InventoryCatalogTab
           stats={stats}
           color={color}
           onAction={handleAction}
@@ -162,6 +180,16 @@ export function ProcurementDashboard({
           barcodeBatches={stats.barcodeBatchRecords ?? []}
           color={color}
         />
+      )}
+      {activeTab === "bridge" && (
+        <AccountingBridgeTab
+          stats={stats}
+          color={color}
+          onAction={handleAction}
+        />
+      )}
+      {activeTab === "scan" && (
+        <DocumentScanningTab department={department} color={color} />
       )}
 
       <ProcurementActionModal

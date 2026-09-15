@@ -141,23 +141,53 @@
   }
 
   .prose-chat tr:nth-child(even) {
-      background-color: color-mix(in srgb, var(--samurai-surface-2, #f8fafc) 55%, transparent);
-    }
+    background-color: color-mix(in srgb, var(--samurai-surface-2, #f8fafc) 55%, transparent);
+  }
+}
+
+/* Print-only styles for barcode labels.
+   Scoped to `html.printing-barcodes`, which BarcodeScanCounterTab adds around
+   window.print(). Hiding via `visibility` rather than `display` is deliberate:
+   the label cards sit deep inside the app tree, so every ancestor must stay
+   laid out or the cards cannot render. The previous `body > *:not(...)` rule
+   matched `#root` and blanked the whole printout. */
+@media print {
+  html.printing-barcodes body * {
+    visibility: hidden !important;
   }
 
-  /* Print-only styles for barcode labels */
-  @media print {
-    body > *:not(.barcode-label-card),
-    .sd-stack > *:not(:has(.barcode-label-card)),
-    nav, header, footer, .sd-chart-card:not(:has(.barcode-label-card)) {
-      display: none !important;
-    }
-    .barcode-label-card {
-      break-inside: avoid;
-      page-break-inside: avoid;
-      border: 1px solid #ccc !important;
-      margin: 0.5rem !important;
-      display: inline-block !important;
-      width: auto !important;
-    }
+  html.printing-barcodes .barcode-label-grid,
+  html.printing-barcodes .barcode-label-card,
+  html.printing-barcodes .barcode-label-card * {
+    visibility: visible !important;
   }
+
+  html.printing-barcodes .sd-stack,
+  html.printing-barcodes .sd-card {
+    position: static !important;
+    overflow: visible !important;
+  }
+
+  html.printing-barcodes .barcode-print-section {
+    position: absolute !important;
+    top: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    margin: 0 !important;
+    overflow: visible !important;
+  }
+
+  html.printing-barcodes .barcode-label-grid {
+    max-height: none !important;
+    overflow: visible !important;
+  }
+
+  html.printing-barcodes .barcode-label-card {
+    break-inside: avoid;
+    page-break-inside: avoid;
+    border: 1px solid #ccc !important;
+    margin: 0.5rem !important;
+    display: inline-block !important;
+    width: auto !important;
+  }
+}

@@ -95,20 +95,22 @@ def test_get_dashboard_config_finance_returns_8_tabs():
     assert len(result["tabs"]) == 8
 
 
-def test_get_dashboard_config_procurement_returns_9_tabs():
+def test_get_dashboard_config_procurement_returns_11_tabs():
     result = asyncio.run(_call_dashboard_config_inner("procurement"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
     assert "pulse" in tab_ids
+    assert "progress" in tab_ids
     assert "requisitions" in tab_ids
     assert "sourcing" in tab_ids
     assert "po" in tab_ids
     assert "inventory" in tab_ids
+    assert "history" in tab_ids
     assert "barcode" in tab_ids
     assert "matching" in tab_ids
     assert "bridge" in tab_ids
     assert "scan" in tab_ids
-    assert len(result["tabs"]) == 9
+    assert len(result["tabs"]) == 11
 
 
 def test_get_dashboard_config_facility_returns_4_tabs():

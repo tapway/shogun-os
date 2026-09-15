@@ -153,6 +153,17 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
 
   const handlePrintBarcode = () => {
     if (!generatedBarcodes || generatedBarcodes.length === 0) return;
+    // The print stylesheet is scoped to this class so the rest of the app is
+    // hidden by `visibility` (never `display`) without blanking the ancestors
+    // the label cards render inside. `afterprint` removes it again; the class
+    // is inert on screen either way.
+    const root = document.documentElement;
+    root.classList.add('printing-barcodes');
+    const cleanup = () => {
+      root.classList.remove('printing-barcodes');
+      window.removeEventListener('afterprint', cleanup);
+    };
+    window.addEventListener('afterprint', cleanup);
     window.print();
   };
 
@@ -302,12 +313,12 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
               </button>
             </div>
 
-            <div style={{ marginTop: '1rem' }}>
+            <div className="barcode-print-section" style={{ marginTop: '1rem' }}>
               <div style={{ fontSize: '0.72rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem' }}>
                 Generated Barcodes ({generatedBarcodes.length}):
               </div>
               
-              <div style={{ 
+              <div className="barcode-label-grid" style={{ 
                 display: 'grid', 
                 gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', 
                 gap: '1rem',

@@ -661,12 +661,14 @@ async def get_dashboard_config(
             "enabled": True,
             "tabs": [
                 {"id": "pulse", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "progress", "label": "Progress Tracker", "icon": "Timer"},
                 {"id": "requisitions", "label": "Purchase Requisitions", "icon": "FileText"},
                 {"id": "sourcing", "label": "RFQ & Vendor Sourcing", "icon": "Award"},
                 {"id": "po", "label": "POs & Vendors", "icon": "ClipboardList"},
                 {"id": "inventory", "label": "Inventory", "icon": "Package"},
-                {"id": "barcode", "label": "Warehouse & Stock Audit", "icon": "Warehouse"},
-                {"id": "matching", "label": "Invoice Matching", "icon": "ShieldCheck"},
+                {"id": "history", "label": "Supplier & Item History", "icon": "Database"},
+                {"id": "matching", "label": "3-Way Invoice Match", "icon": "ShieldCheck"},
+                {"id": "barcode", "label": "Barcode & Asset Tagging", "icon": "Warehouse"},
                 {"id": "bridge", "label": "Accounting Bridge", "icon": "Scale"},
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
@@ -3579,6 +3581,13 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
     vendor_snap = snapshot_map.get("snapshots/vendors", snapshot_map.get("procurement/snapshots/vendors", {}))
     movement_snap = snapshot_map.get("snapshots/stock-movements", snapshot_map.get("procurement/snapshots/stock-movements", {}))
     bridge_snap = snapshot_map.get("snapshots/accounting-bridge", snapshot_map.get("procurement/snapshots/accounting-bridge", {}))
+    # procurement-ver2 tabs. One dedicated snapshot slug per data shape — these
+    # deliberately do NOT fall back to the vendor/PO/inventory snapshots, whose
+    # rows are a different shape than the frontend contracts.
+    progress_snap = snapshot_map.get("snapshots/progress-tracker", snapshot_map.get("procurement/snapshots/progress-tracker", {}))
+    supplier_snap = snapshot_map.get("snapshots/suppliers", snapshot_map.get("procurement/snapshots/suppliers", {}))
+    pr_snap = snapshot_map.get("snapshots/purchase-requisitions", snapshot_map.get("procurement/snapshots/purchase-requisitions", {}))
+    barcode_snap = snapshot_map.get("snapshots/barcode-batches", snapshot_map.get("procurement/snapshots/barcode-batches", {}))
 
     has_real_data = bool(inventory_snap or po_snap)
 
@@ -3675,6 +3684,18 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         barcode_batches = inventory_snap.get("barcode_batches", [])
         three_way_matches = inventory_snap.get("three_way_matches", [])
 
+    # ── procurement-ver2 tabs (Progress Tracker, Supplier & Item History,
+    # PR-to-PO creation, barcode labels) ─────────────────────────────────────
+    # Read unconditionally: unlike the original tabs these keys have NO
+    # counterpart in examples/procurement-mock.json, so there is no mock
+    # fallback to leak — the dashboards render an honest empty state until the
+    # snapshot writer emits the slugs above.
+    progress_tracker_projects: List[dict] = progress_snap.get("progress_tracker_projects") or []
+    supplier_directory: List[dict] = supplier_snap.get("supplier_directory") or []
+    supplier_history: List[dict] = supplier_snap.get("supplier_history") or []
+    demo_purchase_requisitions: List[dict] = pr_snap.get("purchase_requisitions") or []
+    barcode_batch_records: List[dict] = barcode_snap.get("barcode_batches") or []
+
     return {
         # Mock flag — true when data loaded from examples/procurement-mock.json
         "mock": not has_real_data,
@@ -3716,6 +3737,12 @@ def _run_procurement_aggregation(pages: List[dict]) -> dict:
         "barcodeBatches": barcode_batches,
         # Tab 9 — 3-Way Match Verification
         "threeWayMatches": three_way_matches,
+        # procurement-ver2 tabs — live snapshot data or an empty list, never mock
+        "progressTrackerProjects": progress_tracker_projects,
+        "supplierDirectory": supplier_directory,
+        "supplierHistory": supplier_history,
+        "demoPurchaseRequisitions": demo_purchase_requisitions,
+        "barcodeBatchRecords": barcode_batch_records,
     }
 
 
@@ -3725,7 +3752,7 @@ async def get_procurement_stats(
     user: User = Depends(get_current_user),
     db: Session = Depends(get_db),
 ) -> dict:
-    """Aggregated Procurement dashboard stats — all 5 tabs."""
+    """Aggregated Procurement dashboard stats — all tabs."""
     pages = await _fetch_brain_pages_safe("procurement", limit=300, slug_prefix=None)
     return _run_procurement_aggregation(pages)
 
