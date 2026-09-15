@@ -495,12 +495,162 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
                     <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>Timeline coming soon</div>
                   )}
 
-                  {activeTab === 'uat' && (
-                    <div>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>UAT</h3>
-                      <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>UAT test cases coming soon</div>
-                    </div>
-                  )}
+                  {activeTab === 'uat' && (() => {
+                    // Mock UAT compliance data
+                    const uatData = {
+                      score: 70,
+                      compliant: false,
+                      checklistCount: 2,
+                      version: 1,
+                      statuses: ['draft', 'client-signed', 'in-execution', 'passed', 'failed'],
+                      blockingIssues: 3,
+                      flags: [
+                        { code: 'NO_DATASET_FREEZE', severity: 'blocking', desc: 'dataset_freeze_date missing/placeholder' },
+                        { code: 'GENERIC_TEXT', severity: 'warning', desc: '### UAT-01 — <Test name>: placeholder/generic (\'bracket placeholder\')' },
+                        { code: 'NO_NUMERIC_EXCLUSIONS', severity: 'warning', desc: '### UAT-01 — <Test name>: Exclusions have no numeric limits' },
+                        { code: 'NO_TARGET', severity: 'blocking', desc: '### UAT-01 — <Test name>: no numeric detection/classification target' },
+                        { code: 'NO_MEASURED_VALUE', severity: 'warning', desc: '### UAT-01 — <Test name>: no measured % recorded' },
+                        { code: 'GENERIC_TEXT', severity: 'warning', desc: '### UAT-02 — <Test name>: placeholder/generic (\'bracket placeholder\')' },
+                        { code: 'NO_NUMERIC_EXCLUSIONS', severity: 'warning', desc: '### UAT-02 — <Test name>: Exclusions have no numeric limits' },
+                        { code: 'NO_TARGET', severity: 'blocking', desc: '### UAT-02 — <Test name>: no numeric detection/classification target' },
+                        { code: 'NO_MEASURED_VALUE', severity: 'warning', desc: '### UAT-02 — <Test name>: no measured % recorded' },
+                        { code: 'NOT_EXECUTED', severity: 'warning', desc: 'UAT not executed / result pending' },
+                      ],
+                      items: [
+                        {
+                          id: 'UAT-01',
+                          name: '<Test name>',
+                          detectionPct: null,
+                          classificationPct: null,
+                          exclusions: 'list, no numbers',
+                          measured: null,
+                          flags: ['GENERIC_TEXT', 'NO_NUMERIC_EXCLUSIONS', 'NO_TARGET', 'NO_MEASURED_VALUE'],
+                        },
+                        {
+                          id: 'UAT-02',
+                          name: '<Test name>',
+                          detectionPct: null,
+                          classificationPct: null,
+                          exclusions: 'list, no numbers',
+                          measured: null,
+                          flags: ['GENERIC_TEXT', 'NO_NUMERIC_EXCLUSIONS', 'NO_TARGET', 'NO_MEASURED_VALUE'],
+                        },
+                      ],
+                    };
+
+                    const flagColor = (severity: string) => severity === 'blocking' ? '#dc2626' : '#f59e0b';
+                    const flagBg = (severity: string) => severity === 'blocking' ? '#dc262620' : '#f59e0b20';
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                        {/* Edit button */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.78rem' }}>
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </button>
+                        </div>
+
+                        {/* Card 1: UAT Smart Compliance */}
+                        <div className="sd-chart-card" style={{ padding: 20 }}>
+                          <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED, marginBottom: 8 }}>UAT Smart Compliance</div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 8 }}>
+                            <span style={{ fontSize: '2rem', fontWeight: 700, color: '#f59e0b' }}>{uatData.score}%</span>
+                            <span style={{
+                              padding: '4px 14px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase',
+                              background: '#dc2626', color: '#fff',
+                            }}>{uatData.compliant ? 'COMPLIANT' : 'NON-COMPLIANT'}</span>
+                          </div>
+                          <div style={{ fontSize: '0.8rem', color: MUTED, marginBottom: 4 }}>{uatData.checklistCount} checklist items</div>
+                          <div style={{ fontSize: '0.75rem', color: MUTED, marginBottom: 8 }}>
+                            Version {uatData.version} · {uatData.statuses.join(' | ')}
+                          </div>
+                          {uatData.blockingIssues > 0 && (
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: '0.82rem', color: DANGER, fontWeight: 600 }}>
+                              <AlertTriangle className="h-4 w-4" />
+                              {uatData.blockingIssues} blocking issues — Go-Live should be blocked until resolved.
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Card 2: Compliance Flags */}
+                        <div className="sd-chart-card" style={{ padding: 20 }}>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 12 }}>Compliance Flags</h3>
+
+                          {/* Chip cloud */}
+                          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6, marginBottom: 16 }}>
+                            {uatData.flags.map((f, i) => (
+                              <span key={i} style={{
+                                display: 'inline-flex', alignItems: 'center', gap: 4,
+                                padding: '3px 10px', borderRadius: 999, fontSize: '0.68rem', fontWeight: 600,
+                                fontFamily: 'var(--font-mono, monospace)',
+                                background: flagBg(f.severity), color: flagColor(f.severity),
+                              }}>
+                                <div style={{ width: 6, height: 6, borderRadius: '50%', background: flagColor(f.severity) }} />
+                                {f.code}
+                              </span>
+                            ))}
+                          </div>
+
+                          {/* Description list */}
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {uatData.flags.map((f, i) => (
+                              <div key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: '0.78rem' }}>
+                                <div style={{ width: 8, height: 8, borderRadius: '50%', background: flagColor(f.severity), flexShrink: 0, marginTop: 5 }} />
+                                <div>
+                                  <span style={{ fontWeight: 700, fontFamily: 'var(--font-mono, monospace)', color: TEXT }}>{f.code}</span>
+                                  <span style={{ color: MUTED }}>: {f.desc}</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Card 3: Checklist Items Table */}
+                        <div className="sd-chart-card" style={{ padding: 20 }}>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 12 }}>Checklist Items</h3>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                  {['Item', 'Detection %', 'Classification %', 'Exclusions', 'Measured', 'Flags'].map((h) => (
+                                    <th key={h} style={{ padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: MUTED, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {uatData.items.map((item, i) => (
+                                  <tr key={item.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                    <td style={{ padding: '10px', color: '#2563eb', fontWeight: 600, fontFamily: 'var(--font-mono, monospace)' }}>
+                                      ### {item.id} — {item.name}
+                                    </td>
+                                    <td style={{ padding: '10px', color: MUTED }}>{item.detectionPct != null ? `${item.detectionPct}%` : '—'}</td>
+                                    <td style={{ padding: '10px', color: MUTED }}>{item.classificationPct != null ? `${item.classificationPct}%` : '—'}</td>
+                                    <td style={{ padding: '10px', color: '#f59e0b' }}>{item.exclusions || '—'}</td>
+                                    <td style={{ padding: '10px', color: item.measured != null ? TEXT : '#f59e0b' }}>{item.measured != null ? `${item.measured}%` : '—'}</td>
+                                    <td style={{ padding: '10px' }}>
+                                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                                        {item.flags.map((flagCode, fi) => {
+                                          const flagDef = uatData.flags.find(f => f.code === flagCode);
+                                          const sev = flagDef?.severity || 'warning';
+                                          return (
+                                            <span key={fi} style={{
+                                              display: 'inline-block', padding: '2px 8px', borderRadius: 999,
+                                              fontSize: '0.65rem', fontWeight: 600, fontFamily: 'var(--font-mono, monospace)',
+                                              background: flagBg(sev), color: flagColor(sev),
+                                            }}>{flagCode}</span>
+                                          );
+                                        })}
+                                      </div>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
               </div>
             </div>
