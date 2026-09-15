@@ -8,6 +8,9 @@ export function EventsTab({ stats, color }: Props) {
   const [view, setView] = useState<'list' | 'calendar' | 'timeline'>('list');
   // Local task state — keyed by "eventId:taskId"
   const [taskOverrides, setTaskOverrides] = useState<Record<string, boolean>>({});
+  // Calendar state (must be at component level, not inside IIFE)
+  const [calMonth, setCalMonth] = useState(new Date().getMonth());
+  const [calYear, setCalYear] = useState(new Date().getFullYear());
 
   const upcoming = stats.events.filter((e) => e.status === 'upcoming');
   const past = stats.events.filter((e) => e.status === 'past');
@@ -129,9 +132,146 @@ export function EventsTab({ stats, color }: Props) {
         </div>
       )}
 
-      {(view === 'calendar' || view === 'timeline') && (
-        <div className="sd-empty">
-          <p style={{ opacity: 0.5 }}>{view === 'calendar' ? '📅 Calendar view coming soon' : '📌 Timeline view coming soon'}</p>
+      {view === 'calendar' && (() => {
+        const now = new Date();
+
+        const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
+        const firstDayOfWeek = new Date(calYear, calMonth, 1).getDay(); // 0=Sun
+        const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+
+        // Map events to their dates
+        const eventMap: Record<string, typeof stats.events[number][]> = {};
+        stats.events.forEach((e) => {
+          const d = e.date; // "YYYY-MM-DD"
+          if (!eventMap[d]) eventMap[d] = [];
+          eventMap[d].push(e);
+        });
+
+        const prevMonth = () => {
+          if (calMonth === 0) { setCalMonth(11); setCalYear(calYear - 1); }
+          else setCalMonth(calMonth - 1);
+        };
+        const nextMonth = () => {
+          if (calMonth === 11) { setCalMonth(0); setCalYear(calYear + 1); }
+          else setCalMonth(calMonth + 1);
+        };
+
+        const todayStr = `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`;
+
+        return (
+          <div className="sd-chart-card" style={{ padding: 16 }}>
+            {/* Month nav */}
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+              <button onClick={prevMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--samurai-text)', fontSize: '1.1rem' }}>←</button>
+              <span style={{ fontWeight: 700, fontSize: '0.95rem', color: 'var(--samurai-text)' }}>{monthNames[calMonth]} {calYear}</span>
+              <button onClick={nextMonth} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--samurai-text)', fontSize: '1.1rem' }}>→</button>
+            </div>
+
+            {/* Day headers */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2, marginBottom: 4 }}>
+              {['Sun','Mon','Tue','Wed','Thu','Fri','Sat'].map((d) => (
+                <div key={d} style={{ textAlign: 'center', fontSize: '0.7rem', fontWeight: 600, color: 'var(--samurai-muted)', padding: '4px 0' }}>{d}</div>
+              ))}
+            </div>
+
+            {/* Calendar grid */}
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 2 }}>
+              {/* Empty cells before first day */}
+              {Array.from({ length: firstDayOfWeek }).map((_, i) => (
+                <div key={`empty-${i}`} style={{ minHeight: 70 }} />
+              ))}
+
+              {/* Day cells */}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const dateStr = `${calYear}-${String(calMonth+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+                const dayEvents = eventMap[dateStr] || [];
+                const isToday = dateStr === todayStr;
+
+                return (
+                  <div key={day} style={{
+                    minHeight: 70, padding: 4, borderRadius: 6,
+                    border: `1px solid ${isToday ? color : 'var(--samurai-border)'}`,
+                    background: isToday ? `${color}10` : 'transparent',
+                    position: 'relative',
+                  }}>
+                    <div style={{ fontSize: '0.75rem', fontWeight: isToday ? 700 : 500, color: isToday ? color : 'var(--samurai-text)', marginBottom: 2 }}>
+                      {day}
+                    </div>
+                    {dayEvents.map((ev) => (
+                      <div key={ev.id} style={{
+                        fontSize: '0.65rem', padding: '2px 4px', borderRadius: 3, marginBottom: 2,
+                        background: ev.status === 'upcoming' ? `${color}30` : 'var(--samurai-muted)',
+                        color: ev.status === 'upcoming' ? color : 'var(--samurai-text)',
+                        whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis',
+                        opacity: ev.status === 'past' ? 0.6 : 1,
+                      }}>
+                        {ev.name}
+                      </div>
+                    ))}
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        );
+      })()}
+
+      {view === 'timeline' && (
+        <div className="sd-stack" style={{ gap: 0, position: 'relative', paddingLeft: 24 }}>
+          {/* Vertical line */}
+          <div style={{ position: 'absolute', left: 11, top: 8, bottom: 8, width: 2, background: 'var(--samurai-border)' }} />
+
+          {[...stats.events].sort((a, b) => a.date.localeCompare(b.date)).map((event, idx) => {
+            const isPast = event.status === 'past';
+            const doneCount = getDoneCount(event);
+            const totalTasks = event.tasks?.length || 0;
+            const pct = totalTasks > 0 ? Math.round((doneCount / totalTasks) * 100) : 0;
+
+            return (
+              <div key={event.id} style={{ position: 'relative', paddingBottom: idx < stats.events.length - 1 ? 20 : 0 }}>
+                {/* Dot on timeline */}
+                <div style={{
+                  position: 'absolute', left: -18, top: 6, width: 12, height: 12, borderRadius: '50%',
+                  background: isPast ? 'var(--samurai-muted)' : color,
+                  border: '2px solid var(--samurai-card)',
+                }} />
+
+                <div className="sd-chart-card" style={{ padding: '12px 16px', opacity: isPast ? 0.7 : 1 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', flexWrap: 'wrap', gap: 4 }}>
+                    <div>
+                      <div style={{ fontWeight: 600, color: 'var(--samurai-text)' }}>{event.name}</div>
+                      <div style={{ fontSize: '0.78rem', color: 'var(--samurai-muted)' }}>{event.date} · {event.location}</div>
+                    </div>
+                    <div style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
+                      {event.daysUntil !== undefined && !isPast && (
+                        <span style={{ fontSize: '0.75rem', fontWeight: 600, color }}>{event.daysUntil} days</span>
+                      )}
+                      <span style={{
+                        fontSize: '0.68rem', fontWeight: 600, padding: '2px 8px', borderRadius: 999,
+                        background: isPast ? '#94a3b820' : `${color}20`,
+                        color: isPast ? '#94a3b8' : color,
+                      }}>
+                        {isPast ? 'Completed' : 'Upcoming'}
+                      </span>
+                    </div>
+                  </div>
+                  {totalTasks > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '0.72rem', color: 'var(--samurai-muted)', marginBottom: 3 }}>
+                        <span>Tasks</span>
+                        <span>{doneCount}/{totalTasks} ({pct}%)</span>
+                      </div>
+                      <div style={{ height: 6, borderRadius: 3, background: 'var(--samurai-border)', overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, borderRadius: 3, background: pct === 100 ? '#22c55e' : color, transition: 'width 0.3s' }} />
+                      </div>
+                    </div>
+                  )}
+                  {renderTasks(event, true)}
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
 
