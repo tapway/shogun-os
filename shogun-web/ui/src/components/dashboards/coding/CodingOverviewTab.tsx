@@ -159,7 +159,7 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
         ))}
       </div>
 
-      {/* Row 1: Progress + Team Workload */}
+      {/* Row 1: Progress + Dept Health */}
       <div className="sd-row">
         {/* Chart 1: Progress Comparison / Milestones */}
         <div className="sd-card" style={{ flex: '1 1 0', minWidth: 280, padding: '16px 20px' }}>
@@ -287,7 +287,7 @@ export function CodingOverviewTab({ dept, color, onNavigateTab }: Props) {
         </div>
       </div>
 
-      {/* Row 2: Activity Heatmap + Health Radar */}
+      {/* Row 2: Activity Heatmap + Team Workload */}
       <div className="sd-row">
         {/* Chart 3: Activity Heatmap (GitHub-style) */}
         <div className="sd-card" style={{ flex: '2 1 0', minWidth: 300, padding: '16px 20px' }}>
