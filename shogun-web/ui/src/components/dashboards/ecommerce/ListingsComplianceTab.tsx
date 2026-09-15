@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart } from '../charts';
-import { MOCK_LISTINGS, PLATFORM_COLORS } from '../../../lib/ecommerce-multiplatform-data';
+import { MOCK_LISTINGS, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -14,6 +14,15 @@ type SubTab = 'health' | 'compliance' | 'gaps' | 'seo' | 'decisions';
 
 export function ListingsComplianceTab() {
   const [sub, setSub] = useState<SubTab>('health');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDarkMode(document.documentElement.getAttribute('data-theme') !== 'light');
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
   const [syncing, setSyncing] = useState<string | null>(null);
 
   const subTabs: { id: SubTab; label: string }[] = [
@@ -42,7 +51,7 @@ export function ListingsComplianceTab() {
           {MOCK_LISTINGS.platformHealth.map(p => (
             <div key={p.platform} className="sd-chart-card" style={{ padding: 16 }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <span style={{ fontSize: '1rem', fontWeight: 700, color: PLATFORM_COLORS[p.platform] || TEXT }}>{p.platform}</span>
+                <span style={{ fontSize: '1rem', fontWeight: 700, color: getPlatformColor(p.platform, isDarkMode) }}>{p.platform}</span>
                 <span style={{ width: 8, height: 8, borderRadius: '50%', background: p.syncOk ? OK : DANGER }} title={p.syncOk ? 'Sync OK' : 'Sync Failed'} />
               </div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
@@ -89,7 +98,7 @@ export function ListingsComplianceTab() {
                   <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }} onMouseEnter={e => e.currentTarget.style.background = 'var(--samurai-hover-ui)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: '0.75rem', color: LIME }}>{c.sku}</td>
                     <td style={{ padding: '8px 10px', color: TEXT }}>{c.name}</td>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[c.platform] || TEXT, fontWeight: 500 }}>{c.platform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(c.platform, isDarkMode), fontWeight: 500 }}>{c.platform}</td>
                     <td style={{ padding: '8px 10px', color: TEXT }}>{c.issue}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                       <span style={{ padding: '2px 8px', borderRadius: 999, fontSize: '0.7rem', fontWeight: 600, background: `${severityColor[c.severity]}22`, color: severityColor[c.severity] }}>{c.severity.toUpperCase()}</span>

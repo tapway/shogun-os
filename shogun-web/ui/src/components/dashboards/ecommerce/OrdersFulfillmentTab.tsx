@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart, PieChart } from '../charts';
-import { MOCK_ORDERS, PLATFORM_COLORS } from '../../../lib/ecommerce-multiplatform-data';
+import { MOCK_ORDERS, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -14,6 +14,16 @@ type SubTab = 'pipeline' | 'sla' | 'returns' | 'cost' | 'decisions';
 
 export function OrdersFulfillmentTab() {
   const [sub, setSub] = useState<SubTab>('pipeline');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDarkMode(document.documentElement.getAttribute('data-theme') !== 'light');
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+
   const [selectedOrder, setSelectedOrder] = useState<string | null>(null);
 
   const subTabs: { id: SubTab; label: string }[] = [
@@ -78,7 +88,7 @@ export function OrdersFulfillmentTab() {
                         onMouseEnter={e => e.currentTarget.style.background = 'var(--samurai-hover-ui)'}
                         onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                       <td style={{ padding: '8px 10px', fontFamily: 'monospace', fontSize: '0.75rem', color: LIME }}>{o.id}</td>
-                      <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[o.platform] || TEXT, fontWeight: 500 }}>{o.platform}</td>
+                      <td style={{ padding: '8px 10px', color: getPlatformColor(o.platform, isDarkMode), fontWeight: 500 }}>{o.platform}</td>
                       <td style={{ padding: '8px 10px', color: TEXT }}>{o.customer}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'right', color: TEXT, fontWeight: 600 }}>RM {o.total}</td>
                       <td style={{ padding: '8px 10px', textAlign: 'center' }}>
@@ -124,7 +134,7 @@ export function OrdersFulfillmentTab() {
               <tbody>
                 {MOCK_ORDERS.platformSLA.map(s => (
                   <tr key={s.platform} style={{ borderBottom: `1px solid ${BORDER}` }} onMouseEnter={e => e.currentTarget.style.background = 'var(--samurai-hover-ui)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[s.platform] || TEXT, fontWeight: 600 }}>{s.platform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(s.platform, isDarkMode), fontWeight: 600 }}>{s.platform}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: s.within24h >= 85 ? OK : WARNING, fontWeight: 600 }}>{s.within24h}%</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: TEXT }}>{s.avgHours}h</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: s.overdue > 5 ? DANGER : TEXT, fontWeight: s.overdue > 5 ? 700 : 400 }}>{s.overdue}</td>
@@ -158,7 +168,7 @@ export function OrdersFulfillmentTab() {
                     <td style={{ padding: '8px 10px', color: TEXT }}>{r.reason}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: TEXT }}>{r.count}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: MUTED }}>{r.pct}%</td>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[r.topPlatform] || TEXT, fontWeight: 500 }}>{r.topPlatform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(r.topPlatform, isDarkMode), fontWeight: 500 }}>{r.topPlatform}</td>
                   </tr>
                 ))}
               </tbody>
@@ -181,7 +191,7 @@ export function OrdersFulfillmentTab() {
               <tbody>
                 {MOCK_ORDERS.fulfillmentCost.map(c => (
                   <tr key={c.platform} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[c.platform] || TEXT, fontWeight: 600 }}>{c.platform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(c.platform, isDarkMode), fontWeight: 600 }}>{c.platform}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: TEXT }}>RM {c.avgCost.toFixed(2)}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: DANGER, fontWeight: 600 }}>{c.marginImpact}%</td>
                   </tr>

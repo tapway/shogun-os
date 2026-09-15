@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { BarChart } from '../charts';
-import { MOCK_MARKETING, PLATFORM_COLORS } from '../../../lib/ecommerce-multiplatform-data';
+import { MOCK_MARKETING, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -13,6 +13,16 @@ type SubTab = 'campaigns' | 'promos' | 'content' | 'bundles' | 'decisions';
 
 export function MarketingContentTab() {
   const [sub, setSub] = useState<SubTab>('campaigns');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDarkMode(document.documentElement.getAttribute('data-theme') !== 'light');
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+
   const [generating, setGenerating] = useState(false);
 
   const subTabs: { id: SubTab; label: string }[] = [
@@ -53,7 +63,7 @@ export function MarketingContentTab() {
                 {MOCK_MARKETING.campaigns.map((c, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${BORDER}`, cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.background = 'var(--samurai-hover-ui)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '8px 10px', color: TEXT, fontWeight: 500 }}>{c.name}</td>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[c.platform] || TEXT }}>{c.platform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(c.platform, isDarkMode) }}>{c.platform}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: MUTED }}>RM {c.budget.toLocaleString()}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: OK, fontWeight: 600 }}>RM {c.revenue.toLocaleString()}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: c.roi > 4 ? OK : TEXT, fontWeight: 600 }}>{c.roi > 0 ? `${c.roi.toFixed(1)}x` : '—'}</td>
@@ -87,7 +97,7 @@ export function MarketingContentTab() {
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, fontSize: '0.8rem' }}>
                   <span style={{ color: MUTED }}>Velocity:</span><span style={{ color: TEXT }}>{p.velocity}</span>
                   <span style={{ color: MUTED }}>Margin:</span><span style={{ color: TEXT }}>{p.margin}%</span>
-                  <span style={{ color: MUTED }}>Best Platform:</span><span style={{ color: PLATFORM_COLORS[p.bestPlatform] || TEXT, fontWeight: 500 }}>{p.bestPlatform}</span>
+                  <span style={{ color: MUTED }}>Best Platform:</span><span style={{ color: getPlatformColor(p.bestPlatform, isDarkMode), fontWeight: 500 }}>{p.bestPlatform}</span>
                   <span style={{ color: MUTED }}>Suggested:</span><span style={{ color: WARNING, fontWeight: 600 }}>{p.suggestedDiscount}% off</span>
                 </div>
                 <div style={{ fontSize: '0.75rem', color: OK, marginTop: 8, fontWeight: 600 }}>Predicted uplift: +{p.predictedUplift}%</div>
@@ -108,7 +118,7 @@ export function MarketingContentTab() {
             yKey="shopee"
             dataKeys={['shopee', 'lazada', 'tiktok', 'website']}
             labels={{ shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok', website: 'Website' }}
-            colors={['#ee4d2d', '#0f146d', '#000000', '#2563eb']}
+            colors={[getPlatformColor('Shopee', isDarkMode), getPlatformColor('Lazada', isDarkMode), getPlatformColor('TikTok Shop', isDarkMode), getPlatformColor('Website', isDarkMode)]}
             height={240}
           />
         </div>
@@ -123,7 +133,7 @@ export function MarketingContentTab() {
               <div key={i} style={{ padding: 16, borderRadius: 8, border: `1px solid ${BORDER}`, display: 'flex', justifyContent: 'space-between', alignItems: 'center', cursor: 'pointer' }} onMouseEnter={e => e.currentTarget.style.borderColor = LIME} onMouseLeave={e => e.currentTarget.style.borderColor = BORDER}>
                 <div>
                   <div style={{ fontSize: '0.9rem', fontWeight: 600, color: TEXT }}>{b.names}</div>
-                  <div style={{ fontSize: '0.8rem', color: MUTED, marginTop: 4 }}>Co-purchase: {b.coPurchaseRate}% · Best on: <span style={{ color: PLATFORM_COLORS[b.bestPlatform] || TEXT }}>{b.bestPlatform}</span></div>
+                  <div style={{ fontSize: '0.8rem', color: MUTED, marginTop: 4 }}>Co-purchase: {b.coPurchaseRate}% · Best on: <span style={{ color: getPlatformColor(b.bestPlatform, isDarkMode) }}>{b.bestPlatform}</span></div>
                 </div>
                 <div style={{ textAlign: 'right' }}>
                   <div style={{ fontSize: '1.1rem', fontWeight: 700, color: WARNING }}>{b.suggestedDiscount}% off</div>

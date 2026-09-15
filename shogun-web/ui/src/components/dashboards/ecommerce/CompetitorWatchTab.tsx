@@ -1,6 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { LineChart } from '../charts';
-import { MOCK_COMPETITORS, PLATFORM_COLORS } from '../../../lib/ecommerce-multiplatform-data';
+import { MOCK_COMPETITORS, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -14,6 +14,15 @@ type SubTab = 'price' | 'share' | 'sentiment' | 'opportunities' | 'decisions';
 
 export function CompetitorWatchTab() {
   const [sub, setSub] = useState<SubTab>('price');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDarkMode(document.documentElement.getAttribute('data-theme') !== 'light');
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
 
   const subTabs: { id: SubTab; label: string }[] = [
     { id: 'price', label: 'Price Position' },
@@ -52,7 +61,7 @@ export function CompetitorWatchTab() {
                 {MOCK_COMPETITORS.pricePosition.map((p, i) => (
                   <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }} onMouseEnter={e => e.currentTarget.style.background = 'var(--samurai-hover-ui)'} onMouseLeave={e => e.currentTarget.style.background = 'transparent'}>
                     <td style={{ padding: '8px 10px', color: TEXT }}>{p.name}</td>
-                    <td style={{ padding: '8px 10px', color: PLATFORM_COLORS[p.platform] || TEXT, fontWeight: 500 }}>{p.platform}</td>
+                    <td style={{ padding: '8px 10px', color: getPlatformColor(p.platform, isDarkMode), fontWeight: 500 }}>{p.platform}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: TEXT, fontWeight: 600 }}>RM {p.yourPrice}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: MUTED }}>RM {p.marketAvg}</td>
                     <td style={{ padding: '8px 10px', textAlign: 'right', color: gapColor(p.status), fontWeight: 600 }}>{p.diff > 0 ? '+' : ''}{p.diff.toFixed(1)}%</td>
@@ -79,7 +88,7 @@ export function CompetitorWatchTab() {
             yKey="shopee"
             dataKeys={['shopee', 'lazada', 'tiktok', 'website']}
             labels={{ shopee: 'Shopee', lazada: 'Lazada', tiktok: 'TikTok Shop', website: 'Website' }}
-            colors={['#ee4d2d', '#0f146d', '#000000', '#2563eb']}
+            colors={[getPlatformColor('Shopee', isDarkMode), getPlatformColor('Lazada', isDarkMode), getPlatformColor('TikTok Shop', isDarkMode), getPlatformColor('Website', isDarkMode)]}
             unit="%"
             height={280}
           />
@@ -92,7 +101,7 @@ export function CompetitorWatchTab() {
           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12 }}>
             {MOCK_COMPETITORS.sentiment.map(s => (
               <div key={s.platform} className="sd-kpi-card" style={{ padding: 16, textAlign: 'center' }}>
-                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: PLATFORM_COLORS[s.platform] || MUTED, textTransform: 'uppercase' }}>{s.platform}</div>
+                <div style={{ fontSize: '0.75rem', fontWeight: 600, color: getPlatformColor(s.platform, isDarkMode), textTransform: 'uppercase' }}>{s.platform}</div>
                 <div style={{ fontSize: '1.8rem', fontWeight: 700, color: s.yourRating >= s.competitorAvg ? OK : WARNING, marginTop: 6 }}>⭐ {s.yourRating}</div>
                 <div style={{ fontSize: '0.8rem', color: MUTED, marginTop: 4 }}>vs competitor avg {s.competitorAvg}</div>
                 <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 2 }}>{s.reviews.toLocaleString()} reviews</div>
@@ -114,7 +123,7 @@ export function CompetitorWatchTab() {
                 <div style={{ flex: 1 }}>
                   <div style={{ fontSize: '0.85rem', color: TEXT }}>{o.message}</div>
                   <div style={{ fontSize: '0.75rem', color: MUTED, marginTop: 2 }}>
-                    <span style={{ color: PLATFORM_COLORS[o.platform] || MUTED, fontWeight: 500 }}>{o.platform}</span> · {o.time}
+                    <span style={{ color: getPlatformColor(o.platform, isDarkMode), fontWeight: 500 }}>{o.platform}</span> · {o.time}
                   </div>
                 </div>
                 <button style={{ padding: '5px 14px', borderRadius: 6, border: 'none', background: LIME, color: '#0a0a0a', fontSize: '0.75rem', fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap' }}>{o.action}</button>

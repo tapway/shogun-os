@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { BarChart, PieChart } from '../charts';
-import { MOCK_OVERVIEW, PLATFORM_COLORS, PLATFORM_COLORS_DARK } from '../../../lib/ecommerce-multiplatform-data';
+import { MOCK_OVERVIEW, PLATFORM_COLORS, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -10,13 +10,6 @@ const DANGER = 'var(--samurai-danger)';
 const WARNING = 'var(--samurai-warning)';
 const OK = 'var(--samurai-ok)';
 
-// Helper to get platform color based on theme
-const getPlatformColor = (platform: string, isDark: boolean) => {
-  return isDark 
-    ? PLATFORM_COLORS_DARK[platform as keyof typeof PLATFORM_COLORS_DARK] || PLATFORM_COLORS[platform as keyof typeof PLATFORM_COLORS]
-    : PLATFORM_COLORS[platform as keyof typeof PLATFORM_COLORS];
-};
-
 export function CrossPlatformOverviewTab() {
   const [selectedPlatform, setSelectedPlatform] = useState<string>('All');
   const [isDarkMode, setIsDarkMode] = useState(false);
@@ -24,14 +17,14 @@ export function CrossPlatformOverviewTab() {
   // Detect theme on mount and when it changes
   useEffect(() => {
     const checkTheme = () => {
-      const root = document.documentElement;
-      const bg = getComputedStyle(root).getPropertyValue('--samurai-surface').trim();
-      // Dark mode surfaces: #1a1a1a or #0e1424
-      setIsDarkMode(bg === '#1a1a1a' || bg === '#0e1424' || bg.startsWith('#0') || bg.startsWith('#1'));
+      const html = document.documentElement;
+      const theme = html.getAttribute('data-theme');
+      // If data-theme="light" → light mode, otherwise dark mode
+      setIsDarkMode(theme !== 'light');
     };
     checkTheme();
     const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['style', 'class'] });
+    observer.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
     return () => observer.disconnect();
   }, []);
   
@@ -53,9 +46,7 @@ export function CrossPlatformOverviewTab() {
 
   const pieData = d.platformBreakdown.map(p => ({ name: p.name, value: p.gmv }));
   // Use bright colors in dark mode, original brand colors in light mode
-  const pieColors = isDarkMode 
-    ? d.platformBreakdown.map(p => PLATFORM_COLORS_DARK[p.name as keyof typeof PLATFORM_COLORS_DARK] || p.name)
-    : d.platformBreakdown.map(p => PLATFORM_COLORS[p.name as keyof typeof PLATFORM_COLORS] || p.name);
+  const pieColors = d.platformBreakdown.map(p => getPlatformColor(p.name, isDarkMode));
 
   return (
     <div className="sd-stack" style={{ gap: 16 }}>

@@ -1,5 +1,5 @@
-import { useState } from 'react';
-import { MOCK_PRODUCTS, PLATFORM_COLORS } from '../../../lib/ecommerce-multiplatform-data';
+import { useState, useEffect } from 'react';
+import { MOCK_PRODUCTS, getPlatformColor } from '../../../lib/ecommerce-multiplatform-data';
 
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
@@ -13,6 +13,15 @@ type SubTab = 'matrix' | 'price' | 'stock' | 'decisions';
 
 export function ProductIntelligenceTab() {
   const [sub, setSub] = useState<SubTab>('matrix');
+  const [isDarkMode, setIsDarkMode] = useState(false);
+
+  useEffect(() => {
+    const check = () => setIsDarkMode(document.documentElement.getAttribute('data-theme') !== 'light');
+    check();
+    const obs = new MutationObserver(check);
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
   const [filterPlatform, setFilterPlatform] = useState<string>('All');
   const [expandedSku, setExpandedSku] = useState<string | null>(null);
 
@@ -45,7 +54,7 @@ export function ProductIntelligenceTab() {
           <button key={p} onClick={() => setFilterPlatform(p)}
             style={{
               padding: '5px 14px', borderRadius: 999, border: `1px solid ${BORDER}`,
-              background: filterPlatform === p ? (p === 'All' ? LIME : (PLATFORM_COLORS[p] || LIME)) : 'transparent',
+              background: filterPlatform === p ? (p === 'All' ? LIME : (getPlatformColor(p, isDarkMode))) : 'transparent',
               color: filterPlatform === p ? '#0a0a0a' : TEXT,
               fontWeight: filterPlatform === p ? 600 : 400, fontSize: '0.8rem', cursor: 'pointer',
             }}>{p}</button>
@@ -94,7 +103,7 @@ export function ProductIntelligenceTab() {
                     <td style={{ padding: '8px 10px', textAlign: 'center' }}>
                       <div style={{ display: 'flex', gap: 3, justifyContent: 'center' }}>
                         {p.platforms.map(pl => (
-                          <span key={pl} title={pl} style={{ width: 8, height: 8, borderRadius: '50%', background: PLATFORM_COLORS[pl] || MUTED }} />
+                          <span key={pl} title={pl} style={{ width: 8, height: 8, borderRadius: '50%', background: getPlatformColor(pl, isDarkMode) }} />
                         ))}
                       </div>
                     </td>

@@ -19,6 +19,16 @@ export const PLATFORM_COLORS_DARK: Record<string, string> = {
   Website: '#4dabf7',     // Light blue
 };
 
+// Theme-aware platform color getter — use in ALL ecommerce components
+export const getPlatformColor = (platform: string, isDarkMode: boolean): string => {
+  if (isDarkMode) {
+    return PLATFORM_COLORS_DARK[platform as keyof typeof PLATFORM_COLORS_DARK]
+      || PLATFORM_COLORS[platform as keyof typeof PLATFORM_COLORS]
+      || '#888';
+  }
+  return PLATFORM_COLORS[platform as keyof typeof PLATFORM_COLORS] || '#888';
+};
+
 // ─── Tab 1: Cross-Platform Overview ────────────────────────────────────
 export const MOCK_OVERVIEW = {
   aggregate: {
