@@ -1439,6 +1439,69 @@ export interface PurchaseRequisition {
   justification?: string;
 }
 
+// Procurement-ver2: Richer PR type for PO creation workflow
+export interface PurchaseRequisitionItem {
+  id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  estimated_price: number;
+  selected_supplier: {
+    supplier_name: string;
+    amount: number;
+    lead_time_days: number;
+    warranty_years?: number;
+    rating?: number;
+    past_orders?: number;
+    quotation_file_url?: string;
+    selected?: boolean;
+  };
+  alternative_quotes?: Array<{
+    supplier_name: string;
+    amount: number;
+    lead_time_days: number;
+    rating?: number;
+  }>;
+  selection_reason?: string;
+}
+
+export interface DemoPurchaseRequisition {
+  pr_number: string;
+  project_name: string;
+  requester: string;
+  department: string;
+  priority: 'Low' | 'Medium' | 'High' | 'Urgent';
+  justification: string;
+  status: 'Draft' | 'Pending Finance Approval' | 'Approved' | 'Rejected' | 'Clarification Requested' | 'Converted to PO';
+  items: PurchaseRequisitionItem[];
+  total_amount: number;
+  created_at: string;
+  finance_approved_by?: string;
+  finance_approved_at?: string;
+  finance_notes?: string;
+  finance_rejection_reason?: string;
+  template_version?: string;
+}
+
+// Procurement-ver2: Barcode batch for visual barcode generation
+export interface BarcodeBatchItem {
+  item_name: string;
+  barcode_code: string;
+  scanned: boolean;
+  scanned_at?: string;
+  scanned_by?: string;
+}
+
+export interface BarcodeBatch {
+  batch_id: string;
+  po_number: string;
+  generated_at: string;
+  generated_by: string;
+  items: BarcodeBatchItem[];
+  total_items: number;
+  scanned_count: number;
+}
+
 // Tab 7 — RFQ & Vendor Sourcing
 export interface RfqVendorQuote {
   vendor: string;
@@ -1540,6 +1603,96 @@ export interface ProcurementDashboardStats {
   barcodeBatches?: BarcodeBatchLog[];
   // Tab 9 — 3-Way Match Verification
   threeWayMatches?: ThreeWayMatchItem[];
+  // Tab — Progress Tracker (demo-ver2)
+  progressTrackerProjects?: ProgressTrackerProject[];
+  // PO creation workflow (demo-ver2)
+  demoPurchaseRequisitions?: DemoPurchaseRequisition[];
+  // Barcode batches for visual generation (demo-ver2)
+  barcodeBatchRecords?: BarcodeBatch[];
+  // Tab — Supplier & Item History (demo-ver2)
+  supplierHistory?: SupplierHistoryEntry[];
+  supplierDirectory?: SupplierRecord[];
+}
+
+// ─── Progress Tracker Types (procurement-ver2) ────────────────────────────────
+
+export interface ProgressStep {
+  id: string;
+  name: string;
+  type: 'internal' | 'vendor';
+  department?: 'sales' | 'procurement' | 'finance';
+  sla_days?: number;
+  vendor_name?: string;
+  estimated_days?: number;
+  actual_days?: number;
+  status: 'pending' | 'in_progress' | 'completed' | 'blocked';
+  started_at?: string;
+  completed_at?: string;
+  notes?: string;
+}
+
+export interface ProgressTrackerHardwareItem {
+  item_id: string;
+  name: string;
+  quantity: number;
+  unit: string;
+  selected_supplier: {
+    name: string;
+    contact: string;
+    quotation_amount: number;
+    lead_time_days: number;
+    rating?: number;
+  };
+  current_step_index: number;
+  steps: ProgressStep[];
+}
+
+export interface ProgressTrackerProject {
+  project_id: string;
+  project_name: string;
+  pr_number: string;
+  requester: string;
+  department: string;
+  created_at: string;
+  overall_progress: number;
+  completed_steps: number;
+  total_steps: number;
+  status: 'not_started' | 'in_progress' | 'blocked' | 'completed';
+  blocked_reason?: string;
+  blocked_since?: string;
+  hardware_items: ProgressTrackerHardwareItem[];
+}
+
+// ─── Supplier History Types (procurement-ver2) ────────────────────────────────
+
+export interface SupplierHistoryEntry {
+  id: string;
+  item_name: string;
+  supplier_name: string;
+  last_price: number;
+  last_order_date: string;
+  orders_count: number;
+  avg_lead_time_days: number;
+  rating: number;
+  total_spent: number;
+}
+
+export interface SupplierRecord {
+  id: string;
+  companyName: string;
+  companyRegNo: string;
+  officePhone: string;
+  registeredAddress: string;
+  website: string;
+  picName: string;
+  picContact: string;
+  picEmail: string;
+  paymentTerm: string;
+  paymentCurrency: string;
+  paymentBank: string;
+  bankAccountNo: string;
+  bankSwiftCode?: string;
+  preferredCourier: string;
 }
 
 // ─── HR Dashboard Types (synced from Notion via scripts/sync-notion-hr.py) ───
