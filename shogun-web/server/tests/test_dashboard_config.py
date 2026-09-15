@@ -111,21 +111,34 @@ def test_get_dashboard_config_procurement_returns_9_tabs():
     assert len(result["tabs"]) == 9
 
 
-def test_get_dashboard_config_facility_returns_4_tabs():
+def test_get_dashboard_config_facility_returns_7_tabs():
     result = asyncio.run(_call_dashboard_config_inner("facility"))
     assert result["enabled"] is True
     tab_ids = [t["id"] for t in result["tabs"]]
-    assert "units" in tab_ids
+    assert "overview" in tab_ids
+    assert "locations" in tab_ids
     assert "inspect" in tab_ids
+    assert "actions" in tab_ids
+    assert "templates" in tab_ids
     assert "records" in tab_ids
     assert "scan" in tab_ids
-    assert len(result["tabs"]) == 4
+    assert len(result["tabs"]) == 7
 
 
 def test_get_dashboard_config_unknown_returns_disabled():
     result = asyncio.run(_call_dashboard_config_inner("nonexistent"))
     assert result["enabled"] is False
     assert result["tabs"] == []
+
+
+def test_get_dashboard_config_coding_returns_2_tabs():
+    """Coding department dashboard should have 2 tabs: overview, projects."""
+    result = asyncio.run(_call_dashboard_config_inner("coding"))
+    assert result["enabled"] is True
+    tab_ids = [t["id"] for t in result["tabs"]]
+    assert "overview" in tab_ids
+    assert "projects" in tab_ids
+    assert len(result["tabs"]) == 2
 
 
 # ─── Helper ──────────────────────────────────────────────────────────────

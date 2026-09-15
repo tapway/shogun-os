@@ -120,6 +120,10 @@ class Tenant(Base):
 
     )
 
+    facility_locations: Mapped[List["FacilityLocation"]] = relationship(
+        back_populates="tenant", cascade="all, delete-orphan"
+    )
+
 
 
     def to_dict(self) -> Dict[str, Any]:
@@ -2486,4 +2490,209 @@ class HrQuestionTemplate(Base):
             "questions": questions,
             "created_at": self.created_at.isoformat() if self.created_at else None,
             "updated_at": self.updated_at.isoformat() if self.updated_at else None,
+        }
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Facility Management — AI Visual Compliance Inspector
+# ──────────────────────────────────────────────────────────────────────────
+
+
+class FacilityLocation(Base):
+    """A registered facility location that can be inspected."""
+
+    __tablename__ = "facility_locations"
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "name", name="uq_facility_location_name"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    name: Mapped[str] = mapped_column(String(256), nullable=False, index=True)
+    location_type: Mapped[str] = mapped_column(String(64), nullable=False, index=True)
+    site_name: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    area_sqm: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    responsible_person: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    inspection_frequency: Mapped[str] = mapped_column(String(32), nullable=False, default="monthly")
+    last_inspection_date: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    last_overall_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    last_overall_rating: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="active")
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    tenant: Mapped["Tenant"] = relationship(back_populates="facility_locations")
+    inspections: Mapped[List["FacilityInspection"]] = relationship(
+        back_populates="location", cascade="all, delete-orphan"
+    )
+    action_items: Mapped[List["FacilityActionItem"]] = relationship(
+        back_populates="location", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "name": self.name,
+            "location_type": self.location_type,
+            "site_name": self.site_name,
+            "area_sqm": self.area_sqm,
+            "responsible_person": self.responsible_person,
+            "inspection_frequency": self.inspection_frequency,
+            "last_inspection_date": _iso(self.last_inspection_date),
+            "last_overall_score": self.last_overall_score,
+            "last_overall_rating": self.last_overall_rating,
+            "status": self.status,
+            "notes": self.notes,
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
+        }
+
+
+class FacilityInspection(Base):
+    """A single AI-powered visual inspection record for a facility location."""
+
+    __tablename__ = "facility_inspections"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    location_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("facility_locations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    inspected_by: Mapped[str] = mapped_column(String(256), nullable=False, default="")
+    inspection_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    photos: Mapped[List] = mapped_column(JSON, nullable=False, default=list)
+    location_type_snapshot: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    scores: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    overall_score: Mapped[Optional[float]] = mapped_column(Float, nullable=True)
+    overall_rating: Mapped[Optional[str]] = mapped_column(String(64), nullable=True)
+    checklist_results: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    action_items: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    ai_raw_response: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    location: Mapped["FacilityLocation"] = relationship(back_populates="inspections")
+    facility_action_items: Mapped[List["FacilityActionItem"]] = relationship(
+        back_populates="inspection", cascade="all, delete-orphan"
+    )
+
+    def to_dict(self) -> Dict[str, Any]:
+        import os as _os
+        photos_out: List[Dict[str, Any]] = []
+        for p in (self.photos or []):
+            if isinstance(p, dict):
+                url = p.get("url")
+                if not url and p.get("path"):
+                    url = f"/api/site-photos/{_os.path.basename(p['path'])}"
+                photos_out.append({**p, "url": url or ""})
+            else:
+                photos_out.append({"url": "", "filename": str(p)})
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "location_id": self.location_id,
+            "inspected_by": self.inspected_by,
+            "inspection_date": _iso(self.inspection_date),
+            "photos": photos_out,
+            "location_type_snapshot": self.location_type_snapshot,
+            "scores": self.scores,
+            "overall_score": self.overall_score,
+            "overall_rating": self.overall_rating,
+            "checklist_results": self.checklist_results,
+            "action_items": self.action_items,
+            "ai_raw_response": self.ai_raw_response,
+            "created_at": _iso(self.created_at),
+        }
+
+
+class FacilityActionItem(Base):
+    """Trackable action item generated from an inspection finding."""
+
+    __tablename__ = "facility_action_items"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    inspection_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("facility_inspections.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    location_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("facility_locations.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    priority: Mapped[str] = mapped_column(String(32), nullable=False, default="medium")
+    category: Mapped[str] = mapped_column(String(64), nullable=False, default="")
+    description: Mapped[str] = mapped_column(Text, nullable=False, default="")
+    photo_ref: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    status: Mapped[str] = mapped_column(String(32), nullable=False, default="open")
+    assigned_to: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(DateTime(timezone=True), nullable=True)
+    resolved_by: Mapped[Optional[str]] = mapped_column(String(256), nullable=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+
+    inspection: Mapped["FacilityInspection"] = relationship(back_populates="facility_action_items")
+    location: Mapped["FacilityLocation"] = relationship(back_populates="action_items")
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "inspection_id": self.inspection_id,
+            "location_id": self.location_id,
+            "priority": self.priority,
+            "category": self.category,
+            "description": self.description,
+            "photo_ref": self.photo_ref,
+            "status": self.status,
+            "assigned_to": self.assigned_to,
+            "resolved_at": _iso(self.resolved_at),
+            "resolved_by": self.resolved_by,
+            "created_at": _iso(self.created_at),
+        }
+
+
+class FacilityTemplate(Base):
+    """Inspection profile template per location type."""
+
+    __tablename__ = "facility_templates"
+
+    __table_args__ = (
+        UniqueConstraint("tenant_id", "location_type", name="uq_facility_template"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    tenant_id: Mapped[int] = mapped_column(
+        Integer, ForeignKey("tenants.id", ondelete="CASCADE"), nullable=False, index=True
+    )
+    location_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    display_name: Mapped[str] = mapped_column(String(128), nullable=False, default="")
+    scoring_weights: Mapped[Optional[Dict[str, Any]]] = mapped_column(JSON, nullable=True)
+    checklist: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    expected_assets: Mapped[Optional[List]] = mapped_column(JSON, nullable=True)
+    min_photos: Mapped[int] = mapped_column(Integer, nullable=False, default=2)
+    photo_guidance: Mapped[str] = mapped_column(String(512), nullable=False, default="Take wide shot of area + close-ups of specific concerns")
+    is_system_default: Mapped[bool] = mapped_column(Boolean, nullable=False, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, default=utcnow, onupdate=utcnow)
+
+    def to_dict(self) -> Dict[str, Any]:
+        return {
+            "id": self.id,
+            "tenant_id": self.tenant_id,
+            "location_type": self.location_type,
+            "display_name": self.display_name,
+            "scoring_weights": self.scoring_weights,
+            "checklist": self.checklist,
+            "expected_assets": self.expected_assets,
+            "min_photos": self.min_photos,
+            "photo_guidance": self.photo_guidance,
+            "is_system_default": self.is_system_default,
+            "created_at": _iso(self.created_at),
+            "updated_at": _iso(self.updated_at),
         }

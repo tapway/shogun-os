@@ -52,7 +52,8 @@ export function PieChart({
               const item = data.find((d) => d.name === value);
               if (!item) return value;
               const formattedVal = unit ? `${unit}${Number(item.value).toLocaleString()}` : Number(item.value).toLocaleString();
-              return `${value} (${formattedVal})`;
+              // Use readable text color instead of series color for dark mode compatibility
+              return <span style={{ color: 'var(--samurai-text)' }}>{`${value} (${formattedVal})`}</span>;
             }}
           />
         )}

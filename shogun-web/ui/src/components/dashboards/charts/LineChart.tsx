@@ -46,7 +46,10 @@ export function LineChart({
         />
         <Tooltip formatter={formatter as never} contentStyle={CHART_TOOLTIP_STYLE} labelFormatter={(label) => `${label}`} />
         {dataKeys && dataKeys.length > 0 && (
-          <Legend wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }} />
+          <Legend
+            wrapperStyle={{ fontSize: '11px', paddingTop: '8px' }}
+            formatter={(value: string) => <span style={{ color: 'var(--samurai-text)' }}>{value}</span>}
+          />
         )}
         {dataKeys && dataKeys.length > 0
           ? dataKeys.map((k, i) => (

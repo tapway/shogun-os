@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck } from 'lucide-react';
-import { MOCK_SUPPLIER_HISTORY } from '../../../lib/procurement-mock-data';
+import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck, Package } from 'lucide-react';
+import { MOCK_SUPPLIER_HISTORY, MOCK_SUPPLIERS, type SupplierRecord } from '../../../lib/procurement-mock-data';
 
 interface Props {
   stats: any;
@@ -8,175 +8,19 @@ interface Props {
   onAction?: (actionType: string, entity: unknown) => void;
 }
 
-// Supplier directory data structure
-interface SupplierRecord {
-  id: string;
-  companyName: string;
-  companyRegNo: string;
-  officePhone: string;
-  registeredAddress: string;
-  website: string;
-  picName: string;
-  picContact: string;
-  picEmail: string;
-  paymentTerm: string;
-  paymentCurrency: string;
-  paymentBank: string;
-  bankAccountNo: string;
-  bankSwiftCode?: string;
-  preferredCourier: string;
-}
-
-// Mock supplier directory data with variance
-const MOCK_SUPPLIERS: SupplierRecord[] = [
-  {
-    id: 'sup-001',
-    companyName: 'TechWorld Sdn Bhd',
-    companyRegNo: '1234567-X',
-    officePhone: '+603-2145-6789',
-    registeredAddress: 'Level 15, Menara UOA, Bangsar South, 59200 Kuala Lumpur',
-    website: 'www.techworld.com.my',
-    picName: 'Sarah Lim',
-    picContact: '+6012-345-6789',
-    picEmail: 'sarah@techworld.my',
-    paymentTerm: '50% upfront, 50% on delivery',
-    paymentCurrency: 'MYR',
-    paymentBank: 'Maybank',
-    bankAccountNo: '5623-4567-8901',
-    bankSwiftCode: 'MBBEMYKL',
-    preferredCourier: 'DHL Express',
-  },
-  {
-    id: 'sup-002',
-    companyName: 'OfficePro Malaysia',
-    companyRegNo: '2345678-W',
-    officePhone: '+603-7890-1234',
-    registeredAddress: 'Lot 23, Jalan Teknologi 3/5, Taman Sains Selangor, 47810 Petaling Jaya',
-    website: 'www.officepro.com.my',
-    picName: 'Ahmad Razak',
-    picContact: '+6019-876-5432',
-    picEmail: 'ahmad@officepro.com.my',
-    paymentTerm: '100% upfront',
-    paymentCurrency: 'MYR',
-    paymentBank: 'CIMB Bank',
-    bankAccountNo: '8012-3456-7890',
-    bankSwiftCode: 'CIBBMYKL',
-    preferredCourier: 'Pos Laju',
-  },
-  {
-    id: 'sup-003',
-    companyName: 'Dell Technologies Malaysia',
-    companyRegNo: '3456789-V',
-    officePhone: '+603-2053-8888',
-    registeredAddress: 'Suite 28-01, The Gardens North Tower, Mid Valley City, 59200 Kuala Lumpur',
-    website: 'www.dell.com.my',
-    picName: 'David Chen',
-    picContact: '+6016-234-5678',
-    picEmail: 'david.chen@dell.com',
-    paymentTerm: 'Net 30 days',
-    paymentCurrency: 'MYR',
-    paymentBank: 'HSBC Bank',
-    bankAccountNo: '012-345678-901',
-    bankSwiftCode: 'HBMBMYKL',
-    preferredCourier: 'FedEx',
-  },
-  {
-    id: 'sup-004',
-    companyName: 'Toyota Material Handling',
-    companyRegNo: '4567890-U',
-    officePhone: '+603-5567-8901',
-    registeredAddress: 'Plot 12, Jalan Subang 1, Subang Industrial Park, 47610 Subang Jaya',
-    website: 'www.toyota-mh.com.my',
-    picName: 'Mohd Faisal',
-    picContact: '+6013-456-7890',
-    picEmail: 'faisal@toyota-mh.com.my',
-    paymentTerm: '30% deposit, 70% before delivery',
-    paymentCurrency: 'MYR',
-    paymentBank: 'Public Bank',
-    bankAccountNo: '3123-4567-8901',
-    bankSwiftCode: 'PBBEMYKL',
-    preferredCourier: 'Self-pickup / Company truck',
-  },
-  {
-    id: 'sup-005',
-    companyName: 'Storage Solutions MY',
-    companyRegNo: '5678901-T',
-    officePhone: '+603-6789-0123',
-    registeredAddress: 'No. 45, Jalan Industri 2/3, Kawasan Perindustrian Batu Caves, 68100 Batu Caves',
-    website: 'www.storagesolutions.my',
-    picName: 'Lisa Wong',
-    picContact: '+6017-567-8901',
-    picEmail: 'lisa@storagesolutions.my',
-    paymentTerm: '50% upfront, 50% on delivery',
-    paymentCurrency: 'MYR',
-    paymentBank: 'RHB Bank',
-    bankAccountNo: '1234-5678-9012',
-    bankSwiftCode: 'RHBBMYKL',
-    preferredCourier: 'J&T Express',
-  },
-  {
-    id: 'sup-006',
-    companyName: 'Epson Malaysia',
-    companyRegNo: '6789012-S',
-    officePhone: '+603-8901-2345',
-    registeredAddress: 'Unit 12-03, Sunway Pyramid Tower, Jalan PJS 11/15, 47500 Petaling Jaya',
-    website: 'www.epson.com.my',
-    picName: 'Rajesh Kumar',
-    picContact: '+6018-678-9012',
-    picEmail: 'rajesh@epson.com.my',
-    paymentTerm: 'Net 14 days',
-    paymentCurrency: 'MYR',
-    paymentBank: 'AmBank',
-    bankAccountNo: '888-1234567-890',
-    bankSwiftCode: 'ARBKMYKL',
-    preferredCourier: 'Ninja Van',
-  },
-  {
-    id: 'sup-007',
-    companyName: 'Apple Authorized Reseller',
-    companyRegNo: '7890123-R',
-    officePhone: '+603-9012-3456',
-    registeredAddress: 'G-02, Pavilion KL, 168 Jalan Bukit Bintang, 55100 Kuala Lumpur',
-    website: 'www.applestore.com.my',
-    picName: 'Priya Nair',
-    picContact: '+6011-789-0123',
-    picEmail: 'priya@applestore.com.my',
-    paymentTerm: '100% upfront',
-    paymentCurrency: 'MYR',
-    paymentBank: 'Standard Chartered',
-    bankAccountNo: '012-3456789-012',
-    bankSwiftCode: 'SCBLMYKL',
-    preferredCourier: 'SF Express',
-  },
-  {
-    id: 'sup-008',
-    companyName: 'CompAsia',
-    companyRegNo: '8901234-Q',
-    officePhone: '+603-0123-4567',
-    registeredAddress: 'Level 8, Wisma Genting, Jalan Sultan Ismail, 50250 Kuala Lumpur',
-    website: 'www.compasia.com',
-    picName: 'Tan Wei Ming',
-    picContact: '+6014-890-1234',
-    picEmail: 'weiming@compasia.com',
-    paymentTerm: 'Net 7 days',
-    paymentCurrency: 'MYR',
-    paymentBank: 'Hong Leong Bank',
-    bankAccountNo: '123-4567890-123',
-    bankSwiftCode: 'HLBBMYKL',
-    preferredCourier: 'DHL eCommerce',
-  },
-];
-
 const MUTED = 'var(--samurai-muted)';
 const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 
 export function SupplierItemHistoryTab({ stats, color }: Props) {
+  const [searchMode, setSearchMode] = useState<'supplier' | 'item'>('supplier');
   const [query, setQuery] = useState('');
   const [viewingSupplier, setViewingSupplier] = useState<SupplierRecord | null>(null);
 
-  const filtered = MOCK_SUPPLIERS.filter((s) => {
+  // Filter based on search mode
+  const filteredSuppliers = MOCK_SUPPLIERS.filter((s) => {
+    if (searchMode !== 'supplier') return false;
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
@@ -188,104 +32,270 @@ export function SupplierItemHistoryTab({ stats, color }: Props) {
     );
   });
 
+  // Item search: find items and their suppliers
+  const itemSearchResults = (() => {
+    if (searchMode !== 'item') return [];
+    const q = query.trim().toLowerCase();
+    if (!q) return [];
+    
+    // Group by item name
+    const itemMap = new Map<string, typeof MOCK_SUPPLIER_HISTORY>();
+    MOCK_SUPPLIER_HISTORY.forEach((entry) => {
+      const itemName = entry.item_name.toLowerCase();
+      if (itemName.includes(q)) {
+        if (!itemMap.has(entry.item_name)) {
+          itemMap.set(entry.item_name, []);
+        }
+        itemMap.get(entry.item_name)!.push(entry);
+      }
+    });
+    
+    // Convert to array sorted by relevance
+    return Array.from(itemMap.entries()).map(([itemName, entries]) => ({
+      itemName,
+      suppliers: entries.sort((a, b) => b.rating - a.rating),
+      bestPrice: Math.min(...entries.map(e => e.last_price)),
+      totalOrders: entries.reduce((sum, e) => sum + e.orders_count, 0),
+    }));
+  })();
+
   return (
     <div className="sd-stack">
       {/* Header Card */}
       <div className="sd-chart-card">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>Supplier Directory</h3>
+          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>Supplier & Item History</h3>
+          <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--samurai-surface)', padding: '0.25rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}` }}>
+            <button
+              type="button"
+              onClick={() => { setSearchMode('supplier'); setQuery(''); }}
+              style={{
+                padding: '0.375rem 0.75rem',
+                fontSize: '0.85rem',
+                borderRadius: '0.375rem',
+                border: 'none',
+                cursor: 'pointer',
+                background: searchMode === 'supplier' ? color : 'transparent',
+                color: searchMode === 'supplier' ? '#fff' : TEXT,
+                fontWeight: searchMode === 'supplier' ? 600 : 400,
+              }}
+            >
+              Search Supplier
+            </button>
+            <button
+              type="button"
+              onClick={() => { setSearchMode('item'); setQuery(''); }}
+              style={{
+                padding: '0.375rem 0.75rem',
+                fontSize: '0.85rem',
+                borderRadius: '0.375rem',
+                border: 'none',
+                cursor: 'pointer',
+                background: searchMode === 'item' ? color : 'transparent',
+                color: searchMode === 'item' ? '#fff' : TEXT,
+                fontWeight: searchMode === 'item' ? 600 : 400,
+              }}
+            >
+              Search Item
+            </button>
+          </div>
           <div style={{ position: 'relative' }}>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: MUTED }} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder="Search company, PIC, email…"
-              style={{ width: '18rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
+              placeholder={searchMode === 'supplier' ? "Search company, PIC, email…" : "Search item name (e.g., laptop, chair)…"}
+              style={{ width: '20rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
             />
           </div>
         </div>
         <p className="sd-chart-sub">
-          Complete supplier contact and payment information for procurement reference
+          {searchMode === 'supplier' 
+            ? 'Complete supplier contact and payment information for procurement reference'
+            : 'Find items and compare suppliers by price, rating, and delivery time'}
         </p>
       </div>
 
-      {/* Supplier Table */}
-      <div className="sd-chart-card">
-        {filtered.length === 0 ? (
-          <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
-            No suppliers match the search criteria.
-          </p>
-        ) : (
-          <div className="overflow-x-auto">
-            <table className="w-full min-w-[1400px] text-sm" style={{ borderCollapse: 'collapse' }}>
-              <thead>
-                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Company Name</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Reg. No.</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Office Phone</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Name</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Contact</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Email</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Payment Term</th>
-                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Bank</th>
-                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {filtered.map((supplier) => (
-                  <tr key={supplier.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <td className="px-3 py-2.5">
-                      <div style={{ fontWeight: 600, color: TEXT }}>{supplier.companyName}</div>
-                      <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
-                        <Globe className="inline h-3 w-3 mr-1" />
-                        {supplier.website}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>
-                      {supplier.companyRegNo}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                      <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                      {supplier.officePhone}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>
-                      {supplier.picName}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                      <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                      {supplier.picContact}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                      <Mail className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                      {supplier.picEmail}
-                    </td>
-                    <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: MUTED }}>
-                      {supplier.paymentTerm}
-                    </td>
-                    <td className="px-3 py-2.5">
-                      <div style={{ fontSize: '0.72rem', fontWeight: 500, color: TEXT }}>{supplier.paymentBank}</div>
-                      <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
-                        <CreditCard className="inline h-3 w-3 mr-1" />
-                        {supplier.bankAccountNo}
-                      </div>
-                    </td>
-                    <td className="px-3 py-2.5 text-center">
-                      <button
-                        type="button"
-                        onClick={() => setViewingSupplier(supplier)}
-                        className="sd-btn sd-btn-secondary"
-                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
-                      >
-                        View Full
-                      </button>
-                    </td>
+      {/* Supplier Table (shown when in supplier mode or no search) */}
+      {searchMode === 'supplier' && (
+        <div className="sd-chart-card">
+          {filteredSuppliers.length === 0 ? (
+            <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
+              No suppliers match the search criteria.
+            </p>
+          ) : (
+            <div className="overflow-x-auto">
+              <table className="w-full min-w-[1400px] text-sm" style={{ borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Company Name</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Reg. No.</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Office Phone</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Name</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Contact</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Email</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Payment Term</th>
+                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Bank</th>
+                    <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Actions</th>
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+                </thead>
+                <tbody>
+                  {filteredSuppliers.map((supplier) => (
+                    <tr key={supplier.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                      <td className="px-3 py-2.5">
+                        <div style={{ fontWeight: 600, color: TEXT }}>{supplier.companyName}</div>
+                        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                          <Globe className="inline h-3 w-3 mr-1" />
+                          {supplier.website}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>
+                        {supplier.companyRegNo}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                        <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                        {supplier.officePhone}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>
+                        {supplier.picName}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                        <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                        {supplier.picContact}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
+                        <Mail className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
+                        {supplier.picEmail}
+                      </td>
+                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: MUTED }}>
+                        {supplier.paymentTerm}
+                      </td>
+                      <td className="px-3 py-2.5">
+                        <div style={{ fontSize: '0.72rem', fontWeight: 500, color: TEXT }}>{supplier.paymentBank}</div>
+                        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                          <CreditCard className="inline h-3 w-3 mr-1" />
+                          {supplier.bankAccountNo}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2.5 text-center">
+                        <button
+                          type="button"
+                          onClick={() => setViewingSupplier(supplier)}
+                          className="sd-btn sd-btn-secondary"
+                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+                        >
+                          View Full
+                        </button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Item Search Results */}
+      {searchMode === 'item' && query.trim() !== '' && (
+        <div className="sd-chart-card">
+          {itemSearchResults.length === 0 ? (
+            <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
+              No items found matching "{query}". Try searching for generic terms like "laptop", "chair", "monitor", etc.
+            </p>
+          ) : (
+            <div style={{ display: 'grid', gap: '1rem' }}>
+              {itemSearchResults.map((result) => (
+                <div
+                  key={result.itemName}
+                  style={{
+                    border: `1px solid ${BORDER}`,
+                    borderRadius: '0.5rem',
+                    padding: '1rem',
+                    background: 'var(--samurai-surface)',
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
+                    <Package className="h-5 w-5" style={{ color }} />
+                    <h4 style={{ fontSize: '1rem', fontWeight: 600, color: TEXT, margin: 0 }}>{result.itemName}</h4>
+                    <span style={{
+                      fontSize: '0.72rem',
+                      padding: '0.25rem 0.5rem',
+                      borderRadius: '0.25rem',
+                      background: `${color}20`,
+                      color: color,
+                      fontWeight: 600,
+                    }}>
+                      {result.suppliers.length} supplier{result.suppliers.length > 1 ? 's' : ''}
+                    </span>
+                  </div>
+                  
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Best Price</div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Total Orders</div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Avg Rating</div>
+                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Avg Lead Time</div>
+                    
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>RM {result.bestPrice.toLocaleString()}</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{result.totalOrders}</div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
+                      {(result.suppliers.reduce((sum, s) => sum + s.rating, 0) / result.suppliers.length).toFixed(1)} ⭐
+                    </div>
+                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
+                      {Math.round(result.suppliers.reduce((sum, s) => sum + s.avg_lead_time_days, 0) / result.suppliers.length)} days
+                    </div>
+                  </div>
+
+                  <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem' }}>
+                    <h5 style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT, marginBottom: '0.5rem' }}>Suppliers:</h5>
+                    <div style={{ display: 'grid', gap: '0.5rem' }}>
+                      {result.suppliers.map((entry, idx) => (
+                        <div
+                          key={entry.id}
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'space-between',
+                            padding: '0.5rem 0.75rem',
+                            background: SURFACE_2,
+                            borderRadius: '0.375rem',
+                          }}
+                        >
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
+                            <Building2 className="h-4 w-4" style={{ color: MUTED }} />
+                            <div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{entry.supplier_name}</div>
+                              <div style={{ fontSize: '0.72rem', color: MUTED }}>
+                                Last order: {entry.last_order_date} • {entry.orders_count} order{entry.orders_count > 1 ? 's' : ''}
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Last Price</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {entry.last_price.toLocaleString()}</div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Rating</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: entry.rating >= 4.5 ? '#22c55e' : entry.rating >= 4.0 ? '#f59e0b' : '#ef4444' }}>
+                                {entry.rating.toFixed(1)} ⭐
+                              </div>
+                            </div>
+                            <div style={{ textAlign: 'right' }}>
+                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Lead Time</div>
+                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{entry.avg_lead_time_days} days</div>
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+        </div>
+      )}
 
       {/* View Supplier Details Modal */}
       {viewingSupplier && (

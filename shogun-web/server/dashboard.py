@@ -643,9 +643,12 @@ async def get_dashboard_config(
         "facility": {
             "enabled": True,
             "tabs": [
-                {"id": "units", "label": "Unit Registration", "icon": "Home"},
-                {"id": "inspect", "label": "Daily Inspection", "icon": "Camera"},
-                {"id": "records", "label": "Inspection Records", "icon": "FileText"},
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "locations", "label": "Locations", "icon": "MapPin"},
+                {"id": "inspect", "label": "Inspections", "icon": "Camera"},
+                {"id": "actions", "label": "Action Items", "icon": "SquareCheckBig"},
+                {"id": "templates", "label": "Templates", "icon": "ClipboardList"},
+                {"id": "records", "label": "Records", "icon": "FileText"},
                 {"id": "scan", "label": "Document Scanning", "icon": "FileScan"},
             ],
         },
@@ -679,6 +682,32 @@ async def get_dashboard_config(
                 {"id": "inbox", "label": "Channel Inbox", "icon": "MessageSquare"},
                 {"id": "customers", "label": "Customer Insights", "icon": "Users"},
                 {"id": "feedback", "label": "Product Feedback", "icon": "MessageCircle"},
+            ],
+        },
+        "executive": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "calendar", "label": "Calendar", "icon": "Calendar"},
+                {"id": "documents", "label": "Document & Approval Flow", "icon": "FileText"},
+            ],
+        },
+        "e-commerce": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "products", "label": "Products", "icon": "Package"},
+                {"id": "listings", "label": "Listings", "icon": "Store"},
+                {"id": "orders", "label": "Orders", "icon": "ShoppingCart"},
+                {"id": "marketing", "label": "Marketing", "icon": "Megaphone"},
+                {"id": "competitors", "label": "Competitors", "icon": "Target"},
+            ],
+        },
+        "coding": {
+            "enabled": True,
+            "tabs": [
+                {"id": "overview", "label": "Overview", "icon": "LayoutDashboard"},
+                {"id": "projects", "label": "Projects", "icon": "FolderGit"},
             ],
         },
     }
@@ -2513,6 +2542,861 @@ async def list_all_inspections(
     query = query.order_by(SiteInspection.inspection_date.desc())
     inspections = db.execute(query).scalars().all()
     return {"inspections": [i.to_dict() for i in inspections]}
+
+
+# ──────────────────────────────────────────────────────────────────────────
+# Facility Management — Locations, Inspections, Action Items, Templates
+# ──────────────────────────────────────────────────────────────────────────
+
+# --- Default template seeding -------------------------------------------------
+
+_DEFAULT_FACILITY_TEMPLATES = [
+    {
+        "location_type": "office",
+        "display_name": "Office Space",
+        "scoring_weights": {"cleanliness": 0.3, "safety": 0.3, "maintenance": 0.2, "organization": 0.2},
+        "checklist": [
+            {"item": "Floor cleanliness", "category": "cleanliness"},
+            {"item": "Desk organization", "category": "organization"},
+            {"item": "Fire extinguisher accessible", "category": "safety"},
+            {"item": "Lighting functional", "category": "maintenance"},
+            {"item": "HVAC operational", "category": "maintenance"},
+            {"item": "Emergency exits clear", "category": "safety"},
+        ],
+        "expected_assets": ["desk", "chair", "monitor", "fire_extinguisher", "ac_unit"],
+        "min_photos": 2,
+        "photo_guidance": "Take wide shot of office area + close-ups of desks, safety equipment",
+    },
+    {
+        "location_type": "warehouse",
+        "display_name": "Warehouse / Storage",
+        "scoring_weights": {"safety": 0.35, "organization": 0.3, "maintenance": 0.2, "cleanliness": 0.15},
+        "checklist": [
+            {"item": "Aisles clear of obstruction", "category": "safety"},
+            {"item": "Racking integrity", "category": "maintenance"},
+            {"item": "Proper stacking height", "category": "safety"},
+            {"item": "Forklift lanes marked", "category": "safety"},
+            {"item": "Pest control signs", "category": "cleanliness"},
+            {"item": "Inventory labeling visible", "category": "organization"},
+        ],
+        "expected_assets": ["racking", "pallet", "forklift", "fire_extinguisher", "signage"],
+        "min_photos": 3,
+        "photo_guidance": "Wide shots of aisles + racking close-ups + floor markings",
+    },
+    {
+        "location_type": "production_floor",
+        "display_name": "Production Floor",
+        "scoring_weights": {"safety": 0.4, "maintenance": 0.3, "cleanliness": 0.15, "organization": 0.15},
+        "checklist": [
+            {"item": "Machine guards in place", "category": "safety"},
+            {"item": "PPE compliance visible", "category": "safety"},
+            {"item": "Equipment maintenance tags current", "category": "maintenance"},
+            {"item": "Spill containment", "category": "cleanliness"},
+            {"item": "WIP staging organized", "category": "organization"},
+            {"item": "Ventilation adequate", "category": "maintenance"},
+        ],
+        "expected_assets": ["machine", "conveyor", "control_panel", "ppe_station", "fire_extinguisher"],
+        "min_photos": 3,
+        "photo_guidance": "Wide production line shot + machine close-ups + safety signage",
+    },
+    {
+        "location_type": "restroom",
+        "display_name": "Restroom / Washroom",
+        "scoring_weights": {"cleanliness": 0.5, "maintenance": 0.3, "safety": 0.2},
+        "checklist": [
+            {"item": "Fixtures clean and functional", "category": "cleanliness"},
+            {"item": "Soap and paper stocked", "category": "cleanliness"},
+            {"item": "No leaks or water damage", "category": "maintenance"},
+            {"item": "Ventilation fan working", "category": "maintenance"},
+            {"item": "Non-slip mats present", "category": "safety"},
+            {"item": "Accessibility features intact", "category": "safety"},
+        ],
+        "expected_assets": ["toilet", "sink", "mirror", "hand_dryer", "soap_dispenser"],
+        "min_photos": 2,
+        "photo_guidance": "Overall room shot + fixture close-ups",
+    },
+    {
+        "location_type": "common_area",
+        "display_name": "Common Area / Lobby",
+        "scoring_weights": {"cleanliness": 0.3, "organization": 0.25, "maintenance": 0.25, "safety": 0.2},
+        "checklist": [
+            {"item": "Seating in good condition", "category": "maintenance"},
+            {"item": "Floor clean and dry", "category": "cleanliness"},
+            {"item": "Signage legible", "category": "organization"},
+            {"item": "Lighting adequate", "category": "maintenance"},
+            {"item": "Trash bins not overflowing", "category": "cleanliness"},
+            {"item": "Emergency info posted", "category": "safety"},
+        ],
+        "expected_assets": ["seating", "reception_desk", "signage", "trash_bin", "notice_board"],
+        "min_photos": 2,
+        "photo_guidance": "Wide area shot + seating/signage close-ups",
+    },
+]
+
+
+def _seed_facility_templates(db: Session, tenant_id: int) -> None:
+    """Seed default facility inspection templates for a tenant if none exist."""
+    from models import FacilityTemplate
+    existing_count = db.execute(
+        select(FacilityTemplate).where(FacilityTemplate.tenant_id == tenant_id)
+    ).scalars().first()
+    if existing_count is not None:
+        return  # Already seeded
+    for tpl_data in _DEFAULT_FACILITY_TEMPLATES:
+        tpl = FacilityTemplate(
+            tenant_id=tenant_id,
+            location_type=tpl_data["location_type"],
+            display_name=tpl_data["display_name"],
+            scoring_weights=tpl_data.get("scoring_weights"),
+            checklist=tpl_data.get("checklist"),
+            expected_assets=tpl_data.get("expected_assets"),
+            min_photos=tpl_data.get("min_photos", 2),
+            photo_guidance=tpl_data.get("photo_guidance", ""),
+            is_system_default=True,
+        )
+        db.add(tpl)
+    db.commit()
+
+
+# --- Pydantic schemas for request bodies ------------------------------------
+
+class FacilityLocationCreate(BaseModel):
+    name: str
+    location_type: str
+    site_name: Optional[str] = None
+    area_sqm: Optional[float] = None
+    responsible_person: Optional[str] = None
+    inspection_frequency: str = "monthly"
+    notes: Optional[str] = None
+
+
+class FacilityLocationUpdate(BaseModel):
+    name: Optional[str] = None
+    location_type: Optional[str] = None
+    site_name: Optional[str] = None
+    area_sqm: Optional[float] = None
+    responsible_person: Optional[str] = None
+    inspection_frequency: Optional[str] = None
+    status: Optional[str] = None
+    notes: Optional[str] = None
+
+
+class FacilityInspectionSave(BaseModel):
+    location_id: int
+    inspected_by: str = ""
+    photos: List[Dict[str, Any]] = Field(default_factory=list)
+    scores: Optional[Dict[str, Any]] = None
+    overall_score: Optional[float] = None
+    overall_rating: Optional[str] = None
+    checklist_results: Optional[List[Dict[str, Any]]] = None
+    action_items: Optional[List[Dict[str, Any]]] = None
+    ai_raw_response: Optional[str] = None
+
+
+class FacilityActionItemUpdate(BaseModel):
+    status: Optional[str] = None
+    assigned_to: Optional[str] = None
+    resolved_by: Optional[str] = None
+
+
+class FacilityTemplateCreate(BaseModel):
+    location_type: str
+    display_name: str
+    scoring_weights: Optional[Dict[str, Any]] = None
+    checklist: Optional[List[Dict[str, Any]]] = None
+    expected_assets: Optional[List[str]] = None
+    min_photos: int = 2
+    photo_guidance: str = ""
+
+
+class FacilityTemplateUpdate(BaseModel):
+    display_name: Optional[str] = None
+    scoring_weights: Optional[Dict[str, Any]] = None
+    checklist: Optional[List[Dict[str, Any]]] = None
+    expected_assets: Optional[List[str]] = None
+    min_photos: Optional[int] = None
+    photo_guidance: Optional[str] = None
+
+
+# ── Locations CRUD ────────────────────────────────────────────────────────────
+
+
+@router.get("/facility/locations")
+async def list_facility_locations(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    status: Optional[str] = Query(None, description="Filter by status (active/inactive)"),
+    location_type: Optional[str] = Query(None, description="Filter by location type"),
+) -> dict:
+    """List all facility locations for this tenant."""
+    from models import FacilityLocation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    query = select(FacilityLocation).where(FacilityLocation.tenant_id == tenant.id)
+    if status:
+        query = query.where(FacilityLocation.status == status)
+    if location_type:
+        query = query.where(FacilityLocation.location_type == location_type)
+    query = query.order_by(FacilityLocation.name)
+    locations = db.execute(query).scalars().all()
+    return {"locations": [loc.to_dict() for loc in locations]}
+
+
+@router.post("/facility/locations")
+async def create_facility_location(
+    body: FacilityLocationCreate,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create a new facility location."""
+    from models import FacilityLocation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    # Check uniqueness
+    existing = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.tenant_id == tenant.id,
+            FacilityLocation.name == body.name,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(status_code=409, detail=f"Location '{body.name}' already exists")
+    loc = FacilityLocation(
+        tenant_id=tenant.id,
+        name=body.name,
+        location_type=body.location_type,
+        site_name=body.site_name,
+        area_sqm=body.area_sqm,
+        responsible_person=body.responsible_person,
+        inspection_frequency=body.inspection_frequency,
+        notes=body.notes,
+    )
+    db.add(loc)
+    db.commit()
+    db.refresh(loc)
+    # Seed templates if first location of this type
+    _seed_facility_templates(db, tenant.id)
+    return loc.to_dict()
+
+
+@router.get("/facility/locations/{location_id}")
+async def get_facility_location(
+    location_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Get a single facility location by ID."""
+    from models import FacilityLocation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    loc = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.id == location_id,
+            FacilityLocation.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    return loc.to_dict()
+
+
+@router.put("/facility/locations/{location_id}")
+async def update_facility_location(
+    location_id: int,
+    body: FacilityLocationUpdate,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update an existing facility location."""
+    from models import FacilityLocation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    loc = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.id == location_id,
+            FacilityLocation.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(loc, field, value)
+    db.commit()
+    db.refresh(loc)
+    return loc.to_dict()
+
+
+@router.delete("/facility/locations/{location_id}")
+async def delete_facility_location(
+    location_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a facility location (cascades inspections and action items)."""
+    from models import FacilityLocation
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    loc = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.id == location_id,
+            FacilityLocation.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    db.delete(loc)
+    db.commit()
+    return {"ok": True}
+
+
+# ── Inspections ───────────────────────────────────────────────────────────────
+
+
+@router.get("/facility/inspections")
+async def list_facility_inspections(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    location_id: Optional[int] = Query(None, description="Filter by location ID"),
+    date_from: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    date_to: Optional[str] = Query(None, description="ISO date YYYY-MM-DD"),
+    limit: int = Query(50, ge=1, le=200),
+) -> dict:
+    """List facility inspections with optional filters."""
+    from models import FacilityInspection
+    from datetime import datetime as _dt, timezone as _tz
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    query = select(FacilityInspection).where(FacilityInspection.tenant_id == tenant.id)
+    if location_id is not None:
+        query = query.where(FacilityInspection.location_id == location_id)
+    if date_from:
+        try:
+            df = _dt.fromisoformat(date_from).replace(tzinfo=_tz.utc)
+            query = query.where(FacilityInspection.inspection_date >= df)
+        except ValueError:
+            pass
+    if date_to:
+        try:
+            dt = _dt.fromisoformat(date_to).replace(tzinfo=_tz.utc) + timedelta(days=1)
+            query = query.where(FacilityInspection.inspection_date < dt)
+        except ValueError:
+            pass
+    query = query.order_by(FacilityInspection.inspection_date.desc()).limit(limit)
+    inspections = db.execute(query).scalars().all()
+    return {"inspections": [i.to_dict() for i in inspections]}
+
+
+@router.post("/facility/inspections")
+async def save_facility_inspection(
+    body: FacilityInspectionSave,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Save a completed facility inspection to the database."""
+    from models import FacilityInspection, FacilityLocation
+    from datetime import timezone as _tz
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    # Validate location exists
+    loc = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.id == body.location_id,
+            FacilityLocation.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+    inspection = FacilityInspection(
+        tenant_id=tenant.id,
+        location_id=body.location_id,
+        inspected_by=body.inspected_by or (user.username if user else ""),
+        photos=body.photos,
+        location_type_snapshot=loc.location_type,
+        scores=body.scores,
+        overall_score=body.overall_score,
+        overall_rating=body.overall_rating,
+        checklist_results=body.checklist_results,
+        action_items=body.action_items,
+        ai_raw_response=body.ai_raw_response,
+    )
+    db.add(inspection)
+    # Update location's last inspection metadata
+    loc.last_inspection_date = datetime.now(_tz.utc)
+    if body.overall_score is not None:
+        loc.last_overall_score = body.overall_score
+    if body.overall_rating is not None:
+        loc.last_overall_rating = body.overall_rating
+    db.commit()
+    db.refresh(inspection)
+    return inspection.to_dict()
+
+
+@router.post("/facility/locations/{location_id}/assess")
+async def assess_facility_location(
+    location_id: int,
+    files: List[UploadFile] = File(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Upload photos and run AI assessment using the location's template.
+
+    Returns assessment results WITHOUT saving — caller must POST to
+    /facility/inspections to persist.
+    """
+    from models import FacilityLocation, FacilityTemplate
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    loc = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.id == location_id,
+            FacilityLocation.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not loc:
+        raise HTTPException(status_code=404, detail="Location not found")
+
+    # Load template for this location type (seed defaults if needed)
+    _seed_facility_templates(db, tenant.id)
+    template = db.execute(
+        select(FacilityTemplate).where(
+            FacilityTemplate.tenant_id == tenant.id,
+            FacilityTemplate.location_type == loc.location_type,
+        )
+    ).scalar_one_or_none()
+
+    # Save uploaded photos to disk
+    cfg = get_config()
+    upload_dir = pathlib.Path(cfg.db_path).parent / "facility_inspections"
+    upload_dir.mkdir(parents=True, exist_ok=True)
+
+    photos: List[Dict[str, Any]] = []
+    for i, f in enumerate(files):
+        safe_name = pathlib.Path(f.filename or f"photo_{i}").name
+        def _slug(s: str) -> str:
+            return "".join(c if c.isalnum() or c in "-_" else "_" for c in s)
+        stored_name = f"{_slug(loc.name)}_{i}_{safe_name}"
+        file_path = upload_dir / stored_name
+        with open(file_path, "wb") as out:
+            content = await f.read()
+            out.write(content)
+        photos.append({
+            "path": str(file_path),
+            "filename": f.filename or f"photo_{i}",
+            "url": f"/api/site-photos/{stored_name}",
+        })
+
+    # Build dynamic prompt from template
+    checklist_text = ""
+    if template and template.checklist:
+        items = [f"- {c['item']} ({c.get('category', 'general')})" for c in template.checklist]
+        checklist_text = "\n\nChecklist items to evaluate:\n" + "\n".join(items)
+
+    weights_text = ""
+    if template and template.scoring_weights:
+        weights_text = "\n\nScoring weights: " + json.dumps(template.scoring_weights)
+
+    assets_text = ""
+    if template and template.expected_assets:
+        assets_text = "\n\nExpected assets to look for: " + ", ".join(template.expected_assets)
+
+    prompt = (
+        f"Perform a facility inspection assessment for a {loc.location_type} location named '{loc.name}'.\n"
+        f"{checklist_text}{weights_text}{assets_text}\n\n"
+        f"For each photo, evaluate against the checklist items.\n"
+        f"Return a JSON object with:\n"
+        f"  - scores: {{category: score_0_to_100}} matching the scoring weights\n"
+        f"  - overall_score: weighted average 0-100\n"
+        f"  - overall_rating: 'excellent'|'good'|'fair'|'poor'|'critical'\n"
+        f"  - checklist_results: [{{item, category, status: 'pass'|'fail'|'warning', notes}}]\n"
+        f"  - action_items: [{{priority, category, description, photo_ref}}] for any failures/warnings\n"
+        f"Return ONLY valid JSON."
+    )
+
+    photo_paths = [p["path"] for p in photos]
+    raw_response = await _call_estate_agent("facility", prompt, photo_paths=photo_paths)
+    result = _extract_json_from_text(raw_response, is_array=False)
+
+    return {
+        "location_id": loc.id,
+        "location_name": loc.name,
+        "location_type": loc.location_type,
+        "photos": photos,
+        "assessment": result,
+        "template_used": template.location_type if template else None,
+        "ai_raw_response": raw_response,
+    }
+
+
+# ── Action Items ──────────────────────────────────────────────────────────────
+
+
+@router.get("/facility/action-items")
+async def list_facility_action_items(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+    status: Optional[str] = Query(None, description="Filter: open, in_progress, resolved"),
+    priority: Optional[str] = Query(None, description="Filter: low, medium, high, critical"),
+    location_id: Optional[int] = Query(None),
+) -> dict:
+    """List facility action items with optional filters."""
+    from models import FacilityActionItem
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    query = select(FacilityActionItem).where(FacilityActionItem.tenant_id == tenant.id)
+    if status:
+        query = query.where(FacilityActionItem.status == status)
+    if priority:
+        query = query.where(FacilityActionItem.priority == priority)
+    if location_id is not None:
+        query = query.where(FacilityActionItem.location_id == location_id)
+    query = query.order_by(FacilityActionItem.created_at.desc())
+    items = db.execute(query).scalars().all()
+    return {"action_items": [item.to_dict() for item in items]}
+
+
+@router.patch("/facility/action-items/{item_id}")
+async def update_facility_action_item(
+    item_id: int,
+    body: FacilityActionItemUpdate,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update a facility action item (status, assignment, resolution)."""
+    from models import FacilityActionItem
+    from datetime import timezone as _tz
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    item = db.execute(
+        select(FacilityActionItem).where(
+            FacilityActionItem.id == item_id,
+            FacilityActionItem.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not item:
+        raise HTTPException(status_code=404, detail="Action item not found")
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(item, field, value)
+    # Auto-set resolved_at when status changes to resolved
+    if update_data.get("status") == "resolved" and not item.resolved_at:
+        item.resolved_at = datetime.now(_tz.utc)
+    db.commit()
+    db.refresh(item)
+    return item.to_dict()
+
+
+# ── Stats Aggregation ────────────────────────────────────────────────────────
+
+
+@router.get("/facility/stats")
+async def get_facility_stats(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Aggregated facility management stats for the dashboard overview."""
+    from models import FacilityLocation, FacilityInspection, FacilityActionItem
+    from sqlalchemy import func
+    from datetime import timezone as _tz
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+
+    # Location counts
+    total_locations = db.execute(
+        select(func.count(FacilityLocation.id)).where(
+            FacilityLocation.tenant_id == tenant.id,
+            FacilityLocation.status == "active",
+        )
+    ).scalar() or 0
+
+    locations_by_type = db.execute(
+        select(FacilityLocation.location_type, func.count(FacilityLocation.id))
+        .where(FacilityLocation.tenant_id == tenant.id, FacilityLocation.status == "active")
+        .group_by(FacilityLocation.location_type)
+    ).all()
+    locations_by_type = {row[0]: row[1] for row in locations_by_type}
+
+    # Inspection counts
+    total_inspections = db.execute(
+        select(func.count(FacilityInspection.id)).where(
+            FacilityInspection.tenant_id == tenant.id,
+        )
+    ).scalar() or 0
+
+    # This month's inspections
+    now = datetime.now(_tz.utc)
+    month_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0)
+    monthly_inspections = db.execute(
+        select(func.count(FacilityInspection.id)).where(
+            FacilityInspection.tenant_id == tenant.id,
+            FacilityInspection.inspection_date >= month_start,
+        )
+    ).scalar() or 0
+
+    # Average score
+    avg_score = db.execute(
+        select(func.avg(FacilityInspection.overall_score)).where(
+            FacilityInspection.tenant_id == tenant.id,
+            FacilityInspection.overall_score.isnot(None),
+        )
+    ).scalar()
+
+    # Action items
+    open_actions = db.execute(
+        select(func.count(FacilityActionItem.id)).where(
+            FacilityActionItem.tenant_id == tenant.id,
+            FacilityActionItem.status.in_(["open", "in_progress"]),
+        )
+    ).scalar() or 0
+
+    actions_by_priority = db.execute(
+        select(FacilityActionItem.priority, func.count(FacilityActionItem.id))
+        .where(
+            FacilityActionItem.tenant_id == tenant.id,
+            FacilityActionItem.status.in_(["open", "in_progress"]),
+        )
+        .group_by(FacilityActionItem.priority)
+    ).all()
+    actions_by_priority = {row[0]: row[1] for row in actions_by_priority}
+
+    # Overdue locations (last inspection older than frequency allows)
+    overdue_locations = []
+    active_locs = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.tenant_id == tenant.id,
+            FacilityLocation.status == "active",
+        )
+    ).scalars().all()
+    freq_days = {"daily": 1, "weekly": 7, "biweekly": 14, "monthly": 30, "quarterly": 90}
+    for loc in active_locs:
+        if loc.last_inspection_date:
+            days_since = (now - loc.last_inspection_date).days
+            max_days = freq_days.get(loc.inspection_frequency, 30)
+            if days_since > max_days:
+                overdue_locations.append({
+                    "id": loc.id,
+                    "name": loc.name,
+                    "days_overdue": days_since - max_days,
+                    "last_inspection": loc.last_inspection_date.isoformat(),
+                })
+        elif loc.created_at:
+            # Never inspected
+            overdue_locations.append({
+                "id": loc.id,
+                "name": loc.name,
+                "days_overdue": -1,
+                "last_inspection": None,
+            })
+
+    # Compliance trend (last 6 months)
+    compliance_trend = []
+    for i in range(5, -1, -1):
+        m_start = now.replace(day=1, hour=0, minute=0, second=0, microsecond=0) - timedelta(days=i * 28)
+        m_end = m_start + timedelta(days=28)
+        avg = db.execute(
+            select(func.avg(FacilityInspection.overall_score)).where(
+                FacilityInspection.tenant_id == tenant.id,
+                FacilityInspection.inspection_date >= m_start,
+                FacilityInspection.inspection_date < m_end,
+                FacilityInspection.overall_score.isnot(None),
+            )
+        ).scalar()
+        compliance_trend.append({
+            "month": m_start.strftime("%b"),
+            "score": round(avg, 1) if avg else 0,
+        })
+
+    # Score by location type
+    score_by_type_rows = db.execute(
+        select(
+            FacilityLocation.location_type,
+            func.avg(FacilityInspection.overall_score),
+            func.count(FacilityInspection.id),
+        )
+        .join(FacilityLocation, FacilityInspection.location_id == FacilityLocation.id)
+        .where(
+            FacilityInspection.tenant_id == tenant.id,
+            FacilityInspection.overall_score.isnot(None),
+        )
+        .group_by(FacilityLocation.location_type)
+    ).all()
+    score_by_type = [
+        {"type": row[0], "score": round(row[1], 1) if row[1] else 0, "count": row[2]}
+        for row in score_by_type_rows
+    ]
+
+    # Top violations (most frequently failed checklist items)
+    all_inspections = db.execute(
+        select(FacilityInspection.checklist_results).where(
+            FacilityInspection.tenant_id == tenant.id,
+            FacilityInspection.checklist_results.isnot(None),
+        )
+    ).scalars().all()
+    violation_counts: Dict[str, int] = {}
+    for cr in all_inspections:
+        if isinstance(cr, list):
+            for item in cr:
+                if isinstance(item, dict) and not item.get("pass", True):
+                    label = item.get("item", item.get("label", "Unknown"))
+                    violation_counts[label] = violation_counts.get(label, 0) + 1
+    top_violations = sorted(
+        [{"item": k, "count": v, "locations": []} for k, v in violation_counts.items()],
+        key=lambda x: x["count"], reverse=True,
+    )[:10]
+
+    # Recent inspections (last 6)
+    recent_rows = db.execute(
+        select(FacilityInspection)
+        .where(FacilityInspection.tenant_id == tenant.id)
+        .order_by(FacilityInspection.inspection_date.desc())
+        .limit(6)
+    ).scalars().all()
+    recent_inspections = [r.to_dict() for r in recent_rows]
+
+    # Critical alerts = open urgent action items
+    critical_alerts = db.execute(
+        select(func.count(FacilityActionItem.id)).where(
+            FacilityActionItem.tenant_id == tenant.id,
+            FacilityActionItem.status.in_(["open", "in_progress"]),
+            FacilityActionItem.priority == "urgent",
+        )
+    ).scalar() or 0
+
+    # All locations (for dropdowns in other tabs)
+    all_locs = db.execute(
+        select(FacilityLocation).where(
+            FacilityLocation.tenant_id == tenant.id,
+            FacilityLocation.status == "active",
+        ).order_by(FacilityLocation.name)
+    ).scalars().all()
+
+    # All templates
+    from models import FacilityTemplate as _FT
+    all_tpls = db.execute(
+        select(_FT).where(_FT.tenant_id == tenant.id).order_by(_FT.location_type)
+    ).scalars().all()
+
+    return {
+        "total_locations": total_locations,
+        "avg_score": round(avg_score, 1) if avg_score else 0,
+        "open_actions": open_actions,
+        "overdue_inspections": len(overdue_locations),
+        "critical_alerts": critical_alerts,
+        "compliance_trend": compliance_trend,
+        "score_by_type": score_by_type,
+        "top_violations": top_violations,
+        "recent_inspections": recent_inspections,
+        "locations": [loc.to_dict() for loc in all_locs],
+        "templates": [t.to_dict() for t in all_tpls],
+    }
+
+
+# ── Templates CRUD ────────────────────────────────────────────────────────────
+
+
+@router.get("/facility/templates")
+async def list_facility_templates(
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """List all facility inspection templates for this tenant."""
+    from models import FacilityTemplate
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    _seed_facility_templates(db, tenant.id)
+    templates = db.execute(
+        select(FacilityTemplate).where(FacilityTemplate.tenant_id == tenant.id)
+        .order_by(FacilityTemplate.location_type)
+    ).scalars().all()
+    return {"templates": [t.to_dict() for t in templates]}
+
+
+@router.post("/facility/templates")
+async def create_facility_template(
+    body: FacilityTemplateCreate,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Create a custom facility inspection template."""
+    from models import FacilityTemplate
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    # Check uniqueness
+    existing = db.execute(
+        select(FacilityTemplate).where(
+            FacilityTemplate.tenant_id == tenant.id,
+            FacilityTemplate.location_type == body.location_type,
+        )
+    ).scalar_one_or_none()
+    if existing:
+        raise HTTPException(
+            status_code=409,
+            detail=f"Template for location type '{body.location_type}' already exists — use PUT to update",
+        )
+    tpl = FacilityTemplate(
+        tenant_id=tenant.id,
+        location_type=body.location_type,
+        display_name=body.display_name,
+        scoring_weights=body.scoring_weights,
+        checklist=body.checklist,
+        expected_assets=body.expected_assets,
+        min_photos=body.min_photos,
+        photo_guidance=body.photo_guidance,
+        is_system_default=False,
+    )
+    db.add(tpl)
+    db.commit()
+    db.refresh(tpl)
+    return tpl.to_dict()
+
+
+@router.put("/facility/templates/{template_id}")
+async def update_facility_template(
+    template_id: int,
+    body: FacilityTemplateUpdate,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Update an existing facility inspection template."""
+    from models import FacilityTemplate
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    tpl = db.execute(
+        select(FacilityTemplate).where(
+            FacilityTemplate.id == template_id,
+            FacilityTemplate.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    update_data = body.model_dump(exclude_unset=True)
+    for field, value in update_data.items():
+        setattr(tpl, field, value)
+    db.commit()
+    db.refresh(tpl)
+    return tpl.to_dict()
+
+
+@router.delete("/facility/templates/{template_id}")
+async def delete_facility_template(
+    template_id: int,
+    name: str = Path(...),
+    user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> dict:
+    """Delete a facility inspection template."""
+    from models import FacilityTemplate
+    tenant = db.get(Tenant, user.tenant_id) if user and user.tenant_id else get_primary_tenant(db)
+    tpl = db.execute(
+        select(FacilityTemplate).where(
+            FacilityTemplate.id == template_id,
+            FacilityTemplate.tenant_id == tenant.id,
+        )
+    ).scalar_one_or_none()
+    if not tpl:
+        raise HTTPException(status_code=404, detail="Template not found")
+    db.delete(tpl)
+    db.commit()
+    return {"ok": True}
 
 
 # ──────────────────────────────────────────────────────────────────────────

@@ -604,6 +604,30 @@ html[data-theme="light"] .sd-sidebar-head img {
   display: flex;
   flex-direction: column;
   gap: 0.125rem;
+  /* Thin custom scrollbar */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--samurai-muted) 30%, transparent) transparent;
+}
+/* Webkit scrollbar (Chrome, Edge, Safari) */
+.sd-sidebar-nav::-webkit-scrollbar {
+  width: 4px;
+}
+.sd-sidebar-nav::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-sidebar-nav::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--samurai-muted) 30%, transparent);
+  border-radius: 99px;
+}
+.sd-sidebar-nav::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--samurai-muted) 55%, transparent);
+}
+/* Only show scrollbar on hover/focus for cleaner look */
+.sd-sidebar-nav:not(:hover):not(:focus-within) {
+  scrollbar-color: transparent transparent;
+}
+.sd-sidebar-nav:not(:hover):not(:focus-within)::-webkit-scrollbar-thumb {
+  background: transparent;
 }
 .sd-sidebar-section {
   padding: 0.9rem 0.75rem 0.35rem;
@@ -1004,6 +1028,22 @@ html[data-theme="light"] .sd-sidebar-head img {
   padding: 1.25rem 1.5rem 2rem;
   font-family: var(--font-body);
   color: var(--samurai-text);
+  /* Thin custom scrollbar — matches sidebar */
+  scrollbar-width: thin;
+  scrollbar-color: color-mix(in srgb, var(--samurai-muted) 30%, transparent) transparent;
+}
+.sd-page::-webkit-scrollbar {
+  width: 5px;
+}
+.sd-page::-webkit-scrollbar-track {
+  background: transparent;
+}
+.sd-page::-webkit-scrollbar-thumb {
+  background: color-mix(in srgb, var(--samurai-muted) 30%, transparent);
+  border-radius: 99px;
+}
+.sd-page::-webkit-scrollbar-thumb:hover {
+  background: color-mix(in srgb, var(--samurai-muted) 55%, transparent);
 }
 .sd-page-tight {
   padding: 0;

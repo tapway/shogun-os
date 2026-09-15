@@ -126,6 +126,25 @@ export interface SupplierHistoryEntry {
   total_spent: number;
 }
 
+// Supplier directory data structure
+export interface SupplierRecord {
+  id: string;
+  companyName: string;
+  companyRegNo: string;
+  officePhone: string;
+  registeredAddress: string;
+  website: string;
+  picName: string;
+  picContact: string;
+  picEmail: string;
+  paymentTerm: string;
+  paymentCurrency: string;
+  paymentBank: string;
+  bankAccountNo: string;
+  bankSwiftCode?: string;
+  preferredCourier: string;
+}
+
 export interface ThreeWayMatchRecord {
   match_id: string;
   po_number: string;
@@ -943,3 +962,143 @@ export function getMockStats() {
     totalItemsScanned: MOCK_BARCODE_BATCHES.reduce((sum, b) => sum + b.scanned_count, 0),
   };
 }
+
+// Mock supplier directory data with variance
+export const MOCK_SUPPLIERS: SupplierRecord[] = [
+  {
+    id: 'sup-001',
+    companyName: 'TechWorld Sdn Bhd',
+    companyRegNo: '1234567-X',
+    officePhone: '+603-2145-6789',
+    registeredAddress: 'Level 15, Menara UOA, Bangsar South, 59200 Kuala Lumpur',
+    website: 'www.techworld.com.my',
+    picName: 'Sarah Lim',
+    picContact: '+6012-345-6789',
+    picEmail: 'sarah@techworld.my',
+    paymentTerm: '50% upfront, 50% on delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Maybank',
+    bankAccountNo: '5623-4567-8901',
+    bankSwiftCode: 'MBBEMYKL',
+    preferredCourier: 'DHL Express',
+  },
+  {
+    id: 'sup-002',
+    companyName: 'OfficePro Malaysia',
+    companyRegNo: '2345678-W',
+    officePhone: '+603-7890-1234',
+    registeredAddress: 'Lot 23, Jalan Teknologi 3/5, Taman Sains Selangor, 47810 Petaling Jaya',
+    website: 'www.officepro.com.my',
+    picName: 'Ahmad Razak',
+    picContact: '+6019-876-5432',
+    picEmail: 'ahmad@officepro.com.my',
+    paymentTerm: '100% upfront',
+    paymentCurrency: 'MYR',
+    paymentBank: 'CIMB Bank',
+    bankAccountNo: '8012-3456-7890',
+    bankSwiftCode: 'CIBBMYKL',
+    preferredCourier: 'Pos Laju',
+  },
+  {
+    id: 'sup-003',
+    companyName: 'Dell Technologies Malaysia',
+    companyRegNo: '3456789-V',
+    officePhone: '+603-2053-8888',
+    registeredAddress: 'Suite 28-01, The Gardens North Tower, Mid Valley City, 59200 Kuala Lumpur',
+    website: 'www.dell.com.my',
+    picName: 'David Chen',
+    picContact: '+6016-234-5678',
+    picEmail: 'david.chen@dell.com',
+    paymentTerm: 'Net 30 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'HSBC Bank',
+    bankAccountNo: '012-345678-901',
+    bankSwiftCode: 'HBMBMYKL',
+    preferredCourier: 'FedEx',
+  },
+  {
+    id: 'sup-004',
+    companyName: 'Toyota Material Handling',
+    companyRegNo: '4567890-U',
+    officePhone: '+603-5567-8901',
+    registeredAddress: 'Plot 12, Jalan Subang 1, Subang Industrial Park, 47610 Subang Jaya',
+    website: 'www.toyota-mh.com.my',
+    picName: 'Mohd Faisal',
+    picContact: '+6013-456-7890',
+    picEmail: 'faisal@toyota-mh.com.my',
+    paymentTerm: '30% deposit, 70% before delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Public Bank',
+    bankAccountNo: '3123-4567-8901',
+    bankSwiftCode: 'PBBEMYKL',
+    preferredCourier: 'Self-pickup / Company truck',
+  },
+  {
+    id: 'sup-005',
+    companyName: 'Storage Solutions MY',
+    companyRegNo: '5678901-T',
+    officePhone: '+603-6789-0123',
+    registeredAddress: 'No. 45, Jalan Industri 2/3, Kawasan Perindustrian Batu Caves, 68100 Batu Caves',
+    website: 'www.storagesolutions.my',
+    picName: 'Lisa Wong',
+    picContact: '+6017-567-8901',
+    picEmail: 'lisa@storagesolutions.my',
+    paymentTerm: '50% upfront, 50% on delivery',
+    paymentCurrency: 'MYR',
+    paymentBank: 'RHB Bank',
+    bankAccountNo: '1234-5678-9012',
+    bankSwiftCode: 'RHBBMYKL',
+    preferredCourier: 'J&T Express',
+  },
+  {
+    id: 'sup-006',
+    companyName: 'Epson Malaysia',
+    companyRegNo: '6789012-S',
+    officePhone: '+603-8901-2345',
+    registeredAddress: 'Unit 12-03, Sunway Pyramid Tower, Jalan PJS 11/15, 47500 Petaling Jaya',
+    website: 'www.epson.com.my',
+    picName: 'Rajesh Kumar',
+    picContact: '+6018-678-9012',
+    picEmail: 'rajesh@epson.com.my',
+    paymentTerm: 'Net 14 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'AmBank',
+    bankAccountNo: '888-1234567-890',
+    bankSwiftCode: 'ARBKMYKL',
+    preferredCourier: 'Ninja Van',
+  },
+  {
+    id: 'sup-007',
+    companyName: 'Apple Authorized Reseller',
+    companyRegNo: '7890123-R',
+    officePhone: '+603-9012-3456',
+    registeredAddress: 'G-02, Pavilion KL, 168 Jalan Bukit Bintang, 55100 Kuala Lumpur',
+    website: 'www.applestore.com.my',
+    picName: 'Priya Nair',
+    picContact: '+6011-789-0123',
+    picEmail: 'priya@applestore.com.my',
+    paymentTerm: '100% upfront',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Standard Chartered',
+    bankAccountNo: '012-3456789-012',
+    bankSwiftCode: 'SCBLMYKL',
+    preferredCourier: 'SF Express',
+  },
+  {
+    id: 'sup-008',
+    companyName: 'CompAsia',
+    companyRegNo: '8901234-Q',
+    officePhone: '+603-0123-4567',
+    registeredAddress: 'Level 8, Wisma Genting, Jalan Sultan Ismail, 50250 Kuala Lumpur',
+    website: 'www.compasia.com',
+    picName: 'Tan Wei Ming',
+    picContact: '+6014-890-1234',
+    picEmail: 'weiming@compasia.com',
+    paymentTerm: 'Net 7 days',
+    paymentCurrency: 'MYR',
+    paymentBank: 'Hong Leong Bank',
+    bankAccountNo: '123-4567890-123',
+    bankSwiftCode: 'HLBBMYKL',
+    preferredCourier: 'DHL eCommerce',
+  },
+];

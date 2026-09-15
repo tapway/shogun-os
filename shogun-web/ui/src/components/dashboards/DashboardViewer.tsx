@@ -4,22 +4,28 @@ import { departmentsApi } from '../../lib/api';
 import type { DashboardConfig } from '../../lib/types';
 import { CrmDashboard } from './crm/CrmDashboard';
 import { FinanceDashboard } from './finance/FinanceDashboard';
-import { PlantationDashboard } from './plantation/PlantationDashboard';
+import { FacilityDashboard } from './plantation/FacilityDashboard';
 import { ProcurementDashboard } from './procurement/ProcurementDashboard';
 import { HrDashboard } from './hr/HrDashboard';
 import { MarketingDashboard } from './marketing/MarketingDashboard';
 import { ProjectsDashboard } from './projects/ProjectsDashboard';
 import { CsDashboard } from './cs/CsDashboard';
+import { EaDashboard } from './ea/EaDashboard';
+import { EcommerceDashboard } from './ecommerce/EcommerceDashboard';
+import { CodingDashboard } from './coding/CodingDashboard';
 
 const DASHBOARD_COMPONENTS: Record<string, React.ComponentType<{ department: string; color: string }>> = {
   crm: CrmDashboard,
   finance: FinanceDashboard,
   procurement: ProcurementDashboard,
   hr: HrDashboard,
-  'facility': PlantationDashboard,
+  'facility': FacilityDashboard,
   marketing: MarketingDashboard,
   projects: ProjectsDashboard,
   'customer-support': CsDashboard,
+  executive: EaDashboard,
+  'e-commerce': EcommerceDashboard,
+  coding: CodingDashboard,
 };
 
 interface DashboardViewerProps {

@@ -27,7 +27,9 @@ export type DepartmentKey =
   | 'supply-chain'
   | 'visual-merchandising'
   // Plantation industry
-  | 'facility';
+  | 'facility'
+  // Executive
+  | 'executive';
 
 export type IndustryKey = 'general' | 'manufacturing' | 'retail' | 'plantation';
 
@@ -549,6 +551,15 @@ export const DEPARTMENT_CATALOG: Record<
     color: '#16a34a',
     icon: 'Trees',
     profile_name: 'facility-manager',
+  },
+  executive: {
+    key: 'executive',
+    name: 'Executive',
+    persona: 'Shitsuji',
+    description: 'Governance, approvals, calendar ops, and executive coordination.',
+    color: '#78716c',
+    icon: 'Briefcase',
+    profile_name: 'executive-manager',
   },
 };
 
@@ -2373,3 +2384,109 @@ export interface CsDashboardData {
   weeklyDigest: CsWeeklyDigest;
   actionTemplates: Record<string, CsActionTemplate>;
 }
+
+// ─── Facility Management Types ───
+
+export interface FacilityLocation {
+  id: number;
+  tenant_id: number;
+  name: string;
+  location_type: 'factory_floor' | 'hostel' | 'canteen' | 'toilet' | 'warehouse' | 'workshop' | 'parking' | 'construction' | 'office' | 'clinic' | string;
+  site_name?: string | null;
+  area_sqm?: number | null;
+  responsible_person?: string | null;
+  inspection_frequency: 'daily' | 'weekly' | 'biweekly' | 'monthly' | 'quarterly' | string;
+  last_inspection_date?: string | null;
+  last_overall_score?: number | null;
+  last_overall_rating?: string | null;
+  status: 'active' | 'inactive' | 'archived';
+  notes?: string | null;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FacilityInspection {
+  id: number;
+  tenant_id: number;
+  location_id: number;
+  inspected_by: string;
+  inspection_date: string;
+  photos: FacilityInspectionPhoto[];
+  location_type_snapshot?: string | null;
+  scores?: Record<string, { score: number; rating: string }> | null;
+  overall_score: number | null;
+  overall_rating?: string | null;
+  checklist_results?: Array<{ item: string; pass: boolean; evidence?: string; critical?: boolean; category?: string }> | null;
+  action_items?: Array<{ priority: string; category: string; description: string; photo_ref?: number; status?: string }> | null;
+  ai_raw_response?: string | null;
+  created_at?: string;
+}
+
+export interface FacilityInspectionPhoto {
+  path?: string;
+  url: string;
+  filename: string;
+  room?: string;
+}
+
+export interface FacilityPhotoFinding {
+  checklist_item: string;
+  passed: boolean;
+  evidence?: string | null;
+  score?: number | null;
+  override?: boolean;
+  notes?: string | null;
+}
+
+export interface FacilityActionItem {
+  id: number;
+  tenant_id: number;
+  inspection_id?: number | null;
+  location_id: number;
+  priority: 'urgent' | 'high' | 'medium' | 'low';
+  category: string;
+  description: string;
+  photo_ref?: number | null;
+  status: 'open' | 'in_progress' | 'resolved' | 'dismissed';
+  assigned_to?: string | null;
+  resolved_at?: string | null;
+  resolved_by?: string | null;
+  created_at?: string;
+}
+
+export interface FacilityTemplate {
+  id: number;
+  tenant_id: number;
+  location_type: string;
+  display_name: string;
+  scoring_weights: Record<string, number>;
+  checklist: Array<{ category: string; item: string; critical?: boolean; applies_when?: string }>;
+  expected_assets: string[];
+  min_photos: number;
+  photo_guidance?: string;
+  is_system_default?: boolean;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface FacilityChecklistItem {
+  label: string;
+  weight: number;
+  category?: string;
+  required_photo?: boolean;
+}
+
+export interface FacilityStats {
+  total_locations: number;
+  avg_score: number;
+  open_actions: number;
+  overdue_inspections: number;
+  critical_alerts: number;
+  compliance_trend: Array<{ month: string; score: number }>;
+  score_by_type: Array<{ type: string; score: number; count: number }>;
+  top_violations: Array<{ item: string; count: number; locations: string[] }>;
+  recent_inspections: FacilityInspection[];
+  locations: FacilityLocation[];
+  templates: FacilityTemplate[];
+}
+
