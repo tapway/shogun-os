@@ -170,7 +170,7 @@ export function CsFeedbackTab({ data, color, onExecuteAction }: Props) {
       {view === 'trends' && (
         <div className="sd-stack" style={{ gap: 12 }}>
           <div style={{ background: CARD, border: `1px solid ${BORDER}`, borderRadius: 10, padding: 14 }}>
-            <h3 style={{ margin: '0 0 12px', fontSize: '0.9rem', color: TEXT }}>Issue Volume by Category (Last 10 Days)</h3>
+            <h3 style={{ margin: '0 0 12px', fontSize: '0.9rem', color: TEXT }}>Issue Volume by Category (Last 30 Days)</h3>
             <StackedBarChart trends={feedbackTrends} color={color} />
           </div>
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
@@ -380,7 +380,7 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
   const padT = 8;
   const padR = 8;
   const svgW = 400;
-  const svgH = 100;
+  const svgH = 80;
   const chartW = svgW - padL - padR;
   const chartH = svgH - padT - padB;
   const barW = chartW / trends.dates.length;
@@ -422,8 +422,10 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
                   </rect>
                 ) : null;
               })}
-              {/* X-axis label */}
-              <text x={padL + i * barW + barW / 2} y={padT + chartH + 15} textAnchor="middle" fontSize="8" fill={MUTED}>{date}</text>
+              {/* X-axis label - show every 5th day */}
+              {i % 5 === 0 && (
+                <text x={padL + i * barW + barW / 2} y={padT + chartH + 15} textAnchor="middle" fontSize="7" fill={MUTED}>{date}</text>
+              )}
             </g>
           );
         })}

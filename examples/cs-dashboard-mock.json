@@ -208,12 +208,12 @@
     "issueTypes": ["sizing", "quality-defect", "wrong-item", "shipping-damage", "description-mismatch", "packaging"]
   },
   "feedbackTrends": {
-    "dates": ["Sep 2", "Sep 3", "Sep 4", "Sep 5", "Sep 6", "Sep 7", "Sep 8", "Sep 9", "Sep 10", "Sep 11"],
-    "sizing": [0, 1, 0, 0, 1, 0, 1, 0, 0, 1],
-    "qualityDefect": [1, 0, 0, 1, 0, 0, 1, 1, 1, 0],
-    "wrongItem": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
-    "shippingDamage": [0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
-    "descriptionMismatch": [0, 0, 0, 0, 0, 1, 0, 0, 1, 1]
+    "dates": ["Aug 13", "Aug 14", "Aug 15", "Aug 16", "Aug 17", "Aug 18", "Aug 19", "Aug 20", "Aug 21", "Aug 22", "Aug 23", "Aug 24", "Aug 25", "Aug 26", "Aug 27", "Aug 28", "Aug 29", "Aug 30", "Aug 31", "Sep 1", "Sep 2", "Sep 3", "Sep 4", "Sep 5", "Sep 6", "Sep 7", "Sep 8", "Sep 9", "Sep 10", "Sep 11"],
+    "sizing": [0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1],
+    "qualityDefect": [1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0, 1, 0, 0, 1, 0, 0, 1, 1, 1, 0],
+    "wrongItem": [0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0],
+    "shippingDamage": [0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1],
+    "descriptionMismatch": [0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 0, 1, 0, 0, 1, 1]
   },
   "weeklyDigest": {
     "period": "Sep 5 – Sep 12, 2026",
