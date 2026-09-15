@@ -1,6 +1,6 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
-import { X } from 'lucide-react';
+import { X, ArrowLeft, Pencil, CheckCircle2, AlertTriangle, User } from 'lucide-react';
 import { departmentsApi } from '../../../lib/api';
 
 interface Props {
@@ -15,6 +15,8 @@ const TEXT = 'var(--samurai-text)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 const BORDER = 'var(--samurai-border)';
 const DANGER = 'var(--samurai-danger)';
+const SUCCESS = 'var(--samurai-success, #22c55e)';
+const CARD_BG = 'var(--samurai-card)';
 
 function fmtDate(iso?: string | null): string {
   if (!iso) return '—';
@@ -25,34 +27,31 @@ function fmtDate(iso?: string | null): string {
 
 function fmtRm(value?: number | null): string {
   if (value == null) return '—';
-  if (value >= 1_000_000) return `RM ${(value / 1_000_000).toFixed(1)}M`;
-  if (value >= 1_000) return `RM ${(value / 1_000).toFixed(0)}K`;
-  return `RM ${value.toFixed(0)}`;
+  return `RM ${value.toLocaleString('en-MY', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 
-function statusChipClass(status?: string): string {
-  const s = (status || '').toLowerCase();
-  if (s.includes('done') || s.includes('complete') || s.includes('pass')) return 'ok';
-  if (s.includes('progress')) return 'warn';
-  if (s.includes('cancel') || s.includes('fail')) return 'bad';
-  return 'muted';
-}
+type TabId = 'overview' | 'diagrams' | 'timeline' | 'tasks' | 'budget' | 'team' | 'reports' | 'gates' | 'uat';
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return (
-    <div style={{ fontSize: '0.68rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.1em', color: MUTED, margin: '1rem 0 0.5rem' }}>
-      {children}
-    </div>
-  );
-}
+const TABS: { id: TabId; label: string }[] = [
+  { id: 'overview', label: 'Overview' },
+  { id: 'diagrams', label: 'Diagrams' },
+  { id: 'timeline', label: 'Timeline' },
+  { id: 'tasks', label: 'Tasks' },
+  { id: 'budget', label: 'Budget' },
+  { id: 'team', label: 'Team' },
+  { id: 'reports', label: 'Reports' },
+  { id: 'gates', label: 'Gates' },
+  { id: 'uat', label: 'UAT' },
+];
 
 export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
+  const [activeTab, setActiveTab] = useState<TabId>('overview');
+
   const query = useQuery({
     queryKey: ['project-detail', dept, projectId],
     queryFn: () => departmentsApi.projectDetail(dept, projectId),
   });
 
-  // Close on Escape
   useEffect(() => {
     const handler = (e: KeyboardEvent) => { if (e.key === 'Escape') onClose(); };
     window.addEventListener('keydown', handler);
@@ -61,16 +60,38 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
 
   const project = query.data;
 
-  const metaRows: [string, string][] = project ? [
-    ['Client', project.client || '—'],
-    ['PM', project.pm || '—'],
-    ['Product', project.product || '—'],
-    ['Value', fmtRm(project.valueRm)],
-    ['Gate', project.gate != null ? `G${project.gate}${project.gateStatus ? ` — ${project.gateStatus}` : ''}` : '—'],
-    ['Start', fmtDate(project.startDate)],
-    ['Target End', fmtDate(project.targetEnd)],
-    ['Actual End', fmtDate(project.actualEnd)],
-  ] : [];
+  // Parse scope into in/out arrays
+  const parseScope = (scope?: string) => {
+    if (!scope) return { inScope: [] as string[], outScope: [] as string[] };
+    const lines = scope.split('\n').map(l => l.trim()).filter(Boolean);
+    const inScope: string[] = [];
+    const outScope: string[] = [];
+    let currentSection: 'in' | 'out' | null = null;
+    for (const line of lines) {
+      const lower = line.toLowerCase();
+      if (lower.includes('in scope') || lower.includes('included')) { currentSection = 'in'; continue; }
+      if (lower.includes('out of scope') || lower.includes('excluded')) { currentSection = 'out'; continue; }
+      const cleaned = line.replace(/^[-•*]\s*/, '');
+      if (currentSection === 'out') outScope.push(cleaned);
+      else inScope.push(cleaned);
+    }
+    return { inScope, outScope };
+  };
+
+  const healthColor = (h?: string) => {
+    const s = (h || '').toLowerCase();
+    if (s.includes('block')) return DANGER;
+    if (s.includes('risk') || s.includes('warn')) return '#f59e0b';
+    if (s.includes('good') || s.includes('ok') || s.includes('green')) return SUCCESS;
+    return TEXT;
+  };
+
+  // Compute progress from tasks
+  const progressPct = useMemo(() => {
+    if (!project || project.tasks.length === 0) return 0;
+    const done = project.tasks.filter(t => (t.status || '').toLowerCase().includes('done') || (t.status || '').toLowerCase().includes('complete')).length;
+    return Math.round((done / project.tasks.length) * 100);
+  }, [project]);
 
   return (
     <>
@@ -82,160 +103,351 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
         onClick={onClose}
         aria-label="Close"
       />
-      {/* Modal */}
-      <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12" onClick={onClose}>
-        <div
-          className="sd-card relative z-50 w-full"
-          style={{ maxWidth: '46rem', maxHeight: '85vh', overflowY: 'auto' }}
-          onClick={(e) => e.stopPropagation()}
-        >
-          {/* Header */}
-          <div className="flex items-start justify-between px-5 py-4" style={{ borderBottom: `1px solid ${BORDER}` }}>
-            <div>
-              <div style={{ fontSize: '0.7rem', color: MUTED, fontFamily: 'var(--font-mono, monospace)' }}>{projectId}</div>
-              <h2 style={{ fontFamily: 'var(--font-display)', fontSize: '1.05rem', fontWeight: 600, color: TEXT, margin: 0 }}>
-                {project?.name ?? (query.isLoading ? 'Loading…' : 'Project not found')}
-              </h2>
-              {project?.status && (
-                <span className={`sd-chip ${statusChipClass(project.status)}`} style={{ marginTop: '0.4rem', display: 'inline-block' }}>
-                  {project.status}
-                </span>
-              )}
-            </div>
-            <button
-              type="button"
-              onClick={onClose}
-              className="sd-btn sd-btn-ghost"
-              style={{ padding: '0.3rem 0.5rem' }}
-              aria-label="Close"
-            >
-              <X className="h-5 w-5" />
-            </button>
-          </div>
 
+      {/* Full-page detail view */}
+      <div className="fixed inset-0 z-50 flex flex-col" style={{ background: 'var(--samurai-bg, #f5f5f5)' }}>
+        {/* Top bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 24px', background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+          <button
+            type="button"
+            onClick={onClose}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.8rem' }}
+          >
+            <ArrowLeft className="h-4 w-4" /> Back to Projects
+          </button>
+          <button type="button" onClick={onClose} className="sd-btn sd-btn-ghost" style={{ padding: '0.3rem 0.5rem' }} aria-label="Close">
+            <X className="h-5 w-5" />
+          </button>
+        </div>
+
+        {/* Scrollable content */}
+        <div style={{ flex: 1, overflowY: 'auto', padding: '24px' }}>
           {query.isLoading && (
-            <div className="sd-empty" style={{ padding: '32px 0' }}>
+            <div style={{ display: 'flex', justifyContent: 'center', padding: '60px 0' }}>
               <div className="h-6 w-6 animate-spin rounded-full" style={{ border: `2px solid ${color}`, borderTopColor: 'transparent' }} />
             </div>
           )}
 
           {query.isError && (
-            <div className="px-5 py-6" style={{ color: MUTED, fontSize: '0.85rem' }}>
-              Failed to load project details.
-            </div>
+            <div style={{ textAlign: 'center', padding: '60px 0', color: MUTED }}>Failed to load project details.</div>
           )}
 
           {project && (
-            <div className="px-5 pb-5">
-              {/* Meta grid */}
-              <div className="grid grid-cols-2 gap-x-6 gap-y-2 pt-4 md:grid-cols-4">
-                {metaRows.map(([label, value]) => (
-                  <div key={label}>
-                    <div style={{ fontSize: '0.66rem', fontWeight: 500, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>{label}</div>
-                    <div style={{ fontSize: '0.82rem', color: TEXT, marginTop: '0.15rem' }}>{value}</div>
+            <div style={{ maxWidth: '72rem', margin: '0 auto' }}>
+              {/* ── Project Header ── */}
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+                  <div>
+                    <h1 style={{ fontFamily: 'var(--font-display)', fontSize: '1.5rem', fontWeight: 700, color: TEXT, margin: 0 }}>
+                      {project.name}
+                    </h1>
+                    <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 4, fontFamily: 'var(--font-mono, monospace)' }}>{projectId}</div>
                   </div>
-                ))}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    {project.status && (
+                      <span style={{
+                        padding: '4px 14px', borderRadius: 999, fontSize: '0.75rem', fontWeight: 600,
+                        background: project.status.toLowerCase().includes('active') ? '#2563eb' : SURFACE_2,
+                        color: project.status.toLowerCase().includes('active') ? '#fff' : TEXT,
+                      }}>
+                        {project.status}
+                      </span>
+                    )}
+                    {(project.pm || project.fde) && (
+                      <span style={{
+                        display: 'inline-flex', alignItems: 'center', gap: 6,
+                        padding: '4px 12px', borderRadius: 8, fontSize: '0.78rem',
+                        border: `1px solid ${BORDER}`, color: TEXT,
+                      }}>
+                        <User className="h-3.5 w-3.5" />
+                        PM: {project.pm || '—'} · FDE: {project.fde || '—'}
+                        <Pencil className="h-3 w-3" style={{ color: MUTED, cursor: 'pointer' }} />
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {/* Charter Approved banner */}
+                {project.charterStatus && project.charterStatus.toLowerCase().includes('approved') && (
+                  <div style={{
+                    marginTop: 12, padding: '10px 16px', borderRadius: 8,
+                    background: '#22c55e15', display: 'flex', alignItems: 'center', gap: 10,
+                  }}>
+                    <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: SUCCESS }} />
+                    <div>
+                      <span style={{ fontWeight: 700, color: SUCCESS }}>Charter Approved</span>
+                      <span style={{ fontSize: '0.8rem', color: MUTED, marginLeft: 8 }}>
+                        Signed off by "{project.pm || 'PM'}" on {fmtDate(project.sourceLastUpdated)} — project is unlocked for the team.
+                      </span>
+                    </div>
+                  </div>
+                )}
               </div>
 
-              {/* Goals */}
-              {project.goals.length > 0 && (
-                <>
-                  <SectionTitle>Goals ({project.goals.length})</SectionTitle>
-                  <div className="sd-stack" style={{ gap: '0.5rem' }}>
-                    {project.goals.map((g) => (
-                      <div key={g.id} className="rounded-lg p-3" style={{ background: SURFACE_2 }}>
-                        <div className="flex items-start justify-between gap-2">
-                          <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{g.description || '—'}</div>
-                          {g.status && <span className={`sd-chip ${statusChipClass(g.status)}`} style={{ flexShrink: 0 }}>{g.status.split('—')[0].trim()}</span>}
-                        </div>
-                        {(g.kpi || g.deadline) && (
-                          <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.35rem' }}>
-                            {g.kpi && <span>KPI: {g.kpi}</span>}
-                            {g.kpi && g.deadline && <span> · </span>}
-                            {g.deadline && <span>Due {fmtDate(g.deadline)}</span>}
-                          </div>
-                        )}
-                      </div>
-                    ))}
+              {/* ── KPI Cards ── */}
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(160px, 1fr))', gap: 12, marginBottom: 20 }}>
+                {/* Health */}
+                <div className="sd-chart-card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Health</div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: healthColor(project.overallHealth) }} />
+                    <span style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT }}>{project.overallHealth || '—'}</span>
                   </div>
-                </>
-              )}
+                </div>
 
-              {/* Tasks */}
-              <SectionTitle>Tasks ({project.tasks.length})</SectionTitle>
-              {project.tasks.length === 0 ? (
-                <div style={{ fontSize: '0.8rem', color: MUTED }}>No tasks recorded.</div>
-              ) : (
-                <div className="sd-stack" style={{ gap: '0.4rem', maxHeight: '260px', overflowY: 'auto' }}>
-                  {project.tasks.map((t) => (
-                    <div key={t.id} className="flex items-center justify-between gap-2 rounded-lg px-3 py-2" style={{ background: SURFACE_2 }}>
-                      <div style={{ minWidth: 0 }}>
-                        <div className="truncate" style={{ fontSize: '0.8rem', color: TEXT }} title={t.title}>{t.title || t.id}</div>
-                        <div style={{ fontSize: '0.68rem', color: MUTED }}>
-                          {t.owner || 'Unassigned'}{t.deadline ? ` · due ${fmtDate(t.deadline)}` : ''}
-                          {t.isOverdue && <span style={{ color: DANGER, fontWeight: 600 }}> · overdue</span>}
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-1.5" style={{ flexShrink: 0 }}>
-                        {t.priority && <span className={`sd-chip ${t.priority.toLowerCase().includes('critical') || t.priority.toLowerCase().includes('high') ? 'bad' : 'muted'}`}>{t.priority}</span>}
-                        <span className={`sd-chip ${statusChipClass(t.status)}`}>{t.status || '—'}</span>
-                      </div>
-                    </div>
+                {/* Progress */}
+                <div className="sd-chart-card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Progress</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{progressPct}%</div>
+                  <div style={{ height: 6, borderRadius: 3, background: BORDER, marginTop: 6, overflow: 'hidden' }}>
+                    <div style={{ height: '100%', width: `${progressPct}%`, borderRadius: 3, background: '#f59e0b', transition: 'width 0.3s' }} />
+                  </div>
+                </div>
+
+                {/* Budget */}
+                <div className="sd-chart-card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Budget</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{project.budgetStatus || '—'}</div>
+                  {project.valueRm != null && <div style={{ fontSize: '0.78rem', color: MUTED, marginTop: 2 }}>{fmtRm(project.valueRm)}</div>}
+                </div>
+
+                {/* Target End */}
+                <div className="sd-chart-card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Target End</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{fmtDate(project.targetEnd)}</div>
+                </div>
+
+                {/* Risks */}
+                <div className="sd-chart-card" style={{ padding: '14px 16px' }}>
+                  <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Risks</div>
+                  <div style={{ fontSize: '1.1rem', fontWeight: 700, color: project.risks.length > 0 ? DANGER : TEXT, marginTop: 4 }}>
+                    {project.risks.length} open
+                  </div>
+                </div>
+              </div>
+
+              {/* ── Tabbed Panel ── */}
+              <div className="sd-chart-card" style={{ padding: 0 }}>
+                {/* Tab bar */}
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 0, borderBottom: `1px solid ${BORDER}`, padding: '0 20px' }}>
+                  {TABS.map((tab) => (
+                    <button
+                      key={tab.id}
+                      type="button"
+                      onClick={() => setActiveTab(tab.id)}
+                      style={{
+                        padding: '12px 16px', fontSize: '0.82rem', fontWeight: activeTab === tab.id ? 600 : 400, cursor: 'pointer',
+                        background: 'none', border: 'none',
+                        color: activeTab === tab.id ? '#2563eb' : MUTED,
+                        borderBottom: activeTab === tab.id ? '2px solid #2563eb' : '2px solid transparent',
+                        transition: 'all 0.15s',
+                      }}
+                    >
+                      {tab.label}
+                    </button>
                   ))}
                 </div>
-              )}
 
-              {/* Risks */}
-              {project.risks.length > 0 && (
-                <>
-                  <SectionTitle>Risks ({project.risks.length})</SectionTitle>
-                  <div className="sd-stack" style={{ gap: '0.5rem' }}>
-                    {project.risks.map((r) => (
-                      <div key={r.id} className="rounded-lg p-3" style={{ background: SURFACE_2 }}>
-                        <div style={{ fontSize: '0.82rem', color: TEXT }}>{r.description || '—'}</div>
-                        <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.25rem' }}>
-                          {r.impact && <span>Impact: {r.impact}</span>}
-                          {r.mitigation && <span> · Mitigation: {r.mitigation}</span>}
+                {/* Tab content */}
+                <div style={{ padding: 20 }}>
+                  {activeTab === 'overview' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                      {/* SMART Goals */}
+                      {project.goals.length > 0 && (
+                        <div>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>SMART Goals</h3>
+                          <div style={{ border: `1px solid ${BORDER}`, borderRadius: 8, overflow: 'hidden' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                              <thead>
+                                <tr style={{ background: SURFACE_2 }}>
+                                  {['ID', 'Goal', 'KPI', 'Measure', 'Deadline', 'Status'].map((h) => (
+                                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: MUTED, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {project.goals.map((g, i) => (
+                                  <tr key={g.id} style={{ borderTop: i > 0 ? `1px solid ${BORDER}` : undefined }}>
+                                    <td style={{ padding: '10px 12px', color: '#2563eb', fontWeight: 600, whiteSpace: 'nowrap' }}>{g.goalRef || g.id}</td>
+                                    <td style={{ padding: '10px 12px', color: TEXT }}>{g.description || '—'}</td>
+                                    <td style={{ padding: '10px 12px', color: MUTED }}>{g.kpi || '—'}</td>
+                                    <td style={{ padding: '10px 12px', color: MUTED }}>{g.measure || '—'}</td>
+                                    <td style={{ padding: '10px 12px', color: TEXT, whiteSpace: 'nowrap' }}>{fmtDate(g.deadline)}</td>
+                                    <td style={{ padding: '10px 12px' }}>
+                                      <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#a78bfa' }} title={g.status || ''} />
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Project Scope */}
+                      {project.scope && (() => {
+                        const { inScope, outScope } = parseScope(project.scope);
+                        if (inScope.length === 0 && outScope.length === 0) return null;
+                        return (
+                          <div>
+                            <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Project Scope</h3>
+                            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+                              <div style={{ border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16 }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: SUCCESS, marginBottom: 8 }}>In Scope</div>
+                                {inScope.map((item, i) => (
+                                  <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.8rem', color: TEXT, marginBottom: 6 }}>
+                                    <span style={{ color: SUCCESS, flexShrink: 0 }}>•</span> {item}
+                                  </div>
+                                ))}
+                                {inScope.length === 0 && <div style={{ fontSize: '0.8rem', color: MUTED }}>None specified</div>}
+                              </div>
+                              <div style={{ border: `1px solid ${BORDER}`, borderRadius: 8, padding: 16 }}>
+                                <div style={{ fontSize: '0.72rem', fontWeight: 700, textTransform: 'uppercase', color: DANGER, marginBottom: 8 }}>Out of Scope</div>
+                                {outScope.map((item, i) => (
+                                  <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.8rem', color: TEXT, marginBottom: 6 }}>
+                                    <span style={{ color: DANGER, flexShrink: 0 }}>•</span> {item}
+                                  </div>
+                                ))}
+                                {outScope.length === 0 && <div style={{ fontSize: '0.8rem', color: MUTED }}>None specified</div>}
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })()}
+
+                      {/* Definition of Done */}
+                      {project.dodItems.length > 0 && (
+                        <div>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Definition of Done</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {project.dodItems.map((d) => (
+                              <div key={d.id} style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '10px 14px', borderRadius: 8, background: SURFACE_2 }}>
+                                <div style={{
+                                  width: 18, height: 18, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                                  border: `2px solid ${d.passed ? SUCCESS : BORDER}`,
+                                  background: d.passed ? SUCCESS : 'transparent',
+                                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                }}>
+                                  {d.passed && <CheckCircle2 className="h-3 w-3" style={{ color: '#fff' }} />}
+                                </div>
+                                <div>
+                                  <div style={{ fontSize: '0.82rem', color: TEXT }}>{d.criteria || '—'}</div>
+                                  {d.acceptance && <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: 2 }}>Acceptance: {d.acceptance}</div>}
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Notes / Decisions */}
+                      {(project.decisions?.length ?? 0) > 0 && (
+                        <div>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Notes</h3>
+                          <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                            {project.decisions!.map((dec, i) => (
+                              <div key={i} style={{ display: 'flex', gap: 8, fontSize: '0.8rem', color: TEXT }}>
+                                <span style={{ color: MUTED, flexShrink: 0 }}>•</span>
+                                <span>
+                                  {dec.date && <span style={{ color: MUTED }}>{fmtDate(dec.date)} — </span>}
+                                  {dec.decision || dec.rationale || '—'}
+                                  {dec.madeBy && <span style={{ color: MUTED }}> ({dec.madeBy})</span>}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'tasks' && (
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Tasks ({project.tasks.length})</h3>
+                      {project.tasks.length === 0 ? (
+                        <div style={{ fontSize: '0.82rem', color: MUTED }}>No tasks recorded.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {project.tasks.map((t) => (
+                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: SURFACE_2 }}>
+                              <div style={{ minWidth: 0 }}>
+                                <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{t.title || t.id}</div>
+                                <div style={{ fontSize: '0.72rem', color: MUTED }}>
+                                  {t.owner || 'Unassigned'}{t.deadline ? ` · due ${fmtDate(t.deadline)}` : ''}
+                                  {t.isOverdue && <span style={{ color: DANGER, fontWeight: 600 }}> · overdue</span>}
+                                </div>
+                              </div>
+                              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
+                                {t.priority && <span className={`sd-chip ${t.priority.toLowerCase().includes('critical') || t.priority.toLowerCase().includes('high') ? 'bad' : 'muted'}`}>{t.priority}</span>}
+                                <span className={`sd-chip ${t.status?.toLowerCase().includes('done') || t.status?.toLowerCase().includes('complete') ? 'ok' : t.status?.toLowerCase().includes('progress') ? 'warn' : 'muted'}`}>{t.status || '—'}</span>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'team' && (
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Team ({project.teamMembers.length})</h3>
+                      {project.teamMembers.length === 0 ? (
+                        <div style={{ fontSize: '0.82rem', color: MUTED }}>No team members assigned.</div>
+                      ) : (
+                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+                          {project.teamMembers.map((m) => (
+                            <span key={m.id} className="sd-chip muted">{m.name || 'Unknown'}{m.role ? ` — ${m.role}` : ''}</span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  )}
+
+                  {activeTab === 'budget' && (
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Budget</h3>
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                        <div className="sd-chart-card" style={{ padding: 16 }}>
+                          <div style={{ fontSize: '0.72rem', color: MUTED, textTransform: 'uppercase' }}>Value</div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{fmtRm(project.valueRm)}</div>
+                        </div>
+                        <div className="sd-chart-card" style={{ padding: 16 }}>
+                          <div style={{ fontSize: '0.72rem', color: MUTED, textTransform: 'uppercase' }}>Status</div>
+                          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{project.budgetStatus || '—'}</div>
                         </div>
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
+                    </div>
+                  )}
 
-              {/* Team */}
-              {project.teamMembers.length > 0 && (
-                <>
-                  <SectionTitle>Team ({project.teamMembers.length})</SectionTitle>
-                  <div className="flex flex-wrap gap-2">
-                    {project.teamMembers.map((m) => (
-                      <span key={m.id} className="sd-chip muted">
-                        {m.name || 'Unknown'}{m.role ? ` — ${m.role}` : ''}
-                      </span>
-                    ))}
-                  </div>
-                </>
-              )}
-
-              {/* Definition of Done */}
-              {project.dodItems.length > 0 && (
-                <>
-                  <SectionTitle>Definition of Done ({project.dodItems.filter((d) => d.passed).length}/{project.dodItems.length} passed)</SectionTitle>
-                  <div className="sd-stack" style={{ gap: '0.4rem' }}>
-                    {project.dodItems.map((d) => (
-                      <div key={d.id} className="flex items-start gap-2 rounded-lg px-3 py-2" style={{ background: SURFACE_2 }}>
-                        <span style={{ color: d.passed ? 'var(--samurai-success, #22c55e)' : MUTED, fontSize: '0.85rem', lineHeight: 1.4 }}>
-                          {d.passed ? '✓' : '○'}
-                        </span>
-                        <div style={{ minWidth: 0 }}>
-                          <div style={{ fontSize: '0.8rem', color: TEXT }}>{d.criteria || '—'}</div>
-                          {d.acceptance && <div style={{ fontSize: '0.7rem', color: MUTED }}>{d.acceptance}</div>}
-                        </div>
+                  {activeTab === 'gates' && (
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Gate Status</h3>
+                      <div style={{ fontSize: '0.82rem', color: TEXT }}>
+                        Gate: {project.gate != null ? `G${project.gate}` : '—'}{project.gateStatus ? ` — ${project.gateStatus}` : ''}
                       </div>
-                    ))}
-                  </div>
-                </>
-              )}
+                    </div>
+                  )}
+
+                  {activeTab === 'reports' && (
+                    <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>Reports coming soon</div>
+                  )}
+
+                  {activeTab === 'diagrams' && (
+                    <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>Diagrams coming soon</div>
+                  )}
+
+                  {activeTab === 'timeline' && (
+                    <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>Timeline coming soon</div>
+                  )}
+
+                  {activeTab === 'uat' && (
+                    <div>
+                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>UAT</h3>
+                      <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>UAT test cases coming soon</div>
+                    </div>
+                  )}
+                </div>
+              </div>
             </div>
           )}
         </div>
