@@ -363,26 +363,81 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
 
                   {activeTab === 'tasks' && (
                     <div>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Tasks ({project.tasks.length})</h3>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                        <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, margin: 0 }}>Tasks ({project.tasks.length})</h3>
+                        <button type="button" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.78rem' }}>
+                          <Pencil className="h-3.5 w-3.5" /> Edit
+                        </button>
+                      </div>
                       {project.tasks.length === 0 ? (
                         <div style={{ fontSize: '0.82rem', color: MUTED }}>No tasks recorded.</div>
                       ) : (
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                          {project.tasks.map((t) => (
-                            <div key={t.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 14px', borderRadius: 8, background: SURFACE_2 }}>
-                              <div style={{ minWidth: 0 }}>
-                                <div style={{ fontSize: '0.82rem', color: TEXT, fontWeight: 500 }}>{t.title || t.id}</div>
-                                <div style={{ fontSize: '0.72rem', color: MUTED }}>
-                                  {t.owner || 'Unassigned'}{t.deadline ? ` · due ${fmtDate(t.deadline)}` : ''}
-                                  {t.isOverdue && <span style={{ color: DANGER, fontWeight: 600 }}> · overdue</span>}
-                                </div>
-                              </div>
-                              <div style={{ display: 'flex', gap: 6, flexShrink: 0 }}>
-                                {t.priority && <span className={`sd-chip ${t.priority.toLowerCase().includes('critical') || t.priority.toLowerCase().includes('high') ? 'bad' : 'muted'}`}>{t.priority}</span>}
-                                <span className={`sd-chip ${t.status?.toLowerCase().includes('done') || t.status?.toLowerCase().includes('complete') ? 'ok' : t.status?.toLowerCase().includes('progress') ? 'warn' : 'muted'}`}>{t.status || '—'}</span>
-                              </div>
-                            </div>
-                          ))}
+                        <div style={{ overflowX: 'auto' }}>
+                          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.8rem' }}>
+                            <thead>
+                              <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                {[
+                                  { label: 'ID', width: '60px' },
+                                  { label: 'Title' },
+                                  { label: 'Owner', width: '80px' },
+                                  { label: 'Start', width: '90px' },
+                                  { label: 'Deadline ▲', width: '100px' },
+                                  { label: 'Priority', width: '90px' },
+                                  { label: 'Status', width: '80px' },
+                                  { label: 'Deps', width: '50px' },
+                                  { label: '', width: '40px' },
+                                ].map((col, i) => (
+                                  <th key={i} style={{
+                                    padding: '8px 10px', textAlign: 'left', fontWeight: 600, color: MUTED,
+                                    fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em',
+                                    width: col.width, whiteSpace: 'nowrap',
+                                  }}>{col.label}</th>
+                                ))}
+                              </tr>
+                            </thead>
+                            <tbody>
+                              {project.tasks.map((t, i) => {
+                                const prioColor = (t.priority || '').toLowerCase().includes('critical') ? '#dc2626'
+                                  : (t.priority || '').toLowerCase().includes('high') ? '#f59e0b'
+                                  : (t.priority || '').toLowerCase().includes('medium') ? '#3b82f6'
+                                  : null;
+                                const statusLower = (t.status || '').toLowerCase();
+                                const statusColor = statusLower.includes('done') || statusLower.includes('complete') ? SUCCESS
+                                  : statusLower.includes('progress') ? '#f59e0b'
+                                  : MUTED;
+                                return (
+                                  <tr key={t.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                    <td style={{ padding: '10px', color: MUTED, fontSize: '0.75rem', fontFamily: 'var(--font-mono, monospace)' }}>{t.taskRef || t.id}</td>
+                                    <td style={{ padding: '10px', color: TEXT, fontWeight: 500 }}>{t.title || '—'}</td>
+                                    <td style={{ padding: '10px', color: TEXT }}>{t.owner || '—'}</td>
+                                    <td style={{ padding: '10px', color: MUTED }}>{t.start ? fmtDate(t.start) : 'TBD'}</td>
+                                    <td style={{ padding: '10px', color: MUTED }}>{t.deadline ? fmtDate(t.deadline) : 'TBD'}</td>
+                                    <td style={{ padding: '10px' }}>
+                                      {prioColor ? (
+                                        <span style={{
+                                          display: 'inline-block', padding: '2px 10px', borderRadius: 999,
+                                          fontSize: '0.68rem', fontWeight: 700, textTransform: 'uppercase',
+                                          background: prioColor, color: '#fff',
+                                        }}>{t.priority}</span>
+                                      ) : (
+                                        <span style={{ color: MUTED }}>{t.priority || '—'}</span>
+                                      )}
+                                    </td>
+                                    <td style={{ padding: '10px' }}>
+                                      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                        <div style={{ width: 8, height: 8, borderRadius: '50%', background: statusColor }} />
+                                        <span style={{ color: MUTED, fontSize: '0.78rem' }}>{t.status || '—'}</span>
+                                      </div>
+                                    </td>
+                                    <td style={{ padding: '10px', color: MUTED }}>{t.dependsOn?.length ? t.dependsOn.join(', ') : '–'}</td>
+                                    <td style={{ padding: '10px', textAlign: 'center' }}>
+                                      <Pencil className="h-3.5 w-3.5" style={{ color: MUTED, cursor: 'pointer' }} />
+                                    </td>
+                                  </tr>
+                                );
+                              })}
+                            </tbody>
+                          </table>
                         </div>
                       )}
                     </div>
