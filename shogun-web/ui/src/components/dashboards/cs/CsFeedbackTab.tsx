@@ -363,6 +363,8 @@ export function CsFeedbackTab({ data, color, onExecuteAction }: Props) {
 /* ── Chart Helper Components ── */
 
 function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing: number[]; qualityDefect: number[]; wrongItem: number[]; shippingDamage: number[]; descriptionMismatch: number[] }; color: string }) {
+  const [hoveredIndex, setHoveredIndex] = useState<number | null>(null);
+
   const categories = [
     { key: 'sizing', color: '#ef4444', label: 'Sizing' },
     { key: 'qualityDefect', color: '#f59e0b', label: 'Quality' },
@@ -392,8 +394,13 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
     return { val, y };
   });
 
+  // Get total for hovered date
+  const hoveredTotal = hoveredIndex !== null
+    ? categories.reduce((sum, cat) => sum + (trends[cat.key]?.[hoveredIndex] || 0), 0)
+    : 0;
+
   return (
-    <div style={{ width: '100%' }}>
+    <div style={{ width: '100%', position: 'relative' }}>
       <svg viewBox={`0 0 ${svgW} ${svgH}`} style={{ width: '100%', height: 'auto', display: 'block' }} preserveAspectRatio="xMidYMid meet">
         {/* Grid lines */}
         {yTicks.map((t, i) => (
@@ -407,19 +414,34 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
         {yTicks.map((t, i) => (
           <text key={i} x={padL - 5} y={t.y + 3} textAnchor="end" fontSize="6" fill={MUTED}>{t.val}</text>
         ))}
+        {/* Hover highlight column */}
+        {hoveredIndex !== null && (
+          <rect
+            x={padL + hoveredIndex * barW}
+            y={padT}
+            width={barW}
+            height={chartH}
+            fill="rgba(255,255,255,0.05)"
+            pointerEvents="none"
+          />
+        )}
         {/* Bars */}
         {trends.dates.map((date, i) => {
           let yOffset = padT + chartH;
           return (
-            <g key={i}>
+            <g key={i}
+              onMouseEnter={() => setHoveredIndex(i)}
+              onMouseLeave={() => setHoveredIndex(null)}
+              style={{ cursor: 'pointer' }}
+            >
+              {/* Invisible hit area for entire column */}
+              <rect x={padL + i * barW} y={padT} width={barW} height={chartH} fill="transparent" />
               {categories.map((cat) => {
                 const val = trends[cat.key]?.[i] || 0;
                 const barH = maxTotal > 0 ? (val / maxTotal) * chartH : 0;
                 yOffset -= barH;
                 return val > 0 ? (
-                  <rect key={cat.key} x={padL + i * barW + 2} y={yOffset} width={barW - 4} height={barH} fill={cat.color} rx="1">
-                    <title>{`${date} — ${cat.label}: ${val}`}</title>
-                  </rect>
+                  <rect key={cat.key} x={padL + i * barW + 2} y={yOffset} width={barW - 4} height={barH} fill={cat.color} rx="1" pointerEvents="none" />
                 ) : null;
               })}
               {/* X-axis label - show every 5th day */}
@@ -430,6 +452,48 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
           );
         })}
       </svg>
+
+      {/* Tooltip */}
+      {hoveredIndex !== null && (
+        <div style={{
+          position: 'absolute',
+          left: `${((padL + hoveredIndex * barW + barW / 2) / svgW) * 100}%`,
+          top: 0,
+          transform: 'translateX(-50%)',
+          background: 'rgba(10,10,10,0.95)',
+          border: `1px solid ${BORDER}`,
+          borderRadius: 8,
+          padding: '8px 12px',
+          fontSize: '0.72rem',
+          color: TEXT,
+          pointerEvents: 'none',
+          zIndex: 10,
+          minWidth: 140,
+          boxShadow: '0 4px 12px rgba(0,0,0,0.4)',
+        }}>
+          <div style={{ fontWeight: 600, marginBottom: 6, borderBottom: `1px solid ${BORDER}`, paddingBottom: 4 }}>
+            📅 {trends.dates[hoveredIndex]}
+          </div>
+          {categories.map((cat) => {
+            const val = trends[cat.key]?.[hoveredIndex] || 0;
+            if (val === 0) return null;
+            return (
+              <div key={cat.key} style={{ display: 'flex', justifyContent: 'space-between', gap: 12, marginBottom: 2 }}>
+                <span style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: 2, background: cat.color }} />
+                  {cat.label}
+                </span>
+                <span style={{ fontWeight: 600 }}>{val}</span>
+              </div>
+            );
+          })}
+          <div style={{ marginTop: 4, paddingTop: 4, borderTop: `1px solid ${BORDER}`, fontWeight: 600, display: 'flex', justifyContent: 'space-between' }}>
+            <span>Total</span>
+            <span>{hoveredTotal}</span>
+          </div>
+        </div>
+      )}
+
       <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         {categories.map((cat) => (
           <span key={cat.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: MUTED }}>
