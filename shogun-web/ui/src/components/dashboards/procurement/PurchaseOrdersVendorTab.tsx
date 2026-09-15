@@ -70,7 +70,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
   // POs come from stats or default empty
   const initialPOs: LocalPO[] = (stats.activePurchaseOrders ?? []).map(po => ({
     po_number: po.po_number,
-    parent_pr: po.vendor ?? "",
+    parent_pr: "",  // PurchaseOrderRow has no parent_pr field; wire when backend provides it
     supplier_name: po.vendor ?? "",
     total_amount: po.total_amount ?? 0,
     status: (po.approval_status === "Approved" ? "Boss Approved" :
@@ -314,7 +314,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                         <td className="px-3 py-2.5" style={{ color: MUTED }}>{po.parent_pr}</td>
                         <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>{po.supplier_name}</td>
                         <td className="px-3 py-2.5 text-right" style={{ fontWeight: 600, color: TEXT }}>
-                          RM {po.total_amount.toLocaleString()}
+                          RM {po.total_amount.toLocaleString("en-MY")}
                         </td>
                         <td className="px-3 py-2.5" style={{ fontSize: "0.72rem", color: MUTED }}>
                           {new Date(po.created_at).toLocaleDateString("en-MY")}
@@ -383,8 +383,8 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                                       <tr key={idx} style={{ borderBottom: `1px solid ${BORDER}` }}>
                                         <td className="px-3 py-1.5" style={{ fontWeight: 500, color: TEXT }}>{item.name}</td>
                                         <td className="px-3 py-1.5 text-right" style={{ color: TEXT }}>{item.quantity}</td>
-                                        <td className="px-3 py-1.5 text-right" style={{ color: MUTED }}>RM {item.unit_price.toLocaleString()}</td>
-                                        <td className="px-3 py-1.5 text-right" style={{ fontWeight: 600, color: TEXT }}>RM {item.total.toLocaleString()}</td>
+                                        <td className="px-3 py-1.5 text-right" style={{ color: MUTED }}>RM {item.unit_price.toLocaleString("en-MY")}</td>
+                                        <td className="px-3 py-1.5 text-right" style={{ fontWeight: 600, color: TEXT }}>RM {item.total.toLocaleString("en-MY")}</td>
                                       </tr>
                                     ))}
                                   </tbody>
@@ -459,7 +459,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                       <option value="">-- Select a Purchase Requisition --</option>
                       {approvedPRs.map((pr) => (
                         <option key={pr.pr_number} value={pr.pr_number}>
-                          {pr.pr_number} - {pr.project_name} (RM {pr.total_amount.toLocaleString()})
+                          {pr.pr_number} - {pr.project_name} (RM {pr.total_amount.toLocaleString("en-MY")})
                         </option>
                       ))}
                     </select>
@@ -478,7 +478,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                           <div><span style={{ color: MUTED }}>Project:</span> <span style={{ color: TEXT }}>{pr.project_name}</span></div>
                           <div><span style={{ color: MUTED }}>Requester:</span> <span style={{ color: TEXT }}>{pr.requester}</span></div>
                           <div><span style={{ color: MUTED }}>Department:</span> <span style={{ color: TEXT }}>{pr.department}</span></div>
-                          <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {pr.total_amount.toLocaleString()}</span></div>
+                          <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {pr.total_amount.toLocaleString("en-MY")}</span></div>
                         </div>
                         
                         <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.5rem" }}>Items to be ordered:</div>
@@ -491,7 +491,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                               </div>
                               <div style={{ textAlign: "right" }}>
                                 <div style={{ fontSize: "0.72rem", fontWeight: 600, color: "var(--samurai-ok)" }}>{item.selected_supplier.supplier_name}</div>
-                                <div style={{ fontSize: "0.65rem", color: MUTED }}>RM {item.selected_supplier.amount.toLocaleString()} • {item.selected_supplier.lead_time_days} days</div>
+                                <div style={{ fontSize: "0.65rem", color: MUTED }}>RM {item.selected_supplier.amount.toLocaleString("en-MY")} • {item.selected_supplier.lead_time_days} days</div>
                               </div>
                             </div>
                           </div>
@@ -522,7 +522,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                           items: pr.items.map(item => ({
                             name: item.name,
                             quantity: item.quantity,
-                            unit_price: item.selected_supplier.amount / item.quantity,
+                            unit_price: item.quantity > 0 ? item.selected_supplier.amount / item.quantity : 0,
                             total: item.selected_supplier.amount,
                           })),
                         };
@@ -545,7 +545,7 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                       <div><span style={{ color: MUTED }}>PO Number:</span> <span style={{ color: TEXT, fontWeight: 600 }}>{generatedPO.po_number}</span></div>
                       <div><span style={{ color: MUTED }}>Parent PR:</span> <span style={{ color: TEXT }}>{generatedPO.parent_pr}</span></div>
                       <div><span style={{ color: MUTED }}>Supplier:</span> <span style={{ color: TEXT }}>{generatedPO.supplier_name}</span></div>
-                      <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {generatedPO.total_amount.toLocaleString()}</span></div>
+                      <div><span style={{ color: MUTED }}>Total Amount:</span> <span style={{ color: TEXT, fontWeight: 600 }}>RM {generatedPO.total_amount.toLocaleString("en-MY")}</span></div>
                     </div>
                   </div>
 
@@ -555,19 +555,19 @@ export function PurchaseOrdersVendorTab({ stats, color, onAction }: Props) {
                       <div key={idx} style={{ padding: "0.5rem", marginBottom: "0.5rem", background: SURFACE_2, borderRadius: "0.25rem" }}>
                         <div style={{ display: "flex", justifyContent: "space-between" }}>
                           <div style={{ fontWeight: 500, fontSize: "0.75rem", color: TEXT }}>{item.name}</div>
-                          <div style={{ fontSize: "0.72rem", color: TEXT }}>RM {item.total.toLocaleString()}</div>
+                          <div style={{ fontSize: "0.72rem", color: TEXT }}>RM {item.total.toLocaleString("en-MY")}</div>
                         </div>
-                        <div style={{ fontSize: "0.65rem", color: MUTED }}>{item.quantity} units @ RM {item.unit_price.toLocaleString()}/unit</div>
+                        <div style={{ fontSize: "0.65rem", color: MUTED }}>{item.quantity} units @ RM {item.unit_price.toLocaleString("en-MY")}/unit</div>
                       </div>
                     ))}
                   </div>
 
                   <div style={{ marginBottom: "1rem", padding: "0.75rem", background: "rgba(251, 191, 36, 0.1)", borderLeft: "3px solid var(--samurai-warning)", borderRadius: "0.25rem" }}>
-                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.25rem" }}>Next Steps After Confirmation:</div>
+                    <div style={{ fontSize: "0.72rem", fontWeight: 600, color: TEXT, marginBottom: "0.25rem" }}>⚠ Preview Mode — Not Yet Persisted</div>
                     <div style={{ fontSize: "0.65rem", color: MUTED }}>
-                      • PO will be added to list with status "Pending Boss Approval"<br/>
-                      • Boss must approve before PO can be emailed to vendor<br/>
-                      • You can track approval status in the PO list below
+                      • PO will be added to the local list with status "Pending Boss Approval"<br/>
+                      • Changes are lost on page refresh until backend API is connected<br/>
+                      • Boss must approve before PO can be emailed to vendor
                     </div>
                   </div>
 

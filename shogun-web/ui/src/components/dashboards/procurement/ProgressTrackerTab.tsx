@@ -210,7 +210,7 @@ export function ProgressTrackerTab({ projects, color }: Props) {
                                   {item.name} ({item.quantity} {item.unit})
                                 </div>
                                 <div style={{ fontSize: "0.72rem", color: "var(--samurai-muted)", marginTop: "0.25rem" }}>
-                                  Supplier: {item.selected_supplier.name} • RM {item.selected_supplier.quotation_amount.toLocaleString()} • {item.selected_supplier.lead_time_days} days lead time
+                                  Supplier: {item.selected_supplier?.name ?? "—"} • RM {(item.selected_supplier?.quotation_amount ?? 0).toLocaleString("en-MY")} • {item.selected_supplier?.lead_time_days ?? "—"} days lead time
                                 </div>
                               </div>
                               <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>

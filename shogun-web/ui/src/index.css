@@ -141,6 +141,23 @@
   }
 
   .prose-chat tr:nth-child(even) {
-    background-color: color-mix(in srgb, var(--samurai-surface-2, #f8fafc) 55%, transparent);
+      background-color: color-mix(in srgb, var(--samurai-surface-2, #f8fafc) 55%, transparent);
+    }
   }
-}
+
+  /* Print-only styles for barcode labels */
+  @media print {
+    body > *:not(.barcode-label-card),
+    .sd-stack > *:not(:has(.barcode-label-card)),
+    nav, header, footer, .sd-chart-card:not(:has(.barcode-label-card)) {
+      display: none !important;
+    }
+    .barcode-label-card {
+      break-inside: avoid;
+      page-break-inside: avoid;
+      border: 1px solid #ccc !important;
+      margin: 0.5rem !important;
+      display: inline-block !important;
+      width: auto !important;
+    }
+  }

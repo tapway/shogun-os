@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
 import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck, Package } from 'lucide-react';
 import type { SupplierHistoryEntry, SupplierRecord } from '../../../lib/types';
 
@@ -128,9 +128,8 @@ export function SupplierItemHistoryTab({ history, suppliers, color, onAction }: 
               </thead>
               <tbody>
                 {groupedByItem.map((item) => (
-                  <>
-                    <tr 
-                      key={item.itemName}
+                  <React.Fragment key={item.itemName}>
+                    <tr
                       style={{ 
                         borderBottom: expandedItem === item.itemName ? 'none' : `1px solid ${BORDER}`,
                         cursor: 'pointer',
@@ -162,7 +161,7 @@ export function SupplierItemHistoryTab({ history, suppliers, color, onAction }: 
                         </span>
                       </td>
                       <td className="px-3 py-3 text-right">
-                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {item.bestPrice.toLocaleString()}</div>
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {item.bestPrice.toLocaleString("en-MY")}</div>
                       </td>
                       <td className="px-3 py-3 text-center">
                         <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{item.totalOrders}</div>
@@ -238,7 +237,7 @@ export function SupplierItemHistoryTab({ history, suppliers, color, onAction }: 
                                     {/* Last Price */}
                                     <div style={{ textAlign: 'center' }}>
                                       <div style={{ fontSize: '0.65rem', color: MUTED, marginBottom: '0.125rem' }}>Last Price</div>
-                                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {entry.last_price.toLocaleString()}</div>
+                                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {entry.last_price.toLocaleString("en-MY")}</div>
                                     </div>
                                     
                                     {/* Orders & Lead Time */}
@@ -291,7 +290,7 @@ export function SupplierItemHistoryTab({ history, suppliers, color, onAction }: 
                         </td>
                       </tr>
                     )}
-                  </>
+                  </React.Fragment>
                 ))}
               </tbody>
             </table>

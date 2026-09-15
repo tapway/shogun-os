@@ -14,31 +14,32 @@ const TEXT = 'var(--samurai-text)';
 const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 
+const MAX_BARCODE_RENDER = 100;
+
 // Barcode Card Component - renders visual barcode using JsBarcode
 function BarcodeCard({ barcode }: { barcode: { code: string; itemName: string; poNumber: string; projectName: string; generatedAt: string; unitIndex: number; totalUnits: number } }) {
   const canvasRef = useRef<HTMLCanvasElement>(null);
 
   useEffect(() => {
-    if (canvasRef.current) {
-      try {
-        JsBarcode(canvasRef.current, barcode.code, {
-          format: "CODE128",
-          width: 2,
-          height: 50,
-          displayValue: true,
-          fontSize: 14,
-          margin: 10,
-          background: "#ffffff",
-          lineColor: "#000000"
-        });
-      } catch (e) {
-        console.error('Barcode generation error:', e);
-      }
+    if (!canvasRef.current || !barcode.code) return;
+    try {
+      JsBarcode(canvasRef.current, barcode.code, {
+        format: "CODE128",
+        width: 2,
+        height: 50,
+        displayValue: true,
+        fontSize: 14,
+        margin: 10,
+        background: "#ffffff",
+        lineColor: "#000000"
+      });
+    } catch (e) {
+      console.error('Barcode generation error:', e);
     }
   }, [barcode.code]);
 
   return (
-    <div style={{
+    <div className="barcode-label-card" style={{
       padding: '1rem',
       border: `1px solid ${BORDER}`,
       borderRadius: '0.5rem',
@@ -91,23 +92,19 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
     prNumber: p.pr_number,
   }));
 
-  // Get POs for selected project — derive from barcode batches or show placeholder
+  // Get POs for selected project — derive from barcode batches ONLY (no hardcoded fallback)
   const availablePOs = selectedProject ? (() => {
     const poSet = new Set<string>();
     barcodeBatches.forEach(b => {
       if (b.po_number) poSet.add(b.po_number);
     });
-    // If we have real PO data, use it; otherwise provide a default
     if (poSet.size > 0) {
       return Array.from(poSet).map(po => ({ poNumber: po, supplier: '' }));
     }
-    return [
-      { poNumber: 'PO-2025-0042', supplier: 'TechWorld Sdn Bhd' },
-      { poNumber: 'PO-2025-0043', supplier: 'OfficePro Malaysia' },
-    ];
+    return [];
   })() : [];
 
-  // Get items for selected PO — derive from project hardware items
+  // Get items for selected PO — derive from project hardware items ONLY (no hardcoded fallback)
   const availableItems = selectedPO ? (() => {
     const proj = projects.find(p => p.project_id === selectedProject);
     if (proj && proj.hardware_items.length > 0) {
@@ -118,10 +115,7 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
         unit: item.unit,
       }));
     }
-    return [
-      { id: 'item-001', name: 'Dell XPS 15 Laptop', quantity: 5, unit: 'units' },
-      { id: 'item-002', name: 'Ergonomic Office Chair', quantity: 20, unit: 'units' },
-    ];
+    return [];
   })() : [];
 
   const handleGenerateBarcode = () => {
@@ -134,8 +128,9 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
 
     const itemIndex = availableItems.findIndex(i => i.id === selectedItem) + 1;
     const barcodes = [];
+    const renderCount = Math.min(item.quantity, MAX_BARCODE_RENDER);
     
-    for (let unitNum = 1; unitNum <= item.quantity; unitNum++) {
+    for (let unitNum = 1; unitNum <= renderCount; unitNum++) {
       const barcodeCode = `${selectedPO}-${String(itemIndex).padStart(3, '0')}-${String(unitNum).padStart(3, '0')}`;
       barcodes.push({
         code: barcodeCode,
@@ -192,7 +187,7 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
           <Tag className="h-5 w-5" />
           Generate Barcode
         </h3>
-        <p className="sd-chart-sub">Select project → PO → item to generate and record barcode</p>
+        <p className="sd-chart-sub">Select project → PO → item to generate barcode labels</p>
 
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr auto', gap: '0.75rem', marginTop: '1rem', alignItems: 'end' }}>
           <div>
@@ -232,9 +227,9 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
               }}
               className="sd-input"
               style={{ width: '100%' }}
-              disabled={!selectedProject}
+              disabled={!selectedProject || availablePOs.length === 0}
             >
-              <option value="">-- Select PO --</option>
+              <option value="">{availablePOs.length === 0 && selectedProject ? 'No POs available' : '-- Select PO --'}</option>
               {availablePOs.map((po) => (
                 <option key={po.poNumber} value={po.poNumber}>
                   {po.poNumber}{po.supplier ? ` - ${po.supplier}` : ''}
@@ -255,9 +250,9 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
               }}
               className="sd-input"
               style={{ width: '100%' }}
-              disabled={!selectedPO}
+              disabled={!selectedPO || availableItems.length === 0}
             >
-              <option value="">-- Select Item --</option>
+              <option value="">{availableItems.length === 0 && selectedPO ? 'No items available' : '-- Select Item --'}</option>
               {availableItems.map((item) => (
                 <option key={item.id} value={item.id}>
                   {item.name} ({item.quantity} {item.unit})
@@ -298,7 +293,7 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                 style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
               >
                 <Printer className="h-4 w-4" />
-                Print All Labels ({generatedBarcodes.length})
+                Print Labels ({generatedBarcodes.length})
               </button>
             </div>
 
@@ -315,14 +310,20 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                 overflowY: 'auto',
                 padding: '0.5rem'
               }}>
-                {generatedBarcodes.map((barcode, idx) => (
-                  <BarcodeCard key={idx} barcode={barcode} />
+                {generatedBarcodes.map((barcode) => (
+                  <BarcodeCard key={barcode.code} barcode={barcode} />
                 ))}
               </div>
             </div>
 
+            {generatedBarcodes[0].totalUnits > MAX_BARCODE_RENDER && (
+              <div style={{ marginTop: '0.5rem', fontSize: '0.65rem', color: 'var(--samurai-warning)' }}>
+                ⚠ Showing first {MAX_BARCODE_RENDER} of {generatedBarcodes[0].totalUnits} units. Remaining barcodes will be generated when backend persistence is wired.
+              </div>
+            )}
+
             <div style={{ marginTop: '0.75rem', fontSize: '0.65rem', color: MUTED, fontStyle: 'italic' }}>
-              ✓ All {generatedBarcodes.length} barcode(s) recorded in system. Each barcode links individual unit to PO {generatedBarcodes[0].poNumber} from project {generatedBarcodes[0].projectName}
+              ✓ {generatedBarcodes.length} barcode label(s) generated. Each barcode links individual unit to PO {generatedBarcodes[0].poNumber} from project {generatedBarcodes[0].projectName}. Changes are preview-only until backend API is connected.
             </div>
           </div>
         )}
@@ -391,8 +392,9 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                     <div style={{ padding: '1rem' }}>
                       <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem' }}>
                         {project.hardware_items.map((item) => {
+                          // Exact match on item_name instead of substring includes()
                           const hasBarcode = barcodeBatches.some(batch => 
-                            batch.items.some(barcodeItem => barcodeItem.item_name.includes(item.name))
+                            batch.items.some(barcodeItem => barcodeItem.item_name === item.name)
                           );
 
                           return (
@@ -412,7 +414,7 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                                   {item.name}
                                 </div>
                                 <div style={{ fontSize: '0.72rem', color: MUTED, marginTop: '0.25rem' }}>
-                                  Quantity: {item.quantity} {item.unit} • Supplier: {item.selected_supplier.name}
+                                  Quantity: {item.quantity} {item.unit} • Supplier: {item.selected_supplier?.name ?? '—'}
                                 </div>
                               </div>
                               <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
@@ -425,6 +427,9 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                                   type="button"
                                   onClick={() => {
                                     setSelectedProject(project.project_id);
+                                    setSelectedPO('');
+                                    setSelectedItem('');
+                                    setGeneratedBarcodes(null);
                                   }}
                                   className="sd-btn sd-btn-secondary"
                                   style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
