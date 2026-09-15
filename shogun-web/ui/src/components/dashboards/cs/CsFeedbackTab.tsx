@@ -405,7 +405,7 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
         <line x1={padL} y1={padT + chartH} x2={svgW - padR} y2={padT + chartH} stroke={BORDER} strokeWidth="1" />
         {/* Y-axis labels */}
         {yTicks.map((t, i) => (
-          <text key={i} x={padL - 5} y={t.y + 3} textAnchor="end" fontSize="9" fill={MUTED}>{t.val}</text>
+          <text key={i} x={padL - 5} y={t.y + 3} textAnchor="end" fontSize="6" fill={MUTED}>{t.val}</text>
         ))}
         {/* Bars */}
         {trends.dates.map((date, i) => {
@@ -424,7 +424,7 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
               })}
               {/* X-axis label - show every 5th day */}
               {i % 5 === 0 && (
-                <text x={padL + i * barW + barW / 2} y={padT + chartH + 15} textAnchor="middle" fontSize="7" fill={MUTED}>{date}</text>
+                <text x={padL + i * barW + barW / 2} y={padT + chartH + 14} textAnchor="middle" fontSize="5" fill={MUTED}>{date}</text>
               )}
             </g>
           );
@@ -432,8 +432,8 @@ function StackedBarChart({ trends, color }: { trends: { dates: string[]; sizing:
       </svg>
       <div style={{ display: 'flex', gap: 12, marginTop: 8, flexWrap: 'wrap', justifyContent: 'center' }}>
         {categories.map((cat) => (
-          <span key={cat.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.68rem', color: MUTED }}>
-            <span style={{ width: 8, height: 8, borderRadius: 2, background: cat.color }} />
+          <span key={cat.key} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.65rem', color: MUTED }}>
+            <span style={{ width: 7, height: 7, borderRadius: 2, background: cat.color }} />
             {cat.label}
           </span>
         ))}
