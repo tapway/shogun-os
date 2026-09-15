@@ -31,10 +31,10 @@ export function SocialMediaTab({ stats, color }: Props) {
     <div className="sd-stack">
       <h3 style={{ fontSize: '0.9rem', fontWeight: 600, color: 'var(--samurai-muted)' }}>Channel status · No automation connected</h3>
 
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: 12, justifyItems: 'center' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 12 }}>
         {stats.socialChannels.map((ch, i) => (
-          <div key={i} className="sd-chart-card" style={{ textAlign: 'center', padding: '24px 16px' }}>
-            <div style={{ marginBottom: 10, color: 'var(--samurai-text)' }}>
+          <div key={i} className="sd-chart-card" style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', textAlign: 'center', padding: '24px 16px' }}>
+            <div style={{ marginBottom: 10, color: 'var(--samurai-text)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
               {BRAND_ICONS[ch.platform] || <span style={{ fontSize: '2rem' }}>{ch.icon}</span>}
             </div>
             <div style={{ fontWeight: 600, marginBottom: 6, color: 'var(--samurai-text)' }}>{ch.platform}</div>
