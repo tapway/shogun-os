@@ -589,14 +589,160 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
                     );
                   })()}
 
-                  {activeTab === 'gates' && (
-                    <div>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Gate Status</h3>
-                      <div style={{ fontSize: '0.82rem', color: TEXT }}>
-                        Gate: {project.gate != null ? `G${project.gate}` : '—'}{project.gateStatus ? ` — ${project.gateStatus}` : ''}
+                  {activeTab === 'gates' && (() => {
+                    // Mock gates data
+                    const gates = [
+                      {
+                        id: 'G0', title: 'Deal Scoped', status: 'passed', color: SUCCESS,
+                        items: [
+                          { label: 'PM assigned', done: true, blocking: false },
+                          { label: 'Client confirmed', done: true, blocking: false },
+                          { label: 'Deal/PO signed', done: true, blocking: false },
+                        ],
+                      },
+                      {
+                        id: 'G1', title: 'Charter Signed', status: 'passed', color: SUCCESS,
+                        items: [
+                          { label: 'Project Charter signed by client', done: true, blocking: false },
+                          { label: 'Objectives / Goals defined', done: true, blocking: false },
+                          { label: 'Scope defined', done: true, blocking: false },
+                          { label: 'Timeline / Gantt chart submitted', done: true, blocking: false },
+                          { label: 'SMART goals defined', done: true, blocking: false },
+                          { label: 'Budget approved', done: true, blocking: false },
+                          { label: 'Start + Target dates set', done: true, blocking: false },
+                          { label: 'Contract value defined (RM)', done: true, blocking: false },
+                        ],
+                      },
+                      {
+                        id: 'G2', title: 'Kick-off Complete', status: 'passed', color: SUCCESS,
+                        items: [
+                          { label: 'Internal + External kick-off done', done: true, blocking: false },
+                          { label: 'Tasks broken down in 02-tasks.md', done: true, blocking: false },
+                          { label: 'Risk register initialized (05-risks.md)', done: true, blocking: false },
+                        ],
+                      },
+                      {
+                        id: 'G3', title: 'Funding Cleared', status: 'blocking', color: DANGER,
+                        items: [
+                          { label: 'Downpayment / deposit received', done: false, blocking: true },
+                        ],
+                      },
+                    ];
+
+                    const totalItems = gates.reduce((s, g) => s + g.items.length, 0);
+                    const doneItems = gates.reduce((s, g) => s + g.items.filter(i => i.done).length, 0);
+                    const allPassed = gates.every(g => g.status === 'passed');
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* Edit button */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          <button type="button" style={{ display: 'flex', alignItems: 'center', gap: 4, background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.78rem' }}>
+                            <Pencil className="h-3.5 w-3.5" /> Edit
+                          </button>
+                        </div>
+
+                        {/* Summary banner */}
+                        <div style={{
+                          padding: '14px 20px', borderRadius: 10,
+                          background: allPassed ? '#22c55e15' : '#f59e0b15',
+                          display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                        }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                            <CheckCircle2 className="h-5 w-5 shrink-0" style={{ color: allPassed ? SUCCESS : '#f59e0b' }} />
+                            <div>
+                              <div style={{ fontWeight: 700, color: allPassed ? SUCCESS : '#f59e0b', fontSize: '0.9rem' }}>
+                                {allPassed ? 'All Gates Passed' : 'Gates In Progress'}
+                              </div>
+                              <div style={{ fontSize: '0.8rem', color: allPassed ? SUCCESS : '#f59e0b' }}>
+                                Project has passed {gates.filter(g => g.status === 'passed').length} of {gates.length} gates and is in Execution phase.
+                              </div>
+                            </div>
+                          </div>
+                          <div style={{ textAlign: 'right' }}>
+                            <div style={{ fontSize: '1.5rem', fontWeight: 800, color: TEXT }}>{doneItems}/{totalItems}</div>
+                            <div style={{ fontSize: '0.65rem', fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.08em', color: MUTED }}>Items Complete</div>
+                          </div>
+                        </div>
+
+                        {/* Gate cards */}
+                        {gates.map((gate) => (
+                          <div key={gate.id} className="sd-chart-card" style={{ padding: 0, overflow: 'hidden', borderLeft: `4px solid ${gate.color}` }}>
+                            {/* Gate header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '14px 20px' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <div style={{
+                                  width: 28, height: 28, borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                  background: `${gate.color}20`, color: gate.color,
+                                }}>
+                                  🛡
+                                </div>
+                                <span style={{ fontWeight: 700, color: TEXT, fontSize: '0.95rem' }}>{gate.id}: {gate.title}</span>
+                              </div>
+                              <span style={{
+                                padding: '3px 12px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 600,
+                                background: gate.status === 'passed' ? SUCCESS : DANGER,
+                                color: '#fff',
+                              }}>
+                                {gate.status === 'passed' ? 'Passed ✓' : `${gate.items.filter(i => i.done).length}/${gate.items.length} done`}
+                              </span>
+                            </div>
+
+                            {/* Checklist items */}
+                            <div style={{ padding: '0 20px 14px' }}>
+                              {gate.items.map((item, i) => (
+                                <div key={i} style={{
+                                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                                  padding: '8px 12px', borderRadius: 6, marginBottom: 4,
+                                  background: item.done ? `${SUCCESS}12` : item.blocking ? `${DANGER}12` : SURFACE_2,
+                                }}>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                                    <div style={{
+                                      width: 18, height: 18, borderRadius: 4, display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                      background: item.done ? SUCCESS : item.blocking ? DANGER : BORDER,
+                                      color: '#fff', fontSize: '0.65rem',
+                                    }}>
+                                      {item.done ? '✓' : item.blocking ? '!' : ''}
+                                    </div>
+                                    <span style={{
+                                      fontSize: '0.8rem', fontWeight: 500,
+                                      color: item.done ? SUCCESS : item.blocking ? DANGER : TEXT,
+                                    }}>{item.label}</span>
+                                  </div>
+                                  <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                    {item.done && <span style={{ fontSize: '0.75rem', color: SUCCESS, fontWeight: 600 }}>Done ✓</span>}
+                                    {item.blocking && (
+                                      <span style={{
+                                        display: 'inline-flex', alignItems: 'center', gap: 4,
+                                        padding: '2px 10px', borderRadius: 999, fontSize: '0.68rem', fontWeight: 700,
+                                        background: `${DANGER}20`, color: DANGER, textTransform: 'uppercase',
+                                      }}>
+                                        <AlertTriangle className="h-3 w-3" /> Blocking
+                                      </span>
+                                    )}
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
+
+                        {/* Legend */}
+                        <div style={{ display: 'flex', gap: 20, padding: '12px 0', borderTop: `1px solid ${BORDER}`, flexWrap: 'wrap' }}>
+                          {[
+                            { icon: '🛡', color: SUCCESS, label: 'Passed' },
+                            { icon: '🛡', color: '#f59e0b', label: 'Incomplete' },
+                            { icon: '🛡', color: DANGER, label: 'Blocking' },
+                            { icon: '🔒', color: MUTED, label: 'Locked (prev gate undone)' },
+                          ].map((leg, i) => (
+                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: '0.75rem', color: MUTED }}>
+                              <span style={{ color: leg.color }}>{leg.icon}</span> {leg.label}
+                            </div>
+                          ))}
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {activeTab === 'reports' && (
                     <div style={{ fontSize: '0.82rem', color: MUTED, textAlign: 'center', padding: '40px 0' }}>Reports coming soon</div>
