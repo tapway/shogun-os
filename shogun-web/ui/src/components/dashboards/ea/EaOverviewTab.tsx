@@ -75,7 +75,7 @@ function ApprovalDetailModal({ approval, onClose }: { approval: Approval; onClos
   const isBreached = daysLeft < 0;
   
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[var(--samurai-card)] border border-[var(--samurai-border)] rounded-lg p-6 max-w-lg w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-semibold text-[var(--samurai-fg)]">{approval.doc_name}</h3>
@@ -127,7 +127,7 @@ function ApprovalDetailModal({ approval, onClose }: { approval: Approval; onClos
 
 function EventPrepModal({ event, onClose }: { event: GovernanceEvent; onClose: () => void }) {
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60" onClick={onClose}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm" onClick={onClose}>
       <div className="bg-[var(--samurai-card)] border border-[var(--samurai-border)] rounded-lg p-6 max-w-lg w-full shadow-xl" onClick={(e) => e.stopPropagation()}>
         <div className="flex justify-between items-start mb-4">
           <h3 className="text-lg font-semibold text-[var(--samurai-fg)]">{event.title}</h3>

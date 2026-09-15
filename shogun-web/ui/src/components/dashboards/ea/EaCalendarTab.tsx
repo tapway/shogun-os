@@ -95,17 +95,17 @@ function getUtilizationColor(pct: number): string {
   return "var(--samurai-muted)";
 }
 
-function getEventTypeColor(type: string): string {
+function getEventTypeColor(type: string): { bg: string; text: string } {
   switch (type) {
-    case "board": return "#ef4444";
-    case "committee": return "#f59e0b";
-    case "agm": return "#dc2626";
-    case "regulatory": return "#10b981";
-    case "holiday": return "#22c55e";
-    case "dept_meeting": return "#3b82f6";
-    case "training": return "#ec4899";
-    case "event": return "#8b5cf6";
-    default: return "#6b7280";
+    case "board": return { bg: "#ef4444", text: "#ffffff" }; // Red - white text OK
+    case "committee": return { bg: "#f59e0b", text: "#0a0a0a" }; // Amber - needs dark text
+    case "agm": return { bg: "#dc2626", text: "#ffffff" }; // Dark red - white text OK
+    case "regulatory": return { bg: "#10b981", text: "#0a0a0a" }; // Green - needs dark text
+    case "holiday": return { bg: "#22c55e", text: "#0a0a0a" }; // Bright green - needs dark text
+    case "dept_meeting": return { bg: "#3b82f6", text: "#ffffff" }; // Blue - white text OK
+    case "training": return { bg: "#ec4899", text: "#ffffff" }; // Pink - white text OK
+    case "event": return { bg: "#8b5cf6", text: "#ffffff" }; // Purple - white text OK
+    default: return { bg: "#6b7280", text: "#ffffff" };
   }
 }
 
@@ -738,13 +738,13 @@ function CalendarView({ events, onEventClick }: { events: GovernanceEvent[]; onE
         </div>
         <div className="space-y-0.5 overflow-hidden">
           {dayEvents.slice(0, 3).map((event, idx) => {
-            const color = getEventTypeColor(event.event_type);
+            const colors = getEventTypeColor(event.event_type);
             return (
               <button
                 key={event.id}
                 onClick={() => onEventClick(event)}
-                className="w-full text-left text-[9px] truncate px-1 py-0.5 rounded text-white hover:opacity-80 transition-opacity"
-                style={{ backgroundColor: color }}
+                className="w-full text-left text-[9px] truncate px-1 py-0.5 rounded hover:opacity-80 transition-opacity"
+                style={{ backgroundColor: colors.bg, color: colors.text }}
                 title={event.title}
               >
                 {event.title}
