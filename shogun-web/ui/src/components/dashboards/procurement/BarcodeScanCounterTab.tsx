@@ -108,6 +108,8 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
   })() : [];
 
   // Get items for selected PO — derive from project hardware items ONLY (no hardcoded fallback)
+  // TODO: When backend provides PO→item mapping in barcodeBatches, filter items by selectedPO
+  // For now, show all project items (acceptable for preview mode)
   const availableItems = selectedPO ? (() => {
     const proj = projects.find(p => p.project_id === selectedProject);
     if (proj && proj.hardware_items.length > 0) {
@@ -363,7 +365,15 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
               return (
                 <div key={project.project_id} className="sd-card" style={{ padding: 0, overflow: 'hidden' }}>
                   <div
+                    role="button"
+                    tabIndex={0}
                     onClick={() => toggleProjectExpand(project.project_id)}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        toggleProjectExpand(project.project_id);
+                      }
+                    }}
                     style={{
                       padding: '0.75rem 1rem',
                       cursor: 'pointer',
@@ -372,6 +382,14 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
                       display: 'flex',
                       justifyContent: 'space-between',
                       alignItems: 'center',
+                      outline: 'none',
+                    }}
+                    onFocus={(e) => {
+                      e.currentTarget.style.outline = `2px solid ${color}`;
+                      e.currentTarget.style.outlineOffset = '2px';
+                    }}
+                    onBlur={(e) => {
+                      e.currentTarget.style.outline = 'none';
                     }}
                   >
                     <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem' }}>
