@@ -1,6 +1,6 @@
 import { useState } from 'react';
-import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck, Package } from 'lucide-react';
-import { MOCK_SUPPLIER_HISTORY, MOCK_SUPPLIERS, type SupplierRecord } from '../../../lib/procurement-mock-data';
+import { Search, X, Building2, Phone, Mail, Globe, MapPin, CreditCard, Truck, Package, TrendingUp, Calendar, Star } from 'lucide-react';
+import { MOCK_SUPPLIER_HISTORY, MOCK_SUPPLIERS, type SupplierRecord, type SupplierHistoryEntry } from '../../../lib/procurement-mock-data';
 
 interface Props {
   stats: any;
@@ -14,48 +14,42 @@ const BORDER = 'var(--samurai-border)';
 const SURFACE_2 = 'var(--samurai-surface-2)';
 
 export function SupplierItemHistoryTab({ stats, color }: Props) {
-  const [searchMode, setSearchMode] = useState<'supplier' | 'item'>('supplier');
   const [query, setQuery] = useState('');
   const [viewingSupplier, setViewingSupplier] = useState<SupplierRecord | null>(null);
+  const [expandedItem, setExpandedItem] = useState<string | null>(null);
 
-  // Filter based on search mode
-  const filteredSuppliers = MOCK_SUPPLIERS.filter((s) => {
-    if (searchMode !== 'supplier') return false;
+  // Unified search across both items and suppliers
+  const filteredHistory = MOCK_SUPPLIER_HISTORY.filter((entry) => {
     const q = query.trim().toLowerCase();
     if (!q) return true;
     return (
-      s.companyName.toLowerCase().includes(q) ||
-      s.companyRegNo.toLowerCase().includes(q) ||
-      s.picName.toLowerCase().includes(q) ||
-      s.picEmail.toLowerCase().includes(q) ||
-      s.website.toLowerCase().includes(q)
+      entry.item_name.toLowerCase().includes(q) ||
+      entry.supplier_name.toLowerCase().includes(q)
     );
   });
 
-  // Item search: find items and their suppliers
-  const itemSearchResults = (() => {
-    if (searchMode !== 'item') return [];
-    const q = query.trim().toLowerCase();
-    if (!q) return [];
-    
-    // Group by item name
-    const itemMap = new Map<string, typeof MOCK_SUPPLIER_HISTORY>();
-    MOCK_SUPPLIER_HISTORY.forEach((entry) => {
-      const itemName = entry.item_name.toLowerCase();
-      if (itemName.includes(q)) {
-        if (!itemMap.has(entry.item_name)) {
-          itemMap.set(entry.item_name, []);
-        }
-        itemMap.get(entry.item_name)!.push(entry);
+  // Group by item for expandable view
+  const groupedByItem = (() => {
+    const map = new Map<string, SupplierHistoryEntry[]>();
+    filteredHistory.forEach((entry) => {
+      if (!map.has(entry.item_name)) {
+        map.set(entry.item_name, []);
       }
+      map.get(entry.item_name)!.push(entry);
     });
     
-    // Convert to array sorted by relevance
-    return Array.from(itemMap.entries()).map(([itemName, entries]) => ({
+    // Sort entries within each item by rating (highest first)
+    map.forEach((entries) => {
+      entries.sort((a, b) => b.rating - a.rating);
+    });
+    
+    return Array.from(map.entries()).map(([itemName, entries]) => ({
       itemName,
-      suppliers: entries.sort((a, b) => b.rating - a.rating),
+      entries,
       bestPrice: Math.min(...entries.map(e => e.last_price)),
       totalOrders: entries.reduce((sum, e) => sum + e.orders_count, 0),
+      avgRating: entries.reduce((sum, e) => sum + e.rating, 0) / entries.length,
+      supplierCount: entries.length,
     }));
   })();
 
@@ -64,238 +58,237 @@ export function SupplierItemHistoryTab({ stats, color }: Props) {
       {/* Header Card */}
       <div className="sd-chart-card">
         <div style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>Supplier & Item History</h3>
-          <div style={{ display: 'flex', gap: '0.25rem', background: 'var(--samurai-surface)', padding: '0.25rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}` }}>
-            <button
-              type="button"
-              onClick={() => { setSearchMode('supplier'); setQuery(''); }}
-              style={{
-                padding: '0.375rem 0.75rem',
-                fontSize: '0.85rem',
-                borderRadius: '0.375rem',
-                border: 'none',
-                cursor: 'pointer',
-                background: searchMode === 'supplier' ? color : 'transparent',
-                color: searchMode === 'supplier' ? '#fff' : TEXT,
-                fontWeight: searchMode === 'supplier' ? 600 : 400,
-              }}
-            >
-              Search Supplier
-            </button>
-            <button
-              type="button"
-              onClick={() => { setSearchMode('item'); setQuery(''); }}
-              style={{
-                padding: '0.375rem 0.75rem',
-                fontSize: '0.85rem',
-                borderRadius: '0.375rem',
-                border: 'none',
-                cursor: 'pointer',
-                background: searchMode === 'item' ? color : 'transparent',
-                color: searchMode === 'item' ? '#fff' : TEXT,
-                fontWeight: searchMode === 'item' ? 600 : 400,
-              }}
-            >
-              Search Item
-            </button>
-          </div>
+          <h3 className="sd-chart-title" style={{ margin: 0, marginRight: 'auto' }}>Item-Supplier Purchase History</h3>
           <div style={{ position: 'relative' }}>
             <Search className="pointer-events-none absolute left-2.5 top-1/2 h-4 w-4 -translate-y-1/2" style={{ color: MUTED }} />
             <input
               value={query}
               onChange={(e) => setQuery(e.target.value)}
-              placeholder={searchMode === 'supplier' ? "Search company, PIC, email…" : "Search item name (e.g., laptop, chair)…"}
-              style={{ width: '20rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
+              placeholder="Search item or supplier name…"
+              style={{ width: '22rem', borderRadius: '0.5rem', border: `1px solid ${BORDER}`, background: 'var(--samurai-surface)', paddingLeft: '2rem', paddingRight: '0.75rem', paddingTop: '0.375rem', paddingBottom: '0.375rem', fontSize: '0.85rem', color: TEXT }}
             />
           </div>
         </div>
         <p className="sd-chart-sub">
-          {searchMode === 'supplier' 
-            ? 'Complete supplier contact and payment information for procurement reference'
-            : 'Find items and compare suppliers by price, rating, and delivery time'}
+          Complete purchase history showing which items were bought from which suppliers, with pricing and performance metrics
         </p>
       </div>
 
-      {/* Supplier Table (shown when in supplier mode or no search) */}
-      {searchMode === 'supplier' && (
-        <div className="sd-chart-card">
-          {filteredSuppliers.length === 0 ? (
-            <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
-              No suppliers match the search criteria.
-            </p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full min-w-[1400px] text-sm" style={{ borderCollapse: 'collapse' }}>
-                <thead>
-                  <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Company Name</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Reg. No.</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Office Phone</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Name</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Contact</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>PIC Email</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Payment Term</th>
-                    <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Bank</th>
-                    <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 500, color: MUTED }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {filteredSuppliers.map((supplier) => (
-                    <tr key={supplier.id} style={{ borderBottom: `1px solid ${BORDER}` }}>
-                      <td className="px-3 py-2.5">
-                        <div style={{ fontWeight: 600, color: TEXT }}>{supplier.companyName}</div>
-                        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
-                          <Globe className="inline h-3 w-3 mr-1" />
-                          {supplier.website}
+      {/* Summary Stats */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '1rem', marginBottom: '1rem' }}>
+        <div className="sd-chart-card" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Total Items Tracked</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{groupedByItem.length}</div>
+        </div>
+        <div className="sd-chart-card" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Total Purchase Records</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>{filteredHistory.length}</div>
+        </div>
+        <div className="sd-chart-card" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Active Suppliers</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>
+            {new Set(filteredHistory.map(e => e.supplier_name)).size}
+          </div>
+        </div>
+        <div className="sd-chart-card" style={{ padding: '1rem' }}>
+          <div style={{ fontSize: '0.72rem', color: MUTED, marginBottom: '0.25rem' }}>Avg Rating</div>
+          <div style={{ fontSize: '1.5rem', fontWeight: 700, color: TEXT }}>
+            {(filteredHistory.reduce((sum, e) => sum + e.rating, 0) / filteredHistory.length).toFixed(1)} ⭐
+          </div>
+        </div>
+      </div>
+
+      {/* Main Table */}
+      <div className="sd-chart-card">
+        {groupedByItem.length === 0 ? (
+          <p style={{ padding: '2rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
+            No purchase history found matching "{query}". Try searching for "laptop", "chair", "monitor", etc.
+          </p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr style={{ borderBottom: `2px solid ${BORDER}` }}>
+                  <th className="px-3 py-2.5 text-left" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED, width: '30%' }}>Item Name</th>
+                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED }}>Suppliers</th>
+                  <th className="px-3 py-2.5 text-right" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED }}>Best Price</th>
+                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED }}>Total Orders</th>
+                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED }}>Avg Rating</th>
+                  <th className="px-3 py-2.5 text-center" style={{ fontSize: '0.72rem', fontWeight: 600, color: MUTED }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {groupedByItem.map((item) => (
+                  <>
+                    <tr 
+                      key={item.itemName}
+                      style={{ 
+                        borderBottom: expandedItem === item.itemName ? 'none' : `1px solid ${BORDER}`,
+                        cursor: 'pointer',
+                        background: expandedItem === item.itemName ? SURFACE_2 : 'transparent',
+                      }}
+                      onClick={() => setExpandedItem(expandedItem === item.itemName ? null : item.itemName)}
+                    >
+                      <td className="px-3 py-3">
+                        <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                          <Package className="h-4 w-4 flex-shrink-0" style={{ color }} />
+                          <div>
+                            <div style={{ fontWeight: 600, color: TEXT }}>{item.itemName}</div>
+                            <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                              Click to view supplier details
+                            </div>
+                          </div>
                         </div>
                       </td>
-                      <td className="px-3 py-2.5" style={{ fontFamily: 'var(--font-display)', fontSize: '0.72rem', color: MUTED }}>
-                        {supplier.companyRegNo}
+                      <td className="px-3 py-3 text-center">
+                        <span style={{
+                          fontSize: '0.72rem',
+                          padding: '0.25rem 0.5rem',
+                          borderRadius: '0.25rem',
+                          background: `${color}20`,
+                          color: color,
+                          fontWeight: 600,
+                        }}>
+                          {item.supplierCount}
+                        </span>
                       </td>
-                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                        <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                        {supplier.officePhone}
+                      <td className="px-3 py-3 text-right">
+                        <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {item.bestPrice.toLocaleString()}</div>
                       </td>
-                      <td className="px-3 py-2.5" style={{ fontWeight: 500, color: TEXT }}>
-                        {supplier.picName}
+                      <td className="px-3 py-3 text-center">
+                        <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{item.totalOrders}</div>
                       </td>
-                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                        <Phone className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                        {supplier.picContact}
-                      </td>
-                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: TEXT }}>
-                        <Mail className="inline h-3 w-3 mr-1" style={{ color: MUTED }} />
-                        {supplier.picEmail}
-                      </td>
-                      <td className="px-3 py-2.5" style={{ fontSize: '0.72rem', color: MUTED }}>
-                        {supplier.paymentTerm}
-                      </td>
-                      <td className="px-3 py-2.5">
-                        <div style={{ fontSize: '0.72rem', fontWeight: 500, color: TEXT }}>{supplier.paymentBank}</div>
-                        <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
-                          <CreditCard className="inline h-3 w-3 mr-1" />
-                          {supplier.bankAccountNo}
+                      <td className="px-3 py-3 text-center">
+                        <div style={{ 
+                          fontSize: '0.85rem', 
+                          fontWeight: 600, 
+                          color: item.avgRating >= 4.5 ? '#22c55e' : item.avgRating >= 4.0 ? '#f59e0b' : '#ef4444' 
+                        }}>
+                          {item.avgRating.toFixed(1)} ⭐
                         </div>
                       </td>
-                      <td className="px-3 py-2.5 text-center">
+                      <td className="px-3 py-3 text-center">
                         <button
                           type="button"
-                          onClick={() => setViewingSupplier(supplier)}
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setExpandedItem(expandedItem === item.itemName ? null : item.itemName);
+                          }}
                           className="sd-btn sd-btn-secondary"
                           style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
                         >
-                          View Full
+                          {expandedItem === item.itemName ? 'Hide' : 'View'} Suppliers
                         </button>
                       </td>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </div>
-      )}
-
-      {/* Item Search Results */}
-      {searchMode === 'item' && query.trim() !== '' && (
-        <div className="sd-chart-card">
-          {itemSearchResults.length === 0 ? (
-            <p style={{ padding: '1rem 0', textAlign: 'center', fontSize: '0.85rem', color: MUTED }}>
-              No items found matching "{query}". Try searching for generic terms like "laptop", "chair", "monitor", etc.
-            </p>
-          ) : (
-            <div style={{ display: 'grid', gap: '1rem' }}>
-              {itemSearchResults.map((result) => (
-                <div
-                  key={result.itemName}
-                  style={{
-                    border: `1px solid ${BORDER}`,
-                    borderRadius: '0.5rem',
-                    padding: '1rem',
-                    background: 'var(--samurai-surface)',
-                  }}
-                >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', marginBottom: '0.75rem' }}>
-                    <Package className="h-5 w-5" style={{ color }} />
-                    <h4 style={{ fontSize: '1rem', fontWeight: 600, color: TEXT, margin: 0 }}>{result.itemName}</h4>
-                    <span style={{
-                      fontSize: '0.72rem',
-                      padding: '0.25rem 0.5rem',
-                      borderRadius: '0.25rem',
-                      background: `${color}20`,
-                      color: color,
-                      fontWeight: 600,
-                    }}>
-                      {result.suppliers.length} supplier{result.suppliers.length > 1 ? 's' : ''}
-                    </span>
-                  </div>
-                  
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '0.75rem', marginBottom: '1rem' }}>
-                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Best Price</div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Total Orders</div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Avg Rating</div>
-                    <div style={{ fontSize: '0.72rem', color: MUTED }}>Avg Lead Time</div>
                     
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>RM {result.bestPrice.toLocaleString()}</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{result.totalOrders}</div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
-                      {(result.suppliers.reduce((sum, s) => sum + s.rating, 0) / result.suppliers.length).toFixed(1)} ⭐
-                    </div>
-                    <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>
-                      {Math.round(result.suppliers.reduce((sum, s) => sum + s.avg_lead_time_days, 0) / result.suppliers.length)} days
-                    </div>
-                  </div>
-
-                  <div style={{ borderTop: `1px solid ${BORDER}`, paddingTop: '0.75rem' }}>
-                    <h5 style={{ fontSize: '0.75rem', fontWeight: 600, color: TEXT, marginBottom: '0.5rem' }}>Suppliers:</h5>
-                    <div style={{ display: 'grid', gap: '0.5rem' }}>
-                      {result.suppliers.map((entry, idx) => (
-                        <div
-                          key={entry.id}
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'space-between',
-                            padding: '0.5rem 0.75rem',
-                            background: SURFACE_2,
-                            borderRadius: '0.375rem',
-                          }}
-                        >
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', flex: 1 }}>
-                            <Building2 className="h-4 w-4" style={{ color: MUTED }} />
-                            <div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{entry.supplier_name}</div>
-                              <div style={{ fontSize: '0.72rem', color: MUTED }}>
-                                Last order: {entry.last_order_date} • {entry.orders_count} order{entry.orders_count > 1 ? 's' : ''}
-                              </div>
+                    {/* Expanded Supplier Details */}
+                    {expandedItem === item.itemName && (
+                      <tr key={`${item.itemName}-details`}>
+                        <td colSpan={6} style={{ padding: 0, background: SURFACE_2 }}>
+                          <div style={{ padding: '1rem', borderTop: `1px solid ${BORDER}` }}>
+                            <h4 style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.75rem', display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                              <Building2 className="h-4 w-4" />
+                              Suppliers for {item.itemName}
+                            </h4>
+                            
+                            <div style={{ display: 'grid', gap: '0.75rem' }}>
+                              {item.entries.map((entry) => {
+                                // Find full supplier details
+                                const supplierDetails = MOCK_SUPPLIERS.find(s => s.companyName === entry.supplier_name);
+                                
+                                return (
+                                  <div
+                                    key={entry.id}
+                                    style={{
+                                      display: 'grid',
+                                      gridTemplateColumns: '2fr 1fr 1fr 1fr auto',
+                                      gap: '1rem',
+                                      alignItems: 'center',
+                                      padding: '0.75rem',
+                                      background: 'var(--samurai-surface)',
+                                      borderRadius: '0.5rem',
+                                      border: `1px solid ${BORDER}`,
+                                    }}
+                                  >
+                                    {/* Supplier Info */}
+                                    <div>
+                                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT, marginBottom: '0.25rem' }}>
+                                        {entry.supplier_name}
+                                      </div>
+                                      {supplierDetails && (
+                                        <div style={{ fontSize: '0.72rem', color: MUTED, display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
+                                          <Phone className="h-3 w-3" />
+                                          {supplierDetails.picContact}
+                                          <Mail className="h-3 w-3 ml-2" />
+                                          {supplierDetails.picEmail}
+                                        </div>
+                                      )}
+                                    </div>
+                                    
+                                    {/* Last Price */}
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '0.65rem', color: MUTED, marginBottom: '0.125rem' }}>Last Price</div>
+                                      <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {entry.last_price.toLocaleString()}</div>
+                                    </div>
+                                    
+                                    {/* Orders & Lead Time */}
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '0.65rem', color: MUTED, marginBottom: '0.125rem' }}>Orders</div>
+                                      <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{entry.orders_count}</div>
+                                      <div style={{ fontSize: '0.65rem', color: MUTED, marginTop: '0.125rem' }}>
+                                        {entry.avg_lead_time_days} days lead
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Rating */}
+                                    <div style={{ textAlign: 'center' }}>
+                                      <div style={{ fontSize: '0.65rem', color: MUTED, marginBottom: '0.125rem' }}>Rating</div>
+                                      <div style={{ 
+                                        fontSize: '0.85rem', 
+                                        fontWeight: 600, 
+                                        color: entry.rating >= 4.5 ? '#22c55e' : entry.rating >= 4.0 ? '#f59e0b' : '#ef4444' 
+                                      }}>
+                                        {entry.rating.toFixed(1)} ⭐
+                                      </div>
+                                    </div>
+                                    
+                                    {/* Actions */}
+                                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                                      {supplierDetails && (
+                                        <button
+                                          type="button"
+                                          onClick={() => setViewingSupplier(supplierDetails)}
+                                          className="sd-btn sd-btn-secondary"
+                                          style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+                                        >
+                                          View Full
+                                        </button>
+                                      )}
+                                      <button
+                                        type="button"
+                                        onClick={() => alert(`Create PO for ${entry.item_name} from ${entry.supplier_name}? (Demo)`)}
+                                        className="sd-btn sd-btn-primary"
+                                        style={{ padding: '0.3rem 0.6rem', fontSize: '0.72rem' }}
+                                      >
+                                        Create PO
+                                      </button>
+                                    </div>
+                                  </div>
+                                );
+                              })}
                             </div>
                           </div>
-                          <div style={{ display: 'flex', alignItems: 'center', gap: '1rem' }}>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Last Price</div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 700, color: TEXT }}>RM {entry.last_price.toLocaleString()}</div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Rating</div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: entry.rating >= 4.5 ? '#22c55e' : entry.rating >= 4.0 ? '#f59e0b' : '#ef4444' }}>
-                                {entry.rating.toFixed(1)} ⭐
-                              </div>
-                            </div>
-                            <div style={{ textAlign: 'right' }}>
-                              <div style={{ fontSize: '0.72rem', color: MUTED }}>Lead Time</div>
-                              <div style={{ fontSize: '0.85rem', fontWeight: 600, color: TEXT }}>{entry.avg_lead_time_days} days</div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-      )}
+                        </td>
+                      </tr>
+                    )}
+                  </>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* View Supplier Details Modal */}
       {viewingSupplier && (
