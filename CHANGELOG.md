@@ -1,5 +1,41 @@
 # Changelog
 
+## [3.23.0] — 2026-09-16
+
+### Procurement Dashboard — Progress Tracker + Supplier & Item History
+
+Two new tabs plus two rebuilt ones, and the fixes a third review round found in the
+ported UI. Nothing is removed: the four tabs this branch had dropped are restored.
+
+- **Progress Tracker tab** — per-project hardware item timelines with step-level status,
+  internal/vendor step typing, and SLA vs actual-day tracking.
+- **Supplier & Item History tab** — item↔supplier purchase history grouped by item, with
+  search and a supplier detail modal.
+- **POs & Vendors rewrite** — PO lifecycle funnel, PR-to-PO creation modal with
+  preview-only disclaimer, inline status management.
+- **Barcode & Asset Tagging rewrite** — JsBarcode label generation, project/PO/item scoped
+  selectors, capped at 100 rendered units, print-scoped CSS.
+- **Backend contract for the new tabs** — `/procurement-stats` now emits
+  `progressTrackerProjects`, `supplierDirectory`, `supplierHistory`, `demoPurchaseRequisitions`
+  and `barcodeBatchRecords`, each read from its own snapshot slug
+  (`snapshots/progress-tracker`, `snapshots/suppliers`, `snapshots/purchase-requisitions`,
+  `snapshots/barcode-batches`, each also accepted under the `procurement/` prefix). The tabs
+  render an honest empty state until a snapshot writer populates those slugs — there is
+  deliberately no mock fallback, and no borrowing of the differently-shaped vendor/inventory
+  rows.
+- **No tabs removed** — RFQ & Vendor Sourcing, Inventory, Accounting Bridge and Document
+  Scanning are back in the tab list, because the Overview tab's KPI cards and risk alerts
+  navigate to `inventory`; without it those clicks landed on a blank content area.
+- **Barcode label printing fixed** — the print stylesheet hid `body > *:not(.barcode-label-card)`,
+  which matches `#root` and blanked the sheet. Printing is now scoped to an
+  `html.printing-barcodes` class and hides via `visibility`, so labels print at the top of
+  the page instead of nothing.
+- **Tab contract synced** — the server's dashboard config lists the same 11 procurement tabs
+  as the UI.
+- **Tests** — new `test_procurement_ver2_contract.py` pins the five-field contract in both
+  directions (present and empty with no snapshots; populated from the right slug; no shape
+  leakage from other snapshots). `test_dashboard_config.py` now asserts the 11-tab config.
+
 ## [3.17.0] — 2026-08-26
 
 ### CRM Data from the Brain

@@ -8,13 +8,15 @@ import type {
   ProcurementDashboardStats,
 } from "../../../lib/types";
 import { ExecutiveProcurementPulseTab } from "./ExecutiveProcurementPulseTab";
-import { InventoryCatalogTab } from "./InventoryCatalogTab";
-import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
-import { AccountingBridgeTab } from "./AccountingBridgeTab";
+import { ProgressTrackerTab } from "./ProgressTrackerTab";
 import { PurchaseRequisitionsTab } from "./PurchaseRequisitionsTab";
 import { RfqVendorSourcingTab } from "./RfqVendorSourcingTab";
-import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
+import { PurchaseOrdersVendorTab } from "./PurchaseOrdersVendorTab";
+import { InventoryCatalogTab } from "./InventoryCatalogTab";
+import { SupplierItemHistoryTab } from "./SupplierItemHistoryTab";
 import { ThreeWayMatchTab } from "./ThreeWayMatchTab";
+import { BarcodeScanCounterTab } from "./BarcodeScanCounterTab";
+import { AccountingBridgeTab } from "./AccountingBridgeTab";
 import { DocumentScanningTab } from "../shared/DocumentScanningTab";
 import {
   ProcurementActionModal,
@@ -23,12 +25,14 @@ import {
 
 const TABS: DashboardTab[] = [
   { id: "pulse", label: "Overview", icon: "LayoutDashboard" },
+  { id: "progress", label: "Progress Tracker", icon: "Timer" },
   { id: "requisitions", label: "Purchase Requisitions", icon: "FileText" },
   { id: "sourcing", label: "RFQ & Vendor Sourcing", icon: "Award" },
   { id: "po", label: "POs & Vendors", icon: "ClipboardList" },
   { id: "inventory", label: "Inventory", icon: "Package" },
-  { id: "barcode", label: "Warehouse & Stock Audit", icon: "Warehouse" },
-  { id: "matching", label: "Invoice Matching", icon: "ShieldCheck" },
+  { id: "history", label: "Supplier & Item History", icon: "Database" },
+  { id: "matching", label: "3-Way Invoice Match", icon: "ShieldCheck" },
+  { id: "barcode", label: "Barcode & Asset Tagging", icon: "Warehouse" },
   { id: "bridge", label: "Accounting Bridge", icon: "Scale" },
   { id: "scan", label: "Document Scanning", icon: "FileScan" },
 ];
@@ -133,6 +137,12 @@ export function ProcurementDashboard({
           onNavigateTab={setActiveTab}
         />
       )}
+      {activeTab === "progress" && (
+        <ProgressTrackerTab
+          projects={stats.progressTrackerProjects ?? []}
+          color={color}
+        />
+      )}
       {activeTab === "requisitions" && (
         <PurchaseRequisitionsTab stats={stats} onAction={handleAction} />
       )}
@@ -153,11 +163,23 @@ export function ProcurementDashboard({
           onAction={handleAction}
         />
       )}
-      {activeTab === "barcode" && (
-        <BarcodeScanCounterTab stats={stats} color={color} />
+      {activeTab === "history" && (
+        <SupplierItemHistoryTab
+          history={stats.supplierHistory ?? []}
+          suppliers={stats.supplierDirectory ?? []}
+          color={color}
+          onAction={handleAction}
+        />
       )}
       {activeTab === "matching" && (
         <ThreeWayMatchTab stats={stats} onAction={handleAction} />
+      )}
+      {activeTab === "barcode" && (
+        <BarcodeScanCounterTab
+          projects={stats.progressTrackerProjects ?? []}
+          barcodeBatches={stats.barcodeBatchRecords ?? []}
+          color={color}
+        />
       )}
       {activeTab === "bridge" && (
         <AccountingBridgeTab
