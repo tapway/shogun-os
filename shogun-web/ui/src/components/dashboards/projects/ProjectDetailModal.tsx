@@ -46,6 +46,8 @@ const TABS: { id: TabId; label: string }[] = [
 
 export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
   const [activeTab, setActiveTab] = useState<TabId>('overview');
+  const [budgetEditing, setBudgetEditing] = useState(false);
+  const [budgetContent, setBudgetContent] = useState('');
 
   const query = useQuery({
     queryKey: ['project-detail', dept, projectId],
@@ -458,21 +460,134 @@ export function ProjectDetailModal({ dept, color, projectId, onClose }: Props) {
                     </div>
                   )}
 
-                  {activeTab === 'budget' && (
-                    <div>
-                      <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 10 }}>Budget</h3>
-                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                        <div className="sd-chart-card" style={{ padding: 16 }}>
-                          <div style={{ fontSize: '0.72rem', color: MUTED, textTransform: 'uppercase' }}>Value</div>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{fmtRm(project.valueRm)}</div>
+                  {activeTab === 'budget' && (() => {
+                    // Mock budget data
+                    const budgetRows = [
+                      { category: 'Total (Contract)', budget: project.valueRm ?? 96812.66, actual: null, variance: null, health: 'tbd' },
+                    ];
+                    const defaultContent = `total:       ${fmtRm(project.valueRm ?? 96812.66)}\napproved:    true`;
+
+                    const startEdit = () => {
+                      setBudgetContent(defaultContent);
+                      setBudgetEditing(true);
+                    };
+                    const saveEdit = () => setBudgetEditing(false);
+                    const cancelEdit = () => setBudgetEditing(false);
+
+                    return (
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                        {/* Done / Edit toggle button */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+                          {!budgetEditing ? (
+                            <button type="button" onClick={startEdit} style={{
+                              display: 'flex', alignItems: 'center', gap: 6, padding: '6px 16px', borderRadius: 8,
+                              background: '#3b6ed4', color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600,
+                            }}>
+                              <Pencil className="h-3.5 w-3.5" /> Done
+                            </button>
+                          ) : null}
                         </div>
-                        <div className="sd-chart-card" style={{ padding: 16 }}>
-                          <div style={{ fontSize: '0.72rem', color: MUTED, textTransform: 'uppercase' }}>Status</div>
-                          <div style={{ fontSize: '1.2rem', fontWeight: 700, color: TEXT, marginTop: 4 }}>{project.budgetStatus || '—'}</div>
+
+                        {/* Budget Summary Card */}
+                        <div className="sd-chart-card" style={{ padding: 20 }}>
+                          <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, marginBottom: 12 }}>Budget</h3>
+                          <div style={{ overflowX: 'auto' }}>
+                            <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.82rem' }}>
+                              <thead>
+                                <tr style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                  {['Category', 'Budget (RM)', 'Actual (RM)', 'Variance', 'Health'].map((h) => (
+                                    <th key={h} style={{ padding: '8px 12px', textAlign: 'left', fontWeight: 600, color: MUTED, fontSize: '0.72rem', textTransform: 'uppercase', letterSpacing: '0.05em' }}>{h}</th>
+                                  ))}
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {budgetRows.map((row, i) => (
+                                  <tr key={i} style={{ borderBottom: `1px solid ${BORDER}` }}>
+                                    <td style={{ padding: '12px', fontWeight: 700, color: TEXT }}>{row.category}</td>
+                                    <td style={{ padding: '12px', fontWeight: 600, color: TEXT }}>{fmtRm(row.budget)}</td>
+                                    <td style={{ padding: '12px', color: MUTED }}>{row.actual != null ? fmtRm(row.actual) : ''}</td>
+                                    <td style={{ padding: '12px', color: MUTED }}>{row.variance != null ? fmtRm(row.variance) : ''}</td>
+                                    <td style={{ padding: '12px' }}>
+                                      <span style={{
+                                        display: 'inline-block', padding: '2px 12px', borderRadius: 999,
+                                        fontSize: '0.72rem', fontWeight: 600, textTransform: 'lowercase',
+                                        background: row.health === 'tbd' ? '#f59e0b' : row.health === 'ok' ? SUCCESS : DANGER,
+                                        color: '#fff',
+                                      }}>{row.health}</span>
+                                    </td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          </div>
                         </div>
+
+                        {/* Editing badge */}
+                        {budgetEditing && (
+                          <span style={{
+                            display: 'inline-flex', alignItems: 'center', gap: 4, alignSelf: 'flex-start',
+                            padding: '3px 12px', borderRadius: 999, fontSize: '0.72rem', fontWeight: 600,
+                            background: SUCCESS, color: '#fff',
+                          }}>
+                            <Pencil className="h-3 w-3" /> Editing…
+                          </span>
+                        )}
+
+                        {/* Editor Section */}
+                        {budgetEditing && (
+                          <div>
+                            {/* Editor header */}
+                            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10 }}>
+                              <h3 style={{ fontSize: '0.95rem', fontWeight: 700, color: TEXT, margin: 0 }}>Budget — Editing</h3>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                                <span style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', color: MUTED, cursor: 'pointer' }}>
+                                  👁 Preview
+                                </span>
+                                <button type="button" onClick={saveEdit} style={{
+                                  display: 'flex', alignItems: 'center', gap: 4, padding: '5px 14px', borderRadius: 6,
+                                  background: SUCCESS, color: '#fff', border: 'none', cursor: 'pointer', fontSize: '0.78rem', fontWeight: 600,
+                                }}>
+                                  💾 Save
+                                </button>
+                                <span onClick={cancelEdit} style={{ display: 'flex', alignItems: 'center', gap: 4, fontSize: '0.78rem', color: MUTED, cursor: 'pointer' }}>
+                                  ✕ Cancel
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Formatting toolbar */}
+                            <div style={{
+                              display: 'flex', alignItems: 'center', gap: 8, padding: '6px 12px', marginBottom: 8,
+                              border: `1px solid ${BORDER}`, borderRadius: 8, background: SURFACE_2,
+                            }}>
+                              {['H1', 'H2'].map((h) => (
+                                <button key={h} type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.78rem', fontWeight: 700, padding: '2px 6px' }}>{h}</button>
+                              ))}
+                              <div style={{ width: 1, height: 16, background: BORDER }} />
+                              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.82rem', fontWeight: 700, padding: '2px 6px' }}>B</button>
+                              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.82rem', fontStyle: 'italic', padding: '2px 6px' }}>I</button>
+                              <div style={{ width: 1, height: 16, background: BORDER }} />
+                              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.82rem', padding: '2px 6px' }}>☰</button>
+                              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.82rem', padding: '2px 6px' }}>🔗</button>
+                              <button type="button" style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '0.82rem', padding: '2px 6px' }}>🖼</button>
+                            </div>
+
+                            {/* Textarea */}
+                            <textarea
+                              value={budgetContent}
+                              onChange={(e) => setBudgetContent(e.target.value)}
+                              style={{
+                                width: '100%', minHeight: 200, padding: 16, borderRadius: 8,
+                                border: '2px solid #3b6ed4', background: CARD_BG, color: TEXT,
+                                fontFamily: 'var(--font-mono, monospace)', fontSize: '0.85rem', lineHeight: 1.6,
+                                resize: 'vertical', outline: 'none', boxSizing: 'border-box',
+                              }}
+                            />
+                          </div>
+                        )}
                       </div>
-                    </div>
-                  )}
+                    );
+                  })()}
 
                   {activeTab === 'gates' && (
                     <div>
