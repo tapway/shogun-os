@@ -92,16 +92,19 @@ export function BarcodeScanCounterTab({ projects, barcodeBatches, color = '#2563
     prNumber: p.pr_number,
   }));
 
-  // Get POs for selected project — derive from barcode batches ONLY (no hardcoded fallback)
+  // Get POs for selected project — scope to project by matching item names
   const availablePOs = selectedProject ? (() => {
+    const proj = projects.find(p => p.project_id === selectedProject);
+    if (!proj) return [];
+    const projectItemNames = new Set(proj.hardware_items.map(i => i.name));
     const poSet = new Set<string>();
     barcodeBatches.forEach(b => {
-      if (b.po_number) poSet.add(b.po_number);
+      if (!b.po_number) return;
+      // Include PO if any of its items belong to the selected project
+      const hasProjectItem = b.items.some(bi => projectItemNames.has(bi.item_name));
+      if (hasProjectItem) poSet.add(b.po_number);
     });
-    if (poSet.size > 0) {
-      return Array.from(poSet).map(po => ({ poNumber: po, supplier: '' }));
-    }
-    return [];
+    return Array.from(poSet).map(po => ({ poNumber: po, supplier: '' }));
   })() : [];
 
   // Get items for selected PO — derive from project hardware items ONLY (no hardcoded fallback)
