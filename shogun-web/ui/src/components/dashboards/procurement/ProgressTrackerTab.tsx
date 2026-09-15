@@ -14,9 +14,10 @@ const STATUS_STYLE: Record<string, { bg: string; text: string; icon: typeof Chec
   pending: { bg: "var(--samurai-muted)", text: "#fff", icon: Clock },
 };
 
-const STEP_TYPE_STYLE = {
+const STEP_TYPE_STYLE: Record<string, { bg: string; border: string }> = {
   internal: { bg: "rgba(34, 197, 94, 0.1)", border: "var(--samurai-ok)" },
   vendor: { bg: "rgba(59, 130, 246, 0.1)", border: "var(--samurai-blue)" },
+  _default: { bg: "rgba(148, 163, 184, 0.1)", border: "var(--samurai-muted)" },
 };
 
 export function ProgressTrackerTab({ projects, color }: Props) {
@@ -228,7 +229,7 @@ export function ProgressTrackerTab({ projects, color }: Props) {
                               <div style={{ marginTop: "0.75rem", paddingTop: "0.75rem", borderTop: "1px solid var(--samurai-border)" }}>
                                 <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
                                   {item.steps.map((step, idx) => {
-                                    const stepStyle = STEP_TYPE_STYLE[step.type];
+                                    const stepStyle = STEP_TYPE_STYLE[step.type] || STEP_TYPE_STYLE._default;
                                     const isCurrent = idx === item.current_step_index;
                                     const stepStatusStyle = STATUS_STYLE[step.status] || STATUS_STYLE.pending;
                                     const StepIcon = stepStatusStyle.icon;
