@@ -13,6 +13,7 @@ import Register from './pages/Register';
 import StaffManagement from './pages/StaffManagement';
 import SkillsCatalog from './pages/SkillsCatalog';
 import TrainSkill from './pages/TrainSkill';
+import { InterviewScorecardPage } from './pages/InterviewScorecardPage';
 import { HrCornerTab } from './components/dashboards/HrCornerTab';
 
 function AuthCallback() {
@@ -129,6 +130,11 @@ export default function App() {
         <Route path="/staff" element={<StaffManagement />} />
         <Route path="/no-access" element={<NoAccess />} />
         <Route path="/hr-corner" element={<HrCornerTab />} />
+        <Route path="/interview-scorecard/:token" element={
+          <ProtectedRoute>
+            <InterviewScorecardPage />
+          </ProtectedRoute>
+        } />
       </Route>
 
       <Route path="/" element={<Navigate to="/dashboard" replace />} />

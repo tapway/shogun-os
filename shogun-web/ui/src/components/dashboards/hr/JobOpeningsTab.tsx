@@ -175,22 +175,49 @@ export function JobOpeningsTab({ stats, color, department, onOpenTalentPool }: P
             </span>
           </td>
           <td style={tdStyle} onClick={(e) => e.stopPropagation()}>
-            {!(j.job_status || "").startsWith("Closed") ? (
-              <button
-                type="button"
-                onClick={() => setClosingJob(j)}
-                style={{
-                  borderRadius: "0.4rem", border: `1px solid ${BORDER}`,
-                  background: "transparent", color: DANGER,
-                  fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem",
-                  cursor: "pointer", whiteSpace: "nowrap",
-                }}
-              >
-                Close Job
-              </button>
-            ) : (
-              <span style={{ color: MUTED, fontSize: "0.72rem" }}>{fmtDate(j.closed_at)}</span>
-            )}
+            <div style={{ display: "flex", gap: "0.3rem", flexWrap: "wrap" }}>
+              {j.job_status === "Draft" && (
+                <button
+                  type="button"
+                  onClick={async () => {
+                    if (!window.confirm(`Post "${j.job_title}" to Active?`)) return;
+                    try {
+                      const fd = new FormData();
+                      fd.append("job_status", "Active");
+                      await hrApi.updateJobOpening(department, j.id, fd);
+                      queryClient.invalidateQueries({ queryKey: ["hr-stats", department] });
+                    } catch (err) {
+                      alert(err instanceof Error ? err.message : "Failed to post job");
+                    }
+                  }}
+                  style={{
+                    borderRadius: "0.4rem", border: "none",
+                    background: LIME, color: "#0a0a0a",
+                    fontSize: "0.72rem", fontWeight: 700, padding: "0.25rem 0.6rem",
+                    cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  🚀 Post to Active
+                </button>
+              )}
+              {!(j.job_status || "").startsWith("Closed") && (
+                <button
+                  type="button"
+                  onClick={() => setClosingJob(j)}
+                  style={{
+                    borderRadius: "0.4rem", border: `1px solid ${BORDER}`,
+                    background: "transparent", color: DANGER,
+                    fontSize: "0.72rem", fontWeight: 600, padding: "0.25rem 0.6rem",
+                    cursor: "pointer", whiteSpace: "nowrap",
+                  }}
+                >
+                  Close Job
+                </button>
+              )}
+              {(j.job_status || "").startsWith("Closed") && (
+                <span style={{ color: MUTED, fontSize: "0.72rem" }}>{fmtDate(j.closed_at)}</span>
+              )}
+            </div>
           </td>
         </tr>
         {isExpanded && (

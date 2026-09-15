@@ -1600,6 +1600,8 @@ export interface HrCandidate {
   source: string;
   resume_url: string;
   screening_answers_url: string;
+  screening_answers_json?: string;
+  resume_gbrain_url?: string;
   candidate_type: string;
   date_entry: string;
   last_edited: string;
@@ -1651,6 +1653,7 @@ export interface HrInterview {
   questions?: string[];
   rating?: number | null;
   comment?: string | null;
+  question_answers?: Array<{q: string; a: string}>;
 }
 
 export interface HrInterviewTemplate {
@@ -1661,6 +1664,18 @@ export interface HrInterviewTemplate {
   round: string;
   questions: string[];
   created_at: string;
+}
+
+export interface HrInterviewScorecard {
+  id: number;
+  candidate_id: number;
+  token: string;
+  assigned_to_user_id: number;
+  status: "pending" | "completed" | "expired" | "revoked";
+  created_at: string;
+  expires_at: string;
+  completed_at?: string | null;
+  submitted_by_user_id?: number | null;
 }
 
 export interface HrResumeExtract {

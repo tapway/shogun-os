@@ -1,7 +1,7 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { X } from "lucide-react";
-import { hrApi } from "../../../lib/api";
+import { hrApi, staffApi } from "../../../lib/api";
 import type { HrCandidate, HrCandidateEvent, HrDashboardStats, HrInterview, HrJobOpening } from "../../../lib/types";
 import { InterviewQuestionsPanel } from "./InterviewQuestionsPanel";
 
@@ -42,6 +42,9 @@ const JOURNEY_STAGES = [
   { status: "HR Interview Done", label: "HR Interview Done" },
   { status: "Waiting Manager Interview Confirm", label: "Waiting Manager Confirm" },
   { status: "Manager Interview Scheduled", label: "Manager Interview Scheduled" },
+  { status: "Manager Interview Done", label: "Manager Interview Done" },
+  { status: "Waiting CEO Interview Confirm", label: "Waiting CEO Confirm" },
+  { status: "CEO Interview Scheduled", label: "CEO Interview Scheduled" },
   { status: "Waiting Interview Result", label: "Waiting Result" },
   { status: "Waiting Offer Confirmation", label: "Waiting Offer Confirm" },
   { status: "Offer Sent - Waiting Reply", label: "Offer Sent" },
@@ -91,10 +94,20 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
   const [feedback, setFeedback] = useState("");
   const [showTimeline, setShowTimeline] = useState(false);
   const [showQuestions, setShowQuestions] = useState(false);
+  // Scorecard generation
+  const [showScorecardModal, setShowScorecardModal] = useState(false);
+  const [scorecardEmployeeSearch, setScorecardEmployeeSearch] = useState("");
+  const [scorecardEmployees, setScorecardEmployees] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  const [selectedInterviewerId, setSelectedInterviewerId] = useState<number | null>(null);
+  const [scorecardExpiresDays, setScorecardExpiresDays] = useState(3);
+  const [hasScorecard, setHasScorecard] = useState(false);
+  const [creatingScorecard, setCreatingScorecard] = useState(false);
   // schedule form
   const [schedAt, setSchedAt] = useState("");
   const [schedInterviewer, setSchedInterviewer] = useState("");
   const [schedLocation, setSchedLocation] = useState("");
+  const [screeningFile, setScreeningFile] = useState<File | null>(null);
+  const [screeningUploading, setScreeningUploading] = useState(false);
 
   const events: HrCandidateEvent[] = useMemo(
     () => (stats.candidate_events || []).filter((e) => e.candidate_id === candidate.id),
@@ -176,7 +189,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
     run(() => hrApi.candidateMove(department, candidate.id, "Interview Email Sent - Waiting Reply"), "Send interview email");
   };
 
-  const confirmSchedule = (round: "first" | "manager") => {
+  const confirmSchedule = (round: "first" | "manager" | "ceo") => {
     if (!schedAt) {
       setError("Pick an interview date & time first");
       return;
@@ -236,6 +249,123 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
         (i) => i.status === "scheduled" && ((i.round || "").trim().toLowerCase() === STAGE_ROUND[stage]),
       )
     : undefined;
+  
+  // DEBUG: Log interview matching
+  if (STAGE_ROUND[stage] != null) {
+
+  }
+
+  // Fetch staff list for scorecard assignment (from /api/staff - system users)
+  const [allStaff, setAllStaff] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  
+  // Staff directory for interviewer selection in scheduling forms
+  const [staffDirectory, setStaffDirectory] = useState<Array<{ id: number; name: string; email: string; department: string }>>([]);
+  const [staffLoaded, setStaffLoaded] = useState(false);
+  
+  useEffect(() => {
+    // Load staff directory once when modal opens
+    if (!staffLoaded) {
+      staffApi.list().then((res) => {
+        const staff = (res.staff || []).map((s: any) => ({
+          id: s.id,
+          name: s.name || "",
+          email: s.email || "",
+          department: s.department || "",
+        }));
+        setStaffDirectory(staff);
+        setStaffLoaded(true);
+      }).catch(() => {});
+    }
+    // Load all staff once when modal opens
+    if (showScorecardModal && allStaff.length === 0) {
+      staffApi.list().then((res) => {
+        const staff = (res.staff || []).map((s: any) => ({
+          id: s.id,
+          name: s.name || "",
+          email: s.email || "",
+          department: s.department || "",
+        }));
+        setAllStaff(staff);
+        setScorecardEmployees(staff.slice(0, 50));
+      }).catch(() => {
+        // Ignore errors
+      });
+    }
+  }, [showScorecardModal]);
+
+  // Check if scorecard already exists for this candidate
+  useEffect(() => {
+    if (!candidate?.id) return;
+    hrApi.listScorecards(department).then((res) => {
+      const exists = (res.scorecards || []).some(
+        (sc) => sc.candidate_id === candidate.id && sc.status !== "revoked"
+      );
+      setHasScorecard(exists);
+    }).catch(() => {});
+  }, [candidate?.id, department]);
+
+  // Filter staff by search term
+  useEffect(() => {
+    if (!scorecardEmployeeSearch.trim()) {
+      setScorecardEmployees(allStaff.slice(0, 50));
+      return;
+    }
+    
+    const searchLower = scorecardEmployeeSearch.toLowerCase();
+    const filtered = allStaff.filter(
+      (s) => s.name.toLowerCase().includes(searchLower) || s.email.toLowerCase().includes(searchLower) || s.department.toLowerCase().includes(searchLower)
+    );
+    setScorecardEmployees(filtered.slice(0, 50));
+  }, [scorecardEmployeeSearch, allStaff]);
+
+  const handleCreateScorecard = async () => {
+    setCreatingScorecard(true);
+    setError("");
+    try {
+      // Check if scorecard already exists for this candidate
+      const existing = await hrApi.listScorecards(department);
+      const existingForCandidate = (existing.scorecards || []).find(
+        (sc) => sc.candidate_id === candidate.id && sc.status !== "revoked"
+      );
+      
+      let url: string;
+      if (existingForCandidate) {
+        // Reuse existing scorecard link
+        url = `${window.location.origin}/interview-scorecard/${existingForCandidate.token}`;
+        navigator.clipboard.writeText(url).then(() => {
+          alert(`📋 Scorecard already exists! Link copied to clipboard:\n\n${url}\n\nAll interview rounds (HR/Manager/CEO) share this same link.`);
+        }).catch(() => {
+          prompt("Scorecard already exists! Copy this link:", url);
+        });
+      } else {
+        // Create new scorecard
+        if (!selectedInterviewerId) {
+          setError("Please select an interviewer");
+          setCreatingScorecard(false);
+          return;
+        }
+        const res = await hrApi.createScorecard(department, {
+          candidate_id: candidate.id,
+          assigned_to_user_id: selectedInterviewerId,
+          expires_days: 365,
+        });
+        url = `${window.location.origin}/interview-scorecard/${res.scorecard.token}`;
+        navigator.clipboard.writeText(url).then(() => {
+          alert(`✅ Scorecard created! Link copied to clipboard:\n\n${url}\n\nAll interview rounds (HR/Manager/CEO) share this same link.`);
+        }).catch(() => {
+          prompt("Scorecard created! Copy this link:", url);
+        });
+      }
+      setShowScorecardModal(false);
+      setScorecardEmployeeSearch("");
+      setSelectedInterviewerId(null);
+      setHasScorecard(true);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "Failed to create scorecard");
+    } finally {
+      setCreatingScorecard(false);
+    }
+  };
 
   return (
     <>
@@ -336,11 +466,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 <button type="button" disabled={busy} onClick={() => move("Interview Email Sent - Waiting Reply", "Move to Interview Email Sent")} style={btnOutline}>→ Interview Email Sent</button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
-              {stage === "CEO Interview Scheduled" && questionsInterview && (
-                <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME, marginTop: "0.5rem" }}>
-                  {showQuestions ? "▲ Close Questions" : "📋 Questions"}
-                </button>
-              )}
+
             </div>
           )}
 
@@ -376,17 +502,59 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Once the candidate replies, schedule the 1st interview — this moves them to <strong>1st Interview Scheduled</strong>.
               </p>
+              {/* Optional: Upload Screening Answer PDF */}
+              <div style={{ marginBottom: "0.75rem", padding: "0.6rem", borderRadius: "0.5rem", border: `1px dashed ${BORDER}`, background: SURFACE_2 }}>
+                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.3rem" }}>
+                  📎 Screening Answer (PDF) — optional
+                </label>
+                <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>
+                  <input
+                    type="file"
+                    accept=".pdf,.doc,.docx"
+                    onChange={(e) => setScreeningFile(e.target.files?.[0] || null)}
+                    style={{ fontSize: "0.78rem", color: TEXT, flex: 1 }}
+                  />
+                  {screeningFile && (
+                    <button
+                      type="button"
+                      disabled={screeningUploading}
+                      onClick={async () => {
+                        if (!screeningFile || !candidate) return;
+                        setScreeningUploading(true);
+                        try {
+                          await hrApi.candidateFileUpload(department, candidate.id, screeningFile, "screening_answers");
+                          alert("Screening answer uploaded!");
+                          setScreeningFile(null);
+                        } catch (err) {
+                          alert(err instanceof Error ? err.message : "Upload failed");
+                        } finally {
+                          setScreeningUploading(false);
+                        }
+                      }}
+                      style={{ padding: "0.3rem 0.6rem", borderRadius: "0.3rem", border: "none", background: LIME, color: "#0a0a0a", fontSize: "0.75rem", fontWeight: 600, cursor: screeningUploading ? "wait" : "pointer" }}
+                    >
+                      {screeningUploading ? "Uploading…" : "Upload"}
+                    </button>
+                  )}
+                </div>
+                <div style={{ fontSize: "0.68rem", color: MUTED, marginTop: "0.2rem" }}>
+                  Upload the candidate's screening answer PDF. It will appear in the interview scorecard.
+                </div>
+              </div>
+
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>
                   <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
-                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
-                  <datalist id="journey-interviewers">
-                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
-                  </datalist>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
@@ -411,9 +579,6 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   {nextInterview.location ? ` · ${nextInterview.location}` : ""}
                 </p>
               )}
-              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
-                Once the HR interview is done, record the result.
-              </p>
               <textarea
                 value={feedback}
                 onChange={(e) => setFeedback(e.target.value)}
@@ -423,10 +588,25 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
               />
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("HR Interview Done", "HR interview done")} style={btnPrimary}>✓ HR Interview Done →</button>
-                <button type="button" disabled={busy} onClick={saveFeedback} style={btnOutline}>💾 Save feedback only</button>
-                {questionsInterview && (
-                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
-                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
+
+                {hasScorecard ? (
+                  <button type="button" onClick={async () => {
+                    // Open scorecard in new tab — HR round
+                    try {
+                      const existing = await hrApi.listScorecards(department);
+                      const sc = (existing.scorecards || []).find(
+                        (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                      );
+                      if (sc) {
+                        window.open(`/interview-scorecard/${sc.token}?round=hr`, "_blank");
+                      }
+                    } catch {}
+                  }} style={{ ...btnOutline, color: LIME }}>
+                    🔗 Scorecard Link
+                  </button>
+                ) : (
+                  <button type="button" onClick={() => setShowScorecardModal(true)} style={{ ...btnOutline, color: LIME }}>
+                    🔗 Generate Scorecard
                   </button>
                 )}
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
@@ -459,11 +639,13 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                   <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
                 </div>
                 <div>
-                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer *</label>
-                  <input list="journey-interviewers" value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} placeholder="Pick or type a name" style={inputStyle} />
-                  <datalist id="journey-interviewers">
-                    {employees.map((e) => <option key={e.id} value={e.employees_name} />)}
-                  </datalist>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
                 </div>
                 <div>
                   <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
@@ -491,12 +673,102 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
                 Interview is set. When it happens, mark that you are waiting for the interviewer's result.
               </p>
               <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Manager Interview Done", "Manager interview done")} style={btnPrimary}>✓ Manager Interview Done →</button>
+                <button type="button" onClick={async () => {
+                  try {
+                    const existing = await hrApi.listScorecards(department);
+                    const sc = (existing.scorecards || []).find(
+                      (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                    );
+                    if (sc) {
+                      window.open(`/interview-scorecard/${sc.token}?round=manager`, "_blank");
+                    } else {
+                      alert("No scorecard found for this candidate.");
+                    }
+                  } catch {}
+                }} style={{ ...btnOutline, color: LIME }}>
+                  🔗 Scorecard Link
+                </button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Manager Interview Done" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Manager interview done</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Candidate passed the Manager round? Continue to request a CEO interview slot, or reject.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => move("Waiting CEO Interview Confirm", "Request CEO Interview")} style={btnPrimary}>✓ Continue — Request CEO Interview →</button>
+                <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject (reason required)</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "Waiting CEO Interview Confirm" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for CEO interview confirmation</p>
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                Waiting for the CEO to confirm a date/time. Once confirmed, schedule it below.
+              </p>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "0.5rem", marginBottom: "0.6rem" }}>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Date & time *</label>
+                  <input type="datetime-local" value={schedAt} onChange={(e) => setSchedAt(e.target.value)} style={inputStyle} />
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Interviewer * (Staff Directory)</label>
+                  <select value={schedInterviewer} onChange={(e) => setSchedInterviewer(e.target.value)} style={inputStyle}>
+                    <option value="">— select staff —</option>
+                    {staffDirectory.map((s) => (
+                      <option key={s.id} value={s.name}>{s.name}{s.department ? ` (${s.department})` : ""}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label style={{ display: "block", fontSize: "0.72rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>Location</label>
+                  <input value={schedLocation} onChange={(e) => setSchedLocation(e.target.value)} placeholder="Office / Meet link" style={inputStyle} />
+                </div>
+              </div>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
+                <button type="button" disabled={busy} onClick={() => confirmSchedule("ceo")} style={btnPrimary}>✓ CEO Confirmed — Schedule →</button>
+                <button type="button" disabled={busy} onClick={markWaiting} style={{ ...btnOutline, color: WARNING }}>⏳ Still waiting</button>
+              </div>
+            </div>
+          )}
+
+          {stage === "CEO Interview Scheduled" && (
+            <div>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — CEO interview scheduled</p>
+              {nextInterview && (
+                <p style={{ margin: "0 0 0.5rem", fontSize: "0.75rem", color: TEXT }}>
+                  📅 {fmtDateTime(nextInterview.scheduled_at)}
+                  {nextInterview.interviewer_name ? ` · Interviewer: ${nextInterview.interviewer_name}` : ""}
+                  {nextInterview.location ? ` · ${nextInterview.location}` : ""}
+                </p>
+              )}
+              <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
+                CEO interview is set. When it happens, mark that you are waiting for the result.
+              </p>
+              <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
                 <button type="button" disabled={busy} onClick={() => move("Waiting Interview Result", "Waiting interview result")} style={btnPrimary}>✓ Interview Held — Waiting Result →</button>
-                {questionsInterview && (
-                  <button type="button" onClick={() => setShowQuestions((v) => !v)} style={{ ...btnOutline, color: LIME }}>
-                    {showQuestions ? "▲ Close Questions" : "📋 Questions"}
-                  </button>
-                )}
+                <button type="button" onClick={async () => {
+                  try {
+                    const existing = await hrApi.listScorecards(department);
+                    const sc = (existing.scorecards || []).find(
+                      (s) => s.candidate_id === candidate.id && s.status !== "revoked"
+                    );
+                    if (sc) {
+                      window.open(`/interview-scorecard/${sc.token}?round=ceo`, "_blank");
+                    } else {
+                      alert("No scorecard found for this candidate.");
+                    }
+                  } catch {}
+                }} style={{ ...btnOutline, color: LIME }}>
+                  🔗 Scorecard Link
+                </button>
                 <button type="button" disabled={busy} onClick={rejectWithReason} style={btnDanger}>✗ Reject</button>
               </div>
             </div>
@@ -504,7 +776,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Interview Result" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 8 — Waiting for interview result</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 11 — Waiting for interview result</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Follow up with the interviewer. Once the result is in, confirm whether to proceed to offer.
               </p>
@@ -518,7 +790,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Waiting Offer Confirmation" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 9 — Waiting for offer confirmation</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 12 — Waiting for offer confirmation</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Confirm the offer details with management. Once confirmed, send the offer to the candidate.
               </p>
@@ -531,7 +803,7 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
 
           {stage === "Offer Sent - Waiting Reply" && (
             <div>
-              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 10 — Offer sent, waiting for reply</p>
+              <p style={{ margin: "0 0 0.4rem", fontSize: "0.85rem", fontWeight: 700, color: TEXT }}>Step 13 — Offer sent, waiting for reply</p>
               <p style={{ margin: "0 0 0.6rem", fontSize: "0.75rem", color: MUTED }}>
                 Waiting for the candidate's answer. If they accept, mark Done — then close the job from Job Openings.
               </p>
@@ -553,15 +825,90 @@ export function JourneyStepperModal({ candidate: initialCandidate, stats, depart
           )}
         </div>
 
-        {/* Interview questions panel (interview-scheduled stages only) */}
-        {questionsInterview && showQuestions && (
-          <InterviewQuestionsPanel
-            interview={questionsInterview}
-            candidate={candidate}
-            job={job}
-            department={department}
-            onChanged={() => queryClient.invalidateQueries({ queryKey: ["dashboard-hr-stats", department] })}
-          />
+
+
+        {/* Scorecard Generation Modal */}
+        {showScorecardModal && (
+          <div style={{ marginTop: "1rem", padding: "1rem", borderRadius: "0.5rem", border: `1px solid ${BORDER}`, background: "var(--samurai-surface)" }}>
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "0.75rem" }}>
+              <h3 style={{ margin: 0, fontSize: "0.95rem", fontWeight: 600, color: TEXT }}>
+                🔗 Generate Interview Scorecard
+              </h3>
+              <button type="button" onClick={() => setShowScorecardModal(false)} style={{ border: "none", background: "transparent", color: MUTED, cursor: "pointer", fontSize: "1.2rem" }}>
+                ✕
+              </button>
+            </div>
+            
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              <div>
+                <label style={{ display: "block", fontSize: "0.75rem", fontWeight: 600, color: MUTED, marginBottom: "0.25rem" }}>
+                  Assign Interviewer
+                </label>
+                <input
+                  type="text"
+                  value={scorecardEmployeeSearch}
+                  onChange={(e) => {
+                    setScorecardEmployeeSearch(e.target.value);
+                    setSelectedInterviewerId(null);
+                  }}
+                  placeholder="Search employee name..."
+                  style={inputStyle}
+                />
+                {scorecardEmployees.length > 0 && (
+                  <div style={{ marginTop: "0.25rem", maxHeight: "150px", overflowY: "auto", border: `1px solid ${BORDER}`, borderRadius: "0.4rem", background: "var(--samurai-bg)" }}>
+                    {scorecardEmployees.map((emp) => (
+                      <div
+                        key={emp.id}
+                        onClick={() => {
+                          setSelectedInterviewerId(emp.id);
+                          setScorecardEmployeeSearch(emp.name);
+                          setScorecardEmployees([]);
+                        }}
+                        style={{
+                          padding: "0.5rem",
+                          cursor: "pointer",
+                          borderBottom: `1px solid ${BORDER}`,
+                          fontSize: "0.8rem",
+                          color: TEXT,
+                        }}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = SURFACE_2)}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+                      >
+                        <strong>{emp.name}</strong> · {emp.department} · {emp.email}
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {selectedInterviewerId && (
+                  <p style={{ margin: "0.25rem 0 0", fontSize: "0.7rem", color: OK }}>
+                    ✓ Assigned to: {scorecardEmployeeSearch}
+                  </p>
+                )}
+              </div>
+
+              <div style={{ display: "flex", gap: "0.5rem" }}>
+                <button
+                  type="button"
+                  onClick={handleCreateScorecard}
+                  disabled={creatingScorecard || !selectedInterviewerId}
+                  style={{
+                    ...btnPrimary,
+                    opacity: (!selectedInterviewerId || creatingScorecard) ? 0.5 : 1,
+                    cursor: (!selectedInterviewerId || creatingScorecard) ? "not-allowed" : "pointer",
+                  }}
+                >
+                  {creatingScorecard ? "Creating..." : "Generate & Copy Link"}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowScorecardModal(false)}
+                  style={btnOutline}
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          </div>
         )}
 
         {/* Timeline */}

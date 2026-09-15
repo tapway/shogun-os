@@ -178,9 +178,9 @@ function classifyPipeline(c: HrCandidate, jobOpenings: HrJobOpening[]): string |
   if (openMatches.length > 0) {
     const t = (openMatches[0].employment_type || "").trim();
     const canonical = PIPELINE_SECTIONS.find((s) => s.key.toLowerCase() === t.toLowerCase());
-    return canonical ? canonical.key : t || OTHER_KEY;
+    return canonical ? canonical.key : "Full Time"; // Unknown types default to Full Time
   }
-  if (c.in_pipeline) return OTHER_KEY;
+  if (c.in_pipeline) return "Full Time"; // Default untyped candidates to Full Time
   return null;
 }
 
@@ -538,22 +538,9 @@ export function RecruitmentPipelineTab({ stats, department }: Props) {
         );
       })}
 
-      {view === "pipeline" && otherCandidates.length > 0 && (
-        <div className="sd-chart-card">
-          <SectionHeader label="Other / Unassigned Positions" count={otherCandidates.length} />
-          <KanbanBoard
-            candidates={otherCandidates}
-            onSelect={setSelected}
-            dragId={dragId}
-            dragOver={dragOver}
-            setDragId={setDragId}
-            setDragOver={setDragOver}
-            onDropStage={moveCandidate}
-          />
-        </div>
-      )}
 
-      {view === "pipeline" && candidates.length > 0 && globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && otherCandidates.length === 0 && (
+
+      {view === "pipeline" && candidates.length > 0 && globallyFiltered.length === 0 && sections.every((s) => s.candidates.length === 0) && (
         <div style={{ padding: "2rem", width: "100%", textAlign: "center", color: "var(--samurai-muted)", fontSize: "0.85rem" }}>
           No candidates match the current filters.
           <div style={{ fontSize: "0.75rem", marginTop: "0.3rem" }}>
