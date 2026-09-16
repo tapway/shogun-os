@@ -254,3 +254,80 @@ print(f"inventory: {n_skus} SKUs, valuation RM {total_valuation:,.2f}, out={out_
 print(f"purchase-orders: {len(po_rows)} customer POs, value RM {sum(r['total_amount'] for r in po_rows):,.2f}")
 print(f"vendors: {len(ap_rows)} AP vendors, total RM {total_ap:,.2f}")
 print("all 5 snapshots written → dashboard flips to mock=false")
+
+# ─────────────────────────────────────────────────────────────
+# Procurement Ver2 Tabs — Issue #36 snapshot producers
+# ─────────────────────────────────────────────────────────────
+# These feed Progress Tracker, Supplier & Item History, PR-to-PO creation,
+# and Barcode tabs. Honest empty states until real data sources exist.
+
+# 1. progressTrackerProjects ← no source yet (needs per-item step timeline tracking)
+progress_tracker_projects = []  # TODO: wire to procurement/project-tracker pages
+
+# 2. supplierDirectory ← derive from AP vendors + enrich with placeholder fields
+supplier_directory = []
+for vendor_name, spend in sorted(ap_rows, key=lambda x: -x[1]):
+    supplier_directory.append({
+        "id": f"SUP-{vendor_name.replace(' ', '-').upper()[:20]}",
+        "companyName": vendor_name,
+        "companyRegNo": "",  # TODO: enrich from company registry
+        "officePhone": "",
+        "registeredAddress": "",
+        "website": "",
+        "picName": "",
+        "picContact": "",
+        "picEmail": "",
+        "paymentTerm": "From A/P ageing (no terms data)",
+        "paymentCurrency": "MYR",
+        "paymentBank": "",
+        "bankAccountNo": "",
+        "bankSwiftCode": None,
+        "preferredCourier": "",
+    })
+
+# 3. supplierHistory ← derive from PO register + vendor spend (item-level history not tracked yet)
+supplier_history = []  # TODO: wire to PO register with item-level breakdown
+
+# 4. demoPurchaseRequisitions ← no source yet (needs PR pages in gbrain)
+purchase_requisitions = []  # TODO: wire to procurement/purchase-requisitions/* pages
+
+# 5. barcodeBatchRecords ← no source yet (needs barcode batch/scan state tracking)
+barcode_batches = []  # TODO: wire to barcode scan event log
+
+# Build ver2 snapshots
+progress_tracker_snap = {
+    "period": "2026-08",
+    "source": "gbrain procurement/project-tracker (not yet implemented)",
+    "progress_tracker_projects": progress_tracker_projects,
+}
+
+supplier_snap = {
+    "period": "2026-06",
+    "source": "202606-management-report.xlsx A/P Ageing (enriched with placeholders)",
+    "supplier_directory": supplier_directory,
+    "supplier_history": supplier_history,
+}
+
+pr_snap = {
+    "period": "2026-08",
+    "source": "gbrain procurement/purchase-requisitions (not yet implemented)",
+    "purchase_requisitions": purchase_requisitions,
+}
+
+barcode_snap = {
+    "period": "2026-08",
+    "source": "gbrain procurement/barcode-batches (not yet implemented)",
+    "barcode_batches": barcode_batches,
+}
+
+# Write ver2 snapshots
+put_snap("procurement/snapshots/progress-tracker", "Procurement Snapshot — Progress Tracker (2026-08)", progress_tracker_snap)
+put_snap("procurement/snapshots/suppliers", "Procurement Snapshot — Suppliers (2026-06)", supplier_snap)
+put_snap("procurement/snapshots/purchase-requisitions", "Procurement Snapshot — Purchase Requisitions (2026-08)", pr_snap)
+put_snap("procurement/snapshots/barcode-batches", "Procurement Snapshot — Barcode Batches (2026-08)", barcode_snap)
+
+print(f"progress-tracker: {len(progress_tracker_projects)} projects")
+print(f"suppliers: {len(supplier_directory)} suppliers, {len(supplier_history)} history entries")
+print(f"purchase-requisitions: {len(purchase_requisitions)} PRs")
+print(f"barcode-batches: {len(barcode_batches)} batches")
+print("all 9 snapshots written (5 original + 4 ver2) → Issue #36 done")
