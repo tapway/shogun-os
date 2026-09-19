@@ -129,6 +129,8 @@ export default function Chat({ department }: ChatProps) {
   const [uploading, setUploading] = useState(false);
   const [loadingHistory, setLoadingHistory] = useState(false);
   const [sending, setSending] = useState(false);
+  // Agent status banner: awakening | ready | fallback | null
+  const [agentStatus, setAgentStatus] = useState<{state: string; message: string} | null>(null);
   // Generate a new session ID for each mount - fresh conversation every time
   const [currentSessionId, setCurrentSessionId] = useState<string>(() => crypto.randomUUID());
   const [resetKey, setResetKey] = useState(0);
@@ -225,6 +227,13 @@ export default function Chat({ department }: ChatProps) {
       } else if (event.type === "error") {
         toast.error(event.message || "Chat error");
         setSending(false);
+      } else if ((event as any).type === "status") {
+        const s = event as any;
+        setAgentStatus({ state: s.state, message: s.message });
+        // Auto-hide ready status after 3 seconds
+        if (s.state === "ready") {
+          setTimeout(() => setAgentStatus(null), 3000);
+        }
       }
     },
   });
@@ -343,6 +352,23 @@ export default function Chat({ department }: ChatProps) {
           </div>
         </div>
       </div>
+
+      {/* Agent Status Banner */}
+      {agentStatus && (
+        <div
+          className={clsx(
+            "flex items-center gap-2 border-b px-4 py-2 text-xs font-medium transition-all",
+            agentStatus.state === "awakening" && "border-amber-200 bg-amber-50 text-amber-800 dark:border-amber-800 dark:bg-amber-900/30 dark:text-amber-300",
+            agentStatus.state === "ready" && "border-emerald-200 bg-emerald-50 text-emerald-800 dark:border-emerald-800 dark:bg-emerald-900/30 dark:text-emerald-300",
+            agentStatus.state === "fallback" && "border-blue-200 bg-blue-50 text-blue-800 dark:border-blue-800 dark:bg-blue-900/30 dark:text-blue-300",
+          )}
+        >
+          {agentStatus.state === "awakening" && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+          {agentStatus.state === "ready" && <Wifi className="h-3.5 w-3.5" />}
+          {agentStatus.state === "fallback" && <WifiOff className="h-3.5 w-3.5" />}
+          <span>{agentStatus.message}</span>
+        </div>
+      )}
 
       <div className="flex-1 space-y-4 overflow-y-auto px-4 py-4">
         {loadingHistory && (

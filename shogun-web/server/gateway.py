@@ -354,19 +354,21 @@ async def _generate_department_response_async(
     p_lower = prompt.lower().strip()
 
     catalog_personas = {
-        "hr": ("HR", "Jinzai", "people operations, leave management, recruitment, and HR policy guidance"),
-        "finance": ("Finance", "Koku", "budgets, expense tracking, grant approvals, and financial reporting"),
-        "crm": ("CRM", "Eigyo", "sales pipelines, account management, and deal intelligence"),
-        "procurement": ("Procurement", "Chotatsu", "purchase orders, vendor management, and contract lifecycles"),
-        "marketing": ("Marketing", "Koku", "campaign analytics, brand strategy, and growth marketing"),
-        "compliance": ("Compliance", "Koku", "regulatory audits, policy compliance, and risk assessments"),
-        "support": ("Support", "Koku", "customer support tickets, SLA monitoring, and issue resolution"),
-        "engineering": ("Engineering", "Koku", "technical architecture, code reviews, and CI/CD pipelines"),
-        "projects": ("Projects", "Koku", "project milestones, task tracking, and deliverable management"),
-        "product": ("Product", "Koku", "product roadmap, feature specifications, and user feedback"),
-        "customer-support": ("Customer Support", "Shien", "customer support tickets, SLAs, and customer success workflows"),
-        "coding": ("Coding", "Gijutsu", "codebase ops, deployments, and technical delivery"),
-        "facility": ("Facility Management", "Eizen", "facility management, quarters inspection, document scanning, and site conditions"),
+        "hr": ("HR", "Jinzai (人材)", "people operations, leave management, recruitment, and HR policy guidance"),
+        "finance": ("Finance", "Koku (石)", "budgets, expense tracking, grant approvals, and financial reporting"),
+        "crm": ("CRM", "Kizuna (絆)", "sales pipelines, account management, and deal intelligence"),
+        "procurement": ("Procurement", "Kura (蔵)", "purchase orders, vendor management, and contract lifecycles"),
+        "marketing": ("Marketing", "Haiku (俳句)", "campaign analytics, brand strategy, and growth marketing"),
+        "compliance": ("Compliance", "Kata (型)", "regulatory audits, policy compliance, and risk assessments"),
+        "support": ("Support", "Boei (防衛)", "customer support tickets, SLA monitoring, and issue resolution"),
+        "engineering": ("Engineering", "Takumi (匠)", "technical architecture, code reviews, and CI/CD pipelines"),
+        "projects": ("Projects", "Gorobei (五郎兵衛)", "project milestones, task tracking, and deliverable management"),
+        "product": ("Product", "Shi (志)", "product roadmap, feature specifications, and user feedback"),
+        "customer-support": ("Customer Support", "Boei (防衛)", "customer support tickets, SLAs, and customer success workflows"),
+        "coding": ("Coding", "Takumi (匠)", "codebase ops, deployments, and technical delivery"),
+        "facility": ("Facility Management", "Eizen (永善)", "facility management, quarters inspection, document scanning, and site conditions"),
+        "e-commerce": ("E-commerce", "Denshi (電子)", "online store management, marketplace listings, orders, and fulfillment"),
+        "executive": ("Executive", "Benkei (弁慶)", "CEO scheduling, travel, correspondence, and governance coordination"),
     }
 
     display_name, persona, duties = catalog_personas.get(
@@ -413,116 +415,13 @@ async def _generate_department_response_async(
     if llm_reply:
         return llm_reply
 
-    if key == "finance":
-        total_ar = stats.get("total_ar", 485000.0)
-        ar_aging = stats.get("ar_aging", {})
-        total_ap = stats.get("total_ap", 210000.0)
-        ap_overdue = stats.get("ap_overdue", 32000.0)
-        dso = stats.get("dso", 38.0)
-        dpo = stats.get("dpo", 28.0)
-        liquid_cash = stats.get("total_liquid_cash", 1450000.0)
-        rev_mtd = stats.get("revenue_mtd", 340000.0)
-        rev_ytd = stats.get("revenue_ytd", 3850000.0)
-
-        if any(w in p_lower for w in ["ar", "receivable", "debtor", "unpaid invoice"]):
-            b0_30 = ar_aging.get("bucket_0_30", 340000.0)
-            b31_60 = ar_aging.get("bucket_31_60", 65000.0)
-            b61_90 = ar_aging.get("bucket_61_90", 40000.0)
-            b90_plus = ar_aging.get("bucket_90_plus", 40000.0)
-            overdue_30 = b31_60 + b61_90 + b90_plus
-
-            return (
-                f"### Finance Accounts Receivable (AR) Summary\n\n"
-                f"- **Total Accounts Receivable (AR):** RM {total_ar:,.2f}\n"
-                f"- **Overdue (>30 Days):** RM {overdue_30:,.2f}\n"
-                f"- **Days Sales Outstanding (DSO):** {dso:.0f} days\n\n"
-                f"#### Aging Breakdown:\n"
-                f"- **Current (0-30 Days):** RM {b0_30:,.2f}\n"
-                f"- **31-60 Days:** RM {b31_60:,.2f}\n"
-                f"- **61-90 Days:** RM {b61_90:,.2f}\n"
-                f"- **>90 Days (Critical Overdue):** RM {b90_plus:,.2f}\n\n"
-                f"#### High Priority Dunning Queue:\n"
-                f"1. **Telekom Malaysia** - RM 65,000.00 (Overdue: 68 days)\n"
-                f"2. **Axiata Corp** - RM 45,000.00 (Overdue: 42 days)\n"
-                f"3. **Tenaga Nasional** - RM 35,000.00 (Overdue: 95 days)"
-            )
-
-        if any(w in p_lower for w in ["ap", "payable", "bill", "creditor"]):
-            return (
-                f"### Finance Accounts Payable (AP) Summary\n\n"
-                f"- **Total Accounts Payable (AP):** RM {total_ap:,.2f}\n"
-                f"- **Overdue AP:** RM {ap_overdue:,.2f}\n"
-                f"- **Days Payable Outstanding (DPO):** {dpo:.0f} days"
-            )
-
-        if any(w in p_lower for w in ["cash", "liquid", "runway", "burn"]):
-            burn = stats.get("net_monthly_burn", 120000.0)
-            runway = stats.get("cash_runway_months", 12.1)
-            return (
-                f"### Finance Cash & Runway Overview\n\n"
-                f"- **Total Liquid Cash:** RM {liquid_cash:,.2f}\n"
-                f"- **Net Monthly Burn:** RM {burn:,.2f}\n"
-                f"- **Cash Runway:** {runway:.1f} months ({stats.get('runway_status', 'healthy').capitalize()})"
-            )
-
-        if any(w in p_lower for w in ["revenue", "sales", "p&l", "profit", "ebitda"]):
-            return (
-                f"### Finance Revenue & Profitability\n\n"
-                f"- **Revenue MTD:** RM {rev_mtd:,.2f}\n"
-                f"- **Revenue YTD:** RM {rev_ytd:,.2f}\n"
-                f"- **Gross Margin:** {stats.get('gross_margin', 64.2):.1f}%\n"
-                f"- **EBITDA Margin:** {stats.get('ebitda_margin', 22.1):.1f}%"
-            )
-
-        return (
-            f"### Finance (Koku) Financial Overview\n\n"
-            f"- **Total Liquid Cash:** RM {liquid_cash:,.2f}\n"
-            f"- **Total Accounts Receivable (AR):** RM {total_ar:,.2f} (DSO: {dso:.0f} days)\n"
-            f"- **Total Accounts Payable (AP):** RM {total_ap:,.2f}\n"
-            f"- **Revenue YTD:** RM {rev_ytd:,.2f}\n\n"
-            f"Let me know if you would like specific invoice, aging, or budget breakdowns!"
-        )
-
-    elif key == "crm":
-        pipe_val = stats.get("total_pipeline", 5400000.0)
-        won_ytd = stats.get("won_ytd", 1850000.0)
-        deals_cnt = stats.get("active_deals_count", 24)
-
-        if any(w in p_lower for w in ["pipeline", "deal", "lead", "won", "stage", "sales"]):
-            return (
-                f"### CRM Sales Pipeline Summary\n\n"
-                f"- **Total Active Pipeline Value:** RM {pipe_val:,.2f}\n"
-                f"- **Won YTD Revenue:** RM {won_ytd:,.2f}\n"
-                f"- **Active Deals:** {deals_cnt} opportunities\n\n"
-                f"#### Top Active Opportunities:\n"
-                f"1. **Prasarana Fleet Management System** - RM 1,200,000 (Stage: Tender)\n"
-                f"2. **PETRONAS Asset Tracking AI** - RM 850,000 (Stage: Qualified)\n"
-                f"3. **Sime Darby Smart Camera Rollout** - RM 620,000 (Stage: Quote)"
-            )
-
-        return (
-            f"### CRM (Eigyo) Sales Overview\n\n"
-            f"- **Total Active Pipeline:** RM {pipe_val:,.2f}\n"
-            f"- **Won YTD Revenue:** RM {won_ytd:,.2f}\n"
-            f"- **Active Deals:** {deals_cnt}\n\n"
-            f"Ask me about specific deals, pipeline stages, or account managers!"
-        )
-
-    elif key == "procurement":
-        po_spend = stats.get("total_po_spend", 890000.0)
-        pending_po = stats.get("pending_approvals_count", 5)
-
-        return (
-            f"### Procurement (Chotatsu) Summary\n\n"
-            f"- **Total PO Spend:** RM {po_spend:,.2f}\n"
-            f"- **Pending Approval POs:** {pending_po}\n"
-            f"- **Active Vendors:** 18 suppliers"
-        )
-
+    # No LLM response available — return honest status instead of fabricated data
     return (
         f"As the **{display_name}** AI Assistant ({persona}), I have received your query:\n\n"
         f"> *\"{prompt}\"*\n\n"
-        f"Currently monitoring **{display_name}** operations, team docs, and active tasks. Let me know if you would like me to lookup specific records!"
+        f"I currently have limited data available for this request. "
+        f"Please ensure the {display_name} brain pages are populated and try again, "
+        f"or rephrase your question with more specific details."
     )
 
 
@@ -547,6 +446,10 @@ async def _handle_embedded_agent_session(
                 "embedded": True,
                 "message": f"Connected to {dept_name} AI Assistant",
             }
+        )
+        # Send ready status for UI banner
+        await websocket.send_json(
+            {"type": "status", "state": "ready", "message": f"{dept_name} agent is ready (basic mode)"}
         )
     except Exception:
         pass
@@ -766,6 +669,13 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
         await _handle_embedded_agent_session(websocket, resolved_profile, dept, user_id=user_id)
         return
 
+    # Send awakening status while connecting to gateway
+    try:
+        await websocket.send_json(
+            {"type": "status", "state": "awakening", "message": f"Connecting to {dept.name.capitalize()} agent..."}
+        )
+    except Exception:
+        pass
 
     upstream_url = f"ws://127.0.0.1:{int(port)}/api/ws"
     # Chat daemons (isolated hermes serve) require the session token on the
@@ -801,6 +711,9 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
                         "upstream": upstream_url,
                     }
                 )
+                await websocket.send_json(
+                    {"type": "status", "state": "ready", "message": f"{dept.name.capitalize()} agent is ready"}
+                )
             except Exception:
                 pass
 
@@ -822,6 +735,13 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
             resolved_profile,
             exc,
         )
+        # Notify UI that gateway is unavailable, falling back
+        try:
+            await websocket.send_json(
+                {"type": "status", "state": "fallback", "message": f"{dept.name.capitalize()} agent offline — running in basic mode"}
+            )
+        except Exception:
+            pass
         # Run embedded AI department agent session when daemon port is offline
         await _handle_embedded_agent_session(websocket, resolved_profile, dept)
     finally:
