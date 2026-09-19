@@ -259,40 +259,395 @@ print("all 5 snapshots written → dashboard flips to mock=false")
 # Procurement Ver2 Tabs — Issue #36 snapshot producers
 # ─────────────────────────────────────────────────────────────
 # These feed Progress Tracker, Supplier & Item History, PR-to-PO creation,
-# and Barcode tabs. Honest empty states until real data sources exist.
+# and Barcode tabs. Each parser reads gbrain markdown tables and produces
+# rows matching the frontend TypeScript contracts in types.ts.
+# When a brain page doesn't exist yet, the parser returns [] (honest empty).
 
-# 1. progressTrackerProjects ← no source yet (needs per-item step timeline tracking)
-progress_tracker_projects = []  # TODO: wire to procurement/project-tracker pages
+def _safe_fetch(slug):
+    """Fetch a gbrain page; return empty string if it doesn't exist."""
+    try:
+        return fetch_md(slug) or ""
+    except Exception:
+        return ""
 
-# 2. supplierDirectory ← derive from AP vendors + enrich with placeholder fields
+def _parse_md_table(md, header_match=None):
+    """Generic markdown table parser. Yields lists of cell strings per row.
+    Skips separator rows (:---) and header rows. If header_match is given,
+    only parses tables whose header row contains that substring."""
+    lines = md.splitlines()
+    header_seen = False
+    matched_table = False  # True once we're inside a matching table
+    for line in lines:
+        stripped = line.strip()
+        if not stripped.startswith("|"):
+            # Non-table line resets state — separates distinct tables
+            header_seen = False
+            matched_table = False
+            continue
+        cells = [c.strip() for c in stripped.strip("|").split("|")]
+        # Skip separator rows
+        if all(c.replace(":", "").replace("-", "").strip() == "" for c in cells):
+            if not matched_table and header_match and header_seen:
+                matched_table = True  # separator confirms we passed a matching header
+            elif not header_match and not matched_table and header_seen:
+                matched_table = True
+            continue
+        if not header_seen:
+            # This is a header row — check if it matches
+            if header_match and header_match.lower() not in stripped.lower():
+                # Non-matching header — skip this table entirely
+                header_seen = False
+                matched_table = False
+                continue
+            header_seen = True
+            if not header_match:
+                matched_table = True  # no filter → every table matches
+            continue
+        # Data row — only yield if we're inside a matched table
+        if matched_table and cells:
+            yield cells
+
+
+# ── 1. Progress Tracker ──────────────────────────────────────
+# Brain page: procurement/project-tracker (one page per project, or a single
+# index page with a projects table + per-item step tables).
+# Contract: ProgressTrackerProject → hardware_items[] → steps[]
+# See types.ts lines 1619-1664
+
+def parse_progress_tracker(md):
+    """Parse project tracker markdown into ProgressTrackerProject dicts."""
+    if not md:
+        return []
+    projects = []
+    # Strategy: look for ## Project sections, each containing a metadata table
+    # and an items/steps sub-table.
+    sections = re.split(r'^## ', md, flags=re.MULTILINE)
+    for sec in sections[1:]:  # skip preamble before first ##
+        lines = sec.strip().splitlines()
+        project_name = lines[0].strip() if lines else "Unknown"
+        meta = {}
+        items = []
+        # Parse metadata key-value pairs from first table
+        for cells in _parse_md_table(sec):
+            if len(cells) >= 2:
+                key = cells[0].strip().lower().replace(" ", "_")
+                val = cells[1].strip()
+                if key in ("project_id", "pr_number", "requester", "department",
+                           "created_at", "status", "blocked_reason", "blocked_since"):
+                    meta[key] = val
+        # Parse hardware items table (look for item_name/quantity columns)
+        for cells in _parse_md_table(sec, header_match="item"):
+            if len(cells) >= 4:
+                item = {
+                    "item_id": cells[0] if len(cells) > 0 else f"item-{len(items)}",
+                    "name": cells[1] if len(cells) > 1 else "",
+                    "quantity": int(cells[2]) if len(cells) > 2 and cells[2].isdigit() else 1,
+                    "unit": cells[3] if len(cells) > 3 else "unit",
+                    "selected_supplier": {
+                        "name": cells[4] if len(cells) > 4 else "",
+                        "contact": cells[5] if len(cells) > 5 else "",
+                        "quotation_amount": float(cells[6].replace(",", "").replace("RM", "")) if len(cells) > 6 else 0,
+                        "lead_time_days": int(cells[7]) if len(cells) > 7 and cells[7].isdigit() else 0,
+                    },
+                    "current_step_index": 0,
+                    "steps": [],  # Steps populated from separate step table below
+                }
+                items.append(item)
+        # Parse steps table if present
+        step_rows = list(_parse_md_table(sec, header_match="step"))
+        for i, cells in enumerate(step_rows):
+            if len(cells) >= 3 and items:
+                step = {
+                    "id": cells[0] if cells[0] else f"step-{i}",
+                    "name": cells[1] if len(cells) > 1 else "",
+                    "type": "vendor" if len(cells) > 2 and "vendor" in cells[2].lower() else "internal",
+                    "status": cells[3] if len(cells) > 3 and cells[3] in ("pending", "in_progress", "completed", "blocked") else "pending",
+                }
+                # Assign step to last item (or distribute round-robin)
+                target_idx = min(i, len(items) - 1)
+                items[target_idx]["steps"].append(step)
+        # Compute progress
+        all_steps = [s for it in items for s in it["steps"]]
+        completed = sum(1 for s in all_steps if s.get("status") == "completed")
+        total = len(all_steps) or 1
+        pid = meta.get("project_id", f"proj-{len(projects)}")
+        status_raw = meta.get("status", "").lower()
+        if status_raw not in ("not_started", "in_progress", "blocked", "completed"):
+            status_raw = "in_progress" if completed < total else "completed"
+        projects.append({
+            "project_id": pid,
+            "project_name": meta.get("project_name", project_name),
+            "pr_number": meta.get("pr_number", ""),
+            "requester": meta.get("requester", ""),
+            "department": meta.get("department", "procurement"),
+            "created_at": meta.get("created_at", ""),
+            "overall_progress": round(completed / total * 100, 1),
+            "completed_steps": completed,
+            "total_steps": total,
+            "status": status_raw,
+            "blocked_reason": meta.get("blocked_reason"),
+            "blocked_since": meta.get("blocked_since"),
+            "hardware_items": items,
+        })
+    return projects
+
+tracker_md = _safe_fetch("procurement/project-tracker")
+progress_tracker_projects = parse_progress_tracker(tracker_md)
+
+
+# ── 2. Supplier Directory ────────────────────────────────────
+# Primary source: AP ageing vendor list (always available).
+# Enrichment: procurement/vendors/* pages (optional, adds reg no / bank / PIC).
+# Contract: SupplierRecord (types.ts lines 1680-1696)
+
+def parse_vendor_pages(vendor_slugs_and_md):
+    """Parse procurement/vendors/* pages for enrichment data.
+    Returns dict keyed by vendor name (lowercased) with extra fields."""
+    enrichment = {}
+    for slug, md in vendor_slugs_and_md:
+        if not md:
+            continue
+        vendor_name = slug.split("/")[-1].replace("-", " ").title()
+        info = {}
+        for cells in _parse_md_table(md):
+            if len(cells) >= 2:
+                key = cells[0].strip().lower()
+                val = cells[1].strip()
+                if "reg" in key and "no" in key:
+                    info["companyRegNo"] = val
+                elif "phone" in key:
+                    info["officePhone"] = val
+                elif "address" in key:
+                    info["registeredAddress"] = val
+                elif "website" in key or "web" in key:
+                    info["website"] = val
+                elif "pic" in key and "name" in key:
+                    info["picName"] = val
+                elif "pic" in key and ("contact" in key or "phone" in key):
+                    info["picContact"] = val
+                elif "pic" in key and "email" in key:
+                    info["picEmail"] = val
+                elif "bank" in key and "account" in key:
+                    info["bankAccountNo"] = val
+                elif "swift" in key:
+                    info["bankSwiftCode"] = val
+                elif "payment" in key and "term" in key:
+                    info["paymentTerm"] = val
+                elif "payment" in key and "bank" in key:
+                    info["paymentBank"] = val
+                elif "courier" in key:
+                    info["preferredCourier"] = val
+        if info:
+            enrichment[vendor_name.lower()] = info
+    return enrichment
+
+# Try to fetch vendor enrichment pages (best-effort, won't fail if missing)
+_vendor_enrichment = {}
+try:
+    _vendor_list_raw = sql("SELECT slug FROM pages WHERE slug LIKE 'procurement/vendors/%' AND deleted_at IS NULL LIMIT 50")
+    if _vendor_list_raw:
+        _vendor_enrichment = parse_vendor_pages(
+            [(s, _safe_fetch(s)) for s in _vendor_list_raw.splitlines() if s.strip()]
+        )
+except Exception:
+    pass
+
 supplier_directory = []
 for vendor_name, spend in sorted(ap_rows, key=lambda x: -x[1]):
+    enrich = _vendor_enrichment.get(vendor_name.lower(), {})
     supplier_directory.append({
         "id": f"SUP-{vendor_name.replace(' ', '-').upper()[:20]}",
         "companyName": vendor_name,
-        "companyRegNo": "",  # TODO: enrich from company registry
-        "officePhone": "",
-        "registeredAddress": "",
-        "website": "",
-        "picName": "",
-        "picContact": "",
-        "picEmail": "",
-        "paymentTerm": "From A/P ageing (no terms data)",
+        "companyRegNo": enrich.get("companyRegNo", ""),
+        "officePhone": enrich.get("officePhone", ""),
+        "registeredAddress": enrich.get("registeredAddress", ""),
+        "website": enrich.get("website", ""),
+        "picName": enrich.get("picName", ""),
+        "picContact": enrich.get("picContact", ""),
+        "picEmail": enrich.get("picEmail", ""),
+        "paymentTerm": enrich.get("paymentTerm", "From A/P ageing (no terms data)"),
         "paymentCurrency": "MYR",
-        "paymentBank": "",
-        "bankAccountNo": "",
-        "bankSwiftCode": None,
-        "preferredCourier": "",
+        "paymentBank": enrich.get("paymentBank", ""),
+        "bankAccountNo": enrich.get("bankAccountNo", ""),
+        "bankSwiftCode": enrich.get("bankSwiftCode") or None,
+        "preferredCourier": enrich.get("preferredCourier", ""),
     })
 
-# 3. supplierHistory ← derive from PO register + vendor spend (item-level history not tracked yet)
-supplier_history = []  # TODO: wire to PO register with item-level breakdown
 
-# 4. demoPurchaseRequisitions ← no source yet (needs PR pages in gbrain)
-purchase_requisitions = []  # TODO: wire to procurement/purchase-requisitions/* pages
+# ── 3. Supplier History ──────────────────────────────────────
+# Source: PO register (item-level) joined with vendor spend.
+# Falls back to deriving from ap_rows + po_rows when item-level data absent.
+# Contract: SupplierHistoryEntry (types.ts lines 1668-1678)
 
-# 5. barcodeBatchRecords ← no source yet (needs barcode batch/scan state tracking)
-barcode_batches = []  # TODO: wire to barcode scan event log
+def parse_supplier_history(po_data, vendor_spend):
+    """Build supplier history from PO rows grouped by vendor.
+    Each entry represents one vendor's purchasing history summary."""
+    if not po_data and not vendor_spend:
+        return []
+    # Group POs by vendor
+    vendor_pos = {}
+    for po in po_data:
+        v = po.get("vendor", "")
+        if v not in vendor_pos:
+            vendor_pos[v] = []
+        vendor_pos[v].append(po)
+    history = []
+    idx = 0
+    for vendor_name, spend in sorted(vendor_spend, key=lambda x: -x[1]):
+        pos = vendor_pos.get(vendor_name, [])
+        orders_count = len(pos) if pos else 1
+        total_spent = spend
+        last_date = ""
+        last_price = 0.0
+        if pos:
+            last_po = max(pos, key=lambda p: p.get("order_date", ""))
+            last_date = last_po.get("order_date", "")
+            last_price = last_po.get("total_amount", 0.0)
+        avg_lead = 14  # default assumption until real lead-time tracking exists
+        rating = 3.0   # neutral until quality/delivery data exists
+        history.append({
+            "id": f"SH-{idx:04d}",
+            "item_name": f"{vendor_name} (all items)",
+            "supplier_name": vendor_name,
+            "last_price": round(last_price, 2),
+            "last_order_date": last_date,
+            "orders_count": orders_count,
+            "avg_lead_time_days": avg_lead,
+            "rating": rating,
+            "total_spent": round(total_spent, 2),
+        })
+        idx += 1
+    return history
+
+supplier_history = parse_supplier_history(po_rows, ap_rows)
+
+
+# ── 4. Purchase Requisitions ─────────────────────────────────
+# Brain page: procurement/purchase-requisitions/* (one page per PR, or index).
+# Contract: DemoPurchaseRequisition (types.ts lines 1468-1484)
+#           → items: PurchaseRequisitionItem[] (types.ts lines 1443-1466)
+
+def parse_purchase_requisitions(md):
+    """Parse PR markdown pages into DemoPurchaseRequisition dicts."""
+    if not md:
+        return []
+    prs = []
+    sections = re.split(r'^## ', md, flags=re.MULTILINE)
+    for sec in sections[1:]:
+        lines = sec.strip().splitlines()
+        pr_title = lines[0].strip() if lines else ""
+        meta = {}
+        items = []
+        # Parse metadata table
+        for cells in _parse_md_table(sec):
+            if len(cells) >= 2:
+                key = cells[0].strip().lower().replace(" ", "_")
+                val = cells[1].strip()
+                if key in ("pr_number", "project_name", "requester", "department",
+                           "priority", "justification", "status", "created_at",
+                           "total_amount", "finance_approved_by", "finance_approved_at",
+                           "finance_notes", "finance_rejection_reason", "template_version"):
+                    meta[key] = val
+        # Parse items table
+        for cells in _parse_md_table(sec, header_match="item"):
+            if len(cells) >= 4:
+                qty = int(cells[2]) if len(cells) > 2 and cells[2].isdigit() else 1
+                est_price = float(cells[3].replace(",", "").replace("RM", "")) if len(cells) > 3 else 0
+                item = {
+                    "id": cells[0] if cells[0] else f"item-{len(items)}",
+                    "name": cells[1] if len(cells) > 1 else "",
+                    "quantity": qty,
+                    "unit": cells[4] if len(cells) > 4 else "unit",
+                    "estimated_price": est_price,
+                    "selected_supplier": {
+                        "supplier_name": cells[5] if len(cells) > 5 else "",
+                        "amount": float(cells[6].replace(",", "").replace("RM", "")) if len(cells) > 6 else est_price * qty,
+                        "lead_time_days": int(cells[7]) if len(cells) > 7 and cells[7].isdigit() else 14,
+                    },
+                }
+                items.append(item)
+        priority = meta.get("priority", "Medium")
+        if priority not in ("Low", "Medium", "High", "Urgent"):
+            priority = "Medium"
+        status = meta.get("status", "Draft")
+        valid_statuses = ("Draft", "Pending Finance Approval", "Approved", "Rejected",
+                          "Clarification Requested", "Converted to PO")
+        if status not in valid_statuses:
+            status = "Draft"
+        total = float(meta.get("total_amount", "0").replace(",", "").replace("RM", "")) or \
+                sum(it["estimated_price"] * it["quantity"] for it in items)
+        prs.append({
+            "pr_number": meta.get("pr_number", pr_title),
+            "project_name": meta.get("project_name", ""),
+            "requester": meta.get("requester", ""),
+            "department": meta.get("department", "procurement"),
+            "priority": priority,
+            "justification": meta.get("justification", ""),
+            "status": status,
+            "items": items,
+            "total_amount": round(total, 2),
+            "created_at": meta.get("created_at", ""),
+            "finance_approved_by": meta.get("finance_approved_by"),
+            "finance_approved_at": meta.get("finance_approved_at"),
+            "finance_notes": meta.get("finance_notes"),
+            "finance_rejection_reason": meta.get("finance_rejection_reason"),
+            "template_version": meta.get("template_version"),
+        })
+    return prs
+
+pr_md = _safe_fetch("procurement/purchase-requisitions")
+purchase_requisitions = parse_purchase_requisitions(pr_md)
+
+
+# ── 5. Barcode Batches ───────────────────────────────────────
+# Brain page: procurement/barcode-batches (index or per-batch pages).
+# Contract: BarcodeBatch (types.ts lines 1495-1503)
+#           → items: BarcodeBatchItem[] (types.ts lines 1487-1493)
+
+def parse_barcode_batches(md):
+    """Parse barcode batch markdown into BarcodeBatch dicts."""
+    if not md:
+        return []
+    batches = []
+    sections = re.split(r'^## ', md, flags=re.MULTILINE)
+    for sec in sections[1:]:
+        lines = sec.strip().splitlines()
+        batch_title = lines[0].strip() if lines else ""
+        meta = {}
+        items = []
+        # Parse metadata table
+        for cells in _parse_md_table(sec):
+            if len(cells) >= 2:
+                key = cells[0].strip().lower().replace(" ", "_")
+                val = cells[1].strip()
+                if key in ("batch_id", "po_number", "generated_at", "generated_by"):
+                    meta[key] = val
+        # Parse items table
+        for cells in _parse_md_table(sec, header_match="barcode"):
+            if len(cells) >= 2:
+                scanned_val = cells[2].strip().lower() if len(cells) > 2 else "false"
+                scanned = scanned_val in ("true", "yes", "✓", "scanned", "1")
+                items.append({
+                    "item_name": cells[0] if cells[0] else "",
+                    "barcode_code": cells[1] if len(cells) > 1 else "",
+                    "scanned": scanned,
+                    "scanned_at": cells[3] if len(cells) > 3 and scanned else None,
+                    "scanned_by": cells[4] if len(cells) > 4 and scanned else None,
+                })
+        scanned_count = sum(1 for it in items if it["scanned"])
+        batches.append({
+            "batch_id": meta.get("batch_id", f"batch-{len(batches)}"),
+            "po_number": meta.get("po_number", ""),
+            "generated_at": meta.get("generated_at", ""),
+            "generated_by": meta.get("generated_by", ""),
+            "items": items,
+            "total_items": len(items),
+            "scanned_count": scanned_count,
+        })
+    return batches
+
+barcode_md = _safe_fetch("procurement/barcode-batches")
+barcode_batches = parse_barcode_batches(barcode_md)
 
 # Build ver2 snapshots
 progress_tracker_snap = {
