@@ -49,7 +49,7 @@ def _primary_tenant_id(db: Session) -> int:
 
 @asynccontextmanager
 async def lifespan(app: FastAPI) -> AsyncIterator[None]:
-    """Startup: init DB + optional registry. Shutdown: placeholder for cleanup."""
+    """Startup: init DB + optional registry + gateway manager. Shutdown: cleanup."""
     cfg = get_config()
     # Persist secret key so restarts keep session signatures valid
     try:
@@ -89,9 +89,39 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     else:
         logger.info("Skipping central registry (auto_register=%s url=%r)", cfg.auto_register, cfg.registry_url)
 
+    # ── Start department gateway processes ──
+    from gateway_manager import gateway_manager
+    try:
+        with session_scope() as db:
+            from models import Department
+            active_depts = db.execute(
+                select(Department.name, Department.profile_name, Department.gateway_port)
+                .where(Department.status == "active")
+                .order_by(Department.id)
+            ).all()
+            # Deduplicate by name (keep first occurrence)
+            seen = set()
+            unique_depts = []
+            for name, profile_name, port in active_depts:
+                if name not in seen and port:
+                    seen.add(name)
+                    unique_depts.append((name, profile_name, int(port)))
+        if unique_depts:
+            logger.info("Starting %d department gateways...", len(unique_depts))
+            asyncio.create_task(gateway_manager.start(unique_depts))
+        else:
+            logger.info("No active departments found — gateways not started")
+    except Exception as exc:
+        logger.warning("Gateway manager start failed (non-fatal): %s", exc)
+
     yield
 
+    # ── Shutdown: kill all gateway processes ──
     logger.info("Shutting down Shogun web portal")
+    try:
+        await gateway_manager.stop()
+    except Exception as exc:
+        logger.warning("Gateway manager stop error: %s", exc)
 
 
 def create_app() -> FastAPI:

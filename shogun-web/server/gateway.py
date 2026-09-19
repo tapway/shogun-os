@@ -669,13 +669,34 @@ async def gateway_proxy(websocket: WebSocket, profile_name: str) -> None:
         await _handle_embedded_agent_session(websocket, resolved_profile, dept, user_id=user_id)
         return
 
-    # Send awakening status while connecting to gateway
-    try:
-        await websocket.send_json(
-            {"type": "status", "state": "awakening", "message": f"Connecting to {dept.name.capitalize()} agent..."}
-        )
-    except Exception:
-        pass
+    # Check gateway manager state for smarter status messages
+    from gateway_manager import gateway_manager
+    gw_state = gateway_manager.get_state(dept.name)
+
+    if gw_state and gw_state.state == "spawning":
+        try:
+            await websocket.send_json(
+                {"type": "status", "state": "awakening", "message": f"{gw_state.status_message}"}
+            )
+        except Exception:
+            pass
+    elif gw_state and gw_state.state == "failed":
+        try:
+            await websocket.send_json(
+                {"type": "status", "state": "fallback", "message": f"{dept.name.capitalize()} agent failed — running in basic mode"}
+            )
+        except Exception:
+            pass
+        await _handle_embedded_agent_session(websocket, resolved_profile, dept, user_id=user_id)
+        return
+    else:
+        # Send awakening status while connecting to gateway
+        try:
+            await websocket.send_json(
+                {"type": "status", "state": "awakening", "message": f"Connecting to {dept.name.capitalize()} agent..."}
+            )
+        except Exception:
+            pass
 
     upstream_url = f"ws://127.0.0.1:{int(port)}/api/ws"
     # Chat daemons (isolated hermes serve) require the session token on the
@@ -769,3 +790,20 @@ async def gateway_info(
         "ws_path": f"/gateway/{dept.profile_name}",
         "upstream_ws": f"ws://127.0.0.1:{dept.gateway_port}/ws" if dept.gateway_port else None,
     }
+
+
+@router.get("/gateway-status")
+async def gateway_status_all() -> dict:
+    """Return status of all managed department gateways."""
+    from gateway_manager import gateway_manager
+    result = {}
+    for name, gw in gateway_manager.gateways.items():
+        result[name] = {
+            "profile_name": gw.profile_name,
+            "port": gw.port,
+            "state": gw.state,
+            "pid": gw.pid,
+            "message": gw.status_message,
+            "restart_count": gw.restart_count,
+        }
+    return {"gateways": result}
