@@ -415,13 +415,38 @@ async def _generate_department_response_async(
     if llm_reply:
         return llm_reply
 
-    # No LLM response available — return honest status instead of fabricated data
+    # LLM call failed — show helpful diagnostic instead of silent failure
+    api_key = os.environ.get("OPENAI_API_KEY") or os.environ.get("DASHSCOPE_API_KEY")
+    if not api_key:
+        # Check .env files
+        for p in [Path(__file__).resolve().parents[2] / ".env", Path.home() / ".shogun-os" / ".env"]:
+            if p.is_file():
+                try:
+                    for line in p.read_text(encoding="utf-8").splitlines():
+                        if line.strip().startswith(("OPENAI_API_KEY=", "DASHSCOPE_API_KEY=")):
+                            api_key = "found"
+                            break
+                except Exception:
+                    pass
+            if api_key:
+                break
+
+    if not api_key:
+        return (
+            f"⚠️ **{display_name} agent could not respond**\n\n"
+            f"No AI API key configured. To enable chatbot responses:\n\n"
+            f"1. Set `DASHSCOPE_API_KEY` or `OPENAI_API_KEY` in your `.env` file\n"
+            f"2. Restart the ShogunOS server\n\n"
+            f"Your question was: *\"{prompt}\"*"
+        )
+
     return (
-        f"As the **{display_name}** AI Assistant ({persona}), I have received your query:\n\n"
-        f"> *\"{prompt}\"*\n\n"
-        f"I currently have limited data available for this request. "
-        f"Please ensure the {display_name} brain pages are populated and try again, "
-        f"or rephrase your question with more specific details."
+        f"⚠️ **{display_name} agent encountered an error**\n\n"
+        f"The AI service could not process your request. This may be due to:\n"
+        f"- Network connectivity issues\n"
+        f"- API rate limiting or quota exceeded\n"
+        f"- Temporary service outage\n\n"
+        f"Please try again in a moment. Your question was: *\"{prompt}\"*"
     )
 
 
@@ -497,6 +522,13 @@ async def _handle_embedded_agent_session(
             break
         except Exception as exc:
             logger.warning("Error in embedded agent session: %s", exc)
+            try:
+                await websocket.send_json({
+                    "type": "error",
+                    "message": f"An error occurred while processing your message: {exc}. Please try again.",
+                })
+            except Exception:
+                pass
             break
 
 

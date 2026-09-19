@@ -772,16 +772,27 @@ export function useChatSocket(
 
       ws.onerror = () => {
         if (!isMounted) return;
+        onEventRef.current?.({ type: 'error', message: `Connection error to ${department} agent. Retrying...` });
       };
 
       ws.onclose = () => {
         if (!isMounted) return;
         setConnected(false);
         wsRef.current = null;
-        // Only retry up to 3 times, then give up silently (gateway not running)
         retryCount += 1;
         if (retryCount <= 3) {
+          onEventRef.current?.({
+            type: 'status' as any,
+            state: 'awakening',
+            message: `Reconnecting to ${department} agent (attempt ${retryCount}/3)...`,
+          } as any);
           timer = window.setTimeout(connect, 3000);
+        } else {
+          onEventRef.current?.({
+            type: 'status' as any,
+            state: 'fallback',
+            message: `Could not connect to ${department} agent after 3 attempts. Running in basic mode.`,
+          } as any);
         }
       };
     };

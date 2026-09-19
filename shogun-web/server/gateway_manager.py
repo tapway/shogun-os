@@ -193,7 +193,7 @@ class GatewayManager:
                 gw.consecutive_failures += 1
                 gw.last_failure_time = asyncio.get_event_loop().time()
                 gw.restart_count += 1
-                gw.status_message = f"Failed to start (exit {process.returncode}): {stderr[:100]}"
+                gw.status_message = f"Failed to start (exit {process.returncode}): {stderr[:100]}" if stderr else f"Process exited immediately (code {process.returncode}). Check profile '{gw.profile_name}' exists in ~/.hermes/profiles/"
                 logger.error("Gateway %s failed to start (exit %d): %s", name, process.returncode, stderr[:200])
                 return
 
@@ -288,7 +288,7 @@ class GatewayManager:
                         await self._spawn(name)
                     else:
                         gw.state = "failed"
-                        gw.status_message = f"Crashed {MAX_RESTARTS} times — manual restart needed"
+                        gw.status_message = f"Crashed {MAX_RESTARTS} times — profile '{gw.profile_name}' may be misconfigured. Check ~/.hermes/profiles/{gw.profile_name}/ and server logs."
                     continue
 
                 # TCP health check for running gateways
