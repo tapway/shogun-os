@@ -95,7 +95,14 @@ def _dept_catalog_meta(name: str) -> Dict[str, Any]:
         for spec in industry_specs:
             if spec["name"] == name:
                 return dict(spec)
-    return {"name": name, "label": name, "profile_name": f"{name}-manager"}
+    # Fallback: map known exceptions, else default to {name}-manager
+    _PROFILE_OVERRIDES = {
+        "customer-support": "customer-support",
+        "coding": "coding-agent",
+        "projects": "project-manager",
+    }
+    profile = _PROFILE_OVERRIDES.get(name, f"{name}-manager")
+    return {"name": name, "label": name, "profile_name": profile}
 
 
 def _ui_state(

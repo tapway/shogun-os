@@ -355,19 +355,19 @@ DEFAULT_DEPARTMENTS: List[Dict[str, Any]] = [
     },
     {
         "name": "customer-support",
-        "profile_name": "customer-support-manager",
+        "profile_name": "customer-support",
         "label": "Customer Support",
         "port_offset": 7,
     },
     {
         "name": "coding",
-        "profile_name": "coding-manager",
+        "profile_name": "coding-agent",
         "label": "Coding",
         "port_offset": 8,
     },
     {
         "name": "projects",
-        "profile_name": "projects-manager",
+        "profile_name": "project-manager",
         "label": "Projects",
         "port_offset": 10,
     },
@@ -422,14 +422,14 @@ SHARED_DEPARTMENTS: List[Dict[str, Any]] = [
     {"name": "crm", "profile_name": "crm-manager", "label": "CRM", "port_offset": 4},
     {"name": "marketing", "profile_name": "marketing-manager", "label": "Marketing", "port_offset": 5},
     {"name": "compliance", "profile_name": "compliance-manager", "label": "Compliance", "port_offset": 6},
-    {"name": "customer-support", "profile_name": "customer-support-manager", "label": "Customer Support", "port_offset": 7},
-    {"name": "coding", "profile_name": "coding-manager", "label": "Coding", "port_offset": 8},
+    {"name": "customer-support", "profile_name": "customer-support", "label": "Customer Support", "port_offset": 7},
+    {"name": "coding", "profile_name": "coding-agent", "label": "Coding", "port_offset": 8},
 ]
 
 # Industry-specific departments — only available when their industry is selected
 INDUSTRY_DEPARTMENTS: Dict[str, List[Dict[str, Any]]] = {
     "general": [
-        {"name": "projects", "profile_name": "projects-manager", "label": "Projects", "port_offset": 9},
+        {"name": "projects", "profile_name": "project-manager", "label": "Projects", "port_offset": 9},
         {"name": "product", "profile_name": "product-manager", "label": "Product", "port_offset": 10},
     ],
     "manufacturing": [
